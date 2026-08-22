@@ -5,7 +5,8 @@
   "bin": "dist/cli.js",
   "files": [
     "dist",
-    "client"
+    "client",
+    "skills"
   ],
   "scripts": {
     "build": "tsx scripts/build-registry.ts && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",

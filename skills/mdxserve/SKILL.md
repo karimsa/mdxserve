@@ -1,0 +1,139 @@
+---
+name: mdxserve
+description: Use when writing or editing Markdown the user will read — docs, reports, plan files, notes — so the content renders as richly as possible in mdxserve while staying plain, portable Markdown.
+allowed-tools: Bash, Read, Grep, Glob
+---
+
+# Writing Markdown for mdxserve
+
+mdxserve serves a folder of `.md` / `.mdx` files as a browsable site: a file listing,
+rendered pages with syntax highlighting, mermaid diagrams, and a small library of builtin
+components. `.md` and `.mdx` are treated identically — both go through MDX, so the builtin
+components work in either.
+
+Markdown files have many readers besides mdxserve (GitHub, editors, other tools). The goal
+is the **simplest Markdown that is still visual**: reach for richer features only when they
+add clarity, and prefer features that degrade gracefully everywhere else.
+
+## The ladder — prefer lower rungs
+
+1. **Plain GitHub-flavored Markdown.** Headings, short paragraphs, lists, task lists, tables,
+   links, bold for the one thing that matters. Works everywhere. Most content should stop here.
+2. **Fenced code with a language tag.** Always tag the language (`ts`, `bash`, `json`, …). Add
+   fence meta when it helps the reader: `title="path/to/file.ts"`, `showLineNumbers`,
+   `{3-5}` to highlight lines. mdxserve renders these richly; other tools ignore the meta.
+3. **Mermaid diagrams** for flows, sequences, states, and architecture. mdxserve renders them as
+   pan/zoomable diagrams (with a toggle to the source); GitHub renders them too; everywhere else
+   they are still readable text. Prefer `flowchart` and `sequenceDiagram`; keep a diagram to
+   roughly 15 nodes or fewer — split larger ones.
+4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`) only when
+   they make the content clearer: a warning the reader must not miss, per-OS or per-language
+   variants of the same instructions, a status label. Outside mdxserve these show as raw tags,
+   so use them sparingly and never for decoration.
+
+Don't: write raw HTML or inline styles; import or create custom components; use emoji as
+icons where a `Badge` or `Callout` would do; nest components for layout; put a component in a
+file the user will mainly read elsewhere (e.g. a README on GitHub) unless they asked.
+
+MDX is stricter than Markdown: a bare `{`, `}` or an unclosed `<tag>` in prose is a compile
+error, not literal text. Put such characters in backticks or escape them (`\{`).
+
+## Quick reference
+
+A table beats a list of "X: Y" lines:
+
+```md
+| Option   | Default | Effect                    |
+| -------- | ------- | ------------------------- |
+| `--port` | `4040`  | Port to listen on         |
+| `--host` | `0.0.0.0` | Interface to bind        |
+```
+
+Code with a title, line numbers, and highlighted lines:
+
+````md
+```ts title="src/server.ts" showLineNumbers {3-4}
+const server = http.createServer(handler);
+server.listen(port);
+// highlighted:
+console.log(`http://localhost:${port}`);
+```
+````
+
+A flow and a sequence:
+
+````md
+```mermaid
+flowchart LR
+  Browser -->|GET /docs/intro.md| Server
+  Server -->|compile via Vite| Page[Rendered page]
+```
+````
+
+````md
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Server
+  U->>S: click file
+  S-->>U: rendered page
+```
+````
+
+Task lists for progress; keep them flat:
+
+```md
+- [x] Read the existing router
+- [ ] Add the listing endpoint
+- [ ] Verify in the browser
+```
+
+## Builtin components
+
+Available in any `.md` or `.mdx` with no import. The registry — not this file — is the
+authoritative list of components and props. Before using a component for the first time in a
+session, check it:
+
+```bash
+npx mdxserve components search           # list every builtin with a one-line description
+npx mdxserve components search tab       # search by name, description, or prop name
+npx mdxserve components show Callout     # props table (types, defaults) + when to use
+npx mdxserve components show Callout --json
+```
+
+Minimal usage:
+
+```mdx
+<Callout type="warn" title="Before you deploy">
+  Rotate the key first; the old one stops working immediately.
+</Callout>
+
+<Tabs>
+  <Tab label="macOS">`brew install foo`</Tab>
+  <Tab label="Linux">`apt install foo`</Tab>
+</Tabs>
+
+Status: <Badge color="green" dot>Online</Badge>
+
+The <Tooltip content="Mean time to recovery">MTTR</Tooltip> improved.
+
+<Button href="./setup.md">Continue to setup</Button>
+```
+
+Components contain ordinary Markdown: a `Tab` can hold lists, paragraphs, and code fences.
+Leave a blank line between a component tag and a Markdown block inside it so the block is
+parsed as Markdown.
+
+## Plan files
+
+Plans are read in mdxserve and in plain text. Use headings for phases, a task list per phase,
+a table for files-to-change, and at most one mermaid diagram (the architecture or the main
+flow). Skip components in plans unless the user views plans only in mdxserve.
+
+## Before saving
+
+- Every code fence has a language tag; titles and highlights only where they help.
+- Any diagram is a mermaid fence, small enough to read at a glance.
+- No raw HTML, styles, imports, or custom components.
+- Any builtin component used was checked with `components show` and genuinely clarifies.
+- The file still reads well as plain text.

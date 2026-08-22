@@ -5,13 +5,14 @@ export const meta = {
 
 # {meta.title}
 
-This file ends in `.mdx`, not `.md`. That's the difference that matters to `mdxserve`:
+This file ends in `.mdx`, but to `mdxserve` that makes no difference: `.md` and `.mdx` are
+compiled through the same MDX pipeline. Either extension lets you export values, write inline
+JSX, use the builtin components, and drop in JavaScript expressions wrapped in curly braces,
+all inside what otherwise reads like a normal Markdown document.
 
-- `.md` files are treated as plain Markdown. No JavaScript or JSX is evaluated — text that
-  looks like JSX (`<div>`, `{...}`) is shown as literal text.
-- `.mdx` files are compiled through the MDX pipeline, which means you can export values,
-  write inline JSX, and drop in JavaScript expressions wrapped in curly braces, all inside
-  what otherwise reads like a normal Markdown document.
+One consequence worth knowing: MDX is stricter than plain Markdown. A stray `{` or an unclosed
+`<tag>` in prose is a compile error (shown in the page) rather than literal text — escape them
+as `\{` or wrap them in backticks.
 
 The `export const meta = {...}` block above isn't rendered — it defines a plain JS object you
 can reference later in the file, like the page title just did with `{meta.title}`.
@@ -34,8 +35,8 @@ month — this is re-evaluated every time the page renders.
 
 ## Why this matters
 
-If you only ever write plain Markdown, `.md` is simpler and safer — nothing you write will
-accidentally be interpreted as code. Reach for `.mdx` when you want to embed interactive
-components or compute something inline. See
+Write whatever reads best as Markdown, and reach for JSX only when you want to embed
+interactive components or compute something inline. See
 [`03-custom-components.mdx`](./03-custom-components.mdx) for importing real components instead
-of writing raw JSX by hand.
+of writing raw JSX by hand, and [`06-builtins.mdx`](./06-builtins.mdx) for the components that
+need no import at all.

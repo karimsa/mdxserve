@@ -54,6 +54,12 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   // files are compiled to JSX before the react plugin's babel transform.
   const mdxPlugin = {
     ...mdx({
+      // Treat .md exactly like .mdx: builtin components and JSX work in both.
+      // (The default "detect" mode parses .md as plain Markdown and silently
+      // drops unknown tags.)
+      format: "mdx",
+      mdxExtensions: [".mdx", ".md"],
+      mdExtensions: [],
       remarkPlugins: [remarkGfm],
       rehypePlugins: [
         [
