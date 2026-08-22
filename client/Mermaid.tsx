@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import svgPanZoom from "svg-pan-zoom";
 
 type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
 
@@ -56,11 +57,105 @@ export function MermaidDiagram({ source }: { source: string }) {
       </div>
     );
   }
+  return <PanZoomSvg svg={state.svg} />;
+}
+
+/**
+ * Hosts the rendered SVG in a fixed-height viewport with svg-pan-zoom
+ * (drag to pan, wheel / double-click to zoom, +/−/reset controls).
+ */
+function PanZoomSvg({ svg }: { svg: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<SvgPanZoom.Instance | null>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // Inject the markup imperatively (not via a React prop) so a re-render of
+    // this component never resets the DOM that svg-pan-zoom mutates
+    // (its viewport group + transform).
+    host.innerHTML = svg;
+    const el = host.querySelector("svg");
+    if (!el) return;
+
+    // Mermaid sizes the SVG with a max-width + 100% width; svg-pan-zoom needs
+    // it to fill the viewport so the viewBox can be fitted and panned.
+    el.style.maxWidth = "none";
+    el.style.width = "100%";
+    el.style.height = "100%";
+    el.setAttribute("width", "100%");
+    el.setAttribute("height", "100%");
+
+    const instance = svgPanZoom(el, {
+      zoomEnabled: true,
+      panEnabled: true,
+      controlIconsEnabled: false, // we render our own controls below
+      mouseWheelZoomEnabled: true,
+      dblClickZoomEnabled: true,
+      fit: true,
+      center: true,
+      minZoom: 0.2,
+      maxZoom: 10,
+      zoomScaleSensitivity: 0.3,
+    });
+    instanceRef.current = instance;
+
+    const observer = new ResizeObserver(() => {
+      instance.resize();
+      instance.fit();
+      instance.center();
+    });
+    observer.observe(host);
+
+    return () => {
+      observer.disconnect();
+      instance.destroy();
+      instanceRef.current = null;
+      host.innerHTML = "";
+    };
+  }, [svg]);
+
+  function reset() {
+    const instance = instanceRef.current;
+    if (!instance) return;
+    instance.resize();
+    instance.fit();
+    instance.center();
+  }
+
   return (
-    <div
-      className="overflow-x-auto px-4 py-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
-      // SVG produced by mermaid.render with securityLevel "strict" (sanitized).
-      dangerouslySetInnerHTML={{ __html: state.svg }}
-    />
+    <div className="relative">
+      <div
+        ref={hostRef}
+        className="mermaid-viewport h-96 w-full cursor-grab select-none active:cursor-grabbing"
+      />
+      <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-md bg-gray-900/90 shadow-sm ring-1 ring-white/10 backdrop-blur">
+        <ControlButton label="Zoom in" onClick={() => instanceRef.current?.zoomIn()}>
+          <path d="M8 3.5v9M3.5 8h9" />
+        </ControlButton>
+        <ControlButton label="Reset view" onClick={reset}>
+          <path d="M3.5 8a4.5 4.5 0 1 0 1.3-3.2M3.5 3v2.5H6" />
+        </ControlButton>
+        <ControlButton label="Zoom out" onClick={() => instanceRef.current?.zoomOut()}>
+          <path d="M3.5 8h9" />
+        </ControlButton>
+      </div>
+    </div>
+  );
+}
+
+function ControlButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="flex h-7 w-7 cursor-pointer items-center justify-center text-gray-400 transition-colors hover:bg-white/10 hover:text-white [&+&]:border-t [&+&]:border-white/10"
+    >
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+        {children}
+      </svg>
+    </button>
   );
 }

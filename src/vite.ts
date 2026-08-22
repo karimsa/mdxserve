@@ -33,6 +33,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
   const mdxReactEntry = resolveFromPkg("@mdx-js/react");
   const mermaidEntry = resolveFromPkg("mermaid");
+  // svg-pan-zoom is CJS; alias the package dir (not the browserified dist
+  // main) so Vite picks the plain `module.exports` entry and interops it.
+  const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
   const zodEntry = resolveFromPkg("zod");
 
   // @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
@@ -89,13 +92,14 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         { find: "react", replacement: reactEntry },
         { find: "@mdx-js/react", replacement: mdxReactEntry },
         { find: "mermaid", replacement: mermaidEntry },
+        { find: "svg-pan-zoom", replacement: svgPanZoomEntry },
         { find: "zod", replacement: zodEntry },
       ],
       dedupe: ["react", "react-dom"],
     },
     optimizeDeps: {
       entries: [],
-      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@mdx-js/react", "mermaid", "zod"],
+      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@mdx-js/react", "mermaid", "svg-pan-zoom", "zod"],
     },
   });
 

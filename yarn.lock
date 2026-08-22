@@ -854,6 +854,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/svg-pan-zoom@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "@types/svg-pan-zoom@npm:3.4.0"
+  dependencies:
+    svg-pan-zoom: "npm:*"
+  checksum: 10c0/34b01fa74dbd873b3e34c2448348e7905988e2e14ad336838e164ccf2267a637961970225d3b690f53b7e52528b41b0be9ed17f7b04b068f8f1788ea28dfd9a0
+  languageName: node
+  linkType: hard
+
 "@types/trusted-types@npm:^2.0.7":
   version: 2.0.7
   resolution: "@types/trusted-types@npm:2.0.7"
@@ -2720,6 +2729,7 @@ __metadata:
     "@types/node": "npm:^26.2.0"
     "@types/react": "npm:^19.2.18"
     "@types/react-dom": "npm:^19.2.4"
+    "@types/svg-pan-zoom": "npm:^3.4.0"
     "@vitejs/plugin-react": "npm:^6.0.5"
     commander: "npm:15.0.0"
     esbuild: "npm:0.28.2"
@@ -2729,10 +2739,12 @@ __metadata:
     rehype-pretty-code: "npm:^0.14.5"
     remark-gfm: "npm:^4.0.1"
     shiki: "npm:^4.4.2"
+    svg-pan-zoom: "npm:^3.6.2"
     tailwindcss: "npm:^4.3.3"
     tsx: "npm:^4.23.12"
     typescript: "npm:7.0.2"
     vite: "npm:^8.2.1"
+    zod: "npm:^4.4.3"
   bin:
     mdxserve: dist/cli.js
   languageName: unknown
@@ -3975,6 +3987,13 @@ __metadata:
   version: 4.4.0
   resolution: "stylis@npm:4.4.0"
   checksum: 10c0/259be096d90dfbfe903c8656dcb7591e52a421e577e950ef42ebd9ca02f387623a1165dd08761492fb6e92a7a562d62a53a694a10b0a2f6dcd7a0db107b4bf55
+  languageName: node
+  linkType: hard
+
+"svg-pan-zoom@npm:*, svg-pan-zoom@npm:^3.6.2":
+  version: 3.6.2
+  resolution: "svg-pan-zoom@npm:3.6.2"
+  checksum: 10c0/dc05030bd6545d523de71e38d79d6830f780a74416a609269cc378fe8778796e794cb3e27f0f5b20bd7ee930597820e5b4463e4e4e0708127bed81e020339ec0
   languageName: node
   linkType: hard
 

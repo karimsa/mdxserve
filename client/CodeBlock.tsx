@@ -120,7 +120,7 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
                   aria-selected={view === option}
                   onClick={() => setView(option)}
                   className={
-                    "rounded px-2 py-0.5 capitalize transition-colors " +
+                    "cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
                     (view === option ? "bg-white/10 text-white" : "text-gray-400 hover:text-white")
                   }
                 >
@@ -132,7 +132,7 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-white"
+            className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-white"
           >
             {copied ? <CheckIcon /> : <ClipboardIcon />}
             {copied ? "Copied" : "Copy"}
