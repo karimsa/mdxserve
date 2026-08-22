@@ -19,6 +19,7 @@
     "@mdx-js/rollup": "^3.1.1",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
+    "@tippyjs/react": "^4.2.6",
     "@vitejs/plugin-react": "^6.0.5",
     "commander": "15.0.0",
     "framer-motion": "^13.0.0",
@@ -30,6 +31,7 @@
     "shiki": "^4.4.2",
     "svg-pan-zoom": "^3.6.2",
     "tailwindcss": "^4.3.3",
+    "tippy.js": "^6.3.7",
     "vite": "^8.2.1",
     "zod": "^4.4.3"
   },

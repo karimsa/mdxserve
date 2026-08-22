@@ -42,6 +42,13 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   // package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
   // entry instead.
   const framerMotionEntry = path.dirname(resolveFromPkg("framer-motion/package.json"));
+  // tippy.js must be aliased to its package dir (not just resolved to its CJS
+  // `main`) so subpath imports like "tippy.js/dist/tippy.css" resolve too.
+  const tippyEntry = path.dirname(resolveFromPkg("tippy.js/package.json"));
+  // @tippyjs/react's `main` is a UMD/CJS bundle (dist/tippy-react.umd.js);
+  // alias the package dir so Vite's own resolver picks the `module` (ESM)
+  // entry instead, same as framer-motion/svg-pan-zoom above.
+  const tippyReactEntry = path.dirname(resolveFromPkg("@tippyjs/react/package.json"));
 
   // @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
   // files are compiled to JSX before the react plugin's babel transform.
@@ -105,6 +112,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         { find: "svg-pan-zoom", replacement: svgPanZoomEntry },
         { find: "zod", replacement: zodEntry },
         { find: "framer-motion", replacement: framerMotionEntry },
+        { find: "@tippyjs/react", replacement: tippyReactEntry },
+        { find: "tippy.js", replacement: tippyEntry },
       ],
       dedupe: ["react", "react-dom"],
     },
@@ -120,6 +129,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         "svg-pan-zoom",
         "zod",
         "framer-motion",
+        "@tippyjs/react",
+        "tippy.js",
       ],
     },
   });

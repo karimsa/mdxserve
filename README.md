@@ -49,12 +49,23 @@ like normal `<a href>` navigation.
 ## Builtin components
 
 `mdxserve` ships a small library of components that are available in every `.mdx` file with
-no `import` needed — currently `Callout`, a boxed aside with an icon for notes and warnings:
+no `import` needed:
+
+- `Callout` — a boxed aside with an icon, for notes and warnings
+- `Button` — a link/button with variants, sizes, and a small tap animation
+- `Tooltip` — a hover/focus tooltip (via tippy.js) for inline content
+- `Tabs` / `Tab` — a tabbed container that cross-fades between panels
+- `Badge` — a small inline pill for a status, tag, or label
 
 ```mdx
 <Callout type="warn" title="Heads up">
   Some caveat worth calling out.
 </Callout>
+
+<Tabs>
+  <Tab label="npm">Run `npm install`.</Tab>
+  <Tab label="yarn">Run `yarn install`.</Tab>
+</Tabs>
 ```
 
 A local `import` of a component with the same name always takes priority over a builtin.

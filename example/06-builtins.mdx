@@ -16,6 +16,82 @@ import wins.
   the body.
 </Callout>
 
+## Button
+
+<div className="not-prose flex flex-wrap items-center gap-3">
+  <Button variant="primary">Primary</Button>
+  <Button variant="secondary">Secondary</Button>
+  <Button variant="ghost">Ghost</Button>
+  <Button variant="danger">Danger</Button>
+</div>
+
+<div className="not-prose mt-3 flex flex-wrap items-center gap-3">
+  <Button size="sm">Small</Button>
+  <Button size="md">Medium</Button>
+  <Button size="lg">Large</Button>
+</div>
+
+<div className="not-prose mt-3">
+  <Button href="/01-markdown.md">Go to 01-markdown.md</Button>
+</div>
+
+`href` renders the button as a link; since it points at another doc in this folder, the
+SPA router intercepts the click and navigates client-side instead of a full page load.
+Click any button and watch it pop.
+
+## Tooltip
+
+Hover over <Tooltip content="A tooltip on plain inline text.">this dotted word</Tooltip> to
+see a tippy.js tooltip themed to match mdxserve. Tooltips also work on other inline builtins,
+like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
+<Badge color="sky">hover me</Badge>
+</Tooltip>.
+
+## Tabs
+
+<Tabs>
+  <Tab label="Overview">
+    `Tabs` reads its `Tab` children to build a tab list and cross-fades between panels.
+    Panel content is regular prose — lists, code fences, anything MDX supports.
+  </Tab>
+  <Tab label="Example list">
+    - Tabs remember which panel was active
+    - Switching animates an underline between tab labels
+    - Arrow keys move focus between tabs
+  </Tab>
+  <Tab label="Code">
+    ```tsx
+    <Tabs defaultValue="b">
+      <Tab label="A" value="a">First panel</Tab>
+      <Tab label="B" value="b">Second panel</Tab>
+    </Tabs>
+    ```
+  </Tab>
+</Tabs>
+
+## Badge
+
+<div className="not-prose flex flex-wrap items-center gap-2">
+  <Badge color="gray">gray</Badge>
+  <Badge color="sky">sky</Badge>
+  <Badge color="green">green</Badge>
+  <Badge color="amber">amber</Badge>
+  <Badge color="red">red</Badge>
+  <Badge color="violet">violet</Badge>
+</div>
+
+<div className="not-prose mt-2 flex flex-wrap items-center gap-2">
+  <Badge variant="soft">soft</Badge>
+  <Badge variant="solid">solid</Badge>
+  <Badge variant="outline">outline</Badge>
+</div>
+
+<div className="not-prose mt-2 flex flex-wrap items-center gap-2">
+  <Badge color="green" dot>Online</Badge>
+  <Badge color="red" dot>Offline</Badge>
+  <Badge color="amber" dot>Degraded</Badge>
+</div>
+
 ## Discovering builtins from the CLI
 
 The same metadata that describes each builtin — its props, defaults, and when to use it — is

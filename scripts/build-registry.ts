@@ -12,7 +12,9 @@ const components = builtins.map(({ name, description, whenToUse, props }) => {
   const hasChildren = "children" in props.shape;
   const dataProps = hasChildren ? props.omit({ children: true }) : props;
   // "input" mode: props with defaults are optional for the author, not required.
-  const schema = z.toJSONSchema(dataProps, { io: "input" });
+  // `unrepresentable: "any"` lets z.custom<T>() props (e.g. Button's onClick
+  // handler) serialize as `{}` (shown as type `any`) instead of throwing.
+  const schema = z.toJSONSchema(dataProps, { io: "input", unrepresentable: "any" });
 
   const entry: {
     name: string;

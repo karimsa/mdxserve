@@ -4,18 +4,17 @@ import {
   isValidElement,
   useContext,
   useEffect,
-  useLayoutEffect,
   useId,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
   type ReactElement,
   type ReactNode,
-  type RefObject,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
-import { enterTransition, fadeSwap, fadeSwapTransition } from "./motion";
+import { enterTransition, fadeSwap } from "./motion";
+import { CrossFade } from "./CrossFade";
 
 /**
  * Tailwind Plus-style code block chrome for MDX-compiled output.
@@ -163,67 +162,16 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
         </div>
       </div>
       {isMermaid ? (
-        <CrossFadeViews
+        <CrossFade
           active={showDiagram ? "diagram" : "code"}
-          diagram={source !== null ? <MermaidDiagram source={source} /> : null}
-          code={<InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>}
+          panes={[
+            { key: "diagram", node: source !== null ? <MermaidDiagram source={source} /> : null },
+            { key: "code", node: <InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider> },
+          ]}
         />
       ) : (
         <InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>
       )}
-    </motion.div>
-  );
-}
-
-/**
- * Diagram ⇄ Code switcher. Both views stay mounted (the <pre> is queried for
- * copy/source extraction, and the diagram keeps its pan/zoom state) and are
- * stacked in a single grid cell; switching cross-fades them while the
- * container's height tweens to the active view's height, so nothing jumps.
- */
-function CrossFadeViews({ active, diagram, code }: { active: "diagram" | "code"; diagram: ReactNode; code: ReactNode }) {
-  const diagramRef = useRef<HTMLDivElement>(null);
-  const codeRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    const el = active === "diagram" ? diagramRef.current : codeRef.current;
-    if (!el) return;
-    const measure = () => setHeight(el.offsetHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [active, diagram]);
-
-  const pane = (key: "diagram" | "code", ref: RefObject<HTMLDivElement | null>, node: ReactNode) => {
-    const isActive = active === key;
-    return (
-      <motion.div
-        ref={ref}
-        className="[grid-area:1/1] self-start"
-        initial={false}
-        animate={{ opacity: isActive ? 1 : 0 }}
-        transition={fadeSwapTransition}
-        style={{ pointerEvents: isActive ? "auto" : "none" }}
-        inert={!isActive}
-        aria-hidden={!isActive}
-      >
-        {node}
-      </motion.div>
-    );
-  };
-
-  return (
-    <motion.div
-      className="grid overflow-hidden"
-      initial={false}
-      animate={height === null ? undefined : { height }}
-      transition={enterTransition}
-      style={height === null ? undefined : { height }}
-    >
-      {pane("diagram", diagramRef, diagram)}
-      {pane("code", codeRef, code)}
     </motion.div>
   );
 }

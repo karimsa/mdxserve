@@ -60,7 +60,9 @@ function typeOf(schema: Record<string, unknown>): string {
   if (Array.isArray(schema.anyOf)) {
     return (schema.anyOf as Record<string, unknown>[]).map(typeOf).join(" | ");
   }
-  return typeof schema.type === "string" ? schema.type : "unknown";
+  // An empty schema (e.g. z.custom<T>() serialized with `unrepresentable: "any"`)
+  // has no `type`/`enum`/`anyOf` — it means "accepts anything", i.e. `any`.
+  return typeof schema.type === "string" ? schema.type : "any";
 }
 
 /**
