@@ -7,6 +7,18 @@ files. Clicking a file renders it in the browser through Vite — so plain
 Markdown just renders, and any JSX or components you `import` in an `.mdx`
 file work too, with Tailwind available everywhere and Vite HMR while you edit.
 
+## Install
+
+From a fresh clone:
+
+```bash
+./setup.sh
+```
+
+This runs `yarn install`, `yarn build`, links `mdxserve` onto your `PATH` with
+`npm link`, and registers the skills in `./skills` with Claude Code, Codex, and
+`~/.agents/skills` via `npx skills add`. Re-run it after editing `./skills`.
+
 ## Usage
 
 ```bash
@@ -21,7 +33,7 @@ unclickable, so you can see what's there.
 
 ## Writing docs
 
-- Plain `.md` renders as GitHub-flavored Markdown (tables, task lists, etc.)
+- `.md` and `.mdx` are treated identically: GitHub-flavored Markdown (tables, task lists, etc.)
   with syntax-highlighted code blocks.
 - `.mdx` files can `import` React components (`.tsx`/`.jsx`) and use them
   directly as JSX. Components are resolved relative to the MDX file, exactly
