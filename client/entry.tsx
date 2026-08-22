@@ -1,18 +1,23 @@
 import { createRoot, type Root } from "react-dom/client";
 import { MDXProvider } from "@mdx-js/react";
+import { MotionConfig } from "framer-motion";
+import { App } from "./App";
 import { Figure, Pre } from "./CodeBlock";
 import { builtinComponents } from "./builtins/index";
+import type { Route } from "./router";
 
-function ErrorBox({ message }: { message: string }) {
-  return (
-    <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-      <p className="mb-2 font-semibold">Failed to render this page</p>
-      <pre className="whitespace-pre-wrap break-words font-mono text-xs">{message}</pre>
-    </div>
-  );
+function parseInitialRoute(): Route {
+  const fallback: Route = { kind: "notfound", path: location.pathname, rootName: "" };
+  const el = document.getElementById("__mdxserve_route");
+  if (!el?.textContent) return fallback;
+  try {
+    return JSON.parse(el.textContent) as Route;
+  } catch {
+    return fallback;
+  }
 }
 
-async function main() {
+function main() {
   const rootEl = document.getElementById("root");
   if (!rootEl) return;
 
@@ -20,31 +25,15 @@ async function main() {
   // below) instead of calling createRoot twice on the same container.
   const w = window as Window & { __mdxserveRoot?: Root };
   const root = (w.__mdxserveRoot ??= createRoot(rootEl));
-  const file = rootEl.dataset.file;
+  const initialRoute = parseInitialRoute();
 
-  if (!file) {
-    root.render(<ErrorBox message="No file specified." />);
-    return;
-  }
-
-  try {
-    const mod = await import(/* @vite-ignore */ file);
-    const Content = mod.default;
-    if (!Content) {
-      root.render(<ErrorBox message={`${file} has no default export.`} />);
-      return;
-    }
-    root.render(
+  root.render(
+    <MotionConfig reducedMotion="user">
       <MDXProvider components={{ ...builtinComponents, pre: Pre, figure: Figure }}>
-        <article className="prose prose-neutral dark:prose-invert max-w-none">
-          <Content />
-        </article>
+        <App initialRoute={initialRoute} />
       </MDXProvider>
-    );
-  } catch (error) {
-    const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-    root.render(<ErrorBox message={message} />);
-  }
+    </MotionConfig>
+  );
 }
 
 main();

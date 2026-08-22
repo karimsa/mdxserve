@@ -6,8 +6,8 @@ import fsp from "node:fs/promises";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
-import { renderListing } from "./listing.js";
-import { renderPageShell } from "./page.js";
+import { readListing } from "./listing.js";
+import { renderShell, type Route } from "./shell.js";
 
 export interface StartServerOptions {
   root: string;
@@ -34,6 +34,10 @@ function wantsHtml(req: http.IncomingMessage): boolean {
 
 function toPosix(p: string): string {
   return p.split(path.sep).join("/");
+}
+
+function rootNameOf(root: string): string {
+  return path.basename(root) || root;
 }
 
 async function generateAppCss(root: string, pkgRoot: string): Promise<{ dir: string; file: string }> {
@@ -137,6 +141,33 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   const pathname = url.split("?")[0] ?? "/";
   const search = url.slice(pathname.length);
 
+  // Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
+  // since this path also starts with MDXSERVE_PREFIX.
+  if (pathname === "/__mdxserve/api/listing") {
+    const queryPath = new URLSearchParams(search).get("path") ?? "/";
+    const resolvedForListing = safeResolve(root, queryPath);
+
+    let listingStat: fs.Stats | null = null;
+    if (resolvedForListing) {
+      try {
+        listingStat = await fsp.stat(resolvedForListing);
+      } catch {
+        listingStat = null;
+      }
+    }
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (!resolvedForListing || !listingStat?.isDirectory()) {
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: "Not found" }));
+      return;
+    }
+
+    res.statusCode = 200;
+    res.end(JSON.stringify(readListing(root, queryPath)));
+    return;
+  }
+
   if (pathname.startsWith(MDXSERVE_PREFIX)) {
     const rest = pathname.slice(MDXSERVE_PREFIX.length);
     const target = rest === "app.css" ? ctx.cssFile : path.join(pkgRoot, "client", rest);
@@ -171,17 +202,19 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       res.end();
       return;
     }
+    const route = readListing(root, decodedPathname);
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.end(renderListing(root, pathname));
+    res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
     return;
   }
 
   if (stat?.isFile() && isDocFile(resolved)) {
     if (wantsHtml(req)) {
+      const route: Route = { kind: "doc", path: decodedPathname, rootName: rootNameOf(root) };
       res.statusCode = 200;
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end(await vite.transformIndexHtml(pathname, renderPageShell(root, pathname)));
+      res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
       return;
     }
 
@@ -206,6 +239,14 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       res.end(`throw new Error(${JSON.stringify(`Failed to compile ${pathname}: ${message}`)});`);
       return;
     }
+  }
+
+  if (stat === null && wantsHtml(req)) {
+    const route: Route = { kind: "notfound", path: decodedPathname, rootName: rootNameOf(root) };
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
+    return;
   }
 
   vite.middlewares(req, res, () => {

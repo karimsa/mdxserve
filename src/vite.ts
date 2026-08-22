@@ -37,6 +37,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   // main) so Vite picks the plain `module.exports` entry and interops it.
   const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
   const zodEntry = resolveFromPkg("zod");
+  // framer-motion's default resolution can land on its CJS entry; alias the
+  // package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
+  // entry instead.
+  const framerMotionEntry = path.dirname(resolveFromPkg("framer-motion/package.json"));
 
   // @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
   // files are compiled to JSX before the react plugin's babel transform.
@@ -94,12 +98,23 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         { find: "mermaid", replacement: mermaidEntry },
         { find: "svg-pan-zoom", replacement: svgPanZoomEntry },
         { find: "zod", replacement: zodEntry },
+        { find: "framer-motion", replacement: framerMotionEntry },
       ],
       dedupe: ["react", "react-dom"],
     },
     optimizeDeps: {
       entries: [],
-      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@mdx-js/react", "mermaid", "svg-pan-zoom", "zod"],
+      include: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@mdx-js/react",
+        "mermaid",
+        "svg-pan-zoom",
+        "zod",
+        "framer-motion",
+      ],
     },
   });
 

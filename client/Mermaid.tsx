@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import svgPanZoom from "svg-pan-zoom";
+import { enterTransition, fadeSwap } from "./motion";
 
 type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
 
@@ -46,18 +48,31 @@ export function MermaidDiagram({ source }: { source: string }) {
     };
   }, [source, id]);
 
-  if (state.kind === "loading") {
-    return <div className="px-4 py-8 text-center text-xs text-gray-500">Rendering diagram…</div>;
-  }
-  if (state.kind === "error") {
-    return (
-      <div className="px-4 py-4 text-sm text-red-300">
-        <p className="mb-2 font-medium">Mermaid could not render this diagram</p>
-        <pre className="whitespace-pre-wrap font-mono text-xs text-red-200/80">{state.message}</pre>
-      </div>
-    );
-  }
-  return <PanZoomSvg svg={state.svg} />;
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {state.kind === "loading" ? (
+        <motion.div
+          key="loading"
+          variants={fadeSwap}
+          initial="initial"
+          animate="enter"
+          exit="exit"
+          className="px-4 py-8 text-center text-xs text-gray-500"
+        >
+          Rendering diagram…
+        </motion.div>
+      ) : state.kind === "error" ? (
+        <motion.div key="error" variants={fadeSwap} initial="initial" animate="enter" exit="exit" className="px-4 py-4 text-sm text-red-300">
+          <p className="mb-2 font-medium">Mermaid could not render this diagram</p>
+          <pre className="whitespace-pre-wrap font-mono text-xs text-red-200/80">{state.message}</pre>
+        </motion.div>
+      ) : (
+        <motion.div key="ok" variants={fadeSwap} initial="initial" animate="enter" exit="exit">
+          <PanZoomSvg svg={state.svg} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 /**
@@ -125,11 +140,17 @@ function PanZoomSvg({ svg }: { svg: string }) {
 
   return (
     <div className="relative">
-      <div
-        ref={hostRef}
-        className="mermaid-viewport h-96 w-full cursor-grab select-none active:cursor-grabbing"
-      />
-      <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-md bg-gray-900/90 shadow-sm ring-1 ring-white/10 backdrop-blur">
+      {/* The host div is mutated imperatively (host.innerHTML = svg, above) and must
+          never be re-rendered by React/motion; the fade lives on this wrapper instead. */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={enterTransition}>
+        <div ref={hostRef} className="mermaid-viewport h-96 w-full cursor-grab select-none active:cursor-grabbing" />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ ...enterTransition, delay: 0.1 }}
+        className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-md bg-gray-900/90 shadow-sm ring-1 ring-white/10 backdrop-blur"
+      >
         <ControlButton label="Zoom in" onClick={() => instanceRef.current?.zoomIn()}>
           <path d="M8 3.5v9M3.5 8h9" />
         </ControlButton>
@@ -139,7 +160,7 @@ function PanZoomSvg({ svg }: { svg: string }) {
         <ControlButton label="Zoom out" onClick={() => instanceRef.current?.zoomOut()}>
           <path d="M3.5 8h9" />
         </ControlButton>
-      </div>
+      </motion.div>
     </div>
   );
 }

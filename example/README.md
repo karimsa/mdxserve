@@ -20,6 +20,8 @@ MDX files as a browsable site. Point it at a directory and it will:
 - Switch between light and dark automatically based on your OS setting
 - Let `.mdx` files import and use React 19 components
 - Provide a small library of builtin components (like `Callout`) with no import required
+- Navigate between folders and docs client-side, with subtle enter/exit motion that
+  respects `prefers-reduced-motion`
 
 There is no build step and no config file required to get started.
 

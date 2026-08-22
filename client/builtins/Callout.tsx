@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 import { z } from "zod";
+import { fadeRise } from "../motion";
 
 export const calloutProps = z.object({
   type: z.enum(["info", "warn"]).default("info").describe("Visual intent: info (sky) or warn (amber)."),
@@ -24,7 +26,12 @@ export default function Callout({ type = "info", title, children }: CalloutProps
   const { bg, icon } = styles[type];
 
   return (
-    <div className={`not-prose flex items-start gap-3 rounded-lg p-4 my-4 ${bg}`}>
+    <motion.div
+      variants={fadeRise}
+      initial="initial"
+      animate="enter"
+      className={`not-prose flex items-start gap-3 rounded-lg p-4 my-4 ${bg}`}
+    >
       <span className="flex h-5 w-5 shrink-0 items-center justify-center text-base leading-none" aria-hidden="true">
         {icon}
       </span>
@@ -32,6 +39,6 @@ export default function Callout({ type = "info", title, children }: CalloutProps
         {title ? <p className="font-semibold">{title}</p> : null}
         {children}
       </div>
-    </div>
+    </motion.div>
   );
 }

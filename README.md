@@ -34,6 +34,18 @@ See [`example/`](./example) for a working tour of all of this — run it with:
 yarn dev   # runs `mdxserve example`
 ```
 
+## Navigation and motion
+
+The whole site is one client-side app: clicking into a folder or a `.md`/`.mdx` file
+navigates without a full page reload, with a subtle enter/exit fade between views
+(listing rows stagger in, docs cross-fade, the browser back/forward buttons work as
+expected). Code blocks, the Diagram/Code toggle on mermaid diagrams, and callouts get
+the same small in-page animations. Everything respects `prefers-reduced-motion` —
+turn it on and the transforms drop out while views still swap.
+
+Links to anything else (images, `.txt` files, other sites) are left alone and behave
+like normal `<a href>` navigation.
+
 ## Builtin components
 
 `mdxserve` ships a small library of components that are available in every `.mdx` file with

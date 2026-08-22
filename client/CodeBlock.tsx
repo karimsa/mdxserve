@@ -4,13 +4,18 @@ import {
   isValidElement,
   useContext,
   useEffect,
+  useLayoutEffect,
+  useId,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
   type ReactElement,
   type ReactNode,
+  type RefObject,
 } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
+import { enterTransition, fadeSwap, fadeSwapTransition } from "./motion";
 
 /**
  * Tailwind Plus-style code block chrome for MDX-compiled output.
@@ -83,6 +88,7 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
   const [source, setSource] = useState<string | null>(null);
   const label = title ?? language;
   const showDiagram = isMermaid && view === "diagram";
+  const toggleId = useId();
 
   // Pull the raw diagram text out of the (always-mounted) <pre> so the diagram
   // view and the copy button share one source of truth.
@@ -106,7 +112,13 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
   }
 
   return (
-    <div ref={containerRef} className="not-prose my-6 overflow-hidden rounded-xl bg-gray-950 shadow-md ring-1 ring-white/10">
+    <motion.div
+      ref={containerRef}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={enterTransition}
+      className="not-prose my-6 overflow-hidden rounded-xl bg-gray-950 shadow-md ring-1 ring-white/10"
+    >
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2">
         <span className="text-xs font-medium text-gray-400">{label}</span>
         <div className="flex items-center gap-3">
@@ -120,11 +132,18 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
                   aria-selected={view === option}
                   onClick={() => setView(option)}
                   className={
-                    "cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
-                    (view === option ? "bg-white/10 text-white" : "text-gray-400 hover:text-white")
+                    "relative cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
+                    (view === option ? "text-white" : "text-gray-400 hover:text-white")
                   }
                 >
-                  {option}
+                  {view === option ? (
+                    <motion.span
+                      layoutId={`${toggleId}-pill`}
+                      transition={enterTransition}
+                      className="absolute inset-0 rounded bg-white/10"
+                    />
+                  ) : null}
+                  <span className="relative">{option}</span>
                 </button>
               ))}
             </div>
@@ -135,16 +154,77 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
             className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-white"
           >
             {copied ? <CheckIcon /> : <ClipboardIcon />}
-            {copied ? "Copied" : "Copy"}
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span key={copied ? "copied" : "copy"} variants={fadeSwap} initial="initial" animate="enter" exit="exit">
+                {copied ? "Copied" : "Copy"}
+              </motion.span>
+            </AnimatePresence>
           </button>
         </div>
       </div>
-      {showDiagram && source !== null ? <MermaidDiagram source={source} /> : null}
-      {/* Keep the <pre> mounted (hidden in diagram view) so copy + source extraction keep working. */}
-      <div className={showDiagram ? "hidden" : undefined}>
+      {isMermaid ? (
+        <CrossFadeViews
+          active={showDiagram ? "diagram" : "code"}
+          diagram={source !== null ? <MermaidDiagram source={source} /> : null}
+          code={<InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>}
+        />
+      ) : (
         <InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>
-      </div>
-    </div>
+      )}
+    </motion.div>
+  );
+}
+
+/**
+ * Diagram ⇄ Code switcher. Both views stay mounted (the <pre> is queried for
+ * copy/source extraction, and the diagram keeps its pan/zoom state) and are
+ * stacked in a single grid cell; switching cross-fades them while the
+ * container's height tweens to the active view's height, so nothing jumps.
+ */
+function CrossFadeViews({ active, diagram, code }: { active: "diagram" | "code"; diagram: ReactNode; code: ReactNode }) {
+  const diagramRef = useRef<HTMLDivElement>(null);
+  const codeRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = active === "diagram" ? diagramRef.current : codeRef.current;
+    if (!el) return;
+    const measure = () => setHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [active, diagram]);
+
+  const pane = (key: "diagram" | "code", ref: RefObject<HTMLDivElement | null>, node: ReactNode) => {
+    const isActive = active === key;
+    return (
+      <motion.div
+        ref={ref}
+        className="[grid-area:1/1] self-start"
+        initial={false}
+        animate={{ opacity: isActive ? 1 : 0 }}
+        transition={fadeSwapTransition}
+        style={{ pointerEvents: isActive ? "auto" : "none" }}
+        inert={!isActive}
+        aria-hidden={!isActive}
+      >
+        {node}
+      </motion.div>
+    );
+  };
+
+  return (
+    <motion.div
+      className="grid overflow-hidden"
+      initial={false}
+      animate={height === null ? undefined : { height }}
+      transition={enterTransition}
+      style={height === null ? undefined : { height }}
+    >
+      {pane("diagram", diagramRef, diagram)}
+      {pane("code", codeRef, code)}
+    </motion.div>
   );
 }
 
