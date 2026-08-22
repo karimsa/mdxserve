@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { MDXProvider } from "@mdx-js/react";
 import { Figure, Pre } from "./CodeBlock";
+import { builtinComponents } from "./builtins/index";
 
 function ErrorBox({ message }: { message: string }) {
   return (
@@ -34,7 +35,7 @@ async function main() {
       return;
     }
     root.render(
-      <MDXProvider components={{ pre: Pre, figure: Figure }}>
+      <MDXProvider components={{ ...builtinComponents, pre: Pre, figure: Figure }}>
         <article className="prose prose-neutral dark:prose-invert max-w-none">
           <Content />
         </article>

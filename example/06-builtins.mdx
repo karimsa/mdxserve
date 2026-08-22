@@ -1,0 +1,39 @@
+# Builtin components
+
+`mdxserve` ships a small library of components that are available in every `.mdx` file with
+no `import` — they're registered globally, the same way `pre` and `figure` are overridden for
+code blocks. If you `import` your own component with the same name in a file, your local
+import wins.
+
+## Callout
+
+<Callout>
+  This is the default `info` callout. No import was needed to use `<Callout>` on this page.
+</Callout>
+
+<Callout type="warn" title="Before you continue">
+  `type="warn"` switches the palette to amber, and `title` renders as a bold heading above
+  the body.
+</Callout>
+
+## Discovering builtins from the CLI
+
+The same metadata that describes each builtin — its props, defaults, and when to use it — is
+published as a JSON registry at build time, and can be queried from the command line:
+
+```bash
+# List every builtin component
+mdxserve components search
+
+# Search by name, description, or prop
+mdxserve components search callout
+
+# Show full details for one component, including a props table
+mdxserve components show Callout
+
+# Get the raw registry entry as JSON (handy for tools/AI agents)
+mdxserve components show Callout --json
+```
+
+This is the same registry an AI coding agent can query to find out what components are
+available before writing docs for you.

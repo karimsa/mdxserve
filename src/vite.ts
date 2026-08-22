@@ -33,6 +33,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
   const mdxReactEntry = resolveFromPkg("@mdx-js/react");
   const mermaidEntry = resolveFromPkg("mermaid");
+  const zodEntry = resolveFromPkg("zod");
 
   // @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
   // files are compiled to JSX before the react plugin's babel transform.
@@ -88,12 +89,13 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         { find: "react", replacement: reactEntry },
         { find: "@mdx-js/react", replacement: mdxReactEntry },
         { find: "mermaid", replacement: mermaidEntry },
+        { find: "zod", replacement: zodEntry },
       ],
       dedupe: ["react", "react-dom"],
     },
     optimizeDeps: {
       entries: [],
-      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@mdx-js/react", "mermaid"],
+      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@mdx-js/react", "mermaid", "zod"],
     },
   });
 

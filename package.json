@@ -8,7 +8,8 @@
     "client"
   ],
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+    "build": "tsx scripts/build-registry.ts && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node'",
+    "registry": "tsx scripts/build-registry.ts",
     "dev": "tsx src/index.ts example",
     "typecheck": "tsc --noEmit"
   },

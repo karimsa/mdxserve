@@ -19,6 +19,7 @@ MDX files as a browsable site. Point it at a directory and it will:
 - Support GitHub Flavored Markdown (tables, task lists, strikethrough, etc.) via `remark-gfm`
 - Switch between light and dark automatically based on your OS setting
 - Let `.mdx` files import and use React 19 components
+- Provide a small library of builtin components (like `Callout`) with no import required
 
 There is no build step and no config file required to get started.
 
@@ -54,11 +55,11 @@ Browsing to a folder shows:
 | --- | --- |
 | [`01-markdown.md`](./01-markdown.md) | Plain Markdown tour: headings, text formatting, lists, tables, quotes, links, images, code blocks |
 | [`02-mdx-basics.mdx`](./02-mdx-basics.mdx) | Introduces MDX: frontmatter-style exports, inline JSX, and JS expressions inside a document |
-| [`03-custom-components.mdx`](./03-custom-components.mdx) | Imports and uses custom React components from `components/` |
+| [`03-custom-components.mdx`](./03-custom-components.mdx) | Imports and uses a custom React component (`Counter`), plus the builtin `Callout` |
 | [`04-tailwind.mdx`](./04-tailwind.mdx) | Tailwind utility classes inside MDX, dark mode variants, and opting out of `prose` |
 | [`components/Counter.tsx`](./components/Counter.tsx) | Example stateful React component used by `03-custom-components.mdx` |
-| [`components/Callout.tsx`](./components/Callout.tsx) | Example Notion-style callout component used by `03-custom-components.mdx` |
 | [`nested/deep/05-nested-page.md`](./nested/deep/05-nested-page.md) | A page two folders deep, to show breadcrumb/folder navigation |
+| [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`) and the `mdxserve components` CLI |
 | [`assets/logo.png`](./assets/logo.png) | A small PNG used by `01-markdown.md` to show image rendering |
 | [`notes.txt`](./notes.txt) | A plain text file, to show how non-Markdown files appear in listings |
 
