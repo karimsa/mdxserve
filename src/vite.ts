@@ -93,6 +93,23 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
     appType: "custom",
     server: {
       middlewareMode: true,
+      // Served roots can be large (a whole repo); keep the watcher away from
+      // dependency/venv/build trees and don't follow symlinks out of the root.
+      watch: {
+        followSymlinks: false,
+        ignored: [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/.mdxserve/**",
+          "**/.venv/**",
+          "**/venv/**",
+          "**/.cache/**",
+          "**/dist/**",
+          "**/build/**",
+          "**/target/**",
+          "**/__pycache__/**",
+        ],
+      },
       fs: {
         allow: [root, path.join(pkgRoot, "client"), path.join(pkgRoot, "node_modules"), ...extraFsAllow],
       },

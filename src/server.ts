@@ -55,7 +55,9 @@ async function generateAppCss(root: string, pkgRoot: string): Promise<{ dir: str
   const css = `@import "${toPosix(tailwindImport)}";
 @import "${toPosix(designCssPath)}";
 @plugin "${toPosix(typographyPlugin)}";
-@source "${toPosix(root)}";
+@source "${toPosix(root)}/**/*.{md,mdx,js,jsx,ts,tsx}";
+@source not "${toPosix(root)}/**/.{git,mdxserve,venv,cache}/**";
+@source not "${toPosix(root)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";
 @source "${toPosix(path.join(pkgRoot, "client"))}";
 @source "${toPosix(path.join(pkgRoot, "src"))}";
 `;
@@ -137,6 +139,9 @@ interface RequestContext {
 
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse, ctx: RequestContext): Promise<void> {
   const { root, pkgRoot, vite } = ctx;
+  // Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
+  // can resolve it (the /__mdxserve/ alias only exists in our router).
+  const entrySrc = `/@fs/${toPosix(path.join(pkgRoot, "client", "entry.tsx"))}`;
   const url = req.url ?? "/";
   const pathname = url.split("?")[0] ?? "/";
   const search = url.slice(pathname.length);
@@ -205,7 +210,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
     const route = readListing(root, decodedPathname);
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
+    res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
     return;
   }
 
@@ -214,7 +219,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       const route: Route = { kind: "doc", path: decodedPathname, rootName: rootNameOf(root) };
       res.statusCode = 200;
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
+      res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
       return;
     }
 
@@ -245,7 +250,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
     const route: Route = { kind: "notfound", path: decodedPathname, rootName: rootNameOf(root) };
     res.statusCode = 404;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.end(await vite.transformIndexHtml(pathname, renderShell(route)));
+    res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
     return;
   }
 

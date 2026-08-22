@@ -1,5 +1,5 @@
 import path from "node:path";
-import { renderDocument } from "./html.js";
+import { renderDocument, escapeHtml } from "./html.js";
 import type { ListingEntry } from "./listing.js";
 
 export type Route =
@@ -32,12 +32,12 @@ function titleFor(route: Route): string {
  * not-found) is rendered client-side by the SPA, which reads the embedded
  * route JSON and boots from there.
  */
-export function renderShell(route: Route): string {
+export function renderShell(route: Route, entrySrc = "/__mdxserve/entry.tsx"): string {
   const routeJson = escapeForInlineScript(JSON.stringify(route));
 
   const body = `    <div id="root"></div>
     <script id="__mdxserve_route" type="application/json">${routeJson}</script>
-    <script type="module" src="/__mdxserve/entry.tsx"></script>`;
+    <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
   return renderDocument({ title: titleFor(route), body });
 }
