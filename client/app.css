@@ -1,0 +1,237 @@
+@theme {
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #fff;
+  color: var(--color-gray-700);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-gray-950);
+    color: var(--color-gray-300);
+  }
+}
+
+/* Code is always monospace, inside or outside prose (e.g. not-prose blocks and
+   custom components). Sizing is left to whatever context it's used in. */
+pre,
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+/* Tailwind Plus-style prose tuning on top of @tailwindcss/typography defaults */
+.prose {
+  --tw-prose-body: var(--color-gray-700);
+  --tw-prose-headings: var(--color-gray-950);
+  --tw-prose-links: var(--color-sky-600);
+  --tw-prose-bold: var(--color-gray-950);
+  --tw-prose-quotes: var(--color-gray-600);
+  --tw-prose-quote-borders: var(--color-gray-200);
+  --tw-prose-hr: var(--color-gray-200);
+  --tw-prose-th-borders: var(--color-gray-200);
+  --tw-prose-td-borders: var(--color-gray-100);
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose {
+    --tw-prose-body: var(--color-gray-300);
+    --tw-prose-headings: #fff;
+    --tw-prose-links: var(--color-sky-400);
+    --tw-prose-bold: #fff;
+    --tw-prose-quotes: var(--color-gray-400);
+    --tw-prose-quote-borders: var(--color-gray-800);
+    --tw-prose-hr: var(--color-gray-800);
+    --tw-prose-th-borders: var(--color-gray-700);
+    --tw-prose-td-borders: var(--color-gray-800);
+  }
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Links: soft sky underline, full color on hover */
+.prose a {
+  color: var(--color-sky-600);
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-decoration-color: rgb(2 132 199 / 0.3);
+  text-underline-offset: 3px;
+}
+
+.prose a:hover {
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose a {
+    color: var(--color-sky-400);
+    text-decoration-color: rgb(56 189 248 / 0.3);
+  }
+}
+
+/* Inline code: neutral mono chip, no backticks */
+.prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  font-weight: 500;
+  color: var(--color-gray-950);
+  background-color: rgb(3 7 18 / 0.05);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.prose :not(pre) > code::before,
+.prose :not(pre) > code::after {
+  content: "";
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose :not(pre) > code {
+    color: #fff;
+    background-color: rgb(255 255 255 / 0.1);
+  }
+}
+
+/* Inline code inside a link: chip takes the link color instead of the red/neutral
+   chip above, and the link itself drops its underline. */
+.prose a > code {
+  color: inherit;
+  background-color: rgb(14 165 233 / 0.1);
+}
+
+.prose a:has(> code) {
+  text-decoration: none;
+}
+
+.prose a:has(> code):hover > code {
+  background-color: rgb(14 165 233 / 0.2);
+}
+
+/* Code blocks: hand off entirely to CodeFrame/Pre (client/CodeBlock.tsx) — prose
+   should not impose margin, background, or figcaption styling on them. */
+.prose pre,
+.prose pre code,
+.prose figure {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  font-size: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+
+/* Padding lives here (not in utility classes) so the unlayered reset above
+   can't strip it; CodeFrame's <pre> relies on it. */
+.prose pre,
+.not-prose pre {
+  padding: 1rem;
+}
+
+.prose blockquote {
+  border-left: 2px solid var(--color-gray-200);
+  color: var(--color-gray-600);
+  font-style: normal;
+  padding-left: 1em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose blockquote {
+    border-left-color: var(--color-gray-800);
+    color: var(--color-gray-400);
+  }
+}
+
+.prose table {
+  font-size: 0.875em;
+  border-collapse: collapse;
+}
+
+.prose thead th {
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 0.5em 0.75em;
+}
+
+.prose tbody td {
+  border-bottom: 1px solid var(--color-gray-100);
+  padding: 0.5em 0.75em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose thead th {
+    border-bottom-color: var(--color-gray-700);
+  }
+  .prose tbody td {
+    border-bottom-color: var(--color-gray-800);
+  }
+}
+
+.prose hr {
+  border-color: var(--color-gray-200);
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose hr {
+    border-color: var(--color-gray-800);
+  }
+}
+
+/*
+ * rehype-pretty-code line rendering (client/CodeBlock.tsx owns the surrounding
+ * card; this handles the per-line grid rows it emits):
+ *   - every line is a `<span data-line>` inside a `<code style="display:grid">`,
+ *     so it stretches to the full (possibly scrolled) width by default.
+ *   - `showLineNumbers` meta sets `data-line-numbers` on `<code>` and
+ *     `data-line-numbers-max-digits` to the gutter's digit count.
+ *   - `{1,3-4}`-style meta sets `data-highlighted-line` on the matching lines.
+ */
+[data-highlighted-line] {
+  display: block;
+  margin-inline: -1rem;
+  padding-inline: calc(1rem - 2px) 1rem;
+  background-color: rgb(56 189 248 / 0.1);
+  border-left: 2px solid var(--color-sky-400);
+}
+
+code[data-line-numbers] {
+  counter-reset: line;
+}
+
+code[data-line-numbers] [data-line]::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 1ch;
+  margin-right: 1.5rem;
+  text-align: right;
+  color: var(--color-gray-600);
+}
+
+code[data-line-numbers-max-digits="2"] [data-line]::before {
+  width: 2ch;
+}
+
+code[data-line-numbers-max-digits="3"] [data-line]::before {
+  width: 3ch;
+}
+
+code[data-line-numbers-max-digits="4"] [data-line]::before {
+  width: 4ch;
+}

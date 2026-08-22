@@ -1,0 +1,42 @@
+# mdxserve
+
+`npx serve`, but for Markdown/MDX.
+
+Point it at a directory and it serves a Notion-like listing of your `.md`/`.mdx`
+files. Clicking a file renders it in the browser through Vite — so plain
+Markdown just renders, and any JSX or components you `import` in an `.mdx`
+file work too, with Tailwind available everywhere and Vite HMR while you edit.
+
+## Usage
+
+```bash
+npx mdxserve [dir]           # serve `dir` (defaults to the current directory)
+npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free port if taken)
+npx mdxserve --host 127.0.0.1 [dir]
+```
+
+Then open the printed URL. Folders always show a listing; `.md`/`.mdx` files
+render as pages. Everything else in a directory is listed too, muted and
+unclickable, so you can see what's there.
+
+## Writing docs
+
+- Plain `.md` renders as GitHub-flavored Markdown (tables, task lists, etc.)
+  with syntax-highlighted code blocks.
+- `.mdx` files can `import` React components (`.tsx`/`.jsx`) and use them
+  directly as JSX. Components are resolved relative to the MDX file, exactly
+  like any other Vite/ESM import — no magic auto-registration.
+- Tailwind utility classes work anywhere in your MDX/JSX.
+
+See [`example/`](./example) for a working tour of all of this — run it with:
+
+```bash
+yarn dev   # runs `mdxserve example`
+```
+
+## Development
+
+```bash
+yarn typecheck
+yarn build   # bundles src/index.ts -> dist/cli.js
+```

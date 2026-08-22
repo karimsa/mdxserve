@@ -1,0 +1,16 @@
+node_modules
+*.log
+.DS_Store
+dist
+
+yarn-debug.log*
+yarn-error.log*
+.yarn-integrity
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+

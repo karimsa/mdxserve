@@ -1,0 +1,41 @@
+export const meta = {
+  title: 'MDX Basics',
+  description: 'Introduces JSX and JS expressions inside a Markdown-like document',
+};
+
+# {meta.title}
+
+This file ends in `.mdx`, not `.md`. That's the difference that matters to `mdxserve`:
+
+- `.md` files are treated as plain Markdown. No JavaScript or JSX is evaluated — text that
+  looks like JSX (`<div>`, `{...}`) is shown as literal text.
+- `.mdx` files are compiled through the MDX pipeline, which means you can export values,
+  write inline JSX, and drop in JavaScript expressions wrapped in curly braces, all inside
+  what otherwise reads like a normal Markdown document.
+
+The `export const meta = {...}` block above isn't rendered — it defines a plain JS object you
+can reference later in the file, like the page title just did with `{meta.title}`.
+
+## Inline JSX
+
+You can write JSX directly in the middle of Markdown content:
+
+<div className="rounded-lg border border-neutral-200 dark:border-neutral-700 p-4 my-4">
+  This box is a plain `div` with Tailwind classes, written as JSX inside an `.mdx` file.
+</div>
+
+## JS expressions
+
+Anything in curly braces is evaluated as JavaScript. For example, `1 + 1` is {1 + 1}, and the
+page title from the `meta` export above is "{meta.title}".
+
+You can also use expressions inline, like today being day number {new Date().getDate()} of the
+month — this is re-evaluated every time the page renders.
+
+## Why this matters
+
+If you only ever write plain Markdown, `.md` is simpler and safer — nothing you write will
+accidentally be interpreted as code. Reach for `.mdx` when you want to embed interactive
+components or compute something inline. See
+[`03-custom-components.mdx`](./03-custom-components.mdx) for importing real components instead
+of writing raw JSX by hand.

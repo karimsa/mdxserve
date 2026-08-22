@@ -1,0 +1,55 @@
+# Tailwind in MDX
+
+`mdxserve` wraps every rendered page in Tailwind's typography plugin (`@tailwindcss/typography`)
+by adding the `prose` class automatically. That's why headings, paragraphs, lists, and code
+blocks across this whole example already look styled without any classes in the Markdown files
+themselves.
+
+Inside `.mdx` files, you can also write Tailwind utility classes directly on JSX elements, and
+they apply on top of (or instead of) the surrounding `prose` styles.
+
+## A grid of cards, written directly in JSX
+
+<div className="not-prose grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+  <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Fast</h3>
+    <p className="text-sm text-neutral-500 dark:text-neutral-400">Vite dev server, instant reloads.</p>
+  </div>
+  <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Simple</h3>
+    <p className="text-sm text-neutral-500 dark:text-neutral-400">No config file required.</p>
+  </div>
+  <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Themed</h3>
+    <p className="text-sm text-neutral-500 dark:text-neutral-400">Follows your OS dark mode setting.</p>
+  </div>
+</div>
+
+## Badges with dark mode variants
+
+<div className="not-prose flex flex-wrap gap-2 my-4">
+  <span className="rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 text-xs font-medium">
+    markdown
+  </span>
+  <span className="rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-3 py-1 text-xs font-medium">
+    mdx
+  </span>
+  <span className="rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-3 py-1 text-xs font-medium">
+    tailwind
+  </span>
+</div>
+
+Notice the classes above: a light background and dark text by default, swapped for a dark
+background and light text under `dark:`. `mdxserve` toggles this automatically based on the
+system color scheme — there's nothing to configure.
+
+## Opting out of prose
+
+The two blocks above both use `not-prose`. Without it, the typography plugin's default text,
+spacing, and color styles would fight with the layout classes on things like grids and badges.
+`not-prose` tells Tailwind's typography plugin to leave that subtree alone, so your own utility
+classes are the only styles applied inside it.
+
+Everything else on this page, including this paragraph, is still inside the automatically
+applied `prose` container, which is why regular paragraph text still looks like formatted
+documentation without any classes at all.

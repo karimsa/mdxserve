@@ -1,0 +1,41 @@
+import Counter from './components/Counter';
+import Callout from './components/Callout';
+
+# Custom components
+
+MDX files can import and render ordinary React components, not just built-in HTML elements.
+The two imports at the top of this file pull in `Counter.tsx` and `Callout.tsx` from the
+`components/` folder next to this document.
+
+## How component resolution works
+
+- Components are plain `.tsx` files, written like any other React 19 component.
+- Vite resolves the `import` paths relative to this MDX file, exactly like it would in a
+  normal `.tsx` module. There's no special "components folder" convention required — you
+  could import from anywhere Vite can resolve.
+- Imports are explicit. There's no auto-registration or global component list: if a component
+  isn't imported at the top of the file, it isn't available in the document.
+- `react` itself is provided by `mdxserve` — you don't need to `npm install react` in your
+  docs folder for this to work. You only need to install packages if a component you write
+  depends on something beyond React itself.
+
+## Counter
+
+<Counter />
+
+`Counter` is a small stateful component using `useState`. Each click increments its own local
+count, styled with Tailwind classes including a `dark:` variant.
+
+## Callout
+
+<Callout type="info">
+  This is an info callout. It's a normal React component receiving `children` as MDX content.
+</Callout>
+
+<Callout type="warn">
+  This is a warn callout, using the same component with a different `type` prop.
+</Callout>
+
+<Callout>
+  No `type` prop was passed here, so `Callout` falls back to its default.
+</Callout>
