@@ -9,6 +9,7 @@ import remarkGfm from "remark-gfm";
 import rehypePrettyCode from "rehype-pretty-code";
 import { getPackageRoot } from "./pkg.js";
 import { tailwindPlusTheme } from "./shiki-theme.js";
+import { getViteCacheDir } from "./cache.js";
 
 const require = createRequire(import.meta.url);
 
@@ -70,6 +71,11 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   const vite = await createViteServer({
     root,
     configFile: false,
+    // Pin the dep-optimizer cache next to the served content instead of letting
+    // Vite derive it from the nearest package.json above `root` (which could be
+    // an unrelated project). Hidden, so the listing skips it; `mdxserve cache
+    // clean` removes it.
+    cacheDir: getViteCacheDir(root),
     logLevel: "warn",
     appType: "custom",
     server: {

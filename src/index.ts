@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
+import { cleanCache, getCacheDir } from "./cache.js";
 
 const program = new Command();
 
@@ -104,6 +105,17 @@ components
     }
 
     console.log(formatComponent(entry));
+  });
+
+const cache = program.command("cache").description("Manage the per-directory cache (.mdxserve/)");
+
+cache
+  .command("clean [dir]")
+  .description("Delete the cache for a served directory (defaults to the current directory)")
+  .action((dir: string | undefined) => {
+    const root = path.resolve(process.cwd(), dir ?? ".");
+    const removed = cleanCache(root);
+    console.log(removed ? `Removed ${getCacheDir(root)}` : `Nothing to clean at ${getCacheDir(root)}`);
   });
 
 await program.parseAsync(process.argv);
