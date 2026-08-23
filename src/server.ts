@@ -6,7 +6,7 @@ import fsp from "node:fs/promises";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
-import { readListing } from "./listing.js";
+import { readListing, isServable } from "./listing.js";
 import { renderShell, type Route } from "./shell.js";
 
 export interface StartServerOptions {
@@ -68,6 +68,16 @@ async function generateAppCss(
 	const file = path.join(tmpDir, "app.css");
 	await fsp.writeFile(file, css, "utf8");
 	return { dir: tmpDir, file };
+}
+
+// Inverse of safeResolve: map an absolute directory on disk back to a
+// root-relative URL path with a leading and trailing slash ("/" for root
+// itself). Returns null for anything outside root.
+function dirToUrlPath(root: string, absDir: string): string | null {
+	const rel = path.relative(root, absDir);
+	if (rel === "") return "/";
+	if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+	return `/${toPosix(rel)}/`;
 }
 
 function safeResolve(root: string, decodedPathname: string): string | null {
@@ -294,6 +304,33 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 		});
 	});
 
+	// Auto-refresh open listings: chokidar already watches `root` for Vite's
+	// own HMR, so ride the same watcher instead of standing up a second one.
+	// Debounce so a bulk op (git checkout, rm -rf dir) fires one event instead
+	// of a storm.
+	const changedDirs = new Set<string>();
+	let flushTimer: NodeJS.Timeout | null = null;
+
+	function onWatchEvent(p: string): void {
+		if (!isServable(path.basename(p))) return;
+		const dirPath = dirToUrlPath(root, path.dirname(p));
+		if (dirPath === null) return;
+
+		changedDirs.add(dirPath);
+		if (flushTimer) return;
+		flushTimer = setTimeout(() => {
+			flushTimer = null;
+			const dirs = [...changedDirs];
+			changedDirs.clear();
+			vite.ws.send({ type: "custom", event: "mdxserve:listing-changed", data: { dirs } });
+		}, 100);
+	}
+
+	vite.watcher.on("add", onWatchEvent);
+	vite.watcher.on("unlink", onWatchEvent);
+	vite.watcher.on("addDir", onWatchEvent);
+	vite.watcher.on("unlinkDir", onWatchEvent);
+
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
 	printBanner(actualPort, actualPort !== options.port);
 
@@ -303,6 +340,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 		shuttingDown = true;
 		console.log("\n  Shutting down…");
 		try {
+			if (flushTimer) clearTimeout(flushTimer);
 			await vite.close();
 		} finally {
 			httpServer.close(() => process.exit(0));

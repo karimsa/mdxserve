@@ -73,6 +73,8 @@ interface ListingApiResponse {
 export function useRouter(initialRoute: Route) {
 	const [route, setRoute] = useState<Route>(initialRoute);
 	const rootNameRef = useRef(initialRoute.rootName);
+	const routeRef = useRef(route);
+	routeRef.current = route;
 
 	const loadRoute = useCallback(async (path: string): Promise<Route | null> => {
 		if (path.endsWith("/")) {
@@ -180,6 +182,26 @@ export function useRouter(initialRoute: Route) {
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
 	}, [navigate]);
+
+	// The server pushes this over the same HMR websocket Vite already uses for
+	// module updates whenever files are added/removed under a watched dir (see
+	// src/server.ts). Refetch the open listing in place — no history entry, no
+	// title change — so it stays live the way an open .md already does via HMR.
+	useEffect(() => {
+		if (!import.meta.hot) return;
+		function onListingChanged(data: { dirs: string[] }) {
+			const current = routeRef.current;
+			if (current.kind !== "listing" || !data.dirs.includes(current.path)) return;
+			const path = current.path;
+			loadRoute(path).then((next) => {
+				if (!next) return;
+				if (routeRef.current.path !== path) return; // user navigated away meanwhile
+				setRoute(next);
+			});
+		}
+		import.meta.hot.on("mdxserve:listing-changed", onListingChanged);
+		return () => import.meta.hot?.off("mdxserve:listing-changed", onListingChanged);
+	}, [loadRoute]);
 
 	return { route, navigate };
 }
