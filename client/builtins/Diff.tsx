@@ -471,7 +471,7 @@ function toSplitRows(rows: DiffRow[]): SplitRow[] {
   return out;
 }
 
-function SplitCell({ row }: { row?: DiffRow }) {
+function SplitCell({ row, side }: { row?: DiffRow; side: "left" | "right" }) {
   if (!row) {
     return (
       <tr className="bg-white/[0.02]">
@@ -483,7 +483,7 @@ function SplitCell({ row }: { row?: DiffRow }) {
   const { row: rowClass, gutter, text } = rowClasses(row.kind);
   return (
     <tr className={rowClass}>
-      <td className={`w-1 select-none whitespace-pre px-2 text-right align-top ${gutter}`}>{row.oldNo ?? row.newNo}</td>
+      <td className={`w-1 select-none whitespace-pre px-2 text-right align-top ${gutter}`}>{(side === "left" ? row.oldNo : row.newNo) ?? ""}</td>
       <td className={`whitespace-pre px-2 align-top ${text}`}>
         <Segments row={row} />
       </td>
@@ -499,7 +499,7 @@ function SplitRows({ rows }: { rows: DiffRow[] }) {
         <table className="min-w-full border-collapse text-left">
           <tbody>
             {splitRows.map((sr, index) => (
-              <SplitCell key={index} row={sr.left} />
+              <SplitCell key={index} row={sr.left} side="left" />
             ))}
           </tbody>
         </table>
@@ -508,7 +508,7 @@ function SplitRows({ rows }: { rows: DiffRow[] }) {
         <table className="min-w-full border-collapse text-left">
           <tbody>
             {splitRows.map((sr, index) => (
-              <SplitCell key={index} row={sr.right} />
+              <SplitCell key={index} row={sr.right} side="right" />
             ))}
           </tbody>
         </table>
