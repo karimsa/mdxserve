@@ -14,7 +14,14 @@ import { NotFoundView } from "./NotFoundView";
 import { Sidebar } from "./Sidebar";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
-import { LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
+import {
+	DOC_MAX_WIDTH,
+	DOC_MIN_WIDTH,
+	docWidthAtom,
+	LISTING_MAX_WIDTH,
+	LISTING_MIN_WIDTH,
+	listingWidthAtom,
+} from "../state";
 
 const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
 const DESKTOP_BREAKPOINT = "(min-width: 768px)";
@@ -71,34 +78,42 @@ function breadcrumbItems(route: Route, rootDir: string): BreadcrumbItem[] {
 	return items;
 }
 
-/** <main>'s horizontal padding (px-8 on each side). */
-const MAIN_PADDING = 64;
 /** Fraction of the content width a folder listing takes by default. */
 const LISTING_DEFAULT_FRACTION = 2 / 3;
 
 /**
- * Spring-animated max-width for folder listings: the stored width when the user
- * has dragged one, otherwise 2/3 of <main>'s content width. Tracks <main> with a
- * ResizeObserver so the default follows window/sidebar resizes.
+ * Width of the content area (the flex column holding the route wrapper),
+ * tracked with a ResizeObserver so widths follow window/sidebar/toc resizes.
+ * A layout effect so the first paint already has a real measurement.
  */
-function useListingMaxWidth(mainRef: React.RefObject<HTMLElement | null>, stored: number | null) {
-	const [contentWidth, setContentWidth] = useState(0);
-	const spring = useSpring(0, T.snap);
-	const initialised = useRef(false);
+function useContentWidth(ref: React.RefObject<HTMLElement | null>) {
+	const [width, setWidth] = useState(0);
 
-	// Layout effects so the first listing paint already has a real max-width
-	// (the wrapper binds the spring immediately and AnimatePresence skips the
-	// initial animation).
 	useLayoutEffect(() => {
-		const main = mainRef.current;
-		if (!main) return;
-		const measure = () => setContentWidth(main.clientWidth - MAIN_PADDING);
+		const el = ref.current;
+		if (!el) return;
+		const measure = () => setWidth(el.clientWidth);
 		measure();
 		const observer = new ResizeObserver(measure);
-		observer.observe(main);
+		observer.observe(el);
 		return () => observer.disconnect();
-	}, [mainRef]);
+	}, [ref]);
 
+	return width;
+}
+
+/**
+ * Spring-animated max-width for folder listings: the stored width when the user
+ * has dragged one, otherwise 2/3 of the content area's width.
+ */
+function useListingMaxWidth(contentWidth: number, stored: number | null) {
+	// glide, not snap: the width trails the drag slightly so the spring is felt.
+	const spring = useSpring(0, T.glide);
+	const initialised = useRef(false);
+
+	// A layout effect so the first listing paint already has a real max-width
+	// (the wrapper binds the spring immediately and AnimatePresence skips the
+	// initial animation).
 	useLayoutEffect(() => {
 		if (contentWidth <= 0) return;
 		const fallback = Math.round(contentWidth * LISTING_DEFAULT_FRACTION);
@@ -118,6 +133,42 @@ function useListingMaxWidth(mainRef: React.RefObject<HTMLElement | null>, stored
 	return spring;
 }
 
+/**
+ * Spring-animated max-width for doc pages, or null while the user hasn't
+ * dragged one — the wrapper keeps its default `max-w-prose` then. The spring
+ * jumps (not animates) when a drag first activates it, so the page doesn't
+ * lurch from a stale value to the grabbed width.
+ */
+function useDocMaxWidth(contentWidth: number, stored: number | null) {
+	// glide, not snap: the width trails the drag slightly so the spring is felt.
+	const spring = useSpring(0, T.glide);
+	const active = useRef(false);
+	// Whether the applied target used a real content-area measurement. The first
+	// effect run can see contentWidth === 0 (measurement lands one render later);
+	// keep jumping until a measured target is applied so a stored width doesn't
+	// animate down to its clamp on load.
+	const measured = useRef(false);
+
+	useLayoutEffect(() => {
+		if (stored === null) {
+			active.current = false;
+			measured.current = false;
+			return;
+		}
+		const target = Math.min(
+			DOC_MAX_WIDTH,
+			contentWidth > 0 ? contentWidth : DOC_MAX_WIDTH,
+			Math.max(DOC_MIN_WIDTH, stored),
+		);
+		if (active.current && measured.current) spring.set(target);
+		else spring.jump(target);
+		active.current = true;
+		measured.current = contentWidth > 0;
+	}, [contentWidth, stored, spring]);
+
+	return stored === null ? null : spring;
+}
+
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
 	const { theme, toggle } = useTheme();
 	const { tree, rootDir } = useTree();
@@ -127,8 +178,11 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	const [searchOpen, setSearchOpen] = useState(false);
 	const listingWidth = useAtomValue(listingWidthAtom);
-	const mainRef = useRef<HTMLElement>(null);
-	const listingMaxWidth = useListingMaxWidth(mainRef, listingWidth);
+	const docWidth = useAtomValue(docWidthAtom);
+	const contentRef = useRef<HTMLDivElement>(null);
+	const contentWidth = useContentWidth(contentRef);
+	const listingMaxWidth = useListingMaxWidth(contentWidth, listingWidth);
+	const docMaxWidth = useDocMaxWidth(contentWidth, docWidth);
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<SearchResult[]>([]);
 
@@ -251,35 +305,49 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					mobileOpen={mobileOpen}
 					onCloseMobile={() => setMobileOpen(false)}
 				/>
-				<main ref={mainRef} className="flex flex-1 min-w-0 justify-center px-8 pt-10 pb-24">
-					<AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
-						<motion.div
-							key={route.path}
-							variants={fadeRise}
-							initial="initial"
-							animate="enter"
-							exit="exit"
-							className={route.kind === "listing" ? "w-full" : "w-full max-w-prose"}
-							style={route.kind === "listing" ? { maxWidth: listingMaxWidth } : undefined}
-						>
-							<Breadcrumb items={breadcrumbItems(route, rootDir)} />
-							<div className="mt-4">
-								{route.kind === "listing" ? (
-									<ListingView route={route} />
-								) : route.kind === "doc" ? (
-									<DocView route={route} onRendered={bumpTocVersion} />
-								) : (
-									<NotFoundView route={route} />
-								)}
-							</div>
-							{route.kind === "doc" && (prev || next) ? (
-								<div data-print-hide className="mt-16">
-									<PageNav prev={prev} next={next} />
+				<main className="flex flex-1 min-w-0 px-8 pt-10 pb-24">
+					{/* The resize handles clamp drags to this area, and the max-width
+					    springs track it, so content never runs under the toc rail. */}
+					<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">
+						<AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
+							<motion.div
+								key={route.path}
+								variants={fadeRise}
+								initial="initial"
+								animate="enter"
+								exit="exit"
+								className={
+									route.kind === "listing" || (route.kind === "doc" && docMaxWidth)
+										? "w-full"
+										: "w-full max-w-prose"
+								}
+								style={
+									route.kind === "listing"
+										? { maxWidth: listingMaxWidth }
+										: route.kind === "doc" && docMaxWidth
+											? { maxWidth: docMaxWidth }
+											: undefined
+								}
+							>
+								<Breadcrumb items={breadcrumbItems(route, rootDir)} />
+								<div className="mt-4">
+									{route.kind === "listing" ? (
+										<ListingView route={route} />
+									) : route.kind === "doc" ? (
+										<DocView route={route} onRendered={bumpTocVersion} />
+									) : (
+										<NotFoundView route={route} />
+									)}
 								</div>
-							) : null}
-							{route.kind === "doc" ? <Footer route={route} /> : null}
-						</motion.div>
-					</AnimatePresence>
+								{route.kind === "doc" && (prev || next) ? (
+									<div data-print-hide className="mt-16">
+										<PageNav prev={prev} next={next} />
+									</div>
+								) : null}
+								{route.kind === "doc" ? <Footer route={route} /> : null}
+							</motion.div>
+						</AnimatePresence>
+					</div>
 					{route.kind === "doc" ? <TocRail path={route.path} version={tocVersion} /> : null}
 				</main>
 			</div>

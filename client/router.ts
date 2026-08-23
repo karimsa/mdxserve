@@ -128,9 +128,15 @@ export function loadTree(): Promise<TreeState> {
 }
 
 // Files change on disk during a dev session; re-fetch the tree whenever Vite
-// applies an HMR update so the sidebar/search stay in sync with the watcher.
+// applies an HMR update (edits to existing files) or the watcher reports a
+// listing change (deletions/creations, which don't trigger a module HMR
+// update) so the sidebar/search stay in sync with the watcher.
 if (import.meta.hot) {
 	import.meta.hot.on("vite:afterUpdate", () => {
+		treeLoadPromise = null;
+		void loadTree();
+	});
+	import.meta.hot.on("mdxserve:listing-changed", () => {
 		treeLoadPromise = null;
 		void loadTree();
 	});

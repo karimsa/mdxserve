@@ -1,7 +1,10 @@
 import { motion } from "framer-motion";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
+import { useSetAtom } from "jotai";
 import { fadeRise } from "./motion";
 import { docModuleCache, type Route } from "./router";
+import { ResizeHandle } from "./ui/ResizeHandle";
+import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom } from "./state";
 
 function ErrorBox({ message }: { message: string }) {
 	return (
@@ -33,6 +36,8 @@ export function DocView({
 	onRendered?: () => void;
 }) {
 	const cached = docModuleCache.get(route.path);
+	const setWidth = useSetAtom(docWidthAtom);
+	const container = useRef<HTMLDivElement>(null);
 
 	useLayoutEffect(() => {
 		if (cached?.status === "ok") onRendered?.();
@@ -50,8 +55,26 @@ export function DocView({
 
 	const Content = cached.Component;
 	return (
-		<article className="mdx-prose min-w-0 max-w-full">
-			<Content />
-		</article>
+		<div ref={container} className="relative">
+			<ResizeHandle
+				side="left"
+				container={container}
+				onResize={setWidth}
+				label="Resize page"
+				minWidth={DOC_MIN_WIDTH}
+				maxWidth={DOC_MAX_WIDTH}
+			/>
+			<ResizeHandle
+				side="right"
+				container={container}
+				onResize={setWidth}
+				label="Resize page"
+				minWidth={DOC_MIN_WIDTH}
+				maxWidth={DOC_MAX_WIDTH}
+			/>
+			<article className="mdx-prose min-w-0 max-w-full">
+				<Content />
+			</article>
+		</div>
 	);
 }

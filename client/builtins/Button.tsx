@@ -20,10 +20,13 @@ export const buttonProps = z.object({
 		.describe("If set, renders as a link (`<a>`) instead of a `<button>`."),
 	onClick: z.custom<() => void>().optional().describe("Click handler (MDX/JSX only)."),
 	disabled: z.boolean().default(false).describe("Disables the button and dims it."),
+	autoFocus: z.boolean().optional().describe("Focus the button on mount."),
 	children: z.custom<ReactNode>().describe("Button label/content."),
 });
 
-export type ButtonProps = z.infer<typeof buttonProps>;
+// z.input, not z.infer: fields with zod defaults stay optional for TSX callers
+// (the component destructures the same defaults itself).
+export type ButtonProps = z.input<typeof buttonProps>;
 
 type Variant = NonNullable<ButtonProps["variant"]>;
 type Size = NonNullable<ButtonProps["size"]>;
@@ -53,6 +56,7 @@ export default function Button({
 	href,
 	onClick,
 	disabled = false,
+	autoFocus,
 	children,
 }: ButtonProps) {
 	const className = [
@@ -95,6 +99,7 @@ export default function Button({
 		<motion.button
 			type="button"
 			disabled={disabled}
+			autoFocus={autoFocus}
 			whileTap={press}
 			transition={T.snap}
 			onClick={onClick}

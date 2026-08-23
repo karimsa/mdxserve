@@ -49,6 +49,7 @@
 		"svg-pan-zoom": "3.6.2",
 		"tailwindcss": "4.3.3",
 		"tippy.js": "6.3.7",
+		"trash": "10.1.1",
 		"vite": "8.2.1",
 		"zod": "4.4.3",
 		"zx": "8.8.5"

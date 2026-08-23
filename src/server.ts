@@ -3,6 +3,8 @@ import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
+import trash from "trash";
+import { z } from "zod";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
@@ -86,6 +88,39 @@ function safeResolve(root: string, decodedPathname: string): string | null {
 	if (rel === "") return resolved;
 	if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
 	return resolved;
+}
+
+const MAX_DELETE_BODY = 64 * 1024;
+
+const deleteBodySchema = z.object({
+	paths: z.array(z.string().min(1)).min(1).max(500),
+});
+
+/** Read the full request body as UTF-8, or null if it exceeds `limit`. */
+function readBody(req: http.IncomingMessage, limit: number): Promise<string | null> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		let size = 0;
+		let overLimit = false;
+		req.on("data", (chunk: Buffer) => {
+			if (overLimit) return;
+			size += chunk.length;
+			if (size > limit) {
+				// Resolve now but keep draining (discarding) the rest: destroying
+				// the request would tear down the socket before the 413 response
+				// reaches the client.
+				overLimit = true;
+				chunks.length = 0;
+				resolve(null);
+				return;
+			}
+			chunks.push(chunk);
+		});
+		req.on("end", () => {
+			if (!overLimit) resolve(Buffer.concat(chunks).toString("utf8"));
+		});
+		req.on("error", reject);
+	});
 }
 
 function getLocalIPs(): string[] {
@@ -221,6 +256,111 @@ async function handleRequest(
 			res.setHeader("Content-Type", "application/json; charset=utf-8");
 			res.statusCode = 200;
 			res.end(JSON.stringify(searchDocs(root, q)));
+			return;
+		}
+
+		// Deletes files only (not directories) and sends them to the OS Trash
+		// (recoverable, unlike fs.rm). No response push here: the chokidar
+		// watcher's existing `mdxserve:listing-changed` event already fires on
+		// `unlink` and refreshes the client's tree/listing.
+		if (pathname === "/__mdxserve/api/delete") {
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+			if (req.method !== "POST") {
+				res.statusCode = 405;
+				res.setHeader("Allow", "POST");
+				res.end(JSON.stringify({ error: "Method not allowed" }));
+				return;
+			}
+
+			// Compare the parsed media type, not a substring: a non-preflighted
+			// cross-origin request can smuggle "application/json" into a
+			// text/plain parameter (`text/plain;x=application/json`).
+			const mediaType = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+			if (mediaType !== "application/json") {
+				res.statusCode = 415;
+				res.end(JSON.stringify({ error: "Expected application/json" }));
+				return;
+			}
+
+			const body = await readBody(req, MAX_DELETE_BODY);
+			if (body === null) {
+				res.statusCode = 413;
+				res.end(JSON.stringify({ error: "Body too large" }));
+				return;
+			}
+
+			let paths: string[];
+			try {
+				paths = deleteBodySchema.parse(JSON.parse(body)).paths;
+			} catch {
+				res.statusCode = 400;
+				res.end(JSON.stringify({ error: "Invalid body: expected { paths: string[] }" }));
+				return;
+			}
+
+			const deleted: string[] = [];
+			const failed: { path: string; error: string }[] = [];
+
+			// safeResolve is string-level only; a directory symlink inside the root
+			// could point outside it. Re-check each file's real parent directory
+			// against the real root before trashing anything.
+			const realRoot = await fsp.realpath(root);
+
+			// Serial so a failure attributes to its own path rather than racing
+			// with the rest of the batch.
+			for (const p of paths) {
+				const abs = safeResolve(root, p);
+				if (!abs || abs === root) {
+					failed.push({ path: p, error: "Invalid path" });
+					continue;
+				}
+
+				// Same servability rule as the listing: dotfiles, node_modules,
+				// etc. are never surfaced in the UI, so they can't be deleted
+				// through its API either.
+				if (!p.split("/").filter(Boolean).every(isServable)) {
+					failed.push({ path: p, error: "Invalid path" });
+					continue;
+				}
+
+				try {
+					const realDir = await fsp.realpath(path.dirname(abs));
+					const rel = path.relative(realRoot, realDir);
+					if (rel.startsWith("..") || path.isAbsolute(rel)) {
+						failed.push({ path: p, error: "Invalid path" });
+						continue;
+					}
+				} catch {
+					failed.push({ path: p, error: "Not found" });
+					continue;
+				}
+
+				let st: fs.Stats;
+				try {
+					st = await fsp.lstat(abs);
+				} catch {
+					failed.push({ path: p, error: "Not found" });
+					continue;
+				}
+
+				if (st.isDirectory()) {
+					failed.push({ path: p, error: "Is a directory" });
+					continue;
+				}
+
+				try {
+					// glob: false — trash expands `*`/`[...]` metacharacters by default,
+					// which would let a literal filename like "notes[1].md" match others.
+					await trash(abs, { glob: false });
+					deleted.push(p);
+				} catch (error) {
+					failed.push({ path: p, error: error instanceof Error ? error.message : String(error) });
+				}
+			}
+
+			res.statusCode = 200;
+			res.end(JSON.stringify({ deleted, failed }));
 			return;
 		}
 

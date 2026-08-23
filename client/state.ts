@@ -58,3 +58,11 @@ export const listingWidthAtom = atomWithStorage<number | null>(
 	undefined,
 	{ getOnInit: true },
 );
+
+export const DOC_MIN_WIDTH = 480;
+export const DOC_MAX_WIDTH = 1600;
+
+/** Doc page width in px, or null for the default prose width. */
+export const docWidthAtom = atomWithStorage<number | null>("mdxserve.doc.width", null, undefined, {
+	getOnInit: true,
+});
