@@ -24,6 +24,9 @@
 	--teal-300: #63c1be;
 	--teal-400: #2ba5a2;
 	--teal-500: #0e8f8c;
+	/* fill under white text (primary button, checkbox): the one step that
+	   clears 4.5:1 on white and 3:1 against both page grounds */
+	--teal-550: #0c8280;
 	--teal-600: #0a7472;
 	--teal-700: #085b59;
 	--teal-800: #064442;
@@ -55,7 +58,7 @@
 	--surface-hover: var(--n-100);
 	--surface-active: var(--n-200);
 	--surface-accent-soft: var(--teal-50);
-	--surface-accent: var(--teal-500);
+	--surface-accent: var(--teal-550);
 
 	--text-body: var(--n-800);
 	--text-heading: var(--n-950);
@@ -131,7 +134,7 @@
 	--surface-hover: #1b2436;
 	--surface-active: #263044;
 	--surface-accent-soft: var(--teal-900);
-	--surface-accent: var(--teal-400);
+	--surface-accent: var(--teal-550);
 
 	--text-body: #d1d5db;
 	--text-heading: #f9fafb;

@@ -97,6 +97,7 @@
 	--color-teal-300: var(--teal-300);
 	--color-teal-400: var(--teal-400);
 	--color-teal-500: var(--teal-500);
+	--color-teal-550: var(--teal-550);
 	--color-teal-600: var(--teal-600);
 	--color-teal-700: var(--teal-700);
 	--color-teal-800: var(--teal-800);
@@ -192,7 +193,7 @@ html {
 
 .mdx-prose li > input[type="checkbox"] {
 	margin: 0 0.5em 0 0;
-	accent-color: var(--teal-500);
+	accent-color: var(--teal-550);
 	vertical-align: -0.1em;
 }
 

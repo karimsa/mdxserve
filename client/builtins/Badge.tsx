@@ -45,7 +45,7 @@ const TONE_STYLES: Record<Tone, Record<Variant, string>> = {
 	},
 	teal: {
 		soft: "bg-surface-accent-soft text-text-accent border-teal-200",
-		solid: "bg-teal-500 text-n-0 border-transparent",
+		solid: "bg-teal-550 text-n-0 border-transparent",
 		outline: "bg-transparent text-text-accent border-teal-300",
 	},
 	info: {

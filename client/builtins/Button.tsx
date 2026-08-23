@@ -29,7 +29,7 @@ type Variant = NonNullable<ButtonProps["variant"]>;
 type Size = NonNullable<ButtonProps["size"]>;
 
 const VARIANT_STYLES: Record<Variant, string> = {
-	primary: "bg-teal-500 text-n-0 border border-teal-600 shadow-xs hover:bg-teal-600",
+	primary: "bg-teal-550 text-n-0 border border-teal-600 shadow-xs hover:bg-teal-600",
 	secondary:
 		"bg-surface-card text-text-body border border-border-default shadow-xs hover:bg-surface-hover",
 	ghost: "bg-transparent text-text-muted border border-transparent hover:bg-surface-hover",
