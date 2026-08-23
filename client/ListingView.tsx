@@ -80,6 +80,9 @@ function ListingResizeHandle({
 	const [hovered, setHovered] = useState(false);
 	const [dragging, setDragging] = useState(false);
 	const draggingRef = useRef(false);
+	/** Pointer distance from the resting bar at grab time, so a press anywhere
+	 * in the zone drags relative to it instead of snapping the bar under the cursor. */
+	const grabOffset = useRef(0);
 
 	useEffect(() => {
 		return () => {
@@ -90,18 +93,29 @@ function ListingResizeHandle({
 		};
 	}, []);
 
-	const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		draggingRef.current = true;
-		setDragging(true);
-		try {
-			event.currentTarget.setPointerCapture(event.pointerId);
-		} catch {
-			// Not a live pointer (synthetic event); the drag still works while the cursor stays in the zone.
-		}
-		document.body.style.cursor = "col-resize";
-		document.body.style.userSelect = "none";
-	}, []);
+	const onPointerDown = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			event.preventDefault();
+			if (container.current) {
+				const rect = container.current.getBoundingClientRect();
+				const centre = rect.left + rect.width / 2;
+				const half = side === "right" ? event.clientX - centre : centre - event.clientX;
+				grabOffset.current = half - (rect.width / 2 + HANDLE_INSET);
+			} else {
+				grabOffset.current = 0;
+			}
+			draggingRef.current = true;
+			setDragging(true);
+			try {
+				event.currentTarget.setPointerCapture(event.pointerId);
+			} catch {
+				// Not a live pointer (synthetic event); the drag still works while the cursor stays in the zone.
+			}
+			document.body.style.cursor = "col-resize";
+			document.body.style.userSelect = "none";
+		},
+		[container, side],
+	);
 
 	const onPointerMove = useCallback(
 		(event: React.PointerEvent<HTMLDivElement>) => {
@@ -112,7 +126,7 @@ function ListingResizeHandle({
 			// <main> has px-8 on each side; never let the list run under its padding.
 			const main = container.current.closest("main");
 			const max = main ? main.clientWidth - 64 : LISTING_MAX_WIDTH;
-			onResize(clampListingWidth((half - HANDLE_INSET) * 2, max));
+			onResize(clampListingWidth((half - HANDLE_INSET - grabOffset.current) * 2, max));
 		},
 		[container, onResize, side],
 	);

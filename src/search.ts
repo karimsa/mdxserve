@@ -55,6 +55,7 @@ function classifyLines(lines: string[]): { headings: string[]; body: string[] } 
 	const headings: string[] = [];
 	const body: string[] = [];
 	let fence: string | null = null;
+	let titleSeen = false;
 	for (const line of lines) {
 		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
@@ -64,9 +65,12 @@ function classifyLines(lines: string[]): { headings: string[]; body: string[] } 
 			body.push(line);
 			continue;
 		}
-		// Drop only the unindented h1 form readDoc uses for the title field
-		// (indented h1s are never titles, so keep them searchable as headings).
-		if (!fence && /^#\s/.test(line)) continue;
+		// Drop only the first unindented h1 — the line readDoc stores as the
+		// title field. Every other h1 stays searchable as a heading.
+		if (!fence && !titleSeen && /^#\s+\S/.test(line)) {
+			titleSeen = true;
+			continue;
+		}
 		if (!fence && /^\s{0,3}#{1,6}\s/.test(line)) headings.push(line.replace(/^\s*#+\s*/, ""));
 		else body.push(line);
 	}
