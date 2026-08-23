@@ -31,16 +31,7 @@ npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free p
 npx mdxserve --host 0.0.0.0 [dir]  # expose on the LAN (default binds to 127.0.0.1 only)
 npx mdxserve -D [dir]        # run in the background via oxmgr (prints the stop/delete commands)
 npx mdxserve -w ~/notes docs # chdir into ~/notes first; [dir] is relative to it
-mdxserve -A [dir]            # auto-update: poll the checkout's origin/main every minute and
-                             # pull --rebase + rebuild; restart whenever dist/ changes
-                             # (combine with -D for a daemon)
 ```
-
-`-A` needs mdxserve to be running from a git checkout (the `./setup.sh` flow), since it
-updates that checkout in place. Git polling only runs when the checkout is on `main`; the
-restart-on-`dist/` change watcher runs regardless, so a local `yarn build` also restarts the
-server. Set `MDXSERVE_UPDATE_INTERVAL_MS` (git) and `MDXSERVE_DIST_INTERVAL_MS` (dist) to
-change the poll intervals.
 
 Then open the printed URL. Folders always show a listing; `.md`/`.mdx` files
 render as pages. Everything else in a directory is listed too, muted and

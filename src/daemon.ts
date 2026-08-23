@@ -6,7 +6,6 @@ export interface DaemonOptions {
 	port: number;
 	host: string;
 	name: string;
-	autoUpdate: boolean;
 }
 
 function hasOxmgr(): boolean {
@@ -50,7 +49,6 @@ export function daemonize(options: DaemonOptions): number {
 		"--host",
 		options.host,
 	];
-	if (options.autoUpdate) args.push("--auto-update");
 	const command = args.map(quote).join(" ");
 
 	const result = spawnSync(

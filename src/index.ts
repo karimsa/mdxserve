@@ -5,7 +5,6 @@ import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
 import { cleanCache, getCacheDir } from "./cache.js";
 import { daemonize } from "./daemon.js";
-import { runSupervisor, SUPERVISED_ENV } from "./updater.js";
 
 const program = new Command();
 
@@ -24,10 +23,6 @@ program
 		"-w, --wd <folder>",
 		"change into this folder first; [dir] is then resolved relative to it",
 	)
-	.option(
-		"-A, --auto-update",
-		"poll the mdxserve checkout's origin/main every minute; pull, rebuild, and restart on change",
-	)
 	.action(
 		async (
 			dir: string | undefined,
@@ -37,7 +32,6 @@ program
 				daemon?: boolean;
 				name: string;
 				wd?: string;
-				autoUpdate?: boolean;
 			},
 		) => {
 			if (opts.wd) {
@@ -79,15 +73,7 @@ program
 					port,
 					host: opts.host,
 					name: opts.name,
-					autoUpdate: Boolean(opts.autoUpdate),
 				});
-				return;
-			}
-
-			if (opts.autoUpdate && !process.env[SUPERVISED_ENV]) {
-				// Re-run ourselves as a supervised child with the same arguments; the
-				// child sees SUPERVISED_ENV and just serves.
-				process.exitCode = await runSupervisor({ cliArgs: process.argv.slice(1) });
 				return;
 			}
 
