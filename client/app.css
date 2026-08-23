@@ -293,6 +293,15 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	color: var(--surface-inverse);
 }
 
+/* Folder listing titles are rendered from the doc's first h1 as inline HTML. */
+.listing-title code {
+	font: var(--type-code-inline);
+	font-size: 0.9em;
+	background: var(--code-bg-inline);
+	padding: 0.08em 0.3em;
+	border-radius: var(--radius-xs);
+}
+
 /* Print: the reader gets the prose, nothing else. */
 @media print {
 	[data-print-hide] {

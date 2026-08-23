@@ -4,6 +4,10 @@ export interface ListingEntry {
 	name: string;
 	isDir: boolean;
 	isDoc: boolean;
+	/** Plain-text first h1 of the doc, when it has one. */
+	title?: string;
+	/** The same h1 as inline HTML, for display. */
+	titleHtml?: string;
 	size?: number;
 	/** Last modified time, epoch milliseconds. */
 	mtime?: number;

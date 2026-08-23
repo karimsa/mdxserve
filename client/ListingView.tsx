@@ -52,6 +52,8 @@ function Row({
 	href,
 	icon,
 	label,
+	labelHtml,
+	sublabel,
 	muted,
 	size,
 	mtime,
@@ -59,6 +61,10 @@ function Row({
 	href: string | null;
 	icon: "folder" | "file";
 	label: string;
+	/** Server-rendered inline HTML for the label; wins over `label` when set. */
+	labelHtml?: string;
+	/** Secondary line under the label (e.g. the filename when a title is shown). */
+	sublabel?: string;
 	muted: boolean;
 	size?: number;
 	mtime?: number;
@@ -70,8 +76,22 @@ function Row({
 				size="md"
 				className="shrink-0 text-text-subtle"
 			/>
-			<span className="truncate font-sans font-medium leading-normal text-[length:var(--size-md)]">
-				{label}
+			<span className="flex min-w-0 flex-col">
+				{labelHtml ? (
+					<span
+						className="listing-title truncate font-sans font-medium leading-normal text-[length:var(--size-md)]"
+						dangerouslySetInnerHTML={{ __html: labelHtml }}
+					/>
+				) : (
+					<span className="truncate font-sans font-medium leading-normal text-[length:var(--size-md)]">
+						{label}
+					</span>
+				)}
+				{sublabel ? (
+					<span className="truncate font-mono font-normal leading-normal text-[length:var(--size-xs)] text-text-subtle">
+						{sublabel}
+					</span>
+				) : null}
 			</span>
 			<span className="ml-auto flex shrink-0 items-center gap-4 pl-4 font-mono font-normal leading-[1.62] text-[length:var(--size-xs)] text-text-subtle tabular-nums">
 				{typeof mtime === "number" ? (
@@ -157,7 +177,18 @@ export function ListingView({ route }: { route: Extract<Route, { kind: "listing"
 						return <Row key={entry.name} href={href} icon="folder" muted={false} {...common} />;
 					}
 					if (entry.isDoc) {
-						return <Row key={entry.name} href={href} icon="file" muted={false} {...common} />;
+						return (
+							<Row
+								key={entry.name}
+								href={href}
+								icon="file"
+								muted={false}
+								{...common}
+								label={entry.title ?? entry.name}
+								labelHtml={entry.titleHtml}
+								sublabel={entry.title ? entry.name : undefined}
+							/>
+						);
 					}
 					return <Row key={entry.name} href={null} icon="file" muted {...common} />;
 				})}
