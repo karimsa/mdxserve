@@ -47,7 +47,7 @@ A table beats a list of "X: Y" lines:
 | Option   | Default | Effect                    |
 | -------- | ------- | ------------------------- |
 | `--port` | `4040`  | Port to listen on         |
-| `--host` | `0.0.0.0` | Interface to bind        |
+| `--host` | `127.0.0.1` | Interface to bind (`0.0.0.0` for LAN) |
 ```
 
 Code with a title, line numbers, and highlighted lines:

@@ -295,12 +295,23 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 }
 
 /* Folder listing titles are rendered from the doc's first h1 as inline HTML. */
+/* Keep this in lockstep with the `.mdx-prose code` chip in design/base/prose.css. */
 .listing-title code {
 	font: var(--type-code-inline);
-	font-size: 0.9em;
 	background: var(--code-bg-inline);
-	padding: 0.08em 0.3em;
+	color: var(--text-accent);
+	padding: 0.12em 0.34em;
 	border-radius: var(--radius-xs);
+}
+
+/* Wide tables scroll within the prose column instead of overflowing it. The
+   wrapper takes the table's block margin so the prose gap is unchanged. */
+.mdx-table-scroll {
+	max-width: 100%;
+	overflow-x: auto;
+}
+.mdx-table-scroll > table {
+	margin-bottom: 0;
 }
 
 /* Print: the reader gets the prose, nothing else. */

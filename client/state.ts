@@ -47,3 +47,14 @@ export const sidebarWidthAtom = atomWithStorage<number>(
 	undefined,
 	{ getOnInit: true },
 );
+
+export const LISTING_MIN_WIDTH = 360;
+export const LISTING_MAX_WIDTH = 1600;
+
+/** Folder listing width in px, or null for the default prose width. */
+export const listingWidthAtom = atomWithStorage<number | null>(
+	"mdxserve.listing.width",
+	null,
+	undefined,
+	{ getOnInit: true },
+);

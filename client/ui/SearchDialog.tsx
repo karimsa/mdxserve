@@ -14,6 +14,33 @@ export interface SearchResult {
 	title: ReactNode;
 	excerpt?: ReactNode;
 	path?: string;
+	/** Matched query terms; occurrences are highlighted in each field. */
+	terms?: string[];
+}
+
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Wrap every case-insensitive occurrence of `terms` in `text` with `<mark>`. */
+function highlight(text: ReactNode, terms: string[] | undefined): ReactNode {
+	if (typeof text !== "string" || !terms || terms.length === 0) return text;
+	const pattern = terms
+		.filter((t) => t.length > 0)
+		.sort((a, b) => b.length - a.length)
+		.map(escapeRegExp)
+		.join("|");
+	if (pattern === "") return text;
+	const parts = text.split(new RegExp(`(${pattern})`, "gi"));
+	return parts.map((part, i) =>
+		i % 2 === 1 ? (
+			<mark key={i} className="rounded-sm bg-surface-accent-soft text-text-accent">
+				{part}
+			</mark>
+		) : (
+			part
+		),
+	);
 }
 
 // `results` shadows a legacy global HTML attribute (a WebKit `<input>` prop
@@ -124,18 +151,20 @@ export function SearchDialog({
 										>
 											<Icon name="file-text" size="sm" className="mt-0.5 text-text-subtle" />
 											<div className="min-w-0 flex-1">
+												{result.path ? (
+													<div className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[length:var(--size-2xs)] text-text-subtle">
+														{highlight(result.path, result.terms)}
+													</div>
+												) : null}
 												<div className="text-[13px] leading-normal font-semibold text-text-heading">
-													{result.title}
+													{highlight(result.title, result.terms)}
 												</div>
 												{result.excerpt ? (
 													<div className="mt-px overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-normal text-text-muted">
-														{result.excerpt}
+														{highlight(result.excerpt, result.terms)}
 													</div>
 												) : null}
 											</div>
-											<span className="font-mono text-[length:var(--size-2xs)] text-text-subtle">
-												{result.path}
-											</span>
 										</motion.div>
 									);
 								})

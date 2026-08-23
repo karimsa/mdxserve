@@ -5,6 +5,7 @@ import { MotionConfig } from "framer-motion";
 import { App } from "./App";
 import { Figure, Pre } from "./CodeBlock";
 import { H2, H3, H4 } from "./Heading";
+import { Table } from "./Table";
 import { builtinComponents } from "./builtins/index";
 import { ToastStack } from "./ui/Toast";
 import type { Route } from "./router";
@@ -41,6 +42,7 @@ function main() {
 					h3: H3,
 					h4: H4,
 					input: TaskCheckbox,
+					table: Table,
 				}}
 			>
 				<App initialRoute={initialRoute} />

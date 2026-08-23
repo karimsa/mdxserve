@@ -39,6 +39,7 @@
 		"mdast-util-to-string": "4.0.0",
 		"mermaid": "10.9.8",
 		"micromark-extension-mdxjs": "3.0.0",
+		"minisearch": "7.2.0",
 		"react": "19.2.8",
 		"react-dom": "19.2.8",
 		"rehype-pretty-code": "0.14.5",

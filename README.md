@@ -28,7 +28,7 @@ This runs `yarn install`, `yarn build`, links `mdxserve` onto your `PATH` with
 ```bash
 npx mdxserve [dir]           # serve `dir` (defaults to the current directory)
 npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free port if taken)
-npx mdxserve --host 127.0.0.1 [dir]
+npx mdxserve --host 0.0.0.0 [dir]  # expose on the LAN (default binds to 127.0.0.1 only)
 npx mdxserve -D [dir]        # run in the background via oxmgr (prints the stop/delete commands)
 npx mdxserve -w ~/notes docs # chdir into ~/notes first; [dir] is relative to it
 mdxserve -A [dir]            # auto-update: poll the checkout's origin/main every minute and

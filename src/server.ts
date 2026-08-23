@@ -101,9 +101,20 @@ function getLocalIPs(): string[] {
 	return addresses;
 }
 
-function printBanner(port: number, fallbackUsed: boolean): void {
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
+
+/** The LAN address to advertise for `host`, or undefined when only loopback is reachable. */
+function networkAddress(host: string): string | undefined {
+	if (LOOPBACK_HOSTS.has(host)) return undefined;
+	// A wildcard bind is reachable on every interface; pick the first. A
+	// concrete address is reachable only on itself.
+	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
+}
+
+function printBanner(port: number, host: string, fallbackUsed: boolean): void {
 	const localUrl = `http://localhost:${port}`;
-	const ip = getLocalIPs()[0];
+	const ip = networkAddress(host);
 	const networkUrl = ip ? `http://${ip}:${port}` : undefined;
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
@@ -358,7 +369,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	vite.watcher.on("unlinkDir", onWatchEvent);
 
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
-	printBanner(actualPort, actualPort !== options.port);
+	printBanner(actualPort, host, actualPort !== options.port);
 
 	let shuttingDown = false;
 	async function shutdown(): Promise<void> {

@@ -50,7 +50,7 @@ export function DocView({
 
 	const Content = cached.Component;
 	return (
-		<article className="mdx-prose">
+		<article className="mdx-prose min-w-0 max-w-full">
 			<Content />
 		</article>
 	);

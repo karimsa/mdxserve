@@ -1,8 +1,9 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useSpring } from "framer-motion";
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DocView } from "../DocView";
 import { ListingView } from "../ListingView";
-import { fadeRise } from "../motion";
+import { fadeRise, T } from "../motion";
 import { useTheme } from "../theme";
 import { useTree, type Route, type TreeNode } from "../router";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
@@ -13,6 +14,7 @@ import { NotFoundView } from "./NotFoundView";
 import { Sidebar } from "./Sidebar";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
+import { LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
 
 const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
 const DESKTOP_BREAKPOINT = "(min-width: 768px)";
@@ -69,6 +71,53 @@ function breadcrumbItems(route: Route, rootDir: string): BreadcrumbItem[] {
 	return items;
 }
 
+/** <main>'s horizontal padding (px-8 on each side). */
+const MAIN_PADDING = 64;
+/** Fraction of the content width a folder listing takes by default. */
+const LISTING_DEFAULT_FRACTION = 2 / 3;
+
+/**
+ * Spring-animated max-width for folder listings: the stored width when the user
+ * has dragged one, otherwise 2/3 of <main>'s content width. Tracks <main> with a
+ * ResizeObserver so the default follows window/sidebar resizes.
+ */
+function useListingMaxWidth(mainRef: React.RefObject<HTMLElement | null>, stored: number | null) {
+	const [contentWidth, setContentWidth] = useState(0);
+	const spring = useSpring(0, T.snap);
+	const initialised = useRef(false);
+
+	// Layout effects so the first listing paint already has a real max-width
+	// (the wrapper binds the spring immediately and AnimatePresence skips the
+	// initial animation).
+	useLayoutEffect(() => {
+		const main = mainRef.current;
+		if (!main) return;
+		const measure = () => setContentWidth(main.clientWidth - MAIN_PADDING);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(main);
+		return () => observer.disconnect();
+	}, [mainRef]);
+
+	useLayoutEffect(() => {
+		if (contentWidth <= 0) return;
+		const fallback = Math.round(contentWidth * LISTING_DEFAULT_FRACTION);
+		const target = Math.min(
+			LISTING_MAX_WIDTH,
+			contentWidth,
+			Math.max(LISTING_MIN_WIDTH, stored ?? fallback),
+		);
+		// First measurement: land on the value without animating up from 0.
+		if (initialised.current) spring.set(target);
+		else {
+			spring.jump(target);
+			initialised.current = true;
+		}
+	}, [contentWidth, stored, spring]);
+
+	return spring;
+}
+
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
 	const { theme, toggle } = useTheme();
 	const { tree, rootDir } = useTree();
@@ -77,6 +126,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const [mobileOpen, setMobileOpen] = useState(false);
 
 	const [searchOpen, setSearchOpen] = useState(false);
+	const listingWidth = useAtomValue(listingWidthAtom);
+	const mainRef = useRef<HTMLElement>(null);
+	const listingMaxWidth = useListingMaxWidth(mainRef, listingWidth);
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<SearchResult[]>([]);
 
@@ -199,7 +251,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					mobileOpen={mobileOpen}
 					onCloseMobile={() => setMobileOpen(false)}
 				/>
-				<main className="flex flex-1 min-w-0 justify-center px-8 pt-10 pb-24">
+				<main ref={mainRef} className="flex flex-1 min-w-0 justify-center px-8 pt-10 pb-24">
 					<AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
 						<motion.div
 							key={route.path}
@@ -207,7 +259,8 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 							initial="initial"
 							animate="enter"
 							exit="exit"
-							className="w-full max-w-prose"
+							className={route.kind === "listing" ? "w-full" : "w-full max-w-prose"}
+							style={route.kind === "listing" ? { maxWidth: listingMaxWidth } : undefined}
 						>
 							<Breadcrumb items={breadcrumbItems(route, rootDir)} />
 							<div className="mt-4">

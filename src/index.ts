@@ -17,7 +17,7 @@ program
 	.command("serve [dir]", { isDefault: true })
 	.description("Serve a directory of Markdown/MDX files")
 	.option("-p, --port <n>", "port to listen on", "4040")
-	.option("--host <host>", "host to bind to", "0.0.0.0")
+	.option("--host <host>", "host to bind to (use 0.0.0.0 to expose on the LAN)", "127.0.0.1")
 	.option("-D, --daemon", "run in the background as an oxmgr-managed process")
 	.option("--name <name>", "process name to register with oxmgr (with --daemon)", "mdxserve")
 	.option(
