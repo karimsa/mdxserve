@@ -149,6 +149,7 @@ samp {
 .prose pre,
 .not-prose pre {
   padding: 1rem;
+  color: var(--color-gray-300);
 }
 
 .prose blockquote {

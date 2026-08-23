@@ -60,6 +60,13 @@ Use `npx mdxserve` to start the server, or pass `-p <port>` to pick a port. See
 
 ## Fenced code blocks
 
+Plain text:
+
+```text
+This is plain text without syntax highlighting.
+Use it to judge the default code block foreground and contrast.
+```
+
 TypeScript:
 
 ```ts

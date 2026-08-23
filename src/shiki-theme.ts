@@ -7,7 +7,7 @@ import type { ThemeRegistrationRaw } from "shiki";
 // `ThemeRegistrationRaw` type requires a `settings` key with the same shape.
 // Both keys point at the same array to satisfy each.
 const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
-  // Comments — gray-500, no italics.
+  // Comments — gray-400, no italics.
   {
     scope: [
       "comment",
@@ -17,7 +17,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
       "punctuation.definition.comment",
     ],
     settings: {
-      foreground: "#6b7280",
+      foreground: "#9ca3af",
       fontStyle: "normal",
     },
   },

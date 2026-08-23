@@ -176,7 +176,7 @@ function CodeFrame({ title, language, children }: { title?: string; language?: s
   );
 }
 
-const PRE_CLASS = "overflow-x-auto p-4 font-mono text-[13px] leading-6 text-gray-200";
+const PRE_CLASS = "overflow-x-auto p-4 font-mono text-[13px] leading-6 text-gray-300";
 
 type PreProps = ComponentPropsWithoutRef<"pre"> & { "data-language"?: string };
 
