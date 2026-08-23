@@ -21,6 +21,7 @@ export function renderDocument(options: {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(title)}</title>
+    <link rel="icon" type="image/svg+xml" href="/__mdxserve/favicon.svg" />
     <link rel="stylesheet" href="/__mdxserve/app.css" />
   </head>
   <body class="${bodyClass}">

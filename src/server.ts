@@ -180,6 +180,14 @@ async function handleRequest(
 		return;
 	}
 
+	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
+		res.statusCode = 200;
+		res.setHeader("Content-Type", "image/svg+xml");
+		res.setHeader("Cache-Control", "public, max-age=86400");
+		res.end(await fsp.readFile(path.join(pkgRoot, "client", "favicon.svg")));
+		return;
+	}
+
 	if (pathname.startsWith(MDXSERVE_PREFIX)) {
 		const rest = pathname.slice(MDXSERVE_PREFIX.length);
 		const target = rest === "app.css" ? ctx.cssFile : path.join(pkgRoot, "client", rest);

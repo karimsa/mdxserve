@@ -14,6 +14,8 @@ export interface SupervisorOptions {
 	intervalMs?: number;
 	/** dist/ poll interval in ms. */
 	distIntervalMs?: number;
+	/** How long dist/cli.js must stay unchanged before the server is restarted, in ms. */
+	distDebounceMs?: number;
 	/** Branch to track on `origin`. */
 	branch?: string;
 }
@@ -28,10 +30,13 @@ function log(message: string): void {
  *
  * - A git poller (only when the checkout is on `<branch>`) compares
  *   `origin/<branch>` against the last commit it built; when it moves, the
- *   checkout is pulled (rebase), dependencies installed, and the CLI rebuilt.
+ *   checkout is pulled (rebase) and `./setup.sh` re-run (install, build,
+ *   launcher, skills).
  *   It never restarts the server itself.
  * - A dist poller watches the mtime of `dist/cli.js` and restarts the child
  *   whenever it changes, whether from the git poller or a local `yarn build`.
+ *   The restart is debounced: it fires once the file has been quiet for
+ *   `distDebounceMs` and no git update is in progress.
  *
  * The supervisor itself keeps running the code it started with; it is
  * deliberately small so that rarely matters.
@@ -41,6 +46,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 		cliArgs,
 		intervalMs = Number(process.env.MDXSERVE_UPDATE_INTERVAL_MS) || 60_000,
 		distIntervalMs = Number(process.env.MDXSERVE_DIST_INTERVAL_MS) || 2_000,
+		distDebounceMs = Number(process.env.MDXSERVE_DIST_DEBOUNCE_MS) || 5_000,
 		branch = "main",
 	} = options;
 	const repo = getPackageRoot();
@@ -70,7 +76,7 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 		proc.on("exit", (code, signal) => {
 			if (shuttingDown || restarting) return;
 			if (updating) {
-				// `yarn install` is rewriting node_modules under the live server
+				// setup.sh is rewriting node_modules under the live server
 				// (the bundle keeps packages external); respawn once the update settles.
 				log(`server exited (${signal ?? code}) during an update; respawning when it finishes`);
 				return;
@@ -84,9 +90,11 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 		return proc;
 	};
 
+	const childDead = (): boolean => !child || child.exitCode !== null || child.signalCode !== null;
+
 	const stopChild = async (): Promise<void> => {
 		const proc = child;
-		if (!proc || proc.exitCode !== null) return;
+		if (!proc || childDead()) return;
 		await new Promise<void>((resolve) => {
 			const timer = setTimeout(() => proc.kill("SIGKILL"), 10_000);
 			proc.once("exit", () => {
@@ -97,15 +105,35 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 		});
 	};
 
-	const restartChild = async (): Promise<void> => {
-		restarting = true;
-		try {
-			await stopChild();
-			child = spawnChild();
-		} finally {
-			restarting = false;
-		}
+	// Every spawn goes through this chain so the dist poller's restart and the
+	// git poller's respawn can't interleave and each start a server.
+	let spawnChain: Promise<void> = Promise.resolve();
+	const serialized = (task: () => Promise<void>): Promise<void> => {
+		const next = spawnChain.then(task);
+		spawnChain = next.catch(() => {});
+		return next;
 	};
+
+	const restartChild = (): Promise<void> =>
+		serialized(async () => {
+			if (shuttingDown) return;
+			restarting = true;
+			try {
+				await stopChild();
+				child = spawnChild();
+			} finally {
+				restarting = false;
+			}
+		});
+
+	const respawnIfDead = (reason: string): Promise<void> =>
+		serialized(async () => {
+			// Re-check under the lock: a restart queued ahead of us may have already
+			// replaced the dead child.
+			if (shuttingDown || !childDead()) return;
+			log(`${reason}; respawning`);
+			child = spawnChild();
+		});
 
 	// ---- dist poller: restart the child whenever the built bundle changes ----
 
@@ -117,12 +145,30 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 			return 0;
 		}
 	};
+	// mtime the running server was started from.
 	let lastBundleMtime = bundleMtime();
+	// Most recent mtime seen and how many consecutive polls it has held. A
+	// restart waits until the bundle has been quiet for `distDebounceMs`, so a
+	// burst of writes (setup.sh rebuilding, a watch-mode build) collapses into
+	// one restart instead of one per write.
+	let pendingMtime = lastBundleMtime;
+	let quietPolls = 0;
+	const quietPollsNeeded = Math.max(1, Math.ceil(distDebounceMs / distIntervalMs));
 
 	const checkForRebuild = async (): Promise<void> => {
 		if (restarting || shuttingDown) return;
 		const mtime = bundleMtime();
+		if (mtime !== pendingMtime) {
+			pendingMtime = mtime;
+			quietPolls = 0;
+			return;
+		}
 		if (mtime === lastBundleMtime) return;
+		// Don't restart into a half-installed node_modules; the git poller
+		// respawns once setup.sh is done, and we pick the change up right after.
+		if (updating) return;
+		quietPolls += 1;
+		if (quietPolls < quietPollsNeeded) return;
 		lastBundleMtime = mtime;
 		log(`${path.relative(repo, bundlePath)} changed on disk; restarting server`);
 		await restartChild();
@@ -170,8 +216,8 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 					await $`git rebase --abort`.catch(() => {});
 					throw error;
 				}
-				await $`yarn install`;
-				await $`yarn build`;
+				// setup.sh installs, builds, and refreshes the launcher and skills.
+				await $`./setup.sh`;
 				builtHead = await localHead();
 				log(`built ${builtHead.slice(0, 7)}; the dist poller will restart the server`);
 			} catch (error) {
@@ -183,9 +229,8 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 			}
 		} finally {
 			updating = false;
-			if (!shuttingDown && child && (child.exitCode !== null || child.signalCode !== null)) {
-				log("server died during the update; respawning");
-				child = spawnChild();
+			if (!shuttingDown && childDead()) {
+				await respawnIfDead("server died during the update");
 			}
 		}
 	};
@@ -203,7 +248,9 @@ export async function runSupervisor(options: SupervisorOptions): Promise<number>
 
 	child = spawnChild();
 	timers.push(setInterval(() => void checkForRebuild(), distIntervalMs));
-	log(`watching ${path.relative(repo, bundlePath)} every ${distIntervalMs}ms`);
+	log(
+		`watching ${path.relative(repo, bundlePath)} every ${distIntervalMs}ms (restart after ${distDebounceMs}ms quiet)`,
+	);
 
 	const current = await localBranch();
 	if (current === branch) {
