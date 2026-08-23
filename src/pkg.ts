@@ -11,28 +11,30 @@ let cachedRoot: string | undefined;
  * location until a `package.json` with `"name": "mdxserve"` is found.
  */
 export function getPackageRoot(): string {
-  if (cachedRoot) return cachedRoot;
+	if (cachedRoot) return cachedRoot;
 
-  let dir = path.dirname(fileURLToPath(import.meta.url));
+	let dir = path.dirname(fileURLToPath(import.meta.url));
 
-  while (true) {
-    const pkgPath = path.join(dir, "package.json");
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { name?: string };
-        if (pkg.name === "mdxserve") {
-          cachedRoot = dir;
-          return dir;
-        }
-      } catch {
-        // malformed package.json; keep walking up
-      }
-    }
+	while (true) {
+		const pkgPath = path.join(dir, "package.json");
+		if (fs.existsSync(pkgPath)) {
+			try {
+				const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { name?: string };
+				if (pkg.name === "mdxserve") {
+					cachedRoot = dir;
+					return dir;
+				}
+			} catch {
+				// malformed package.json; keep walking up
+			}
+		}
 
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      throw new Error('mdxserve: could not locate package root (no package.json named "mdxserve" found)');
-    }
-    dir = parent;
-  }
+		const parent = path.dirname(dir);
+		if (parent === dir) {
+			throw new Error(
+				'mdxserve: could not locate package root (no package.json named "mdxserve" found)',
+			);
+		}
+		dir = parent;
+	}
 }

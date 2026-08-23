@@ -12,20 +12,20 @@ export const fadeSwapTransition: Transition = { duration: 0.12, ease: subtleEase
  * and card-level entrances (CodeFrame, Callout).
  */
 export const fadeRise: Variants = {
-  initial: { opacity: 0, y: 8 },
-  enter: { opacity: 1, y: 0, transition: enterTransition },
-  exit: { opacity: 0, y: -6, transition: exitTransition },
+	initial: { opacity: 0, y: 8 },
+	enter: { opacity: 1, y: 0, transition: enterTransition },
+	exit: { opacity: 0, y: -6, transition: exitTransition },
 };
 
 /** Opacity-only cross-fade for swapping small bits of content in place (labels, toggled views). */
 export const fadeSwap: Variants = {
-  initial: { opacity: 0 },
-  enter: { opacity: 1, transition: fadeSwapTransition },
-  exit: { opacity: 0, transition: fadeSwapTransition },
+	initial: { opacity: 0 },
+	enter: { opacity: 1, transition: fadeSwapTransition },
+	exit: { opacity: 0, transition: fadeSwapTransition },
 };
 
 /** Stagger container for groups of items that should enter together (listing rows). */
 export const stagger: Variants = {
-  initial: {},
-  enter: { transition: { staggerChildren: 0.02 } },
+	initial: {},
+	enter: { transition: { staggerChildren: 0.02 } },
 };

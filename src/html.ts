@@ -1,17 +1,21 @@
 export function escapeHtml(input: string): string {
-  return input
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+	return input
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
 }
 
 const BODY_CLASS = "bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 min-h-screen";
 
-export function renderDocument(options: { title: string; body: string; bodyClass?: string }): string {
-  const { title, body, bodyClass = BODY_CLASS } = options;
-  return `<!doctype html>
+export function renderDocument(options: {
+	title: string;
+	body: string;
+	bodyClass?: string;
+}): string {
+	const { title, body, bodyClass = BODY_CLASS } = options;
+	return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />

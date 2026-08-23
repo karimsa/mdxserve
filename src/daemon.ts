@@ -2,21 +2,21 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export interface DaemonOptions {
-  root: string;
-  port: number;
-  host: string;
-  name: string;
-  autoUpdate: boolean;
+	root: string;
+	port: number;
+	host: string;
+	name: string;
+	autoUpdate: boolean;
 }
 
 function hasOxmgr(): boolean {
-  const probe = spawnSync("oxmgr", ["--version"], { stdio: "ignore" });
-  return !probe.error && probe.status === 0;
+	const probe = spawnSync("oxmgr", ["--version"], { stdio: "ignore" });
+	return !probe.error && probe.status === 0;
 }
 
 /** Shell-quote a single argument for the command string oxmgr will run. */
 function quote(arg: string): string {
-  return /^[A-Za-z0-9_./:=@%+-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", `'\\''`)}'`;
+	return /^[A-Za-z0-9_./:=@%+-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", `'\\''`)}'`;
 }
 
 /**
@@ -25,32 +25,47 @@ function quote(arg: string): string {
  * installed globally, linked, or run from a checkout.
  */
 export function daemonize(options: DaemonOptions): number {
-  if (!hasOxmgr()) {
-    console.error(
-      "mdxserve: --daemon needs oxmgr, which was not found on PATH.\n" +
-        "  Install it (e.g. `brew install oxmgr` or `cargo install oxmgr`) and retry.",
-    );
-    return 1;
-  }
+	if (!hasOxmgr()) {
+		console.error(
+			"mdxserve: --daemon needs oxmgr, which was not found on PATH.\n" +
+				"  Install it (e.g. `brew install oxmgr` or `cargo install oxmgr`) and retry.",
+		);
+		return 1;
+	}
 
-  const cli = fileURLToPath(import.meta.url);
-  if (cli.endsWith(".ts")) {
-    console.error("mdxserve: --daemon needs the built CLI (run `yarn build`, or use the installed `mdxserve` binary).");
-    return 1;
-  }
-  const args = [process.execPath, cli, "serve", options.root, "-p", String(options.port), "--host", options.host];
-  if (options.autoUpdate) args.push("--auto-update");
-  const command = args.map(quote).join(" ");
+	const cli = fileURLToPath(import.meta.url);
+	if (cli.endsWith(".ts")) {
+		console.error(
+			"mdxserve: --daemon needs the built CLI (run `yarn build`, or use the installed `mdxserve` binary).",
+		);
+		return 1;
+	}
+	const args = [
+		process.execPath,
+		cli,
+		"serve",
+		options.root,
+		"-p",
+		String(options.port),
+		"--host",
+		options.host,
+	];
+	if (options.autoUpdate) args.push("--auto-update");
+	const command = args.map(quote).join(" ");
 
-  const result = spawnSync("oxmgr", ["start", "--name", options.name, "--cwd", options.root, command], {
-    stdio: "inherit",
-  });
-  if (result.error || result.status !== 0) {
-    console.error(`mdxserve: oxmgr start failed${result.error ? `: ${result.error.message}` : ""}`);
-    return result.status ?? 1;
-  }
+	const result = spawnSync(
+		"oxmgr",
+		["start", "--name", options.name, "--cwd", options.root, command],
+		{
+			stdio: "inherit",
+		},
+	);
+	if (result.error || result.status !== 0) {
+		console.error(`mdxserve: oxmgr start failed${result.error ? `: ${result.error.message}` : ""}`);
+		return result.status ?? 1;
+	}
 
-  console.log(`
+	console.log(`
 mdxserve is running in the background as "${options.name}" (managed by oxmgr).
 
   http://localhost:${options.port}
@@ -59,5 +74,5 @@ mdxserve is running in the background as "${options.name}" (managed by oxmgr).
   oxmgr stop ${options.name}      stop it (keeps the registration)
   oxmgr delete ${options.name}    stop and forget it
 `);
-  return 0;
+	return 0;
 }

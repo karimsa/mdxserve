@@ -83,12 +83,12 @@ no `import` needed:
 
 ```mdx
 <Callout type="warn" title="Heads up">
-  Some caveat worth calling out.
+	Some caveat worth calling out.
 </Callout>
 
 <Tabs>
-  <Tab label="npm">Run `npm install`.</Tab>
-  <Tab label="yarn">Run `yarn install`.</Tab>
+	<Tab label="npm">Run `npm install`.</Tab>
+	<Tab label="yarn">Run `yarn install`.</Tab>
 </Tabs>
 ```
 

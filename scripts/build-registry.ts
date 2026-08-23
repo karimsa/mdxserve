@@ -9,37 +9,37 @@ const outDir = path.join(pkgRoot, "dist");
 const outFile = path.join(outDir, "registry.json");
 
 const components = builtins.map(({ name, description, whenToUse, props }) => {
-  const hasChildren = "children" in props.shape;
-  const dataProps = hasChildren ? props.omit({ children: true }) : props;
-  // "input" mode: props with defaults are optional for the author, not required.
-  // `unrepresentable: "any"` lets z.custom<T>() props (e.g. Button's onClick
-  // handler) serialize as `{}` (shown as type `any`) instead of throwing.
-  const schema = z.toJSONSchema(dataProps, { io: "input", unrepresentable: "any" });
+	const hasChildren = "children" in props.shape;
+	const dataProps = hasChildren ? props.omit({ children: true }) : props;
+	// "input" mode: props with defaults are optional for the author, not required.
+	// `unrepresentable: "any"` lets z.custom<T>() props (e.g. Button's onClick
+	// handler) serialize as `{}` (shown as type `any`) instead of throwing.
+	const schema = z.toJSONSchema(dataProps, { io: "input", unrepresentable: "any" });
 
-  const entry: {
-    name: string;
-    description: string;
-    whenToUse: string;
-    props: unknown;
-    children?: string;
-  } = {
-    name,
-    description,
-    whenToUse,
-    props: schema,
-  };
+	const entry: {
+		name: string;
+		description: string;
+		whenToUse: string;
+		props: unknown;
+		children?: string;
+	} = {
+		name,
+		description,
+		whenToUse,
+		props: schema,
+	};
 
-  if (hasChildren) {
-    const childrenSchema = props.shape.children as { description?: string };
-    entry.children = childrenSchema.description ?? "";
-  }
+	if (hasChildren) {
+		const childrenSchema = props.shape.children as { description?: string };
+		entry.children = childrenSchema.description ?? "";
+	}
 
-  return entry;
+	return entry;
 });
 
 const registry = {
-  version: 1,
-  components,
+	version: 1,
+	components,
 };
 
 fs.mkdirSync(outDir, { recursive: true });

@@ -14,159 +14,168 @@ import { getViteCacheDir } from "./cache.js";
 const require = createRequire(import.meta.url);
 
 function resolveFromPkg(specifier: string): string {
-  return require.resolve(specifier, { paths: [getPackageRoot()] });
+	return require.resolve(specifier, { paths: [getPackageRoot()] });
 }
 
 export interface CreateDevServerOptions {
-  root: string;
-  httpServer: HttpServer;
-  extraFsAllow?: string[];
+	root: string;
+	httpServer: HttpServer;
+	extraFsAllow?: string[];
 }
 
 export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
-  const { root, httpServer, extraFsAllow = [] } = options;
-  const pkgRoot = getPackageRoot();
+	const { root, httpServer, extraFsAllow = [] } = options;
+	const pkgRoot = getPackageRoot();
 
-  const reactEntry = resolveFromPkg("react");
-  const reactDomEntry = resolveFromPkg("react-dom");
-  const reactDomClientEntry = resolveFromPkg("react-dom/client");
-  const jsxRuntime = resolveFromPkg("react/jsx-runtime");
-  const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
-  const mdxReactEntry = resolveFromPkg("@mdx-js/react");
-  const mermaidEntry = resolveFromPkg("mermaid");
-  // svg-pan-zoom is CJS; alias the package dir (not the browserified dist
-  // main) so Vite picks the plain `module.exports` entry and interops it.
-  const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
-  const zodEntry = resolveFromPkg("zod");
-  // diff's package.json "main" is its CJS entry (libcjs), so a plain
-  // require.resolve("diff") lands there. Unlike svg-pan-zoom/tippy.js (no
-  // "exports" map, so aliasing the package dir falls back to the "module"
-  // field), diff *does* define a conditional "exports" map — and aliasing to
-  // just the package dir still resolves through it to the "require" branch
-  // here, landing back on libcjs. Alias straight to the concrete ESM file
-  // instead so there's no conditional resolution left to get wrong.
-  const diffEntry = path.join(path.dirname(resolveFromPkg("diff/package.json")), "libesm", "index.js");
-  // framer-motion's default resolution can land on its CJS entry; alias the
-  // package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
-  // entry instead.
-  const framerMotionEntry = path.dirname(resolveFromPkg("framer-motion/package.json"));
-  // tippy.js must be aliased to its package dir (not just resolved to its CJS
-  // `main`) so subpath imports like "tippy.js/dist/tippy.css" resolve too.
-  const tippyEntry = path.dirname(resolveFromPkg("tippy.js/package.json"));
-  // @tippyjs/react's `main` is a UMD/CJS bundle (dist/tippy-react.umd.js);
-  // alias the package dir so Vite's own resolver picks the `module` (ESM)
-  // entry instead, same as framer-motion/svg-pan-zoom above.
-  const tippyReactEntry = path.dirname(resolveFromPkg("@tippyjs/react/package.json"));
+	const reactEntry = resolveFromPkg("react");
+	const reactDomEntry = resolveFromPkg("react-dom");
+	const reactDomClientEntry = resolveFromPkg("react-dom/client");
+	const jsxRuntime = resolveFromPkg("react/jsx-runtime");
+	const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
+	const mdxReactEntry = resolveFromPkg("@mdx-js/react");
+	const mermaidEntry = resolveFromPkg("mermaid");
+	// svg-pan-zoom is CJS; alias the package dir (not the browserified dist
+	// main) so Vite picks the plain `module.exports` entry and interops it.
+	const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
+	const zodEntry = resolveFromPkg("zod");
+	// diff's package.json "main" is its CJS entry (libcjs), so a plain
+	// require.resolve("diff") lands there. Unlike svg-pan-zoom/tippy.js (no
+	// "exports" map, so aliasing the package dir falls back to the "module"
+	// field), diff *does* define a conditional "exports" map — and aliasing to
+	// just the package dir still resolves through it to the "require" branch
+	// here, landing back on libcjs. Alias straight to the concrete ESM file
+	// instead so there's no conditional resolution left to get wrong.
+	const diffEntry = path.join(
+		path.dirname(resolveFromPkg("diff/package.json")),
+		"libesm",
+		"index.js",
+	);
+	// framer-motion's default resolution can land on its CJS entry; alias the
+	// package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
+	// entry instead.
+	const framerMotionEntry = path.dirname(resolveFromPkg("framer-motion/package.json"));
+	// tippy.js must be aliased to its package dir (not just resolved to its CJS
+	// `main`) so subpath imports like "tippy.js/dist/tippy.css" resolve too.
+	const tippyEntry = path.dirname(resolveFromPkg("tippy.js/package.json"));
+	// @tippyjs/react's `main` is a UMD/CJS bundle (dist/tippy-react.umd.js);
+	// alias the package dir so Vite's own resolver picks the `module` (ESM)
+	// entry instead, same as framer-motion/svg-pan-zoom above.
+	const tippyReactEntry = path.dirname(resolveFromPkg("@tippyjs/react/package.json"));
 
-  // @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
-  // files are compiled to JSX before the react plugin's babel transform.
-  const mdxPlugin = {
-    ...mdx({
-      // Treat .md exactly like .mdx: builtin components and JSX work in both.
-      // (The default "detect" mode parses .md as plain Markdown and silently
-      // drops unknown tags.)
-      format: "mdx",
-      mdxExtensions: [".mdx", ".md"],
-      mdExtensions: [],
-      remarkPlugins: [remarkGfm],
-      rehypePlugins: [
-        [
-          rehypePrettyCode,
-          {
-            theme: tailwindPlusTheme,
-            keepBackground: false,
-          },
-        ],
-      ],
-      providerImportSource: "@mdx-js/react",
-    }),
-    enforce: "pre" as const,
-  };
+	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
+	// files are compiled to JSX before the react plugin's babel transform.
+	const mdxPlugin = {
+		...mdx({
+			// Treat .md exactly like .mdx: builtin components and JSX work in both.
+			// (The default "detect" mode parses .md as plain Markdown and silently
+			// drops unknown tags.)
+			format: "mdx",
+			mdxExtensions: [".mdx", ".md"],
+			mdExtensions: [],
+			remarkPlugins: [remarkGfm],
+			rehypePlugins: [
+				[
+					rehypePrettyCode,
+					{
+						theme: tailwindPlusTheme,
+						keepBackground: false,
+					},
+				],
+			],
+			providerImportSource: "@mdx-js/react",
+		}),
+		enforce: "pre" as const,
+	};
 
-  const plugins: PluginOption[] = [
-    mdxPlugin,
-    react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
-    tailwindcss(),
-  ];
+	const plugins: PluginOption[] = [
+		mdxPlugin,
+		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
+		tailwindcss(),
+	];
 
-  const vite = await createViteServer({
-    root,
-    configFile: false,
-    // Pin the dep-optimizer cache next to the served content instead of letting
-    // Vite derive it from the nearest package.json above `root` (which could be
-    // an unrelated project). Hidden, so the listing skips it; `mdxserve cache
-    // clean` removes it.
-    cacheDir: getViteCacheDir(root),
-    logLevel: "warn",
-    appType: "custom",
-    server: {
-      middlewareMode: true,
-      // Served roots can be large (a whole repo); keep the watcher away from
-      // dependency/venv/build trees and don't follow symlinks out of the root.
-      watch: {
-        followSymlinks: false,
-        ignored: [
-          "**/.git/**",
-          "**/node_modules/**",
-          "**/.mdxserve/**",
-          "**/.venv/**",
-          "**/venv/**",
-          "**/.cache/**",
-          "**/dist/**",
-          "**/build/**",
-          "**/target/**",
-          "**/__pycache__/**",
-        ],
-      },
-      fs: {
-        allow: [root, path.join(pkgRoot, "client"), path.join(pkgRoot, "node_modules"), ...extraFsAllow],
-      },
-      hmr: {
-        server: httpServer,
-      },
-    },
-    plugins,
-    resolve: {
-      // Vite/rollup-plugin-alias matches on a "find" prefix (id === find or
-      // id.startsWith(find + "/")), taking the first match in list order —
-      // so subpath aliases like "react/jsx-runtime" MUST be listed before
-      // the bare "react" alias, or "react" would prefix-match them first
-      // and mangle the replacement (e.g. ".../react/index.js/jsx-runtime").
-      alias: [
-        { find: "react/jsx-runtime", replacement: jsxRuntime },
-        { find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
-        { find: "react-dom/client", replacement: reactDomClientEntry },
-        { find: "react-dom", replacement: reactDomEntry },
-        { find: "react", replacement: reactEntry },
-        { find: "@mdx-js/react", replacement: mdxReactEntry },
-        { find: "mermaid", replacement: mermaidEntry },
-        { find: "svg-pan-zoom", replacement: svgPanZoomEntry },
-        { find: "zod", replacement: zodEntry },
-        { find: "diff", replacement: diffEntry },
-        { find: "framer-motion", replacement: framerMotionEntry },
-        { find: "@tippyjs/react", replacement: tippyReactEntry },
-        { find: "tippy.js", replacement: tippyEntry },
-      ],
-      dedupe: ["react", "react-dom"],
-    },
-    optimizeDeps: {
-      entries: [],
-      include: [
-        "react",
-        "react-dom",
-        "react/jsx-runtime",
-        "react/jsx-dev-runtime",
-        "@mdx-js/react",
-        "mermaid",
-        "svg-pan-zoom",
-        "zod",
-        "framer-motion",
-        "@tippyjs/react",
-        "tippy.js",
-        "diff",
-      ],
-    },
-  });
+	const vite = await createViteServer({
+		root,
+		configFile: false,
+		// Pin the dep-optimizer cache next to the served content instead of letting
+		// Vite derive it from the nearest package.json above `root` (which could be
+		// an unrelated project). Hidden, so the listing skips it; `mdxserve cache
+		// clean` removes it.
+		cacheDir: getViteCacheDir(root),
+		logLevel: "warn",
+		appType: "custom",
+		server: {
+			middlewareMode: true,
+			// Served roots can be large (a whole repo); keep the watcher away from
+			// dependency/venv/build trees and don't follow symlinks out of the root.
+			watch: {
+				followSymlinks: false,
+				ignored: [
+					"**/.git/**",
+					"**/node_modules/**",
+					"**/.mdxserve/**",
+					"**/.venv/**",
+					"**/venv/**",
+					"**/.cache/**",
+					"**/dist/**",
+					"**/build/**",
+					"**/target/**",
+					"**/__pycache__/**",
+				],
+			},
+			fs: {
+				allow: [
+					root,
+					path.join(pkgRoot, "client"),
+					path.join(pkgRoot, "node_modules"),
+					...extraFsAllow,
+				],
+			},
+			hmr: {
+				server: httpServer,
+			},
+		},
+		plugins,
+		resolve: {
+			// Vite/rollup-plugin-alias matches on a "find" prefix (id === find or
+			// id.startsWith(find + "/")), taking the first match in list order —
+			// so subpath aliases like "react/jsx-runtime" MUST be listed before
+			// the bare "react" alias, or "react" would prefix-match them first
+			// and mangle the replacement (e.g. ".../react/index.js/jsx-runtime").
+			alias: [
+				{ find: "react/jsx-runtime", replacement: jsxRuntime },
+				{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
+				{ find: "react-dom/client", replacement: reactDomClientEntry },
+				{ find: "react-dom", replacement: reactDomEntry },
+				{ find: "react", replacement: reactEntry },
+				{ find: "@mdx-js/react", replacement: mdxReactEntry },
+				{ find: "mermaid", replacement: mermaidEntry },
+				{ find: "svg-pan-zoom", replacement: svgPanZoomEntry },
+				{ find: "zod", replacement: zodEntry },
+				{ find: "diff", replacement: diffEntry },
+				{ find: "framer-motion", replacement: framerMotionEntry },
+				{ find: "@tippyjs/react", replacement: tippyReactEntry },
+				{ find: "tippy.js", replacement: tippyEntry },
+			],
+			dedupe: ["react", "react-dom"],
+		},
+		optimizeDeps: {
+			entries: [],
+			include: [
+				"react",
+				"react-dom",
+				"react/jsx-runtime",
+				"react/jsx-dev-runtime",
+				"@mdx-js/react",
+				"mermaid",
+				"svg-pan-zoom",
+				"zod",
+				"framer-motion",
+				"@tippyjs/react",
+				"tippy.js",
+				"diff",
+			],
+		},
+	});
 
-  return vite;
+	return vite;
 }

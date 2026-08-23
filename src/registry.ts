@@ -3,16 +3,16 @@ import path from "node:path";
 import { getPackageRoot } from "./pkg.js";
 
 export interface RegistryComponent {
-  name: string;
-  description: string;
-  whenToUse: string;
-  props: Record<string, unknown>;
-  children?: string;
+	name: string;
+	description: string;
+	whenToUse: string;
+	props: Record<string, unknown>;
+	children?: string;
 }
 
 export interface Registry {
-  version: number;
-  components: RegistryComponent[];
+	version: number;
+	components: RegistryComponent[];
 }
 
 /**
@@ -21,19 +21,19 @@ export interface Registry {
  * (e.g. running from source via tsx without a prior `yarn build`).
  */
 export function loadRegistry(): Registry {
-  const registryPath = path.join(getPackageRoot(), "dist", "registry.json");
+	const registryPath = path.join(getPackageRoot(), "dist", "registry.json");
 
-  let raw: string;
-  try {
-    raw = fs.readFileSync(registryPath, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(`Component registry not found at ${registryPath}. Run "yarn build" first.`);
-    }
-    throw error;
-  }
+	let raw: string;
+	try {
+		raw = fs.readFileSync(registryPath, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			throw new Error(`Component registry not found at ${registryPath}. Run "yarn build" first.`);
+		}
+		throw error;
+	}
 
-  return JSON.parse(raw) as Registry;
+	return JSON.parse(raw) as Registry;
 }
 
 /**
@@ -41,28 +41,28 @@ export function loadRegistry(): Registry {
  * prop names. An empty/undefined query matches everything.
  */
 export function searchRegistry(registry: Registry, query: string | undefined): RegistryComponent[] {
-  const q = (query ?? "").trim().toLowerCase();
-  if (!q) return registry.components;
+	const q = (query ?? "").trim().toLowerCase();
+	if (!q) return registry.components;
 
-  return registry.components.filter((component) => {
-    const propNames = Object.keys((component.props?.properties as Record<string, unknown>) ?? {});
-    const haystack = [component.name, component.description, component.whenToUse, ...propNames]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(q);
-  });
+	return registry.components.filter((component) => {
+		const propNames = Object.keys((component.props?.properties as Record<string, unknown>) ?? {});
+		const haystack = [component.name, component.description, component.whenToUse, ...propNames]
+			.join(" ")
+			.toLowerCase();
+		return haystack.includes(q);
+	});
 }
 
 function typeOf(schema: Record<string, unknown>): string {
-  if (Array.isArray(schema.enum)) {
-    return (schema.enum as unknown[]).map((v) => JSON.stringify(v)).join(" | ");
-  }
-  if (Array.isArray(schema.anyOf)) {
-    return (schema.anyOf as Record<string, unknown>[]).map(typeOf).join(" | ");
-  }
-  // An empty schema (e.g. z.custom<T>() serialized with `unrepresentable: "any"`)
-  // has no `type`/`enum`/`anyOf` — it means "accepts anything", i.e. `any`.
-  return typeof schema.type === "string" ? schema.type : "any";
+	if (Array.isArray(schema.enum)) {
+		return (schema.enum as unknown[]).map((v) => JSON.stringify(v)).join(" | ");
+	}
+	if (Array.isArray(schema.anyOf)) {
+		return (schema.anyOf as Record<string, unknown>[]).map(typeOf).join(" | ");
+	}
+	// An empty schema (e.g. z.custom<T>() serialized with `unrepresentable: "any"`)
+	// has no `type`/`enum`/`anyOf` — it means "accepts anything", i.e. `any`.
+	return typeof schema.type === "string" ? schema.type : "any";
 }
 
 /**
@@ -71,54 +71,60 @@ function typeOf(schema: Record<string, unknown>): string {
  * optional `children:` note.
  */
 export function formatComponent(entry: RegistryComponent): string {
-  const lines: string[] = [];
-  lines.push(entry.name);
-  lines.push(entry.description);
-  lines.push("");
-  lines.push("When to use:");
-  lines.push(`  ${entry.whenToUse}`);
+	const lines: string[] = [];
+	lines.push(entry.name);
+	lines.push(entry.description);
+	lines.push("");
+	lines.push("When to use:");
+	lines.push(`  ${entry.whenToUse}`);
 
-  const properties = (entry.props?.properties as Record<string, Record<string, unknown>>) ?? {};
-  const required = new Set((entry.props?.required as string[]) ?? []);
-  const propNames = Object.keys(properties);
+	const properties = (entry.props?.properties as Record<string, Record<string, unknown>>) ?? {};
+	const required = new Set((entry.props?.required as string[]) ?? []);
+	const propNames = Object.keys(properties);
 
-  if (propNames.length > 0) {
-    lines.push("");
-    lines.push("Props:");
+	if (propNames.length > 0) {
+		lines.push("");
+		lines.push("Props:");
 
-    const rows = propNames.map((name) => {
-      const schema = properties[name];
-      const type = typeOf(schema);
-      const isRequired = required.has(name) ? "yes" : "no";
-      const defaultValue = "default" in schema ? JSON.stringify(schema.default) : "";
-      const description = typeof schema.description === "string" ? schema.description : "";
-      return { name, type, isRequired, defaultValue, description };
-    });
+		const rows = propNames.map((name) => {
+			const schema = properties[name];
+			const type = typeOf(schema);
+			const isRequired = required.has(name) ? "yes" : "no";
+			const defaultValue = "default" in schema ? JSON.stringify(schema.default) : "";
+			const description = typeof schema.description === "string" ? schema.description : "";
+			return { name, type, isRequired, defaultValue, description };
+		});
 
-    const header = { name: "prop", type: "type", isRequired: "required", defaultValue: "default", description: "description" };
-    const all = [header, ...rows];
-    const widths = {
-      name: Math.max(...all.map((r) => r.name.length)),
-      type: Math.max(...all.map((r) => r.type.length)),
-      isRequired: Math.max(...all.map((r) => r.isRequired.length)),
-      defaultValue: Math.max(...all.map((r) => r.defaultValue.length)),
-    };
+		const header = {
+			name: "prop",
+			type: "type",
+			isRequired: "required",
+			defaultValue: "default",
+			description: "description",
+		};
+		const all = [header, ...rows];
+		const widths = {
+			name: Math.max(...all.map((r) => r.name.length)),
+			type: Math.max(...all.map((r) => r.type.length)),
+			isRequired: Math.max(...all.map((r) => r.isRequired.length)),
+			defaultValue: Math.max(...all.map((r) => r.defaultValue.length)),
+		};
 
-    const renderRow = (r: typeof header) =>
-      `  ${r.name.padEnd(widths.name)}  ${r.type.padEnd(widths.type)}  ${r.isRequired.padEnd(widths.isRequired)}  ${r.defaultValue.padEnd(widths.defaultValue)}  ${r.description}`;
+		const renderRow = (r: typeof header) =>
+			`  ${r.name.padEnd(widths.name)}  ${r.type.padEnd(widths.type)}  ${r.isRequired.padEnd(widths.isRequired)}  ${r.defaultValue.padEnd(widths.defaultValue)}  ${r.description}`;
 
-    lines.push(renderRow(header));
-    for (const row of rows) {
-      lines.push(renderRow(row));
-    }
-  }
+		lines.push(renderRow(header));
+		for (const row of rows) {
+			lines.push(renderRow(row));
+		}
+	}
 
-  if (entry.children) {
-    lines.push("");
-    lines.push(`children: ${entry.children}`);
-  }
+	if (entry.children) {
+		lines.push("");
+		lines.push(`children: ${entry.children}`);
+	}
 
-  return lines.join("\n");
+	return lines.join("\n");
 }
 
 /**
@@ -126,11 +132,13 @@ export function formatComponent(entry: RegistryComponent): string {
  * includes/startsWith match for `name`, for "did you mean" hints.
  */
 export function suggest(registry: Registry, name: string): string[] {
-  const q = name.toLowerCase();
-  const startsWith = registry.components.filter((c) => c.name.toLowerCase().startsWith(q)).map((c) => c.name);
-  const includes = registry.components
-    .filter((c) => !startsWith.includes(c.name) && c.name.toLowerCase().includes(q))
-    .map((c) => c.name);
+	const q = name.toLowerCase();
+	const startsWith = registry.components
+		.filter((c) => c.name.toLowerCase().startsWith(q))
+		.map((c) => c.name);
+	const includes = registry.components
+		.filter((c) => !startsWith.includes(c.name) && c.name.toLowerCase().includes(q))
+		.map((c) => c.name);
 
-  return [...startsWith, ...includes].slice(0, 3);
+	return [...startsWith, ...includes].slice(0, 3);
 }

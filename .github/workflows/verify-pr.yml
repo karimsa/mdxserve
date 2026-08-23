@@ -1,0 +1,66 @@
+name: Verify PR
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  CI: true
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: verify-pr-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore Yarn cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .yarn/cache
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          yarn config set enableGlobalCache false
+          yarn --immutable
+
+      - name: Check yarn constraints
+        run: yarn constraints
+
+      - name: Save Yarn cache
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .yarn/cache
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Check format
+        run: yarn format:check
+
+      - name: Check linting
+        run: yarn lint
+
+      - name: Test types
+        run: yarn typecheck
+
+      - name: Build
+        run: yarn build
