@@ -4,7 +4,7 @@ import type { ListingEntry } from "./listing.js";
 
 export type Route =
 	| { kind: "listing"; path: string; rootName: string; entries: ListingEntry[] }
-	| { kind: "doc"; path: string; rootName: string }
+	| { kind: "doc"; path: string; rootName: string; mtime?: number }
 	| { kind: "notfound"; path: string; rootName: string };
 
 // Route JSON is embedded inside an inline <script type="application/json">.

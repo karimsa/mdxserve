@@ -1,0 +1,185 @@
+/* ── mdxserve colors ───────────────────────────────────────────────
+   Warm neutral paper + one deep teal accent. Content is the subject;
+   chrome is neutral, accent is used sparingly for state and links. */
+:root {
+	/* neutrals — warm grey "paper" ramp */
+	--n-0: #ffffff;
+	--n-25: #fbfbf9;
+	--n-50: #f6f6f3;
+	--n-100: #eeeeea;
+	--n-200: #e3e2dd;
+	--n-300: #cfcec7;
+	--n-400: #a9a8a0;
+	--n-500: #82817a;
+	--n-600: #615f5a;
+	--n-700: #464540;
+	--n-800: #2b2a27;
+	--n-900: #1a1918;
+	--n-950: #111110;
+
+	/* accent — deep teal */
+	--teal-50: #e8f6f5;
+	--teal-100: #c9eae8;
+	--teal-200: #9bd8d5;
+	--teal-300: #63c1be;
+	--teal-400: #2ba5a2;
+	--teal-500: #0e8f8c;
+	--teal-600: #0a7472;
+	--teal-700: #085b59;
+	--teal-800: #064442;
+	--teal-900: #042c2b;
+
+	/* support hues — semantic + diagram fills only, never decoration */
+	--blue-100: #dce7fd;
+	--blue-500: #2f6fed;
+	--blue-700: #1d4dab;
+	--green-100: #d8f0e3;
+	--green-500: #1a7f4f;
+	--green-700: #12603b;
+	--amber-100: #fbeccd;
+	--amber-500: #b07405;
+	--amber-700: #855603;
+	--red-100: #fbdfd9;
+	--red-500: #c8412f;
+	--red-700: #9a2f20;
+	--violet-100: #e6e2fb;
+	--violet-500: #5b4fd0;
+	--violet-700: #433a9e;
+
+	/* ── semantic aliases ── */
+	--surface-page: var(--n-25);
+	--surface-card: var(--n-0);
+	--surface-sunken: var(--n-50);
+	--surface-raised: var(--n-0);
+	--surface-inverse: var(--n-900);
+	--surface-hover: var(--n-100);
+	--surface-active: var(--n-200);
+	--surface-accent-soft: var(--teal-50);
+	--surface-accent: var(--teal-500);
+
+	--text-body: var(--n-800);
+	--text-heading: var(--n-950);
+	--text-muted: var(--n-600);
+	--text-subtle: var(--n-500);
+	--text-inverse: var(--n-25);
+	--text-accent: var(--teal-600);
+	--text-link: var(--teal-600);
+	--text-link-hover: var(--teal-700);
+
+	--border-subtle: var(--n-100);
+	--border-default: var(--n-200);
+	--border-strong: var(--n-300);
+	--border-accent: var(--teal-400);
+	--focus-ring: color-mix(in oklab, var(--teal-500) 45%, transparent);
+
+	--status-info-bg: var(--blue-100);
+	--status-info-fg: var(--blue-700);
+	--status-ok-bg: var(--green-100);
+	--status-ok-fg: var(--green-700);
+	--status-warn-bg: var(--amber-100);
+	--status-warn-fg: var(--amber-700);
+	--status-danger-bg: var(--red-100);
+	--status-danger-fg: var(--red-700);
+	--status-note-bg: var(--violet-100);
+	--status-note-fg: var(--violet-700);
+
+	/* diagrams + charts — categorical series, in order of use */
+	--chart-1: var(--teal-500);
+	--chart-2: var(--blue-500);
+	--chart-3: var(--amber-500);
+	--chart-4: var(--violet-500);
+	--chart-5: var(--green-500);
+	--chart-6: var(--red-500);
+	--chart-grid: var(--border-subtle);
+	--chart-axis: var(--n-300);
+	--chart-label: var(--text-subtle);
+	--diagram-bg: var(--surface-card);
+	--diagram-node-bg: var(--surface-accent-soft);
+	--diagram-node-border: var(--teal-400);
+	--diagram-node-fg: var(--teal-700);
+	--diagram-alt-node-bg: var(--surface-sunken);
+	--diagram-alt-node-border: var(--border-strong);
+	--diagram-line: var(--n-400);
+	--diagram-label-bg: var(--surface-card);
+
+	/* code surfaces + syntax */
+	--code-bg: var(--n-50);
+	--code-bg-inline: var(--teal-50);
+	--code-fg: var(--n-800);
+	--code-border: var(--n-200);
+	--code-gutter: var(--n-400);
+	--code-highlight: color-mix(in oklab, var(--teal-500) 9%, transparent);
+	--syntax-keyword: #8a3fa8;
+	--syntax-string: #0a7472;
+	--syntax-number: #b07405;
+	--syntax-comment: #82817a;
+	--syntax-function: #2f6fed;
+	--syntax-tag: #c8412f;
+	--syntax-attr: #5b4fd0;
+	--syntax-punct: #615f5a;
+}
+
+/* Dark: the pre-design-system blue-black (Tailwind gray-950) kept on request — a
+   cool near-black ramp instead of the warm one the design project shipped
+   (#141514). Teal is lifted for contrast exactly as in the design. */
+:root[data-theme="dark"] {
+	--surface-page: #030712;
+	--surface-card: #0b1120;
+	--surface-sunken: #020509;
+	--surface-raised: #111827;
+	--surface-inverse: var(--n-50);
+	--surface-hover: #1b2436;
+	--surface-active: #263044;
+	--surface-accent-soft: var(--teal-900);
+	--surface-accent: var(--teal-400);
+
+	--text-body: #d1d5db;
+	--text-heading: #f9fafb;
+	--text-muted: #9ca3af;
+	--text-subtle: #6b7280;
+	--text-inverse: var(--n-950);
+	--text-accent: var(--teal-300);
+	--text-link: var(--teal-300);
+	--text-link-hover: var(--teal-200);
+
+	--border-subtle: #111827;
+	--border-default: #1f2937;
+	--border-strong: #374151;
+	--border-accent: var(--teal-400);
+
+	--status-info-bg: #182a4d;
+	--status-info-fg: #9dbcfb;
+	--status-ok-bg: #122f22;
+	--status-ok-fg: #8fd8b0;
+	--status-warn-bg: #33260a;
+	--status-warn-fg: #e9c078;
+	--status-danger-bg: #39190f;
+	--status-danger-fg: #eda99b;
+	--status-note-bg: #221d44;
+	--status-note-fg: #b9b1f2;
+
+	--chart-1: var(--teal-300);
+	--chart-2: #8db3fb;
+	--chart-3: #e9c078;
+	--chart-4: #b9b1f2;
+	--chart-5: #8fd8b0;
+	--chart-6: #eda99b;
+	--chart-grid: #111827;
+	--chart-axis: #1f2937;
+	--diagram-node-fg: var(--teal-200);
+	--diagram-line: #4b5563;
+
+	--code-bg: #0b1120;
+	--code-bg-inline: #0f2422;
+	--code-fg: #d1d5db;
+	--code-border: #1f2937;
+	--code-gutter: #4b5563;
+	--syntax-keyword: #d79ae8;
+	--syntax-string: #63c1be;
+	--syntax-number: #e9c078;
+	--syntax-comment: #6b7280;
+	--syntax-function: #8db3fb;
+	--syntax-tag: #eda99b;
+	--syntax-attr: #b9b1f2;
+	--syntax-punct: #9ca3af;
+}

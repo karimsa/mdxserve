@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useLayoutEffect } from "react";
 import { fadeRise } from "./motion";
 import { docModuleCache, type Route } from "./router";
 
@@ -16,8 +17,27 @@ function ErrorBox({ message }: { message: string }) {
 	);
 }
 
-export function DocView({ route }: { route: Extract<Route, { kind: "doc" }> }) {
+export function DocView({
+	route,
+	onRendered,
+}: {
+	route: Extract<Route, { kind: "doc" }>;
+	/**
+	 * Fired once the article for the *current* cached module is on the page —
+	 * keyed on the cached entry's identity (not just route.path) so it fires
+	 * exactly once per resolved module, including the async case where the
+	 * initial server-rendered route's module is still importing on mount (see
+	 * the bootstrap effect in client/router.ts). Lets TocRail/useToc know when
+	 * it's safe to re-scan the DOM for headings.
+	 */
+	onRendered?: () => void;
+}) {
 	const cached = docModuleCache.get(route.path);
+
+	useLayoutEffect(() => {
+		if (cached?.status === "ok") onRendered?.();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [cached, onRendered]);
 
 	// The router always resolves the module before setting a "doc" route (see
 	// client/router.ts loadRoute / the initial-route bootstrap effect), so this
@@ -30,7 +50,7 @@ export function DocView({ route }: { route: Extract<Route, { kind: "doc" }> }) {
 
 	const Content = cached.Component;
 	return (
-		<article className="prose prose-neutral dark:prose-invert max-w-none">
+		<article className="mdx-prose">
 			<Content />
 		</article>
 	);

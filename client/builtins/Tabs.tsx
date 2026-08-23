@@ -10,7 +10,7 @@ import {
 } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { enterTransition } from "../motion";
+import { T } from "../motion";
 import { CrossFade } from "../CrossFade";
 
 export const tabProps = z.object({
@@ -112,12 +112,12 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 	if (!activeTab) return null;
 
 	return (
-		<div className="my-6">
+		<div>
 			<div
 				ref={listRef}
 				role="tablist"
 				onKeyDown={handleKeyDown}
-				className="not-prose flex gap-1 border-b border-gray-200 dark:border-white/10"
+				className="not-prose flex gap-1 border-b border-border-default"
 			>
 				{tabs.map((tab) => {
 					const isActive = tab.value === activeTab.value;
@@ -132,18 +132,18 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 							tabIndex={isActive ? 0 : -1}
 							onClick={() => setActive(tab.value)}
 							className={
-								"relative cursor-pointer px-3 py-2 text-sm font-medium transition-colors " +
+								"relative h-[34px] cursor-pointer px-3 font-sans font-medium leading-normal text-[length:var(--size-sm)] transition-colors " +
 								(isActive
-									? "text-sky-600 dark:text-sky-400"
-									: "text-gray-500 hover:text-gray-900 dark:hover:text-white")
+									? "font-semibold text-text-heading"
+									: "font-medium text-text-subtle hover:text-text-body")
 							}
 						>
 							{tab.label}
 							{isActive ? (
 								<motion.span
 									layoutId={`${scopeId}-tab-underline`}
-									transition={enterTransition}
-									className="absolute inset-x-0 -bottom-px h-0.5 bg-sky-600 dark:bg-sky-400"
+									transition={T.snap}
+									className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-teal-500"
 								/>
 							) : null}
 						</button>

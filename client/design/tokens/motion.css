@@ -1,0 +1,76 @@
+:root {
+	/* Motion is short and flat. Nothing bounces past 2%; nothing travels over 10px.
+     Springs are the default for anything a person touches or that changes size;
+     tweens are for colour and opacity only. Implemented with Framer Motion via
+     components/motion/MotionKit.jsx — these tokens are the same numbers. */
+	--dur-instant: 80ms; /* @kind other */
+	--dur-fast: 120ms; /* @kind other */
+	--dur-base: 180ms; /* @kind other */
+	--dur-slow: 260ms; /* @kind other */
+	--ease-standard: cubic-bezier(0.2, 0, 0.2, 1); /* @kind other */
+	--ease-out: cubic-bezier(0, 0, 0.2, 1); /* @kind other */
+	--ease-in: cubic-bezier(0.4, 0, 1, 1); /* @kind other */
+
+	--transition-color:
+		color var(--dur-fast) var(--ease-standard),
+		background-color var(--dur-fast) var(--ease-standard),
+		border-color var(--dur-fast) var(--ease-standard);
+	--transition-lift:
+		box-shadow var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+
+	/* Springs — mirrored in MotionKit's T.snap / T.glide. */
+	--spring-snap: 620 34 0.7; /* @kind other */
+	--spring-glide: 340 30 0.9; /* @kind other */
+
+	/* Travel distances. Anything larger reads as a page transition, which this system has none of. */
+	--travel-xs: 4px;
+	--travel-sm: 6px;
+	--travel-md: 10px;
+	--press-offset: 0.5px;
+	--hover-nudge: 2px;
+	--pop-scale: 0.985; /* @kind other */
+	--enter-pop: popIn var(--dur-base) var(--ease-out);
+	--enter-fade: fadeIn var(--dur-base) var(--ease-out);
+
+	--z-sticky: 10; /* @kind other */
+	--z-dropdown: 40; /* @kind other */
+	--z-scrim: 60; /* @kind other */
+	--z-modal: 70; /* @kind other */
+	--z-toast: 80; /* @kind other */
+}
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+@keyframes popIn {
+	from {
+		opacity: 0;
+		transform: translateY(4px) scale(0.985);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-instant: 0ms; /* @kind other */
+		--dur-fast: 0ms; /* @kind other */
+		--dur-base: 0ms; /* @kind other */
+		--dur-slow: 0ms /* @kind other */;
+	}
+}

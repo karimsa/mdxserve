@@ -1,43 +1,46 @@
+import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
 import { stagger } from "./motion";
+import { Icon } from "./ui/Icon";
 import type { ListingEntry, Route } from "./router";
-
-function FolderIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			viewBox="0 0 20 20"
-			fill="currentColor"
-			className="h-[18px] w-[18px] shrink-0 text-gray-400"
-			aria-hidden="true"
-		>
-			<path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h4.379a1.5 1.5 0 0 1 1.06.44l1.122 1.12A1.5 1.5 0 0 0 11.12 5H16.5A1.5 1.5 0 0 1 18 6.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 15.5v-11Z" />
-		</svg>
-	);
-}
-
-function FileIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			viewBox="0 0 20 20"
-			fill="currentColor"
-			className="h-[18px] w-[18px] shrink-0 text-gray-400"
-			aria-hidden="true"
-		>
-			<path
-				fillRule="evenodd"
-				d="M4 2a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 4 18h12a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.878 2H4Zm7 1.5v3a1 1 0 0 0 1 1h3l-4-4Z"
-				clipRule="evenodd"
-			/>
-		</svg>
-	);
-}
+import Dropdown from "./builtins/Dropdown";
 
 function formatSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type SortKey = "name" | "modified";
+
+const SORT_STORAGE_KEY = "mdxserve.listing.sort";
+
+function readStoredSort(): SortKey {
+	try {
+		const v = localStorage.getItem(SORT_STORAGE_KEY);
+		if (v === "name" || v === "modified") return v;
+	} catch {
+		// localStorage may be unavailable; fall through to default.
+	}
+	return "name";
+}
+
+function sortEntries(entries: ListingEntry[], sort: SortKey): ListingEntry[] {
+	const byName = (a: ListingEntry, b: ListingEntry) =>
+		a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+	return [...entries].sort((a, b) => {
+		if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+		if (sort === "modified") {
+			const diff = (b.mtime ?? 0) - (a.mtime ?? 0);
+			if (diff !== 0) return diff;
+		}
+		return byName(a, b);
+	});
+}
+
+function formatModified(mtime: number): string {
+	return formatDistanceToNow(mtime, { addSuffix: true });
 }
 
 const rowVariants = {
@@ -51,22 +54,33 @@ function Row({
 	label,
 	muted,
 	size,
+	mtime,
 }: {
 	href: string | null;
 	icon: "folder" | "file";
 	label: string;
 	muted: boolean;
 	size?: number;
+	mtime?: number;
 }) {
 	const inner = (
 		<>
-			{icon === "folder" ? <FolderIcon /> : <FileIcon />}
-			<span className="truncate">{label}</span>
-			{typeof size === "number" ? (
-				<span className="ml-auto pl-4 text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-					{formatSize(size)}
-				</span>
-			) : null}
+			<Icon
+				name={icon === "folder" ? "folder" : "file-text"}
+				size="md"
+				className="shrink-0 text-text-subtle"
+			/>
+			<span className="truncate font-sans font-medium leading-normal text-[length:var(--size-md)]">
+				{label}
+			</span>
+			<span className="ml-auto flex shrink-0 items-center gap-4 pl-4 font-mono font-normal leading-[1.62] text-[length:var(--size-xs)] text-text-subtle tabular-nums">
+				{typeof mtime === "number" ? (
+					<span title={new Date(mtime).toLocaleString()}>{formatModified(mtime)}</span>
+				) : null}
+				{typeof size === "number" ? (
+					<span className="w-16 text-right">{formatSize(size)}</span>
+				) : null}
+			</span>
 		</>
 	);
 
@@ -74,7 +88,7 @@ function Row({
 		return (
 			<motion.div
 				variants={rowVariants}
-				className="flex items-center gap-2 px-3 py-2 text-gray-400 dark:text-gray-600 cursor-default"
+				className="flex cursor-default items-center gap-2 rounded-md px-3 py-2 text-text-subtle"
 			>
 				{inner}
 			</motion.div>
@@ -87,7 +101,7 @@ function Row({
 		<motion.a
 			variants={rowVariants}
 			href={href}
-			className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-50 dark:hover:bg-white/5"
+			className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-surface-hover"
 		>
 			{inner}
 		</motion.a>
@@ -100,44 +114,54 @@ export function ListingView({ route }: { route: Extract<Route, { kind: "listing"
 	const parentSegments = segments.slice(0, -1);
 	const parentHref = parentSegments.length ? `/${parentSegments.join("/")}/` : "/";
 
+	const [sort, setSort] = useState<SortKey>(readStoredSort);
+	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
+
+	const onSortChange = (next: SortKey) => {
+		setSort(next);
+		try {
+			localStorage.setItem(SORT_STORAGE_KEY, next);
+		} catch {
+			// Ignore storage failures; the in-memory state still applies.
+		}
+	};
+
 	return (
-		<motion.div
-			variants={stagger}
-			initial="initial"
-			animate="enter"
-			className="divide-y divide-gray-100 dark:divide-white/10 border-y border-gray-100 dark:border-white/10"
-		>
-			{path !== "/" ? <Row href={parentHref} icon="folder" label=".." muted={false} /> : null}
-			{entries.map((entry: ListingEntry) => {
-				const href = `${path}${entry.name}${entry.isDir ? "/" : ""}`;
-				if (entry.isDir) {
-					return (
-						<Row key={entry.name} href={href} icon="folder" label={entry.name} muted={false} />
-					);
-				}
-				if (entry.isDoc) {
-					return (
-						<Row
-							key={entry.name}
-							href={href}
-							icon="file"
-							label={entry.name}
-							muted={false}
-							size={entry.size}
-						/>
-					);
-				}
-				return (
-					<Row
-						key={entry.name}
-						href={null}
-						icon="file"
-						label={entry.name}
-						muted
-						size={entry.size}
+		<div>
+			<div className="mb-2 flex items-center justify-end gap-2 font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle">
+				<span>Sort by</span>
+				<div className="w-40">
+					<Dropdown
+						size="sm"
+						value={sort}
+						onChange={(next) => onSortChange(next as SortKey)}
+						options={[
+							{ value: "name", label: "Name" },
+							{ value: "modified", label: "Last modified" },
+						]}
 					/>
-				);
-			})}
-		</motion.div>
+				</div>
+			</div>
+			<motion.div
+				key={sort}
+				variants={stagger}
+				initial="initial"
+				animate="enter"
+				className="divide-y divide-border-subtle border-y border-border-subtle"
+			>
+				{path !== "/" ? <Row href={parentHref} icon="folder" label=".." muted={false} /> : null}
+				{sorted.map((entry: ListingEntry) => {
+					const href = `${path}${entry.name}${entry.isDir ? "/" : ""}`;
+					const common = { label: entry.name, size: entry.size, mtime: entry.mtime };
+					if (entry.isDir) {
+						return <Row key={entry.name} href={href} icon="folder" muted={false} {...common} />;
+					}
+					if (entry.isDoc) {
+						return <Row key={entry.name} href={href} icon="file" muted={false} {...common} />;
+					}
+					return <Row key={entry.name} href={null} icon="file" muted {...common} />;
+				})}
+			</motion.div>
+		</div>
 	);
 }

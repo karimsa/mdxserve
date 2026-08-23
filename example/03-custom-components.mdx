@@ -2,42 +2,47 @@ import Counter from './components/Counter';
 
 # Custom components
 
-MDX files can import and render ordinary React components, not just built-in HTML elements.
+MDX files can import and render your own React components, not just the builtins.
 The import at the top of this file pulls in `Counter.tsx` from the `components/` folder next
 to this document.
 
 ## How component resolution works
 
 - Components are plain `.tsx` files, written like any other React 19 component.
-- Vite resolves the `import` paths relative to this MDX file, exactly like it would in a
-  normal `.tsx` module. There's no special "components folder" convention required — you
-  could import from anywhere Vite can resolve.
-- Imports are explicit. There's no auto-registration or global component list for your own
-  components: if a component isn't imported at the top of the file, it isn't available in
-  the document.
-- `react` itself is provided by `mdxserve` — you don't need to `npm install react` in your
-  docs folder for this to work. You only need to install packages if a component you write
-  depends on something beyond React itself.
-- The one exception is `mdxserve`'s **builtin components** (like `Callout`, used below):
-  those are always available, with no import needed — see `06-builtins.mdx`.
+- Vite resolves the `import` path relative to this MDX file, the same way it would in a
+  normal `.tsx` module. There is no special components folder; import from anywhere Vite can
+  resolve.
+- Imports are explicit. A component you write is only available in a document that imports it.
+- `react` is provided by mdxserve. You only install packages if a component depends on
+  something beyond React itself.
+- Builtins (`Callout`, `Tabs`, `Badge`, `Chart`…) need no import. They are covered in
+  `06-builtins.mdx`; reach for them before writing your own.
 
 ## Counter
 
 <Counter />
 
 `Counter` is a small stateful component using `useState`. Each click increments its own local
-count, styled with Tailwind classes including a `dark:` variant.
+count.
 
-## Callout
+## Matching the site's look
 
-<Callout type="info">
-  This is an info callout. It's a builtin component, available with no import.
-</Callout>
+Custom components can use the same design tokens the builtins use, as Tailwind utilities.
+`Counter` is styled this way, so it follows the light and dark themes without a single `dark:`
+class:
 
-<Callout type="warn" title="Heads up">
-  This is a warn callout, with an optional `title` shown above the body.
-</Callout>
+```tsx title="components/Counter.tsx"
+<button className="rounded-md border border-border-default bg-surface-card px-3.5 text-text-body shadow-xs hover:bg-surface-hover">
+  Count: {count}
+</button>
+```
 
-<Callout>
-  No `type` prop was passed here, so `Callout` falls back to its default.
-</Callout>
+| Use | Utilities |
+| --- | --- |
+| Surfaces | `bg-surface-page`, `bg-surface-card`, `bg-surface-sunken`, `bg-surface-hover` |
+| Text | `text-text-heading`, `text-text-body`, `text-text-muted`, `text-text-subtle`, `text-text-accent` |
+| Borders and lift | `border-border-subtle`, `border-border-default`, `shadow-xs`, `shadow-sm` |
+| Status tints | `bg-status-warn-bg` with `text-status-warn-fg` (also `info`, `ok`, `danger`, `note`) |
+| Shape and type | `rounded-md` (6px), `rounded-lg` (10px), `font-sans`, `font-mono` |
+
+Put `not-prose` on the component's root so the page's prose rhythm does not leak into it.

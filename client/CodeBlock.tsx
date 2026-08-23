@@ -13,11 +13,13 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
-import { enterTransition, fadeSwap } from "./motion";
+import { T } from "./motion";
 import { CrossFade } from "./CrossFade";
+import { Icon } from "./ui/Icon";
 
 /**
- * Tailwind Plus-style code block chrome for MDX-compiled output.
+ * Code block chrome for MDX-compiled output, styled from the design tokens
+ * (bg-code-bg / border-code-border / text-code-fg — see client/design/tokens/colors.css).
  *
  * rehype-pretty-code (node_modules/rehype-pretty-code/dist/index.js) wraps every fenced
  * code block as:
@@ -35,53 +37,143 @@ import { CrossFade } from "./CrossFade";
  *   </figure>
  *
  * We intercept both `figure` and `pre` in the MDXProvider components map (see
- * client/entry.tsx). `Figure` renders the Tailwind Plus dark card (header bar +
- * copy button) for processed code figures, pulling the title out of the figcaption
- * and the language off the `pre`; `Pre` then renders as a bare, styled `<pre>`
- * inside that card. A `<pre>` that is *not* inside one of our `Figure`s (e.g.
+ * client/entry.tsx). `Figure` renders the framed card (header bar + copy button)
+ * for processed code figures, pulling the title out of the figcaption and the
+ * language off the `pre`; `Pre` then renders as a bare, styled `<pre>` inside
+ * that card. A `<pre>` that is *not* inside one of our `Figure`s (e.g.
  * hand-written JSX in an .mdx file, which bypasses rehype-pretty-code entirely)
  * falls back to rendering the same card itself, so plain `<pre>` still looks right.
- * `CodeFrame` is the single source of truth for that card, used by both paths.
+ * `CodeFrame` is the single source of truth for that card, used by both paths;
+ * `CodeFrameHeader` is its header bar, exported standalone so other framed
+ * code-like surfaces (e.g. the Diff builtin) can reuse the same chrome.
  */
 
 const InsideCodeFrame = createContext(false);
 
-function ClipboardIcon() {
+/**
+ * The 34px header bar shared by every code-shaped frame: a mono filename/
+ * language label on the left, arbitrary actions (copy button, view toggle) on
+ * the right.
+ */
+export function CodeFrameHeader({ label, actions }: { label?: ReactNode; actions?: ReactNode }) {
 	return (
-		<svg viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
-			<path
-				d="M5.5 3h5A1.5 1.5 0 0 1 12 4.5v8a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 4 12.5v-8A1.5 1.5 0 0 1 5.5 3Z"
-				stroke="currentColor"
-				strokeWidth="1.2"
-			/>
-			<path
-				d="M6.25 3V2a1 1 0 0 1 1-1h1.5a1 1 0 0 1 1 1v1"
-				stroke="currentColor"
-				strokeWidth="1.2"
-			/>
-		</svg>
+		<div className="flex h-[38px] items-center gap-3 border-b border-code-border pr-2.5 pl-4">
+			<span className="min-w-0 flex-1 truncate font-mono text-[length:var(--size-xs)] text-text-subtle">
+				{label}
+			</span>
+			{/* Each action is its own group; a hairline keeps a segmented control and
+          the copy button from reading as one cluster. */}
+			{actions ? (
+				<div className="flex items-center gap-3 [&>*+*]:border-l [&>*+*]:border-code-border [&>*+*]:pl-3">
+					{actions}
+				</div>
+			) : null}
+		</div>
 	);
 }
 
-function CheckIcon() {
+/** Copy-to-clipboard button with a crossfading copy/check icon and label. */
+function CopyButton({ getText }: { getText: () => string }) {
+	const [copied, setCopied] = useState(false);
+
+	async function handleCopy() {
+		const text = getText();
+		if (!text) return;
+		try {
+			await navigator.clipboard.writeText(text);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1500);
+		} catch {
+			// clipboard unavailable; ignore
+		}
+	}
+
 	return (
-		<svg viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
-			<path
-				d="M3.5 8.5 6.5 11.5 12.5 4.5"
-				stroke="currentColor"
-				strokeWidth="1.4"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-		</svg>
+		<motion.button
+			type="button"
+			onClick={handleCopy}
+			layout
+			whileTap={{ scale: 0.94 }}
+			transition={T.snap}
+			className={
+				"inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-sm px-2 font-sans text-[length:var(--size-xs)] font-medium leading-none transition-colors " +
+				(copied ? "text-text-accent" : "text-text-subtle hover:text-text-heading")
+			}
+		>
+			<AnimatePresence mode="wait" initial={false}>
+				<motion.span
+					key={copied ? "done" : "idle"}
+					initial={{ opacity: 0, y: -3 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: 3 }}
+					transition={T.fast}
+					className="inline-flex items-center gap-1.5"
+				>
+					<Icon name={copied ? "check" : "copy"} size={13} />
+					{copied ? "Copied" : "Copy"}
+				</motion.span>
+			</AnimatePresence>
+		</motion.button>
+	);
+}
+
+/** Diagram/Code segmented pill for mermaid frames; the active pill slides via `layoutId`. */
+function ViewToggle({
+	view,
+	onChange,
+	toggleId,
+}: {
+	view: "diagram" | "code";
+	onChange: (view: "diagram" | "code") => void;
+	toggleId: string;
+}) {
+	return (
+		<div
+			role="tablist"
+			className="inline-flex gap-1 rounded-md border border-border-default bg-surface-sunken p-[3px]"
+		>
+			{(
+				[
+					{ value: "diagram", icon: "image" },
+					{ value: "code", icon: "code" },
+				] as const
+			).map((option) => (
+				<button
+					key={option.value}
+					type="button"
+					role="tab"
+					aria-selected={view === option.value}
+					onClick={() => onChange(option.value)}
+					className={
+						"relative inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-sm px-2.5 font-sans text-[length:var(--size-xs)] leading-none capitalize transition-colors " +
+						(view === option.value
+							? "font-semibold text-text-heading"
+							: "font-medium text-text-subtle hover:text-text-heading")
+					}
+				>
+					{view === option.value ? (
+						<motion.span
+							layoutId={`${toggleId}-pill`}
+							transition={T.snap}
+							className="absolute inset-0 rounded-sm border border-border-default bg-surface-card shadow-xs"
+						/>
+					) : null}
+					<span className="relative z-10 inline-flex items-center gap-1.5">
+						<Icon name={option.icon} size={12} />
+						{option.value}
+					</span>
+				</button>
+			))}
+		</div>
 	);
 }
 
 /**
- * Shared Tailwind Plus card: rounded dark header bar with a title/language label
- * and an always-visible copy button, wrapping whatever `<pre>` is passed as
- * children. Copies via a ref instead of prop-drilling so it works whether the
- * `<pre>` came from `Figure` or was rendered directly by `Pre`.
+ * Shared card: header bar (label + actions) wrapping whatever `<pre>` is
+ * passed as children. Copies via a ref instead of prop-drilling so it works
+ * whether the `<pre>` came from `Figure` or was rendered directly by `Pre`.
+ * Content rises with the rest of the prose column, so the frame itself has no
+ * entrance animation of its own.
  */
 function CodeFrame({
 	title,
@@ -93,7 +185,6 @@ function CodeFrame({
 	children: ReactNode;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [copied, setCopied] = useState(false);
 	const isMermaid = language === "mermaid";
 	const [view, setView] = useState<"diagram" | "code">("diagram");
 	const [source, setSource] = useState<string | null>(null);
@@ -109,76 +200,24 @@ function CodeFrame({
 		setSource(pre?.textContent ?? "");
 	}, [isMermaid, children]);
 
-	async function handleCopy() {
-		const pre = containerRef.current?.querySelector("pre");
-		const text = pre?.textContent ?? "";
-		if (!text) return;
-		try {
-			await navigator.clipboard.writeText(text);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 1500);
-		} catch {
-			// clipboard unavailable; ignore
-		}
+	function getCopyText() {
+		return containerRef.current?.querySelector("pre")?.textContent ?? "";
 	}
 
 	return (
-		<motion.div
+		<div
 			ref={containerRef}
-			initial={{ opacity: 0, y: 6 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={enterTransition}
-			className="not-prose my-6 overflow-hidden rounded-xl bg-gray-950 shadow-md ring-1 ring-white/10"
+			className="overflow-hidden rounded-lg border border-code-border bg-code-bg"
 		>
-			<div className="flex items-center justify-between border-b border-white/5 px-4 py-2">
-				<span className="text-xs font-medium text-gray-400">{label}</span>
-				<div className="flex items-center gap-3">
-					{isMermaid ? (
-						<div role="tablist" className="inline-flex rounded-md bg-white/5 p-0.5 text-xs">
-							{(["diagram", "code"] as const).map((option) => (
-								<button
-									key={option}
-									type="button"
-									role="tab"
-									aria-selected={view === option}
-									onClick={() => setView(option)}
-									className={
-										"relative cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
-										(view === option ? "text-white" : "text-gray-400 hover:text-white")
-									}
-								>
-									{view === option ? (
-										<motion.span
-											layoutId={`${toggleId}-pill`}
-											transition={enterTransition}
-											className="absolute inset-0 rounded bg-white/10"
-										/>
-									) : null}
-									<span className="relative">{option}</span>
-								</button>
-							))}
-						</div>
-					) : null}
-					<button
-						type="button"
-						onClick={handleCopy}
-						className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-white"
-					>
-						{copied ? <CheckIcon /> : <ClipboardIcon />}
-						<AnimatePresence mode="popLayout" initial={false}>
-							<motion.span
-								key={copied ? "copied" : "copy"}
-								variants={fadeSwap}
-								initial="initial"
-								animate="enter"
-								exit="exit"
-							>
-								{copied ? "Copied" : "Copy"}
-							</motion.span>
-						</AnimatePresence>
-					</button>
-				</div>
-			</div>
+			<CodeFrameHeader
+				label={label}
+				actions={
+					<>
+						{isMermaid ? <ViewToggle view={view} onChange={setView} toggleId={toggleId} /> : null}
+						<CopyButton getText={getCopyText} />
+					</>
+				}
+			/>
 			{isMermaid ? (
 				<CrossFade
 					active={showDiagram ? "diagram" : "code"}
@@ -193,11 +232,12 @@ function CodeFrame({
 			) : (
 				<InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>
 			)}
-		</motion.div>
+		</div>
 	);
 }
 
-const PRE_CLASS = "overflow-x-auto p-4 font-mono text-[13px] leading-6 text-gray-300";
+const PRE_CLASS =
+	"font-mono font-normal leading-[1.62] text-[length:var(--size-sm)] text-code-fg overflow-x-auto";
 
 type PreProps = ComponentPropsWithoutRef<"pre"> & { "data-language"?: string };
 
@@ -233,7 +273,7 @@ function textContentOf(node: ReactNode): string {
 
 /**
  * MDXProvider `figure` override. Only rehype-pretty-code's code figures (tagged
- * with `data-rehype-pretty-code-figure`) get the Tailwind Plus treatment; any
+ * with `data-rehype-pretty-code-figure`) get the framed treatment; any
  * other `<figure>` (e.g. wrapping an image) renders unchanged.
  */
 export function Figure({ children, ...props }: FigureProps) {

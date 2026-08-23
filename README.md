@@ -7,6 +7,10 @@ files. Clicking a file renders it in the browser through Vite — so plain
 Markdown just renders, and any JSX or components you `import` in an `.mdx`
 file work too, with Tailwind available everywhere and Vite HMR while you edit.
 
+![A rendered Markdown page in the light theme: sidebar file tree, prose column, table of contents](docs/screenshots/reader-light.jpg)
+
+![The same page in the dark theme](docs/screenshots/reader-dark.jpg)
+
 ## Install
 
 From a fresh clone:
@@ -57,13 +61,25 @@ See [`example/`](./example) for a working tour of all of this — run it with:
 yarn dev   # runs `mdxserve example`
 ```
 
+## Reading
+
+Every page sits in the same shell: a sidebar tree of the served folder, the rendered
+document in a 44rem column, and a table of contents that tracks the heading you are
+reading. The topbar has search (`⌘K` / `Ctrl K`), a light/dark toggle that remembers
+your choice, and print. Pages link to their previous and next neighbour and name the
+source file and when it was last edited.
+
+Mermaid fences render as pan-and-zoom diagrams themed to match, with a Diagram/Code
+toggle; code blocks carry a language or filename label and a copy button.
+
+![Mermaid diagrams rendered in the dark theme](docs/screenshots/diagrams-dark.jpg)
+
 ## Navigation and motion
 
 The whole site is one client-side app: clicking into a folder or a `.md`/`.mdx` file
 navigates without a full page reload, with a subtle enter/exit fade between views
 (listing rows stagger in, docs cross-fade, the browser back/forward buttons work as
-expected). Code blocks, the Diagram/Code toggle on mermaid diagrams, and callouts get
-the same small in-page animations. Everything respects `prefers-reduced-motion` —
+expected). In-page links scroll smoothly. Everything respects `prefers-reduced-motion` —
 turn it on and the transforms drop out while views still swap.
 
 Links to anything else (images, `.txt` files, other sites) are left alone and behave
@@ -71,18 +87,25 @@ like normal `<a href>` navigation.
 
 ## Builtin components
 
+![Chart, Sparkline and Dropdown builtins in the light theme](docs/screenshots/builtins-light.jpg)
+
 `mdxserve` ships a small library of components that are available in every `.mdx` file with
 no `import` needed:
 
-- `Callout` — a boxed aside with an icon, for notes and warnings
+- `Callout` — a boxed aside with an icon, for notes, tips, and warnings
 - `Button` — a link/button with variants, sizes, and a small tap animation
 - `Tooltip` — a hover/focus tooltip (via tippy.js) for inline content
 - `Tabs` / `Tab` — a tabbed container that cross-fades between panels
 - `Badge` — a small inline pill for a status, tag, or label
 - `Diff` — a before/after code diff with unified or side-by-side views
+- `Card` / `CardGrid` — a bordered content card, with a responsive grid to lay several out
+- `Kbd` — a small styled key cap for keyboard shortcuts
+- `FileTree` — a collapsible file/folder tree
+- `Chart` — a bar/line/area chart rendered as inline SVG
+- `Sparkline` — a tiny inline trend line
 
 ```mdx
-<Callout type="warn" title="Heads up">
+<Callout tone="warn" title="Heads up">
 	Some caveat worth calling out.
 </Callout>
 

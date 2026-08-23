@@ -1,0 +1,79 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+html {
+	-webkit-text-size-adjust: 100%;
+}
+body {
+	margin: 0;
+	background: var(--surface-page);
+	color: var(--text-body);
+	font: var(--type-ui);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	margin: 0;
+	color: var(--text-heading);
+	letter-spacing: var(--tracking-tight);
+	text-wrap: balance;
+}
+p {
+	margin: 0;
+	text-wrap: pretty;
+}
+/* Link colour is scoped to prose (port-time change): the design applied it to every <a>,
+   but this sheet is unlayered, so that rule beat Tailwind utilities on anchors that are
+   buttons, cards and nav rows. UI anchors style themselves. */
+.mdx-prose a:not(:where(.not-prose, .not-prose *)) {
+	color: var(--text-link);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in oklab, var(--text-link) 35%, transparent);
+	text-underline-offset: 0.18em;
+	transition: var(--transition-color);
+}
+.mdx-prose a:not(:where(.not-prose, .not-prose *)):hover {
+	color: var(--text-link-hover);
+	text-decoration-color: currentColor;
+}
+code,
+pre,
+kbd,
+samp {
+	font-family: var(--font-mono);
+}
+/* (button/input font+color inherit removed at port time — Tailwind preflight already does it,
+   and an unlayered copy here would beat utility classes on buttons.) */
+:focus-visible {
+	outline: none;
+	box-shadow: var(--shadow-focus);
+	border-radius: var(--radius-sm);
+}
+::selection {
+	background: color-mix(in oklab, var(--teal-400) 28%, transparent);
+}
+hr {
+	border: 0;
+	border-top: 1px solid var(--border-default);
+}
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--border-strong);
+	border-radius: var(--radius-pill);
+	border: 3px solid transparent;
+	background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--n-400);
+	background-clip: content-box;
+}

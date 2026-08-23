@@ -1,0 +1,6 @@
+/* Webfonts, self-hosted from the @fontsource-variable packages so mdxserve works
+   offline and never phones out to a font CDN. Explicit index.css subpaths: the
+   Tailwind CSS resolver that processes these imports does not try package
+   "index" files on its own. */
+@import "@fontsource-variable/manrope/index.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";

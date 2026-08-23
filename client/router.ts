@@ -5,12 +5,27 @@ export interface ListingEntry {
 	isDir: boolean;
 	isDoc: boolean;
 	size?: number;
+	/** Last modified time, epoch milliseconds. */
+	mtime?: number;
 }
 
 export type Route =
 	| { kind: "listing"; path: string; rootName: string; entries: ListingEntry[] }
-	| { kind: "doc"; path: string; rootName: string }
+	| { kind: "doc"; path: string; rootName: string; mtime?: number }
 	| { kind: "notfound"; path: string; rootName: string };
+
+// Kept in sync with the same type in src/listing.ts — client code can't
+// import from src/, so this is a deliberate copy.
+export interface TreeNode {
+	name: string;
+	/** Root-relative URL path; directories end in "/". */
+	path: string;
+	isDir: boolean;
+	isDoc: boolean;
+	/** Last modified time, epoch milliseconds. */
+	mtime?: number;
+	children?: TreeNode[];
+}
 
 export type DocModuleState =
 	{ status: "ok"; Component: ComponentType } | { status: "error"; message: string };
@@ -47,6 +62,109 @@ function ensureDocModule(path: string): Promise<void> {
 
 	docModulePromises.set(path, promise);
 	return promise;
+}
+
+interface TreeApiResponse {
+	rootName: string;
+	root: string;
+	nodes: TreeNode[];
+}
+
+interface TreeState {
+	tree: TreeNode[] | null;
+	rootName: string;
+	rootDir: string;
+}
+
+type TreeListener = (state: TreeState) => void;
+
+/**
+ * Module-scope cache of the doc tree, shared across the whole SPA session
+ * (like docModuleCache above) so the shell only fetches it once and every
+ * consumer (sidebar, search, docMtime lookups) reads the same snapshot.
+ */
+export const treeStore: TreeState & { listeners: Set<TreeListener> } = {
+	tree: null,
+	rootName: "",
+	rootDir: "",
+	listeners: new Set(),
+};
+
+let treeLoadPromise: Promise<TreeState> | null = null;
+
+function snapshotTree(): TreeState {
+	return { tree: treeStore.tree, rootName: treeStore.rootName, rootDir: treeStore.rootDir };
+}
+
+function notifyTreeListeners(): void {
+	const snapshot = snapshotTree();
+	for (const listener of treeStore.listeners) listener(snapshot);
+}
+
+async function fetchTree(): Promise<TreeState> {
+	try {
+		const res = await fetch("/__mdxserve/api/tree");
+		if (res.ok) {
+			const data = (await res.json()) as TreeApiResponse;
+			treeStore.tree = data.nodes;
+			treeStore.rootName = data.rootName;
+			treeStore.rootDir = data.root;
+		}
+	} catch {
+		// Leave the previous (possibly null) tree in place; callers can retry.
+	}
+	notifyTreeListeners();
+	return snapshotTree();
+}
+
+/** Fetch the doc tree once and cache it; subsequent calls reuse the same promise. */
+export function loadTree(): Promise<TreeState> {
+	if (!treeLoadPromise) treeLoadPromise = fetchTree();
+	return treeLoadPromise;
+}
+
+// Files change on disk during a dev session; re-fetch the tree whenever Vite
+// applies an HMR update so the sidebar/search stay in sync with the watcher.
+if (import.meta.hot) {
+	import.meta.hot.on("vite:afterUpdate", () => {
+		treeLoadPromise = null;
+		void loadTree();
+	});
+}
+
+/** React hook for the shared doc tree; triggers the initial fetch on first use. */
+export function useTree(): TreeState {
+	const [state, setState] = useState<TreeState>(snapshotTree);
+
+	useEffect(() => {
+		treeStore.listeners.add(setState);
+		if (treeStore.tree === null) {
+			void loadTree();
+		} else {
+			setState(snapshotTree());
+		}
+		return () => {
+			treeStore.listeners.delete(setState);
+		};
+	}, []);
+
+	return state;
+}
+
+/** Look up a doc's mtime in the cached tree (undefined if not loaded/found). */
+export function docMtime(path: string): number | undefined {
+	function find(nodes: TreeNode[] | null): number | undefined {
+		if (!nodes) return undefined;
+		for (const node of nodes) {
+			if (!node.isDir && node.path === path) return node.mtime;
+			if (node.children) {
+				const found = find(node.children);
+				if (found !== undefined) return found;
+			}
+		}
+		return undefined;
+	}
+	return find(treeStore.tree);
 }
 
 function titleFor(route: Route): string {
@@ -170,6 +288,10 @@ export function useRouter(initialRoute: Route) {
 				return;
 			}
 			if (url.origin !== window.location.origin) return;
+
+			// An in-page anchor (#toc-entry) on the current page: let the browser
+			// handle the scroll natively instead of intercepting as a navigation.
+			if (url.hash && url.pathname === window.location.pathname) return;
 
 			const pathname = url.pathname;
 			if (!(pathname.endsWith("/") || pathname.endsWith(".md") || pathname.endsWith(".mdx")))

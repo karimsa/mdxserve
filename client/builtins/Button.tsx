@@ -1,16 +1,19 @@
 import type { ReactNode } from "react";
-import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { z } from "zod";
-import { subtleEase } from "../motion";
+import { T } from "../motion";
+import { Icon } from "../ui/Icon";
 
 export const buttonProps = z.object({
 	variant: z
 		.enum(["primary", "secondary", "ghost", "danger"])
 		.default("primary")
 		.describe(
-			"Visual style: primary (filled sky), secondary (outlined), ghost (text-only), or danger (filled red).",
+			"Visual style: primary (filled teal), secondary (outlined), ghost (text-only), or danger (outlined, danger tone).",
 		),
-	size: z.enum(["sm", "md", "lg"]).default("md").describe("Padding/text size."),
+	size: z.enum(["sm", "md", "lg"]).default("md").describe("Height/padding/text size."),
+	icon: z.string().optional().describe("Lucide icon name rendered before the label."),
+	iconRight: z.string().optional().describe("Lucide icon name rendered after the label."),
 	href: z
 		.string()
 		.optional()
@@ -22,58 +25,68 @@ export const buttonProps = z.object({
 
 export type ButtonProps = z.infer<typeof buttonProps>;
 
-const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
-	primary: "bg-sky-600 text-white hover:bg-sky-500",
+type Variant = NonNullable<ButtonProps["variant"]>;
+type Size = NonNullable<ButtonProps["size"]>;
+
+const VARIANT_STYLES: Record<Variant, string> = {
+	primary: "bg-teal-500 text-n-0 border border-teal-600 shadow-xs hover:bg-teal-600",
 	secondary:
-		"bg-white text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:ring-white/15",
-	ghost: "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10",
-	danger: "bg-red-600 text-white hover:bg-red-500",
+		"bg-surface-card text-text-body border border-border-default shadow-xs hover:bg-surface-hover",
+	ghost: "bg-transparent text-text-muted border border-transparent hover:bg-surface-hover",
+	danger:
+		"bg-surface-card text-status-danger-fg border border-border-default hover:bg-status-danger-bg",
 };
 
-const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
-	sm: "px-2.5 py-1.5 text-xs",
-	md: "px-3.5 py-2 text-sm",
-	lg: "px-4 py-2.5 text-sm",
+const SIZE_STYLES: Record<Size, string> = {
+	sm: "h-7 px-2.5 text-[length:var(--size-sm)]",
+	md: "h-[34px] px-3.5 text-[length:var(--size-md)]",
+	lg: "h-10 px-4.5 text-[length:var(--size-md)]",
 };
+
+const ICON_SIZE: Record<Size, "sm" | "md"> = { sm: "sm", md: "md", lg: "md" };
 
 export default function Button({
 	variant = "primary",
 	size = "md",
+	icon,
+	iconRight,
 	href,
 	onClick,
 	disabled = false,
 	children,
 }: ButtonProps) {
-	const controls = useAnimationControls();
-	const reducedMotion = useReducedMotion();
-
 	const className = [
-		"not-prose inline-flex cursor-pointer items-center gap-1.5 rounded-md font-semibold shadow-xs",
-		"outline-sky-600 outline-offset-2 focus-visible:outline-2",
-		"disabled:cursor-not-allowed disabled:opacity-50",
-		variantStyles[variant],
-		sizeStyles[size],
+		"not-prose inline-flex cursor-pointer items-center justify-center gap-2 rounded-md no-underline",
+		"font-sans leading-normal text-[length:var(--size-md)] font-semibold tracking-[var(--tracking-snug)] whitespace-nowrap",
+		"transition-colors duration-150",
+		"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring)]",
+		"disabled:cursor-not-allowed disabled:opacity-45",
+		VARIANT_STYLES[variant],
+		SIZE_STYLES[size],
 	].join(" ");
 
-	function handleClick() {
-		if (disabled) return;
-		if (!reducedMotion) {
-			controls.start({ scale: [0.96, 1.06, 1], transition: { duration: 0.25, ease: subtleEase } });
-		}
-		onClick?.();
-	}
+	const press = disabled ? undefined : { y: 0.5, scale: 0.988 };
+	const iconSize = ICON_SIZE[size];
+
+	const content = (
+		<>
+			{icon ? <Icon name={icon} size={iconSize} /> : null}
+			{children}
+			{iconRight ? <Icon name={iconRight} size={iconSize} /> : null}
+		</>
+	);
 
 	if (href) {
 		return (
 			<motion.a
 				href={disabled ? undefined : href}
 				aria-disabled={disabled || undefined}
-				whileTap={disabled ? undefined : { scale: 0.96 }}
-				animate={controls}
-				onClick={handleClick}
+				whileTap={press}
+				transition={T.snap}
+				onClick={onClick}
 				className={className}
 			>
-				{children}
+				{content}
 			</motion.a>
 		);
 	}
@@ -82,12 +95,12 @@ export default function Button({
 		<motion.button
 			type="button"
 			disabled={disabled}
-			whileTap={disabled ? undefined : { scale: 0.96 }}
-			animate={controls}
-			onClick={handleClick}
+			whileTap={press}
+			transition={T.snap}
+			onClick={onClick}
 			className={className}
 		>
-			{children}
+			{content}
 		</motion.button>
 	);
 }

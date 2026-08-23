@@ -1,0 +1,56 @@
+:root {
+	--font-core:
+		"Manrope Variable", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--font-mono:
+		"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--weight-regular: 400;
+	--weight-medium: 500;
+	--weight-semibold: 600;
+	--weight-bold: 700;
+	--weight-extrabold: 800;
+
+	/* size ramp — 15px UI base, 16.5px prose base */
+	--size-2xs: 11px;
+	--size-xs: 12px;
+	--size-sm: 13px;
+	--size-md: 15px;
+	--size-prose: 16.5px;
+	--size-lg: 18px;
+	--size-xl: 21px;
+	--size-2xl: 26px;
+	--size-3xl: 32px;
+	--size-4xl: 40px;
+	--size-5xl: 52px;
+	--size-6xl: 68px;
+
+	--leading-tight: 1.15;
+	--leading-snug: 1.3;
+	--leading-normal: 1.5;
+	--leading-prose: 1.72;
+	--leading-code: 1.62;
+
+	--tracking-tight: -0.022em;
+	--tracking-snug: -0.012em;
+	--tracking-normal: 0;
+	--tracking-wide: 0.04em;
+	--tracking-caps: 0.09em;
+
+	/* composed roles */
+	--type-display: var(--weight-extrabold) var(--size-5xl)/var(--leading-tight) var(--font-core);
+	--type-h1: var(--weight-bold) var(--size-3xl)/1.2 var(--font-core);
+	--type-h2: var(--weight-bold) var(--size-2xl)/1.25 var(--font-core);
+	--type-h3: var(--weight-semibold) var(--size-xl)/1.35 var(--font-core);
+	--type-h4: var(--weight-semibold) var(--size-lg)/1.4 var(--font-core);
+	--type-prose: var(--weight-regular) var(--size-prose)/var(--leading-prose) var(--font-core);
+	--type-ui: var(--weight-medium) var(--size-md)/var(--leading-normal) var(--font-core);
+	--type-ui-sm: var(--weight-medium) var(--size-sm)/var(--leading-normal) var(--font-core);
+	--type-code: var(--weight-regular) var(--size-sm)/var(--leading-code) var(--font-mono);
+	--type-code-inline: var(--weight-medium) 0.88em/1.4 var(--font-mono);
+	--type-eyebrow: var(--weight-semibold) var(--size-2xs)/1.2 var(--font-mono);
+
+	/* prose measure */
+	--measure-prose: none; /* @kind other */
+	--width-prose: 44rem;
+	--width-content: 52rem;
+}

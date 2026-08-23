@@ -7,7 +7,7 @@ import type { ThemeRegistrationRaw } from "shiki";
 // `ThemeRegistrationRaw` type requires a `settings` key with the same shape.
 // Both keys point at the same array to satisfy each.
 const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
-	// Comments — gray-400, no italics.
+	// Comments — muted, no italics.
 	{
 		scope: [
 			"comment",
@@ -17,7 +17,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"punctuation.definition.comment",
 		],
 		settings: {
-			foreground: "#9ca3af",
+			foreground: "var(--syntax-comment)",
 			fontStyle: "normal",
 		},
 	},
@@ -36,7 +36,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"meta.bracket",
 		],
 		settings: {
-			foreground: "#9ca3af",
+			foreground: "var(--syntax-punct)",
 		},
 	},
 	// Keywords, storage, control flow, operators — pink-400.
@@ -58,13 +58,13 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"keyword.control.as",
 		],
 		settings: {
-			foreground: "#f472b6",
+			foreground: "var(--syntax-keyword)",
 		},
 	},
 	{
 		scope: ["keyword.operator", "punctuation.accessor"],
 		settings: {
-			foreground: "#f472b6",
+			foreground: "var(--syntax-keyword)",
 		},
 	},
 	// Strings, regex, template literals — sky-300.
@@ -80,7 +80,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"punctuation.support.type.property-name.end",
 		],
 		settings: {
-			foreground: "#7dd3fc",
+			foreground: "var(--syntax-string)",
 		},
 	},
 	// Numbers, constants, booleans — amber-300.
@@ -95,7 +95,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"support.constant",
 		],
 		settings: {
-			foreground: "#fcd34d",
+			foreground: "var(--syntax-number)",
 		},
 	},
 	// Functions and methods — violet-300.
@@ -110,7 +110,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"meta.decorator",
 		],
 		settings: {
-			foreground: "#c4b5fd",
+			foreground: "var(--syntax-function)",
 		},
 	},
 	// Python decorators specifically — violet-300 (kept for symmetry with
@@ -118,7 +118,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 	{
 		scope: ["punctuation.definition.decorator", "entity.name.function.decorator.python"],
 		settings: {
-			foreground: "#c4b5fd",
+			foreground: "var(--syntax-function)",
 		},
 	},
 	// Types, classes, interfaces, HTML/JSX tags — teal-300.
@@ -134,7 +134,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"meta.tag",
 		],
 		settings: {
-			foreground: "#5eead4",
+			foreground: "var(--syntax-tag)",
 		},
 	},
 	// Properties, attributes, object/JSON keys — indigo-300.
@@ -149,28 +149,28 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"meta.attribute",
 		],
 		settings: {
-			foreground: "#a5b4fc",
+			foreground: "var(--syntax-attr)",
 		},
 	},
 	// Plain variables and identifiers — gray-200 (theme default text).
 	{
 		scope: ["variable", "variable.other", "variable.parameter", "variable.language"],
 		settings: {
-			foreground: "#e5e7eb",
+			foreground: "var(--code-fg)",
 		},
 	},
 	// Markdown / MDX prose within fenced blocks — headings pink, links sky.
 	{
 		scope: ["markup.heading", "entity.name.section.markdown"],
 		settings: {
-			foreground: "#f472b6",
+			foreground: "var(--syntax-keyword)",
 			fontStyle: "bold",
 		},
 	},
 	{
 		scope: ["markup.underline.link", "string.other.link", "markup.link"],
 		settings: {
-			foreground: "#7dd3fc",
+			foreground: "var(--syntax-string)",
 		},
 	},
 	{
@@ -188,7 +188,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 	{
 		scope: ["markup.inline.raw", "markup.raw"],
 		settings: {
-			foreground: "#7dd3fc",
+			foreground: "var(--syntax-string)",
 		},
 	},
 	// CSS — selectors teal, properties indigo, values sky.
@@ -199,13 +199,13 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"entity.other.attribute-name.id.css",
 		],
 		settings: {
-			foreground: "#5eead4",
+			foreground: "var(--syntax-tag)",
 		},
 	},
 	{
 		scope: ["support.type.property-name.css", "meta.property-name.css"],
 		settings: {
-			foreground: "#a5b4fc",
+			foreground: "var(--syntax-attr)",
 		},
 	},
 	{
@@ -216,7 +216,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"keyword.other.unit.css",
 		],
 		settings: {
-			foreground: "#7dd3fc",
+			foreground: "var(--syntax-string)",
 		},
 	},
 	// Bash / shell — commands violet, flags gray-200.
@@ -227,28 +227,30 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 			"meta.function-call.shell",
 		],
 		settings: {
-			foreground: "#c4b5fd",
+			foreground: "var(--syntax-function)",
 		},
 	},
 	{
 		scope: ["variable.parameter.option.shell", "constant.other.option.shell"],
 		settings: {
-			foreground: "#e5e7eb",
+			foreground: "var(--code-fg)",
 		},
 	},
 ];
 
 /**
- * A single dark Shiki/TextMate theme mapping token scopes onto the Tailwind
- * palette, so code blocks read the way Tailwind Plus docs render them —
- * always dark, regardless of the page's own light/dark mode.
+ * A single Shiki/TextMate theme whose colours are the design system's
+ * `--syntax-*` CSS variables (client/design/tokens/colors.css). Shiki treats
+ * `foreground` as an opaque string, so the emitted inline styles are
+ * `color:var(--syntax-keyword)` etc. and light/dark is handled purely by the
+ * `:root[data-theme="dark"]` token remap — one highlighting pass, no theme map.
  */
-export const tailwindPlusTheme: ThemeRegistrationRaw = {
-	name: "tailwind-plus",
-	type: "dark",
+export const designTokenTheme: ThemeRegistrationRaw = {
+	name: "mdxserve-tokens",
+	type: "light",
 	colors: {
-		"editor.background": "#030712",
-		"editor.foreground": "#e5e7eb",
+		"editor.background": "transparent",
+		"editor.foreground": "var(--code-fg)",
 	},
 	tokenColors,
 	settings: tokenColors,

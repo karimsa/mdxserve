@@ -35,7 +35,7 @@ export default function Tooltip({
 			<span
 				ref={target}
 				tabIndex={0}
-				className="cursor-help underline decoration-dotted decoration-gray-400 underline-offset-2"
+				className="cursor-help underline decoration-dotted decoration-text-subtle underline-offset-2"
 			>
 				{children}
 			</span>

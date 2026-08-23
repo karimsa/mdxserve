@@ -6,7 +6,8 @@ import fsp from "node:fs/promises";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
-import { readListing, isServable } from "./listing.js";
+import { readListing, readTree, isServable } from "./listing.js";
+import { search as searchDocs } from "./search.js";
 import { renderShell, type Route } from "./shell.js";
 
 export interface StartServerOptions {
@@ -50,14 +51,12 @@ async function generateAppCss(
 	// own directory, which won't reach mdxserve's node_modules from a temp
 	// dir — so point directly at the package's own copies.
 	const tailwindImport = path.join(pkgRoot, "node_modules", "tailwindcss", "index.css");
-	const typographyPlugin = path.join(pkgRoot, "node_modules", "@tailwindcss", "typography");
 	const designCssPath = path.join(pkgRoot, "client", "app.css");
 
 	// @import (rather than inlining) the package's own app.css so edits to it
 	// are tracked as a real CSS dependency and hot-reload without a restart.
 	const css = `@import "${toPosix(tailwindImport)}";
 @import "${toPosix(designCssPath)}";
-@plugin "${toPosix(typographyPlugin)}";
 @source "${toPosix(root)}/**/*.{md,mdx,js,jsx,ts,tsx}";
 @source not "${toPosix(root)}/**/.{git,mdxserve,venv,cache}/**";
 @source not "${toPosix(root)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";
@@ -163,38 +162,60 @@ async function handleRequest(
 	const pathname = url.split("?")[0] ?? "/";
 	const search = url.slice(pathname.length);
 
-	// Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
-	// since this path also starts with MDXSERVE_PREFIX.
-	if (pathname === "/__mdxserve/api/listing") {
-		const queryPath = new URLSearchParams(search).get("path") ?? "/";
-		const resolvedForListing = safeResolve(root, queryPath);
-
-		let listingStat: fs.Stats | null = null;
-		if (resolvedForListing) {
-			try {
-				listingStat = await fsp.stat(resolvedForListing);
-			} catch {
-				listingStat = null;
-			}
-		}
-
-		res.setHeader("Content-Type", "application/json; charset=utf-8");
-		if (!resolvedForListing || !listingStat?.isDirectory()) {
-			res.statusCode = 404;
-			res.end(JSON.stringify({ error: "Not found" }));
-			return;
-		}
-
-		res.statusCode = 200;
-		res.end(JSON.stringify(readListing(root, queryPath)));
-		return;
-	}
-
 	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
 		res.statusCode = 200;
 		res.setHeader("Content-Type", "image/svg+xml");
 		res.setHeader("Cache-Control", "public, max-age=86400");
 		res.end(await fsp.readFile(path.join(pkgRoot, "client", "favicon.svg")));
+		return;
+	}
+
+	// Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
+	// since these paths also start with MDXSERVE_PREFIX.
+	if (pathname.startsWith("/__mdxserve/api/")) {
+		if (pathname === "/__mdxserve/api/listing") {
+			const queryPath = new URLSearchParams(search).get("path") ?? "/";
+			const resolvedForListing = safeResolve(root, queryPath);
+
+			let listingStat: fs.Stats | null = null;
+			if (resolvedForListing) {
+				try {
+					listingStat = await fsp.stat(resolvedForListing);
+				} catch {
+					listingStat = null;
+				}
+			}
+
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+			if (!resolvedForListing || !listingStat?.isDirectory()) {
+				res.statusCode = 404;
+				res.end(JSON.stringify({ error: "Not found" }));
+				return;
+			}
+
+			res.statusCode = 200;
+			res.end(JSON.stringify(readListing(root, queryPath)));
+			return;
+		}
+
+		if (pathname === "/__mdxserve/api/tree") {
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+			res.statusCode = 200;
+			res.end(JSON.stringify({ rootName: rootNameOf(root), root, nodes: readTree(root, "/") }));
+			return;
+		}
+
+		if (pathname === "/__mdxserve/api/search") {
+			const q = new URLSearchParams(search).get("q") ?? "";
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+			res.statusCode = 200;
+			res.end(JSON.stringify(searchDocs(root, q)));
+			return;
+		}
+
+		res.setHeader("Content-Type", "application/json; charset=utf-8");
+		res.statusCode = 404;
+		res.end(JSON.stringify({ error: "Not found" }));
 		return;
 	}
 
@@ -241,7 +262,12 @@ async function handleRequest(
 
 	if (stat?.isFile() && isDocFile(resolved)) {
 		if (wantsHtml(req)) {
-			const route: Route = { kind: "doc", path: decodedPathname, rootName: rootNameOf(root) };
+			const route: Route = {
+				kind: "doc",
+				path: decodedPathname,
+				rootName: rootNameOf(root),
+				mtime: stat.mtimeMs,
+			};
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
 			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));

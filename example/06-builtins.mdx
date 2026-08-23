@@ -50,12 +50,17 @@ export const longAfter = `service:
 ## Callout
 
 <Callout>
-  This is the default `info` callout. No import was needed to use `<Callout>` on this page.
+  This is the default `note` tone. No import was needed to use `<Callout>` on this page.
 </Callout>
 
-<Callout type="warn" title="Before you continue">
-  `type="warn"` switches the palette to amber, and `title` renders as a bold heading above
-  the body.
+<Callout tone="tip">
+  `tone="tip"` is for a helpful aside — a shortcut, a default worth knowing about.
+</Callout>
+
+<Callout tone="warn" title="Before you continue">
+  `tone="warn"` switches the palette, and `title` renders as a bold heading above the body.
+  Tones: `note`, `tip`, `ok`, `warn`, `danger`. (`type="warn"`/`type="info"` still work as a
+  deprecated alias for `tone`.)
 </Callout>
 
 ## Button
@@ -86,7 +91,7 @@ Click any button and watch it pop.
 Hover over <Tooltip content="A tooltip on plain inline text.">this dotted word</Tooltip> to
 see a tippy.js tooltip themed to match mdxserve. Tooltips also work on other inline builtins,
 like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
-<Badge color="sky">hover me</Badge>
+<Badge tone="info">hover me</Badge>
 </Tooltip>.
 
 ## Tabs
@@ -114,12 +119,13 @@ like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
 ## Badge
 
 <div className="not-prose flex flex-wrap items-center gap-2">
-  <Badge color="gray">gray</Badge>
-  <Badge color="sky">sky</Badge>
-  <Badge color="green">green</Badge>
-  <Badge color="amber">amber</Badge>
-  <Badge color="red">red</Badge>
-  <Badge color="violet">violet</Badge>
+  <Badge tone="neutral">neutral</Badge>
+  <Badge tone="teal">teal</Badge>
+  <Badge tone="info">info</Badge>
+  <Badge tone="ok">ok</Badge>
+  <Badge tone="warn">warn</Badge>
+  <Badge tone="danger">danger</Badge>
+  <Badge tone="note">note</Badge>
 </div>
 
 <div className="not-prose mt-2 flex flex-wrap items-center gap-2">
@@ -129,10 +135,12 @@ like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
 </div>
 
 <div className="not-prose mt-2 flex flex-wrap items-center gap-2">
-  <Badge color="green" dot>Online</Badge>
-  <Badge color="red" dot>Offline</Badge>
-  <Badge color="amber" dot>Degraded</Badge>
+  <Badge tone="ok" dot>Online</Badge>
+  <Badge tone="danger" dot>Offline</Badge>
+  <Badge tone="warn" dot>Degraded</Badge>
 </div>
+
+`color="gray"|"sky"|"green"|"amber"|"red"|"violet"` still works as a deprecated alias for `tone`.
 
 ## Diff
 
@@ -162,6 +170,99 @@ with only two small, far-apart changes:
   after={`const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(\`listening on \${port}\`);`}
 />
 ```
+
+## Card
+
+<CardGrid>
+  <Card icon="rocket" title="Getting started" description="Point mdxserve at a folder and it starts serving." href="/01-markdown.md" meta="2 min read" />
+  <Card icon="terminal" title="CLI reference" description="Every flag, its default, and what it changes." href="/01-markdown.md" meta="Reference" />
+  <Card icon="git-branch" title="Diagrams" description="Mermaid flowcharts and sequence diagrams render inline." interactive />
+</CardGrid>
+
+`CardGrid` lays its `Card` children out in a responsive grid; `href` (or `interactive`) turns
+on the hover lift and trailing arrow.
+
+## Kbd
+
+Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search, or <Kbd>esc</Kbd> to close it.
+
+## FileTree
+
+<FileTree
+  nodes={[
+    { name: "docs", children: [
+      { name: "guides", children: [
+        { name: "install.mdx", path: "install" },
+        { name: "deploy.mdx", path: "deploy" },
+      ]},
+      { name: "readme.md", path: "readme" },
+    ]},
+    { name: "package.json" },
+  ]}
+  activePath="deploy"
+/>
+
+`nodes` is a plain JSON array of `{ name, path?, children?, open? }` — pass it inline, since
+it has to be JSON-serializable. `activePath` highlights the matching row.
+
+## Chart
+
+<Chart
+  filename="requests.json"
+  type="bar"
+  unit="ms"
+  data={[
+    { label: "Mon", p50: 42, p99: 180 },
+    { label: "Tue", p50: 38, p99: 165 },
+    { label: "Wed", p50: 51, p99: 210 },
+    { label: "Thu", p50: 44, p99: 190 },
+    { label: "Fri", p50: 36, p99: 150 },
+  ]}
+  series={["p50", "p99"]}
+  yLabel="Latency"
+  xLabel="This week"
+/>
+
+`type` is `bar`, `line`, or `area`; `series` picks which keys of each `data` entry to plot
+(up to four before a table reads better). `unit` suffixes the axis and tooltip values.
+
+## Sparkline
+
+Requests over the last hour: <Sparkline values={[12, 18, 15, 22, 19, 27, 24, 31, 28, 35]} />,
+trending up.
+
+## Dropdown
+
+`Dropdown` is a button that opens a menu. Give it `options` for a plain picker:
+
+<Dropdown label="Theme" options={[{ value: "system", label: "System", description: "Follow the OS setting" }, "Light", "Dark"]} />
+
+`options` takes strings, or `{ value, label }` pairs when the value should differ from the
+label (and an optional `description` line); add `size="sm"` for the 28px control.
+
+Give it `Option` children instead and it becomes a content switcher — the menu picks which
+option's content renders below, cross-faded:
+
+<Dropdown label="Install on">
+  <Option label="macOS">
+    ```bash
+    brew install mdxserve
+    ```
+  </Option>
+  <Option label="Linux">
+    ```bash
+    curl -fsSL https://mdxserve.dev/install.sh | sh
+    ```
+  </Option>
+  <Option label="Windows">
+    ```powershell
+    scoop install mdxserve
+    ```
+  </Option>
+</Dropdown>
+
+Prefer `Tabs` when there are only 2-4 visible alternatives; reach for `Dropdown` once the list
+of options gets longer than fits comfortably as tabs.
 
 ## Discovering builtins from the CLI
 

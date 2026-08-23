@@ -26,10 +26,11 @@ add clarity, and prefer features that degrade gracefully everywhere else.
    pan/zoomable diagrams (with a toggle to the source); GitHub renders them too; everywhere else
    they are still readable text. Prefer `flowchart` and `sequenceDiagram`; keep a diagram to
    roughly 15 nodes or fewer — split larger ones.
-4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`) only when
-   they make the content clearer: a warning the reader must not miss, per-OS or per-language
-   variants of the same instructions, a status label. Outside mdxserve these show as raw tags,
-   so use them sparingly and never for decoration.
+4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
+   `<Kbd>`, `<FileTree>`, `<Chart>`, `<Sparkline>`) only when they make the content clearer: a warning
+   the reader must not miss, per-OS or per-language variants of the same instructions, a status label,
+   a small dataset that's clearer as a shape than a table. Outside mdxserve these show as raw tags, so
+   use them sparingly and never for decoration.
 
 Don't: write raw HTML or inline styles; import or create custom components; use emoji as
 icons where a `Badge` or `Callout` would do; nest components for layout; put a component in a
@@ -104,7 +105,7 @@ npx mdxserve components show Callout --json
 Minimal usage:
 
 ```mdx
-<Callout type="warn" title="Before you deploy">
+<Callout tone="warn" title="Before you deploy">
   Rotate the key first; the old one stops working immediately.
 </Callout>
 
@@ -113,13 +114,15 @@ Minimal usage:
   <Tab label="Linux">`apt install foo`</Tab>
 </Tabs>
 
-Status: <Badge color="green" dot>Online</Badge>
+Status: <Badge tone="ok" dot>Online</Badge>
 
 The <Tooltip content="Mean time to recovery">MTTR</Tooltip> improved.
 
 <Button href="./setup.md">Continue to setup</Button>
 
 <Diff before={`port: 3000`} after={`port: 4000`} />
+
+Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search.
 ```
 
 Components contain ordinary Markdown: a `Tab` can hold lists, paragraphs, and code fences.

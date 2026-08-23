@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import svgPanZoom from "svg-pan-zoom";
-import { enterTransition, fadeSwap } from "./motion";
+import { Icon } from "./ui/Icon";
+import { IconButton } from "./ui/IconButton";
+import { T, V } from "./motion";
 
 type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
 
@@ -10,31 +11,107 @@ let mermaidPromise: Promise<(typeof import("mermaid"))["default"]> | undefined;
 /** Lazy-load mermaid (it's large) only when a page actually contains a diagram. */
 function loadMermaid() {
 	if (!mermaidPromise) {
-		mermaidPromise = import("mermaid").then((mod) => {
-			const mermaid = mod.default;
-			mermaid.initialize({
-				startOnLoad: false,
-				// The code card is always dark, so the diagram always uses the dark theme.
-				theme: "dark",
-				securityLevel: "strict",
-				fontFamily: "ui-sans-serif, system-ui, sans-serif",
-			});
-			return mermaid;
-		});
+		mermaidPromise = import("mermaid").then((mod) => mod.default);
 	}
 	return mermaidPromise;
+}
+
+function cssVar(name: string, fallback: string): string {
+	if (typeof window === "undefined") return fallback;
+	const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+	return value || fallback;
+}
+
+/** Themes mermaid from the design tokens so diagrams follow light/dark automatically. */
+function themeVariables() {
+	return {
+		background: cssVar("--diagram-bg", "#ffffff"),
+		primaryColor: cssVar("--diagram-node-bg", "#e8f6f5"),
+		primaryBorderColor: cssVar("--diagram-node-border", "#2ba5a2"),
+		primaryTextColor: cssVar("--diagram-node-fg", "#085b59"),
+		lineColor: cssVar("--diagram-line", "#a9a8a0"),
+		textColor: cssVar("--text-body", "#2b2a27"),
+		fontFamily: cssVar("--font-core", "Manrope, sans-serif"),
+		// Secondary / tertiary nodes (subgraphs, alt shapes) use the sunken surface
+		// so nothing falls back to mermaid's own hues.
+		secondaryColor: cssVar("--diagram-alt-node-bg", "#f6f6f3"),
+		secondaryBorderColor: cssVar("--diagram-alt-node-border", "#cfcec7"),
+		secondaryTextColor: cssVar("--text-body", "#2b2a27"),
+		tertiaryColor: cssVar("--surface-sunken", "#f6f6f3"),
+		tertiaryBorderColor: cssVar("--border-default", "#e3e2dd"),
+		tertiaryTextColor: cssVar("--text-body", "#2b2a27"),
+		// Edge labels sit on the card surface instead of mermaid's olive tint.
+		edgeLabelBackground: cssVar("--diagram-label-bg", "#ffffff"),
+		clusterBkg: cssVar("--surface-sunken", "#f6f6f3"),
+		clusterBorder: cssVar("--border-default", "#e3e2dd"),
+		// Sequence diagrams.
+		actorBkg: cssVar("--diagram-node-bg", "#e8f6f5"),
+		actorBorder: cssVar("--diagram-node-border", "#2ba5a2"),
+		actorTextColor: cssVar("--diagram-node-fg", "#085b59"),
+		actorLineColor: cssVar("--diagram-line", "#a9a8a0"),
+		signalColor: cssVar("--text-body", "#2b2a27"),
+		signalTextColor: cssVar("--text-body", "#2b2a27"),
+		labelBoxBkgColor: cssVar("--surface-sunken", "#f6f6f3"),
+		labelBoxBorderColor: cssVar("--border-default", "#e3e2dd"),
+		labelTextColor: cssVar("--text-body", "#2b2a27"),
+		loopTextColor: cssVar("--text-body", "#2b2a27"),
+		noteBkgColor: cssVar("--status-warn-bg", "#fbeccd"),
+		noteBorderColor: cssVar("--status-warn-fg", "#855603"),
+		noteTextColor: cssVar("--status-warn-fg", "#855603"),
+	};
+}
+
+/* Diagrams re-render whenever the reader flips light/dark: a single shared
+   MutationObserver on <html data-theme> notifies every mounted MermaidDiagram
+   instead of each one polling or wiring its own observer. */
+const themeListeners = new Set<() => void>();
+let themeObserver: MutationObserver | undefined;
+
+function ensureThemeObserver() {
+	if (themeObserver || typeof MutationObserver === "undefined") return;
+	themeObserver = new MutationObserver(() => {
+		for (const listener of themeListeners) listener();
+	});
+	themeObserver.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ["data-theme"],
+	});
+}
+
+function useThemeTick(): number {
+	const [tick, setTick] = useState(0);
+	useEffect(() => {
+		ensureThemeObserver();
+		const listener = () => setTick((current) => current + 1);
+		themeListeners.add(listener);
+		return () => {
+			themeListeners.delete(listener);
+		};
+	}, []);
+	return tick;
 }
 
 /** Renders mermaid `source` to inline SVG inside the code card. */
 export function MermaidDiagram({ source }: { source: string }) {
 	const [state, setState] = useState<State>({ kind: "loading" });
 	const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+	const themeTick = useThemeTick();
 
 	useEffect(() => {
 		let cancelled = false;
 		setState({ kind: "loading" });
 		loadMermaid()
-			.then((mermaid) => mermaid.render(`mermaid-${id}`, source))
+			.then((mermaid) => {
+				mermaid.initialize({
+					startOnLoad: false,
+					theme: "base",
+					themeVariables: themeVariables(),
+					securityLevel: "strict",
+				});
+				// A fresh id per theme tick: mermaid keeps an internal render cache
+				// keyed by id, so reusing one across a theme change can serve stale colours.
+				return mermaid.render(`mermaid-${id}-${themeTick}`, source);
+			})
 			.then(({ svg }) => {
 				if (!cancelled) setState({ kind: "ok", svg });
 			})
@@ -46,37 +123,36 @@ export function MermaidDiagram({ source }: { source: string }) {
 		return () => {
 			cancelled = true;
 		};
-	}, [source, id]);
+	}, [source, id, themeTick]);
 
 	return (
 		<AnimatePresence mode="wait" initial={false}>
 			{state.kind === "loading" ? (
 				<motion.div
 					key="loading"
-					variants={fadeSwap}
-					initial="initial"
-					animate="enter"
-					exit="exit"
-					className="px-4 py-8 text-center text-xs text-gray-500"
+					{...V.fade}
+					className="px-4 py-8 text-center text-[13px] leading-normal text-text-subtle"
 				>
 					Rendering diagram…
 				</motion.div>
 			) : state.kind === "error" ? (
 				<motion.div
 					key="error"
-					variants={fadeSwap}
-					initial="initial"
-					animate="enter"
-					exit="exit"
-					className="px-4 py-4 text-sm text-red-300"
+					{...V.fade}
+					className="flex items-start gap-2 px-4 py-4 text-[13px] leading-normal"
 				>
-					<p className="mb-2 font-medium">Mermaid could not render this diagram</p>
-					<pre className="whitespace-pre-wrap font-mono text-xs text-red-200/80">
-						{state.message}
-					</pre>
+					<Icon name="octagon-alert" size="sm" className="mt-0.5 shrink-0 text-status-danger-fg" />
+					<div>
+						<p className="mb-2 font-semibold text-status-danger-fg">
+							Mermaid could not render this diagram
+						</p>
+						<pre className="whitespace-pre-wrap font-mono text-[length:var(--size-xs)] text-text-muted">
+							{state.message}
+						</pre>
+					</div>
 				</motion.div>
 			) : (
-				<motion.div key="ok" variants={fadeSwap} initial="initial" animate="enter" exit="exit">
+				<motion.div key="ok" {...V.fade}>
 					<PanZoomSvg svg={state.svg} />
 				</motion.div>
 			)}
@@ -102,38 +178,58 @@ function PanZoomSvg({ svg }: { svg: string }) {
 		const el = host.querySelector("svg");
 		if (!el) return;
 
-		// Mermaid sizes the SVG with a max-width + 100% width; svg-pan-zoom needs
-		// it to fill the viewport so the viewBox can be fitted and panned.
-		el.style.maxWidth = "none";
-		el.style.width = "100%";
-		el.style.height = "100%";
-		el.setAttribute("width", "100%");
-		el.setAttribute("height", "100%");
+		// svg-pan-zoom touches `window` at module load, and this file is reachable
+		// from client/builtins/index.ts (via CodeBlock's CodeFrameHeader), which
+		// scripts/build-registry.ts imports under plain Node — so load it lazily,
+		// like mermaid itself.
+		let cancelled = false;
+		let instance: SvgPanZoom.Instance | null = null;
+		let observer: ResizeObserver | null = null;
+		import("svg-pan-zoom").then(({ default: svgPanZoom }) => {
+			if (cancelled) return;
 
-		const instance = svgPanZoom(el, {
-			zoomEnabled: true,
-			panEnabled: true,
-			controlIconsEnabled: false, // we render our own controls below
-			mouseWheelZoomEnabled: true,
-			dblClickZoomEnabled: true,
-			fit: true,
-			center: true,
-			minZoom: 0.2,
-			maxZoom: 10,
-			zoomScaleSensitivity: 0.3,
-		});
-		instanceRef.current = instance;
+			// Mermaid sizes the SVG with a max-width + 100% width; svg-pan-zoom needs
+			// it to fill the viewport so the viewBox can be fitted and panned.
+			el.style.maxWidth = "none";
+			el.style.width = "100%";
+			el.style.height = "100%";
+			el.setAttribute("width", "100%");
+			el.setAttribute("height", "100%");
 
-		const observer = new ResizeObserver(() => {
-			instance.resize();
-			instance.fit();
-			instance.center();
+			instance = svgPanZoom(el, {
+				zoomEnabled: true,
+				panEnabled: true,
+				controlIconsEnabled: false, // we render our own controls below
+				mouseWheelZoomEnabled: true,
+				dblClickZoomEnabled: true,
+				fit: true,
+				center: true,
+				minZoom: 0.2,
+				maxZoom: 10,
+				zoomScaleSensitivity: 0.3,
+			});
+			instanceRef.current = instance;
+
+			const live = instance;
+			observer = new ResizeObserver(() => {
+				live.resize();
+				live.fit();
+				live.center();
+			});
+			observer.observe(host);
 		});
-		observer.observe(host);
 
 		return () => {
-			observer.disconnect();
-			instance.destroy();
+			cancelled = true;
+			observer?.disconnect();
+			try {
+				// destroy() resets the zoom via the SVG's CTM, which throws an
+				// InvalidStateError once the element is detached or zero-sized
+				// (theme re-render, route change mid-animation). Nothing to undo then.
+				instance?.destroy();
+			} catch {
+				// ignore
+			}
 			instanceRef.current = null;
 			host.innerHTML = "";
 		};
@@ -151,7 +247,7 @@ function PanZoomSvg({ svg }: { svg: string }) {
 		<div className="relative">
 			{/* The host div is mutated imperatively (host.innerHTML = svg, above) and must
           never be re-rendered by React/motion; the fade lives on this wrapper instead. */}
-			<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={enterTransition}>
+			<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={T.base}>
 				<div
 					ref={hostRef}
 					className="mermaid-viewport h-96 w-full cursor-grab select-none active:cursor-grabbing"
@@ -160,52 +256,23 @@ function PanZoomSvg({ svg }: { svg: string }) {
 			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
-				transition={{ ...enterTransition, delay: 0.1 }}
-				className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-md bg-gray-900/90 shadow-sm ring-1 ring-white/10 backdrop-blur"
+				transition={{ ...T.base, delay: 0.1 }}
+				className="absolute right-3 bottom-3 flex flex-col divide-y divide-border-subtle overflow-hidden rounded-md border border-border-default bg-surface-card shadow-xs"
 			>
-				<ControlButton label="Zoom in" onClick={() => instanceRef.current?.zoomIn()}>
-					<path d="M8 3.5v9M3.5 8h9" />
-				</ControlButton>
-				<ControlButton label="Reset view" onClick={reset}>
-					<path d="M3.5 8a4.5 4.5 0 1 0 1.3-3.2M3.5 3v2.5H6" />
-				</ControlButton>
-				<ControlButton label="Zoom out" onClick={() => instanceRef.current?.zoomOut()}>
-					<path d="M3.5 8h9" />
-				</ControlButton>
+				<IconButton
+					icon="plus"
+					label="Zoom in"
+					size="sm"
+					onClick={() => instanceRef.current?.zoomIn()}
+				/>
+				<IconButton icon="maximize" label="Reset view" size="sm" onClick={reset} />
+				<IconButton
+					icon="minus"
+					label="Zoom out"
+					size="sm"
+					onClick={() => instanceRef.current?.zoomOut()}
+				/>
 			</motion.div>
 		</div>
-	);
-}
-
-function ControlButton({
-	label,
-	onClick,
-	children,
-}: {
-	label: string;
-	onClick: () => void;
-	children: ReactNode;
-}) {
-	return (
-		<button
-			type="button"
-			aria-label={label}
-			title={label}
-			onClick={onClick}
-			className="flex h-7 w-7 cursor-pointer items-center justify-center text-gray-400 transition-colors hover:bg-white/10 hover:text-white [&+&]:border-t [&+&]:border-white/10"
-		>
-			<svg
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				className="h-3.5 w-3.5"
-				aria-hidden="true"
-			>
-				{children}
-			</svg>
-		</button>
 	);
 }

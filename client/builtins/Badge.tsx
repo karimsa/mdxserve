@@ -2,10 +2,16 @@ import type { ReactNode } from "react";
 import { z } from "zod";
 
 export const badgeProps = z.object({
+	tone: z
+		.enum(["neutral", "teal", "info", "ok", "warn", "danger", "note"])
+		.default("neutral")
+		.describe("Tone of the badge."),
 	color: z
 		.enum(["gray", "sky", "green", "amber", "red", "violet"])
-		.default("gray")
-		.describe("Color of the badge."),
+		.optional()
+		.describe(
+			"Deprecated alias for `tone` (gray→neutral, sky→info, green→ok, amber→warn, red→danger, violet→note). Prefer `tone`.",
+		),
 	variant: z.enum(["soft", "solid", "outline"]).default("soft").describe("Fill style."),
 	dot: z.boolean().default(false).describe("Show a leading status dot."),
 	children: z.custom<ReactNode>().describe("Badge label."),
@@ -13,70 +19,87 @@ export const badgeProps = z.object({
 
 export type BadgeProps = z.infer<typeof badgeProps>;
 
-type Color = NonNullable<BadgeProps["color"]>;
+type Tone = NonNullable<BadgeProps["tone"]>;
 type Variant = NonNullable<BadgeProps["variant"]>;
 
-const colorStyles: Record<Color, Record<Variant, string>> = {
-	gray: {
-		soft: "bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-500/10 dark:bg-gray-400/10 dark:text-gray-400 dark:ring-gray-400/20",
-		solid: "bg-gray-600 text-white dark:bg-gray-500",
-		outline:
-			"text-gray-600 ring-1 ring-inset ring-gray-500/40 dark:text-gray-400 dark:ring-gray-400/40",
+const COLOR_TO_TONE: Record<NonNullable<BadgeProps["color"]>, Tone> = {
+	gray: "neutral",
+	sky: "info",
+	green: "ok",
+	amber: "warn",
+	red: "danger",
+	violet: "note",
+};
+
+function resolveTone({ tone, color }: Pick<BadgeProps, "tone" | "color">): Tone {
+	if (tone) return tone;
+	if (color) return COLOR_TO_TONE[color];
+	return "neutral";
+}
+
+const TONE_STYLES: Record<Tone, Record<Variant, string>> = {
+	neutral: {
+		soft: "bg-surface-sunken text-text-muted border-border-default",
+		solid: "bg-n-600 text-n-0 border-transparent",
+		outline: "bg-transparent text-text-muted border-border-default",
 	},
-	sky: {
-		soft: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:bg-sky-400/10 dark:text-sky-400 dark:ring-sky-400/30",
-		solid: "bg-sky-600 text-white",
-		outline:
-			"text-sky-700 ring-1 ring-inset ring-sky-600/40 dark:text-sky-300 dark:ring-sky-400/40",
+	teal: {
+		soft: "bg-surface-accent-soft text-text-accent border-teal-200",
+		solid: "bg-teal-500 text-n-0 border-transparent",
+		outline: "bg-transparent text-text-accent border-teal-300",
 	},
-	green: {
-		soft: "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-400/10 dark:text-green-400 dark:ring-green-400/30",
-		solid: "bg-green-600 text-white",
-		outline:
-			"text-green-700 ring-1 ring-inset ring-green-600/40 dark:text-green-300 dark:ring-green-400/40",
+	info: {
+		soft: "bg-status-info-bg text-status-info-fg border-transparent",
+		solid: "bg-status-info-fg text-text-inverse border-transparent",
+		outline: "bg-transparent text-status-info-fg border-current",
 	},
-	amber: {
-		soft: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/30",
-		solid: "bg-amber-600 text-white",
-		outline:
-			"text-amber-700 ring-1 ring-inset ring-amber-600/40 dark:text-amber-300 dark:ring-amber-400/40",
+	ok: {
+		soft: "bg-status-ok-bg text-status-ok-fg border-transparent",
+		solid: "bg-status-ok-fg text-text-inverse border-transparent",
+		outline: "bg-transparent text-status-ok-fg border-current",
 	},
-	red: {
-		soft: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-400/10 dark:text-red-400 dark:ring-red-400/30",
-		solid: "bg-red-600 text-white",
-		outline:
-			"text-red-700 ring-1 ring-inset ring-red-600/40 dark:text-red-300 dark:ring-red-400/40",
+	warn: {
+		soft: "bg-status-warn-bg text-status-warn-fg border-transparent",
+		solid: "bg-status-warn-fg text-text-inverse border-transparent",
+		outline: "bg-transparent text-status-warn-fg border-current",
 	},
-	violet: {
-		soft: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20 dark:bg-violet-400/10 dark:text-violet-400 dark:ring-violet-400/30",
-		solid: "bg-violet-600 text-white",
-		outline:
-			"text-violet-700 ring-1 ring-inset ring-violet-600/40 dark:text-violet-300 dark:ring-violet-400/40",
+	danger: {
+		soft: "bg-status-danger-bg text-status-danger-fg border-transparent",
+		solid: "bg-status-danger-fg text-text-inverse border-transparent",
+		outline: "bg-transparent text-status-danger-fg border-current",
+	},
+	note: {
+		soft: "bg-status-note-bg text-status-note-fg border-transparent",
+		solid: "bg-status-note-fg text-text-inverse border-transparent",
+		outline: "bg-transparent text-status-note-fg border-current",
 	},
 };
 
-const dotColorStyles: Record<Color, string> = {
-	gray: "bg-gray-500",
-	sky: "bg-sky-600 dark:bg-sky-400",
-	green: "bg-green-600 dark:bg-green-400",
-	amber: "bg-amber-600 dark:bg-amber-400",
-	red: "bg-red-600 dark:bg-red-400",
-	violet: "bg-violet-600 dark:bg-violet-400",
+const DOT_STYLES: Record<Tone, string> = {
+	neutral: "bg-n-500",
+	teal: "bg-teal-500",
+	info: "bg-status-info-fg",
+	ok: "bg-status-ok-fg",
+	warn: "bg-status-warn-fg",
+	danger: "bg-status-danger-fg",
+	note: "bg-status-note-fg",
 };
 
 export default function Badge({
-	color = "gray",
+	tone,
+	color,
 	variant = "soft",
 	dot = false,
 	children,
 }: BadgeProps) {
+	const resolved = resolveTone({ tone, color });
 	return (
 		<span
-			className={`not-prose inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${colorStyles[color][variant]}`}
+			className={`not-prose inline-flex items-center gap-1.5 h-5 rounded-sm border px-1.5 font-sans leading-normal text-[length:var(--size-xs)] font-semibold ${TONE_STYLES[resolved][variant]}`}
 		>
 			{dot ? (
 				<span
-					className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColorStyles[color]}`}
+					className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_STYLES[resolved]}`}
 					aria-hidden="true"
 				/>
 			) : null}

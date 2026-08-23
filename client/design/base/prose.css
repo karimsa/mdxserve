@@ -1,0 +1,118 @@
+/* Element rules carry a `:not(.not-prose *)` guard (added at port time) so builtin
+   components, which set `not-prose` on their root, keep their own typography. */
+/* .mdx-prose — the rendered-markdown container. This is the product's core surface:
+   every vertical rhythm decision in mdxserve lives here. */
+.mdx-prose {
+	font: var(--type-prose);
+	color: var(--text-body);
+	max-width: var(--width-prose);
+}
+.mdx-prose > * + * {
+	margin-top: var(--prose-gap);
+}
+.mdx-prose h1:not(:where(.not-prose, .not-prose *)) {
+	font: var(--type-h1);
+	margin-top: 0;
+}
+.mdx-prose h2:not(:where(.not-prose, .not-prose *)) {
+	font: var(--type-h2);
+	letter-spacing: var(--tracking-tight);
+}
+.mdx-prose h3:not(:where(.not-prose, .not-prose *)) {
+	font: var(--type-h3);
+	letter-spacing: var(--tracking-snug);
+}
+.mdx-prose h4:not(:where(.not-prose, .not-prose *)) {
+	font: var(--type-h4);
+}
+.mdx-prose h2:not(:where(.not-prose, .not-prose *)),
+.mdx-prose h3:not(:where(.not-prose, .not-prose *)),
+.mdx-prose h4:not(:where(.not-prose, .not-prose *)) {
+	position: relative;
+}
+.mdx-prose > h2 {
+	margin-top: var(--prose-gap-heading);
+	padding-top: var(--space-6);
+	border-top: 1px solid var(--border-subtle);
+}
+.mdx-prose > h3,
+.mdx-prose > h4 {
+	margin-top: var(--prose-gap-block);
+}
+.mdx-prose strong:not(:where(.not-prose, .not-prose *)) {
+	font-weight: var(--weight-bold);
+	color: var(--text-heading);
+}
+.mdx-prose em:not(:where(.not-prose, .not-prose *)) {
+	font-style: italic;
+}
+.mdx-prose code:not(:where(.not-prose, .not-prose *)) {
+	font: var(--type-code-inline);
+	background: var(--code-bg-inline);
+	color: var(--text-accent);
+	padding: 0.12em 0.34em;
+	border-radius: var(--radius-xs);
+}
+.mdx-prose a code:not(:where(.not-prose, .not-prose *)) {
+	color: inherit;
+}
+.mdx-prose ul:not(:where(.not-prose, .not-prose *)),
+.mdx-prose ol:not(:where(.not-prose, .not-prose *)) {
+	margin-bottom: 0;
+	padding-left: 1.35em;
+}
+.mdx-prose li + li:not(:where(.not-prose, .not-prose *)) {
+	margin-top: var(--space-2);
+}
+.mdx-prose li::marker:not(:where(.not-prose, .not-prose *)) {
+	color: var(--text-subtle);
+}
+.mdx-prose blockquote:not(:where(.not-prose, .not-prose *)) {
+	margin-bottom: 0;
+	padding: var(--space-1) 0 var(--space-1) var(--space-5);
+	border-left: 2px solid var(--border-accent);
+	color: var(--text-muted);
+	font-style: normal;
+}
+.mdx-prose table:not(:where(.not-prose, .not-prose *)) {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: var(--size-md);
+}
+.mdx-prose th:not(:where(.not-prose, .not-prose *)) {
+	text-align: left;
+	font-weight: var(--weight-semibold);
+	color: var(--text-heading);
+	border-bottom: 1px solid var(--border-strong);
+	padding: var(--space-2-5) var(--space-3);
+}
+.mdx-prose td:not(:where(.not-prose, .not-prose *)) {
+	border-bottom: 1px solid var(--border-subtle);
+	padding: var(--space-2-5) var(--space-3);
+	vertical-align: top;
+}
+.mdx-prose img:not(:where(.not-prose, .not-prose *)) {
+	max-width: 100%;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border-default);
+}
+.mdx-prose hr:not(:where(.not-prose, .not-prose *)) {
+	margin: var(--space-10) 0;
+}
+/* anchor affordance: the ¶-style link appears on heading hover, never in print */
+.mdx-anchor {
+	position: absolute;
+	left: -1.1em;
+	top: 0;
+	opacity: 0;
+	color: var(--text-subtle);
+	text-decoration: none;
+	font-weight: var(--weight-regular);
+	transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.mdx-prose h2:hover .mdx-anchor,
+.mdx-prose h3:hover .mdx-anchor,
+.mdx-prose h4:hover .mdx-anchor,
+.mdx-anchor:focus-visible {
+	opacity: 1;
+}

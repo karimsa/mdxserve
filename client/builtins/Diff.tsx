@@ -2,8 +2,11 @@ import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { diffLines, diffWordsWithSpace } from "diff";
-import { enterTransition } from "../motion";
+import { T } from "../motion";
 import { CrossFade } from "../CrossFade";
+import { Icon } from "../ui/Icon";
+
+import { CodeFrameHeader } from "../CodeBlock";
 
 export const diffProps = z.object({
 	before: z.string().describe("Original text."),
@@ -386,18 +389,20 @@ function partitionBlocks(items: FlatItem[]): Block[] {
 
 function rowClasses(kind: DiffRowKind): { row: string; gutter: string; text: string } {
 	if (kind === "add")
-		return {
-			row: "bg-green-500/[0.12]",
-			gutter: "bg-green-500/[0.08] text-green-400",
-			text: "text-gray-200",
-		};
+		return { row: "bg-status-ok-bg", gutter: "text-status-ok-fg", text: "text-status-ok-fg" };
 	if (kind === "del")
 		return {
-			row: "bg-red-500/[0.12]",
-			gutter: "bg-red-500/[0.08] text-red-400",
-			text: "text-gray-200",
+			row: "bg-status-danger-bg",
+			gutter: "text-status-danger-fg",
+			text: "text-status-danger-fg",
 		};
-	return { row: "", gutter: "text-gray-600", text: "text-gray-300" };
+	return { row: "", gutter: "text-code-gutter", text: "text-code-fg" };
+}
+
+/** Word-level highlight: one step stronger than the row tint it sits on. */
+function highlightStyle(kind: "add" | "del"): { backgroundColor: string } {
+	const fgVar = kind === "add" ? "var(--status-ok-fg)" : "var(--status-danger-fg)";
+	return { backgroundColor: `color-mix(in oklab, ${fgVar} 35%, transparent)` };
 }
 
 function marker(kind: DiffRowKind): string {
@@ -407,13 +412,12 @@ function marker(kind: DiffRowKind): string {
 function Segments({ row }: { row: DiffRow }) {
 	if (row.text === "") return <>{" "}</>;
 	if (!row.segments) return <>{row.text}</>;
-	const highlight =
-		row.kind === "add" ? "bg-green-500/35 rounded-[2px]" : "bg-red-500/35 rounded-[2px]";
+	const style = row.kind === "add" || row.kind === "del" ? highlightStyle(row.kind) : undefined;
 	return (
 		<>
 			{row.segments.map((segment, index) =>
 				segment.changed ? (
-					<span key={index} className={highlight}>
+					<span key={index} className="rounded-[2px]" style={style}>
 						{segment.text}
 					</span>
 				) : (
@@ -429,7 +433,7 @@ function Separator({ count, onExpand }: { count: number; onExpand: () => void })
 		<button
 			type="button"
 			onClick={onExpand}
-			className="block w-full cursor-pointer bg-sky-500/5 px-4 py-1 text-left text-xs text-sky-300 hover:bg-sky-500/10"
+			className="block w-full cursor-pointer bg-surface-accent-soft px-4 py-1 text-left text-xs text-text-accent hover:brightness-95"
 		>
 			{`↕ ${count} unchanged line${count === 1 ? "" : "s"}`}
 		</button>
@@ -527,9 +531,9 @@ function toSplitRows(rows: DiffRow[]): SplitRow[] {
 function SplitCell({ row, side }: { row?: DiffRow; side: "left" | "right" }) {
 	if (!row) {
 		return (
-			<tr className="bg-white/[0.02]">
-				<td className="select-none whitespace-pre px-2 text-right text-gray-700">{" "}</td>
-				<td className="whitespace-pre px-2 text-gray-700">{" "}</td>
+			<tr className="bg-surface-sunken">
+				<td className="select-none whitespace-pre px-2 text-right text-code-gutter">{" "}</td>
+				<td className="whitespace-pre px-2 text-code-gutter">{" "}</td>
 			</tr>
 		);
 	}
@@ -550,7 +554,7 @@ function SplitRows({ rows }: { rows: DiffRow[] }) {
 	const splitRows = toSplitRows(rows);
 	return (
 		<div className="grid grid-cols-2">
-			<div className="overflow-x-auto border-r border-white/5">
+			<div className="overflow-x-auto border-r border-code-border">
 				<table className="min-w-full border-collapse text-left">
 					<tbody>
 						{splitRows.map((sr, index) => (
@@ -629,56 +633,64 @@ export default function Diff({
 		}
 	}
 
+	const header = (
+		<span className="flex min-w-0 items-center gap-3">
+			<span className="truncate">{label}</span>
+			<span className="whitespace-nowrap font-mono font-normal leading-[1.62] text-[length:var(--size-xs)]">
+				<span className="text-status-ok-fg">{`+${additions}`}</span>{" "}
+				<span className="text-status-danger-fg">{`−${deletions}`}</span>
+			</span>
+		</span>
+	);
+
+	const actions = (
+		<>
+			<div role="tablist" className="inline-flex rounded-md bg-surface-sunken p-0.5 text-xs">
+				{(["unified", "split"] as const).map((option) => (
+					<button
+						key={option}
+						type="button"
+						role="tab"
+						aria-selected={activeView === option}
+						onClick={() => setActiveView(option)}
+						className={
+							"relative cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
+							(activeView === option
+								? "text-text-heading"
+								: "text-text-subtle hover:text-text-body")
+						}
+					>
+						{activeView === option ? (
+							<motion.span
+								layoutId={`${toggleId}-pill`}
+								transition={T.snap}
+								className="absolute inset-0 rounded bg-surface-hover"
+							/>
+						) : null}
+						<span className="relative">{option}</span>
+					</button>
+				))}
+			</div>
+			<button
+				type="button"
+				onClick={handleCopy}
+				className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-text-subtle transition-colors hover:text-text-body"
+			>
+				<Icon name={copied ? "check" : "copy"} size="sm" />
+				{copied ? "Copied" : "Copy"}
+			</button>
+		</>
+	);
+
 	return (
 		<motion.div
 			initial={{ opacity: 0, y: 6 }}
 			animate={{ opacity: 1, y: 0 }}
-			transition={enterTransition}
-			className="not-prose my-6 overflow-hidden rounded-xl bg-gray-950 shadow-md ring-1 ring-white/10"
+			transition={T.base}
+			className="not-prose overflow-hidden rounded-lg border border-code-border bg-code-bg"
 		>
-			<div className="flex items-center justify-between border-b border-white/5 px-4 py-2">
-				<div className="flex min-w-0 items-center gap-3">
-					<span className="truncate text-xs font-medium text-gray-400">{label}</span>
-					<span className="whitespace-nowrap font-mono text-xs">
-						<span className="text-green-400">{`+${additions}`}</span>{" "}
-						<span className="text-red-400">{`−${deletions}`}</span>
-					</span>
-				</div>
-				<div className="flex items-center gap-3">
-					<div role="tablist" className="inline-flex rounded-md bg-white/5 p-0.5 text-xs">
-						{(["unified", "split"] as const).map((option) => (
-							<button
-								key={option}
-								type="button"
-								role="tab"
-								aria-selected={activeView === option}
-								onClick={() => setActiveView(option)}
-								className={
-									"relative cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
-									(activeView === option ? "text-white" : "text-gray-400 hover:text-white")
-								}
-							>
-								{activeView === option ? (
-									<motion.span
-										layoutId={`${toggleId}-pill`}
-										transition={enterTransition}
-										className="absolute inset-0 rounded bg-white/10"
-									/>
-								) : null}
-								<span className="relative">{option}</span>
-							</button>
-						))}
-					</div>
-					<button
-						type="button"
-						onClick={handleCopy}
-						className="cursor-pointer text-xs text-gray-400 transition-colors hover:text-white"
-					>
-						{copied ? "Copied" : "Copy"}
-					</button>
-				</div>
-			</div>
-			<div className="font-mono text-[12.5px] leading-5">
+			<CodeFrameHeader label={header} actions={actions} />
+			<div className="font-mono font-normal text-[length:var(--size-xs)] leading-5">
 				<CrossFade
 					active={activeView}
 					panes={[

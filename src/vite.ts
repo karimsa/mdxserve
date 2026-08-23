@@ -7,8 +7,9 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import remarkGfm from "remark-gfm";
 import rehypePrettyCode from "rehype-pretty-code";
+import rehypeSlug from "rehype-slug";
 import { getPackageRoot } from "./pkg.js";
-import { tailwindPlusTheme } from "./shiki-theme.js";
+import { designTokenTheme } from "./shiki-theme.js";
 import { getViteCacheDir } from "./cache.js";
 
 const require = createRequire(import.meta.url);
@@ -61,6 +62,12 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// alias the package dir so Vite's own resolver picks the `module` (ESM)
 	// entry instead, same as framer-motion/svg-pan-zoom above.
 	const tippyReactEntry = path.dirname(resolveFromPkg("@tippyjs/react/package.json"));
+	// lucide-react's `main` is CJS with no "exports" map; alias the package dir
+	// so Vite picks the `module` (ESM) entry, same as framer-motion above.
+	const lucideEntry = path.dirname(resolveFromPkg("lucide-react/package.json"));
+	// date-fns (listing + footer relative times) ships an "exports" map with an
+	// ESM branch; aliasing the package dir lets Vite's resolver pick it.
+	const dateFnsEntry = path.dirname(resolveFromPkg("date-fns/package.json"));
 
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
@@ -74,10 +81,12 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 			mdExtensions: [],
 			remarkPlugins: [remarkGfm],
 			rehypePlugins: [
+				// Stable heading ids for the TOC rail and `.mdx-anchor` links.
+				rehypeSlug,
 				[
 					rehypePrettyCode,
 					{
-						theme: tailwindPlusTheme,
+						theme: designTokenTheme,
 						keepBackground: false,
 					},
 				],
@@ -155,6 +164,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				{ find: "framer-motion", replacement: framerMotionEntry },
 				{ find: "@tippyjs/react", replacement: tippyReactEntry },
 				{ find: "tippy.js", replacement: tippyEntry },
+				{ find: "lucide-react", replacement: lucideEntry },
+				{ find: "date-fns", replacement: dateFnsEntry },
 			],
 			dedupe: ["react", "react-dom"],
 		},
@@ -173,6 +184,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				"@tippyjs/react",
 				"tippy.js",
 				"diff",
+				"lucide-react",
+				"date-fns",
 			],
 		},
 	});

@@ -1,203 +1,232 @@
+/* mdxserve global stylesheet.
+ *
+ * Order matters:
+ *   1. @imports — tippy's base css (see the Tooltip note below), then the design
+ *      system's tokens and base styles (client/design/, ported verbatim from the
+ *      "mdxserve Design System" Claude Design project).
+ *   2. @custom-variant dark — the `dark:` utility variant keys on the
+ *      `data-theme` attribute that src/html.ts sets on <html>, not on the OS
+ *      media query, so the in-app toggle works.
+ *   3. @theme inline — exposes the design tokens to Tailwind so utilities like
+ *      `bg-surface-card` / `text-text-muted` / `shadow-sm` point straight at
+ *      the CSS variables (no duplicated values, dark mode comes for free).
+ *   4. App-specific rules that are not part of the design system proper.
+ *
+ * The design tokens are deliberately left *unlayered*: `@theme inline` entries
+ * whose name matches a token (`--font-mono`, `--radius-md`) emit a
+ * self-reference inside `@layer theme`, and the unlayered `:root` declaration
+ * is what wins the cascade. Wrapping client/design in @layer would break that.
+ */
+
 /* Base tippy.js styles for the builtin Tooltip component (client/builtins/Tooltip.tsx).
    Imported here (rather than from the component) so it flows through Vite's normal
    CSS pipeline and doesn't break scripts/build-registry.ts, which imports that
    component under plain Node to read its zod schema. */
 @import "tippy.js/dist/tippy.css";
 
-@theme {
-	--font-sans:
-		ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial,
-		sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-	--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+@import "./design/tokens/fonts.css";
+@import "./design/tokens/colors.css";
+@import "./design/tokens/typography.css";
+@import "./design/tokens/spacing.css";
+@import "./design/tokens/elevation.css";
+@import "./design/tokens/motion.css";
+@import "./design/base/reset.css";
+@import "./design/base/prose.css";
+
+/* `:root[...]` (not bare `[data-theme]`) because rehype-pretty-code stamps
+   data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
+@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
+
+@theme inline {
+	/* fonts */
+	--font-sans: var(--font-core);
+	--font-mono: var(--font-mono);
+
+	/* surfaces */
+	--color-surface-page: var(--surface-page);
+	--color-surface-card: var(--surface-card);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-inverse: var(--surface-inverse);
+	--color-surface-hover: var(--surface-hover);
+	--color-surface-active: var(--surface-active);
+	--color-surface-accent-soft: var(--surface-accent-soft);
+	--color-surface-accent: var(--surface-accent);
+
+	/* text */
+	--color-text-body: var(--text-body);
+	--color-text-heading: var(--text-heading);
+	--color-text-muted: var(--text-muted);
+	--color-text-subtle: var(--text-subtle);
+	--color-text-inverse: var(--text-inverse);
+	--color-text-accent: var(--text-accent);
+	--color-text-link: var(--text-link);
+	--color-text-link-hover: var(--text-link-hover);
+
+	/* borders */
+	--color-border-subtle: var(--border-subtle);
+	--color-border-default: var(--border-default);
+	--color-border-strong: var(--border-strong);
+	--color-border-accent: var(--border-accent);
+	--color-focus-ring: var(--focus-ring);
+
+	/* status tints (callouts, badges, toasts) */
+	--color-status-info-bg: var(--status-info-bg);
+	--color-status-info-fg: var(--status-info-fg);
+	--color-status-ok-bg: var(--status-ok-bg);
+	--color-status-ok-fg: var(--status-ok-fg);
+	--color-status-warn-bg: var(--status-warn-bg);
+	--color-status-warn-fg: var(--status-warn-fg);
+	--color-status-danger-bg: var(--status-danger-bg);
+	--color-status-danger-fg: var(--status-danger-fg);
+	--color-status-note-bg: var(--status-note-bg);
+	--color-status-note-fg: var(--status-note-fg);
+
+	/* code surfaces */
+	--color-code-bg: var(--code-bg);
+	--color-code-bg-inline: var(--code-bg-inline);
+	--color-code-fg: var(--code-fg);
+	--color-code-border: var(--code-border);
+	--color-code-gutter: var(--code-gutter);
+	--color-code-highlight: var(--code-highlight);
+
+	/* raw ramps, for the few places the design names them directly */
+	--color-teal-50: var(--teal-50);
+	--color-teal-100: var(--teal-100);
+	--color-teal-200: var(--teal-200);
+	--color-teal-300: var(--teal-300);
+	--color-teal-400: var(--teal-400);
+	--color-teal-500: var(--teal-500);
+	--color-teal-600: var(--teal-600);
+	--color-teal-700: var(--teal-700);
+	--color-teal-800: var(--teal-800);
+	--color-teal-900: var(--teal-900);
+	--color-n-0: var(--n-0);
+	--color-n-25: var(--n-25);
+	--color-n-50: var(--n-50);
+	--color-n-100: var(--n-100);
+	--color-n-200: var(--n-200);
+	--color-n-300: var(--n-300);
+	--color-n-400: var(--n-400);
+	--color-n-500: var(--n-500);
+	--color-n-600: var(--n-600);
+	--color-n-700: var(--n-700);
+	--color-n-800: var(--n-800);
+	--color-n-900: var(--n-900);
+	--color-n-950: var(--n-950);
+
+	/* shadows — the one namespace Tailwind would otherwise inline its own
+     literal values for, so these mappings are required, not cosmetic */
+	--shadow-xs: var(--shadow-xs);
+	--shadow-sm: var(--shadow-sm);
+	--shadow-md: var(--shadow-md);
+	--shadow-lg: var(--shadow-lg);
+	--shadow-hairline: var(--shadow-hairline);
+	--shadow-focus: var(--shadow-focus);
+
+	/* radii — token names already match Tailwind's; listed for the extras */
+	--radius-xs: var(--radius-xs);
+	--radius-sm: var(--radius-sm);
+	--radius-md: var(--radius-md);
+	--radius-lg: var(--radius-lg);
+	--radius-xl: var(--radius-xl);
+	--radius-pill: var(--radius-pill);
+
+	/* layout */
+	--spacing-sidebar: var(--sidebar-width);
+	--spacing-toc: var(--toc-width);
+	--spacing-topbar: var(--topbar-height);
+	--container-prose: var(--width-prose);
+	--container-content: var(--width-content);
+
+	/* motion */
+	--ease-standard: var(--ease-standard);
+	--ease-out: var(--ease-out);
+	--ease-in: var(--ease-in);
 }
 
-:root {
-	color-scheme: light dark;
+/* Opt out of the global focus ring for inputs whose container already shows
+   focus (the search palette's text field). */
+[data-bare-focus]:focus-visible {
+	box-shadow: none;
 }
 
-body {
-	margin: 0;
-	font-family: var(--font-sans);
-	background-color: #fff;
-	color: var(--color-gray-700);
+/* Anchor jumps (TOC, `.mdx-anchor`, in-page links) clear the sticky topbar and
+   glide rather than snap. Programmatic scrolls that should not animate (route
+   change reset, first-load hash) pass `behavior: "instant"` explicitly. */
+html {
+	scroll-padding-top: calc(var(--topbar-height) + var(--space-2));
 }
 
-@media (prefers-color-scheme: dark) {
-	body {
-		background-color: var(--color-gray-950);
-		color: var(--color-gray-300);
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
 	}
 }
 
-/* Code is always monospace, inside or outside prose (e.g. not-prose blocks and
-   custom components). Sizing is left to whatever context it's used in. */
-pre,
-code,
-kbd,
-samp {
-	font-family: var(--font-mono);
+.mdx-prose h1,
+.mdx-prose h2,
+.mdx-prose h3,
+.mdx-prose h4 {
+	scroll-margin-top: calc(var(--topbar-height) + var(--space-2));
 }
 
-/* Tailwind Plus-style prose tuning on top of @tailwindcss/typography defaults */
-.prose {
-	--tw-prose-body: var(--color-gray-700);
-	--tw-prose-headings: var(--color-gray-950);
-	--tw-prose-links: var(--color-sky-600);
-	--tw-prose-bold: var(--color-gray-950);
-	--tw-prose-quotes: var(--color-gray-600);
-	--tw-prose-quote-borders: var(--color-gray-200);
-	--tw-prose-hr: var(--color-gray-200);
-	--tw-prose-th-borders: var(--color-gray-200);
-	--tw-prose-td-borders: var(--color-gray-100);
+/* Tailwind preflight resets list-style; the design's prose.css assumes markers. */
+.mdx-prose ul:not(:where(.not-prose, .not-prose *)) {
+	list-style: disc;
 }
 
-@media (prefers-color-scheme: dark) {
-	.prose {
-		--tw-prose-body: var(--color-gray-300);
-		--tw-prose-headings: #fff;
-		--tw-prose-links: var(--color-sky-400);
-		--tw-prose-bold: #fff;
-		--tw-prose-quotes: var(--color-gray-400);
-		--tw-prose-quote-borders: var(--color-gray-800);
-		--tw-prose-hr: var(--color-gray-800);
-		--tw-prose-th-borders: var(--color-gray-700);
-		--tw-prose-td-borders: var(--color-gray-800);
-	}
+.mdx-prose ol:not(:where(.not-prose, .not-prose *)) {
+	list-style: decimal;
 }
 
-.prose h1,
-.prose h2,
-.prose h3,
-.prose h4 {
-	font-weight: 600;
-	letter-spacing: -0.01em;
+.mdx-prose ul ul:not(:where(.not-prose, .not-prose *)) {
+	list-style: circle;
 }
 
-/* Links: soft sky underline, full color on hover */
-.prose a {
-	color: var(--color-sky-600);
-	font-weight: 500;
-	text-decoration-line: underline;
-	text-decoration-color: rgb(2 132 199 / 0.3);
-	text-underline-offset: 3px;
+/* GFM task list items: the checkbox is the marker. */
+.mdx-prose li:has(> input[type="checkbox"]) {
+	list-style: none;
+	margin-left: -1.35em;
 }
 
-.prose a:hover {
-	text-decoration-color: currentColor;
+.mdx-prose li > input[type="checkbox"] {
+	margin: 0 0.5em 0 0;
+	accent-color: var(--teal-500);
+	vertical-align: -0.1em;
 }
 
-@media (prefers-color-scheme: dark) {
-	.prose a {
-		color: var(--color-sky-400);
-		text-decoration-color: rgb(56 189 248 / 0.3);
-	}
-}
-
-/* Inline code: neutral mono chip, no backticks */
-.prose :not(pre) > code {
-	font-family: var(--font-mono);
-	font-size: 0.875em;
-	font-weight: 500;
-	color: var(--color-gray-950);
-	background-color: rgb(3 7 18 / 0.05);
-	border-radius: 0.25rem;
-	padding: 0.125rem 0.375rem;
-}
-
-.prose :not(pre) > code::before,
-.prose :not(pre) > code::after {
-	content: "";
-}
-
-@media (prefers-color-scheme: dark) {
-	.prose :not(pre) > code {
-		color: #fff;
-		background-color: rgb(255 255 255 / 0.1);
-	}
-}
-
-/* Inline code inside a link: chip takes the link color instead of the red/neutral
-   chip above, and the link itself drops its underline. */
-.prose a > code {
-	color: inherit;
-	background-color: rgb(14 165 233 / 0.1);
-}
-
-.prose a:has(> code) {
-	text-decoration: none;
-}
-
-.prose a:has(> code):hover > code {
-	background-color: rgb(14 165 233 / 0.2);
-}
+/* `not-prose` is a marker class (it used to come from @tailwindcss/typography).
+   Every element rule in client/design/base/prose.css carries a
+   `:not(:where(.not-prose, .not-prose *))` guard, so a builtin that sets it on
+   its root keeps its own typography. No rule is needed for the class itself. */
 
 /* Code blocks: hand off entirely to CodeFrame/Pre (client/CodeBlock.tsx) — prose
-   should not impose margin, background, or figcaption styling on them. */
-.prose pre,
-.prose pre code,
-.prose figure {
+   must not impose padding, background, or figcaption styling on them. Scoped to
+   rehype-pretty-code's figure so component <figure>s (Chart, Diagram) keep their
+   own radius and the prose block gap. The `.mdx-prose code` inline chip rule must
+   not hit code inside a <pre> either. */
+.mdx-prose pre,
+.mdx-prose pre code,
+.mdx-prose figure[data-rehype-pretty-code-figure] {
 	margin: 0;
 	padding: 0;
-	background-color: transparent;
-	font-size: inherit;
-	color: inherit;
+	background: transparent;
+	font: var(--type-code);
+	color: var(--code-fg);
 	border-radius: 0;
+}
+
+.mdx-prose > figure[data-rehype-pretty-code-figure] + *,
+.mdx-prose > * + figure[data-rehype-pretty-code-figure] {
+	margin-top: var(--prose-gap);
 }
 
 /* Padding lives here (not in utility classes) so the unlayered reset above
    can't strip it; CodeFrame's <pre> relies on it. */
-.prose pre,
+.mdx-prose pre,
 .not-prose pre {
-	padding: 1rem;
-	color: var(--color-gray-300);
-}
-
-.prose blockquote {
-	border-left: 2px solid var(--color-gray-200);
-	color: var(--color-gray-600);
-	font-style: normal;
-	padding-left: 1em;
-}
-
-@media (prefers-color-scheme: dark) {
-	.prose blockquote {
-		border-left-color: var(--color-gray-800);
-		color: var(--color-gray-400);
-	}
-}
-
-.prose table:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-	font-size: 0.875em;
-	border-collapse: collapse;
-}
-
-.prose thead th:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-	border-bottom: 1px solid var(--color-gray-200);
-	padding: 0.5em 0.75em;
-}
-
-.prose tbody td:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-	border-bottom: 1px solid var(--color-gray-100);
-	padding: 0.5em 0.75em;
-}
-
-@media (prefers-color-scheme: dark) {
-	.prose thead th:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-		border-bottom-color: var(--color-gray-700);
-	}
-	.prose tbody td:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-		border-bottom-color: var(--color-gray-800);
-	}
-}
-
-.prose hr {
-	border-color: var(--color-gray-200);
-}
-
-@media (prefers-color-scheme: dark) {
-	.prose hr {
-		border-color: var(--color-gray-800);
-	}
+	padding: var(--space-4) 0;
 }
 
 /*
@@ -209,12 +238,13 @@ samp {
  *     `data-line-numbers-max-digits` to the gutter's digit count.
  *   - `{1,3-4}`-style meta sets `data-highlighted-line` on the matching lines.
  */
+[data-line] {
+	padding-inline: var(--space-4);
+}
+
 [data-highlighted-line] {
-	display: block;
-	margin-inline: -1rem;
-	padding-inline: calc(1rem - 2px) 1rem;
-	background-color: rgb(56 189 248 / 0.1);
-	border-left: 2px solid var(--color-sky-400);
+	background-color: var(--code-highlight);
+	box-shadow: inset 2px 0 0 var(--teal-400);
 }
 
 code[data-line-numbers] {
@@ -226,9 +256,10 @@ code[data-line-numbers] [data-line]::before {
 	content: counter(line);
 	display: inline-block;
 	width: 1ch;
-	margin-right: 1.5rem;
+	margin-right: var(--space-4);
 	text-align: right;
-	color: var(--color-gray-600);
+	color: var(--code-gutter);
+	user-select: none;
 }
 
 code[data-line-numbers-max-digits="2"] [data-line]::before {
@@ -247,15 +278,28 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
    The arrow's border-*-color is `initial` (== currentcolor) per placement in
    tippy.js/dist/tippy.css, picking up whatever `color` is set on the arrow
    element itself — so setting `color` on `::before` (not just `.tippy-arrow`)
-   is what actually tints it. Same dark chip in light and dark mode. */
+   is what actually tints it. Inverse surface in both themes. */
 .tippy-box[data-theme~="mdxserve"] {
-	background: var(--color-gray-900);
-	color: #fff;
-	font-size: 0.75rem;
-	border-radius: 0.375rem;
-	padding: 0.125rem 0.25rem;
+	background: var(--surface-inverse);
+	color: var(--text-inverse);
+	font: var(--type-ui-sm);
+	font-size: var(--size-xs);
+	border-radius: var(--radius-md);
+	padding: var(--space-0-5) var(--space-1);
+	box-shadow: var(--shadow-md);
 }
 
 .tippy-box[data-theme~="mdxserve"] > .tippy-arrow::before {
-	color: var(--color-gray-900);
+	color: var(--surface-inverse);
+}
+
+/* Print: the reader gets the prose, nothing else. */
+@media print {
+	[data-print-hide] {
+		display: none !important;
+	}
+
+	.mdx-anchor {
+		display: none;
+	}
 }

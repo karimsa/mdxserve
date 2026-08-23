@@ -3,7 +3,9 @@ import { MDXProvider } from "@mdx-js/react";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
 import { Figure, Pre } from "./CodeBlock";
+import { H2, H3, H4 } from "./Heading";
 import { builtinComponents } from "./builtins/index";
+import { ToastStack } from "./ui/Toast";
 import type { Route } from "./router";
 
 function parseInitialRoute(): Route {
@@ -29,9 +31,12 @@ function main() {
 
 	root.render(
 		<MotionConfig reducedMotion="user">
-			<MDXProvider components={{ ...builtinComponents, pre: Pre, figure: Figure }}>
+			<MDXProvider
+				components={{ ...builtinComponents, pre: Pre, figure: Figure, h2: H2, h3: H3, h4: H4 }}
+			>
 				<App initialRoute={initialRoute} />
 			</MDXProvider>
+			<ToastStack />
 		</MotionConfig>,
 	);
 }

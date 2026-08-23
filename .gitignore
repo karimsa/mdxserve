@@ -18,3 +18,4 @@ yarn-error.log*
 # mdxserve per-directory cache
 .mdxserve/
 .node-path
+client/design-ref/
