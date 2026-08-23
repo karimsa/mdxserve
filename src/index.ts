@@ -4,6 +4,8 @@ import path from "node:path";
 import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
 import { cleanCache, getCacheDir } from "./cache.js";
+import { daemonize } from "./daemon.js";
+import { runSupervisor, SUPERVISED_ENV } from "./updater.js";
 
 const program = new Command();
 
@@ -14,7 +16,27 @@ program
   .description("Serve a directory of Markdown/MDX files")
   .option("-p, --port <n>", "port to listen on", "4040")
   .option("--host <host>", "host to bind to", "0.0.0.0")
-  .action(async (dir: string | undefined, opts: { port: string; host: string }) => {
+  .option("-D, --daemon", "run in the background as an oxmgr-managed process")
+  .option("--name <name>", "process name to register with oxmgr (with --daemon)", "mdxserve")
+  .option("-w, --wd <folder>", "change into this folder first; [dir] is then resolved relative to it")
+  .option("-A, --auto-update", "poll the mdxserve checkout's origin/main every minute; pull, rebuild, and restart on change")
+  .action(
+    async (
+      dir: string | undefined,
+      opts: { port: string; host: string; daemon?: boolean; name: string; wd?: string; autoUpdate?: boolean },
+    ) => {
+    if (opts.wd) {
+      const wd = path.resolve(process.cwd(), opts.wd);
+      try {
+        process.chdir(wd);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`mdxserve: cannot change into ${wd}: ${message}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
+
     const root = path.resolve(process.cwd(), dir ?? ".");
 
     if (!fs.existsSync(root)) {
@@ -36,8 +58,21 @@ program
       return;
     }
 
+    if (opts.daemon) {
+      process.exitCode = daemonize({ root, port, host: opts.host, name: opts.name, autoUpdate: Boolean(opts.autoUpdate) });
+      return;
+    }
+
+    if (opts.autoUpdate && !process.env[SUPERVISED_ENV]) {
+      // Re-run ourselves as a supervised child with the same arguments; the
+      // child sees SUPERVISED_ENV and just serves.
+      process.exitCode = await runSupervisor({ cliArgs: process.argv.slice(1) });
+      return;
+    }
+
     await startServer({ root, port, host: opts.host });
-  });
+  },
+  );
 
 const components = program.command("components").description("Inspect the builtin component registry");
 

@@ -2,7 +2,8 @@
 # One-shot setup for a fresh clone of mdxserve:
 #   1. yarn install
 #   2. yarn build
-#   3. npm link            -> `mdxserve` available from any folder
+#   3. link bin/mdxserve    -> `mdxserve` on PATH system-wide (~/.local/bin or /usr/local/bin),
+#                             independent of the current nvm/volta node version
 #   4. npx skills add      -> ./skills registered with Claude Code, Codex, and ~/.agents/skills
 #
 # Safe to re-run. Re-run after editing ./skills (the skills CLI copies them, it
@@ -30,8 +31,26 @@ yarn install
 step "Building"
 yarn build
 
-step "Linking mdxserve globally"
-npm link
+step "Installing the mdxserve launcher"
+# A symlink to bin/mdxserve rather than `npm link`: npm's global bin lives
+# inside the active node version's prefix (nvm/volta), so a link there
+# disappears whenever you switch versions.
+command -v node > .node-path   # pinned node for bin/mdxserve (gitignored)
+if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
+  bin_dir="$HOME/.local/bin"
+elif [ -w /usr/local/bin ]; then
+  bin_dir="/usr/local/bin"
+else
+  die "no writable bin directory (tried ~/.local/bin and /usr/local/bin)"
+fi
+launcher="$bin_dir/mdxserve"
+ln -sfn "$(pwd)/bin/mdxserve" "$launcher"
+echo "linked $launcher -> $(pwd)/bin/mdxserve"
+# Clean up a stale npm link from earlier versions of this script, if present.
+if npm ls -g --depth=0 mdxserve >/dev/null 2>&1; then
+  echo "removing old npm link"
+  npm unlink -g mdxserve >/dev/null 2>&1 || true
+fi
 
 step "Installing skills from ./skills"
 if [ -n "$(find skills -name SKILL.md -print -quit 2>/dev/null)" ]; then
@@ -41,9 +60,9 @@ else
 fi
 
 step "Done"
-if bin="$(command -v mdxserve)"; then
-  echo "mdxserve -> $bin"
-else
-  echo "mdxserve is not on PATH - make sure npm's global bin dir ($(npm prefix -g)/bin) is in your PATH"
-fi
+case ":$PATH:" in
+  *":$bin_dir:"*) echo "mdxserve -> $launcher" ;;
+  *) echo "mdxserve installed to $launcher, but $bin_dir is not on your PATH — add it to your shell profile:"
+     echo "  export PATH=\"$bin_dir:\$PATH\"" ;;
+esac
 echo "Re-run ./setup.sh after changing ./skills to refresh the installed copies."

@@ -38,6 +38,14 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
   // main) so Vite picks the plain `module.exports` entry and interops it.
   const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
   const zodEntry = resolveFromPkg("zod");
+  // diff's package.json "main" is its CJS entry (libcjs), so a plain
+  // require.resolve("diff") lands there. Unlike svg-pan-zoom/tippy.js (no
+  // "exports" map, so aliasing the package dir falls back to the "module"
+  // field), diff *does* define a conditional "exports" map — and aliasing to
+  // just the package dir still resolves through it to the "require" branch
+  // here, landing back on libcjs. Alias straight to the concrete ESM file
+  // instead so there's no conditional resolution left to get wrong.
+  const diffEntry = path.join(path.dirname(resolveFromPkg("diff/package.json")), "libesm", "index.js");
   // framer-motion's default resolution can land on its CJS entry; alias the
   // package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
   // entry instead.
@@ -134,6 +142,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         { find: "mermaid", replacement: mermaidEntry },
         { find: "svg-pan-zoom", replacement: svgPanZoomEntry },
         { find: "zod", replacement: zodEntry },
+        { find: "diff", replacement: diffEntry },
         { find: "framer-motion", replacement: framerMotionEntry },
         { find: "@tippyjs/react", replacement: tippyReactEntry },
         { find: "tippy.js", replacement: tippyEntry },
@@ -154,6 +163,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
         "framer-motion",
         "@tippyjs/react",
         "tippy.js",
+        "diff",
       ],
     },
   });

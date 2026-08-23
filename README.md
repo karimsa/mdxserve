@@ -25,7 +25,14 @@ This runs `yarn install`, `yarn build`, links `mdxserve` onto your `PATH` with
 npx mdxserve [dir]           # serve `dir` (defaults to the current directory)
 npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free port if taken)
 npx mdxserve --host 127.0.0.1 [dir]
+npx mdxserve -D [dir]        # run in the background via oxmgr (prints the stop/delete commands)
+npx mdxserve -w ~/notes docs # chdir into ~/notes first; [dir] is relative to it
+mdxserve -A [dir]            # auto-update: poll the checkout's origin/main every minute,
+                             # pull --rebase, rebuild, restart (combine with -D for a daemon)
 ```
+
+`-A` needs mdxserve to be running from a git checkout (the `./setup.sh` flow), since it
+updates that checkout in place. Set `MDXSERVE_UPDATE_INTERVAL_MS` to change the poll interval.
 
 Then open the printed URL. Folders always show a listing; `.md`/`.mdx` files
 render as pages. Everything else in a directory is listed too, muted and
@@ -68,6 +75,7 @@ no `import` needed:
 - `Tooltip` — a hover/focus tooltip (via tippy.js) for inline content
 - `Tabs` / `Tab` — a tabbed container that cross-fades between panels
 - `Badge` — a small inline pill for a status, tag, or label
+- `Diff` — a before/after code diff with unified or side-by-side views
 
 ```mdx
 <Callout type="warn" title="Heads up">
@@ -115,7 +123,7 @@ npx mdxserve cache clean docs/    # remove docs/.mdxserve
 
 ## Development
 
-Fresh clone: `./setup.sh` installs dependencies, builds, links `mdxserve` onto your PATH,
+Fresh clone: `./setup.sh` installs dependencies, builds, installs a `mdxserve` launcher in `~/.local/bin` (or `/usr/local/bin`),
 and installs the agent skill. Day to day:
 
 ```bash

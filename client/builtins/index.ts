@@ -5,6 +5,7 @@ import Button, { buttonProps } from "./Button";
 import Tooltip, { tooltipProps } from "./Tooltip";
 import Tabs, { Tab, tabsProps, tabProps } from "./Tabs";
 import Badge, { badgeProps } from "./Badge";
+import Diff, { diffProps } from "./Diff";
 
 export interface BuiltinDefinition {
   name: string;
@@ -61,6 +62,14 @@ export const builtins: BuiltinDefinition[] = [
       "Use inline with text (or inside a table cell) to call out a short status or category, e.g. a version, state, or tag. Prefer `variant=\"soft\"` (the default) for most uses; `solid` for emphasis, `outline` for a quieter look; set `dot` for a status indicator.",
     props: badgeProps,
     Component: Badge,
+  },
+  {
+    name: "Diff",
+    description: "Renders the difference between two code snippets with GitHub-style unified or side-by-side views.",
+    whenToUse:
+      "Use for before/after API changes, config migrations, or 'change this to that' instructions. Prefer a plain fence when only showing the final code.",
+    props: diffProps,
+    Component: Diff,
   },
 ];
 

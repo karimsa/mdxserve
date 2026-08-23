@@ -5,6 +5,48 @@ no `import` — they're registered globally, the same way `pre` and `figure` are
 code blocks. If you `import` your own component with the same name in a file, your local
 import wins.
 
+export const longBefore = `service:
+  name: sample-service
+  replicas: 2
+  image: ghcr.io/example/sample-service:1.4.0
+  port: 8080
+  env: production
+  region: us-east1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  healthCheck:
+    path: /healthz
+    interval: 30s
+  logging:
+    level: info
+    format: json`;
+
+export const longAfter = `service:
+  name: sample-service
+  replicas: 4
+  image: ghcr.io/example/sample-service:1.4.0
+  port: 8080
+  env: production
+  region: us-east1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  healthCheck:
+    path: /healthz
+    interval: 30s
+  logging:
+    level: debug
+    format: json`;
+
 ## Callout
 
 <Callout>
@@ -91,6 +133,35 @@ like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
   <Badge color="red" dot>Offline</Badge>
   <Badge color="amber" dot>Degraded</Badge>
 </div>
+
+## Diff
+
+<Diff
+  title="server.ts"
+  language="ts"
+  before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
+  after={`const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(\`listening on \${port}\`);`}
+/>
+
+`Diff` renders a GitHub-style diff between `before` and `after`, with a pill to switch between
+the unified view above and a side-by-side split view, and a copy button that copies `after`.
+Same-length removed/added blocks get intra-line highlights when the changed portion of the
+line is small enough to be worth marking.
+
+With a longer snippet, unchanged runs longer than `2 * context` (or just `context` at the very
+start/end) collapse into a clickable separator — set `context={1}` here to make that show up
+with only two small, far-apart changes:
+
+<Diff title="config.yaml" context={1} before={longBefore} after={longAfter} />
+
+```mdx
+<Diff
+  title="server.ts"
+  language="ts"
+  before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
+  after={`const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(\`listening on \${port}\`);`}
+/>
+```
 
 ## Discovering builtins from the CLI
 

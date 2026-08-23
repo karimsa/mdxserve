@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# mdxserve launcher. setup.sh symlinks this into ~/.local/bin (or /usr/local/bin)
+# so the CLI is on PATH regardless of the active nvm/volta node version.
+#
+# Resolves the repo from this file's real location (following the symlink) and
+# runs dist/cli.js with the node binary recorded by setup.sh in .node-path,
+# falling back to MDXSERVE_NODE or whatever `node` is on PATH.
+set -euo pipefail
+
+self="${BASH_SOURCE[0]}"
+while [ -L "$self" ]; do
+  target="$(readlink "$self")"
+  case "$target" in
+    /*) self="$target" ;;
+    *)  self="$(dirname "$self")/$target" ;;
+  esac
+done
+repo="$(cd "$(dirname "$self")/.." && pwd)"
+
+node_bin="${MDXSERVE_NODE:-}"
+if [ -z "$node_bin" ] && [ -r "$repo/.node-path" ]; then
+  node_bin="$(cat "$repo/.node-path")"
+fi
+if [ -z "$node_bin" ] || [ ! -x "$node_bin" ]; then
+  node_bin="$(command -v node || true)"
+fi
+[ -n "$node_bin" ] || { echo "mdxserve: no node binary found (run setup.sh or set MDXSERVE_NODE)" >&2; exit 1; }
+
+exec "$node_bin" "$repo/dist/cli.js" "$@"

@@ -31,7 +31,7 @@ export function CrossFade({ active, panes, className }: { active: string; panes:
 
   return (
     <motion.div
-      className={`grid overflow-hidden ${className ?? ""}`}
+      className={`grid grid-cols-[minmax(0,1fr)] overflow-hidden ${className ?? ""}`}
       initial={false}
       animate={height === null ? undefined : { height }}
       transition={enterTransition}
@@ -46,7 +46,7 @@ export function CrossFade({ active, panes, className }: { active: string; panes:
               if (el) refs.current.set(pane.key, el);
               else refs.current.delete(pane.key);
             }}
-            className="[grid-area:1/1] self-start"
+            className="min-w-0 [grid-area:1/1] self-start"
             initial={false}
             animate={{ opacity: isActive ? 1 : 0 }}
             transition={fadeSwapTransition}
