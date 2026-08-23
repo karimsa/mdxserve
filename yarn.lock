@@ -2361,6 +2361,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jotai@npm:2.20.2":
+  version: 2.20.2
+  resolution: "jotai@npm:2.20.2"
+  peerDependencies:
+    "@babel/core": ">=7.0.0"
+    "@babel/template": ">=7.0.0"
+    "@types/react": ">=17.0.0"
+    react: ">=17.0.0"
+  peerDependenciesMeta:
+    "@babel/core":
+      optional: true
+    "@babel/template":
+      optional: true
+    "@types/react":
+      optional: true
+    react:
+      optional: true
+  checksum: 10c0/8c9cbdcc2956cbe9b78f61e8ffe3018f7c7cd7efbb8260e7996dba4ac7cc9ee5e2fc53d5c218d9b5f04052672535be9fa7848293b8a35410d17112f95e6395b0
+  languageName: node
+  linkType: hard
+
 "katex@npm:^0.16.9":
   version: 0.16.47
   resolution: "katex@npm:0.16.47"
@@ -2954,6 +2975,7 @@ __metadata:
     esbuild: "npm:0.28.2"
     framer-motion: "npm:13.0.0"
     hast-util-to-html: "npm:9.0.5"
+    jotai: "npm:2.20.2"
     lucide-react: "npm:1.30.0"
     mdast-util-from-markdown: "npm:2.0.3"
     mdast-util-mdx: "npm:3.0.0"

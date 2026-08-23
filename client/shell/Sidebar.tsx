@@ -1,12 +1,75 @@
-import { useMemo } from "react";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { V } from "../motion";
 import { Icon } from "../ui/Icon";
 import { SidebarNav, type NavItem } from "../ui/SidebarNav";
 import type { TreeNode } from "../router";
+import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, sidebarWidthAtom } from "../state";
 
 const DOCKED_CLASS =
-	"w-sidebar shrink-0 sticky top-topbar h-[calc(100vh-var(--topbar-height))] overflow-y-auto border-r border-border-subtle px-3 py-6";
+	"shrink-0 sticky top-topbar h-[calc(100vh-var(--topbar-height))] border-r border-border-subtle";
+
+function clampWidth(px: number): number {
+	return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(px)));
+}
+
+/**
+ * Thin vertical strip on the sidebar's right edge; dragging it resizes the
+ * docked column. Uses pointer capture so the drag survives the cursor leaving
+ * the strip.
+ */
+function ResizeHandle({ onResize }: { onResize: (width: number) => void }) {
+	const dragging = useRef(false);
+
+	// The handle unmounts with the sidebar (navigating to a folder, toggling it
+	// closed); make sure an interrupted drag doesn't leave the body styles behind.
+	useEffect(() => {
+		return () => {
+			if (!dragging.current) return;
+			dragging.current = false;
+			document.body.style.cursor = "";
+			document.body.style.userSelect = "";
+		};
+	}, []);
+
+	const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		dragging.current = true;
+		event.currentTarget.setPointerCapture(event.pointerId);
+		document.body.style.cursor = "col-resize";
+		document.body.style.userSelect = "none";
+	}, []);
+
+	const onPointerMove = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			if (!dragging.current) return;
+			// The sidebar is flush with the viewport's left edge, so clientX is the width.
+			onResize(clampWidth(event.clientX));
+		},
+		[onResize],
+	);
+
+	const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+		dragging.current = false;
+		event.currentTarget.releasePointerCapture(event.pointerId);
+		document.body.style.cursor = "";
+		document.body.style.userSelect = "";
+	}, []);
+
+	return (
+		<div
+			role="separator"
+			aria-orientation="vertical"
+			aria-label="Resize sidebar"
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
+			onPointerCancel={onPointerUp}
+			className="absolute inset-y-0 -right-1 z-10 w-2.5 cursor-col-resize transition-colors hover:bg-border-subtle active:bg-border-subtle"
+		/>
+	);
+}
 
 /** "/Users/karim/foo" -> "~/foo" (best-effort; the client has no direct os.homedir()). */
 function shortenHome(dir: string): string {
@@ -60,10 +123,15 @@ function SidebarBody({
 
 	return (
 		<>
-			<div className="flex items-center gap-1.5 px-2 pb-4 font-mono text-[length:var(--size-2xs)] text-text-subtle">
-				<Icon name="folder-open" size={13} />
+			{/* Plain <a>: the router's global click delegation handles navigation. */}
+			<a
+				href="/"
+				title={rootDir}
+				className="mb-4 flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[length:var(--size-2xs)] text-text-subtle no-underline hover:bg-surface-hover hover:text-text-heading"
+			>
+				<Icon name="folder-open" size={13} className="shrink-0" />
 				<span className="truncate">{shortenHome(rootDir)}</span>
-			</div>
+			</a>
 			<SidebarNav sections={sections} activePath={activePath} onNavigate={navigate} />
 			<div className="mt-8 flex items-center gap-2 border-t border-border-subtle px-2 pt-3 text-[13px] leading-normal font-medium text-text-subtle">
 				<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" />
@@ -90,6 +158,8 @@ export function Sidebar({
 	mobileOpen: boolean;
 	onCloseMobile: () => void;
 }) {
+	const [width, setWidth] = useAtom(sidebarWidthAtom);
+
 	function handleNavigate(path?: string) {
 		onCloseMobile();
 		navigate(path);
@@ -131,8 +201,20 @@ export function Sidebar({
 
 			{/* Desktop docked column. */}
 			{desktopOpen ? (
-				<aside data-print-hide className={"hidden md:block " + DOCKED_CLASS}>
-					<SidebarBody tree={tree} rootDir={rootDir} activePath={activePath} navigate={navigate} />
+				<aside
+					data-print-hide
+					className={"relative hidden md:block " + DOCKED_CLASS}
+					style={{ width: clampWidth(width) }}
+				>
+					<div className="h-full overflow-y-auto px-3 py-6">
+						<SidebarBody
+							tree={tree}
+							rootDir={rootDir}
+							activePath={activePath}
+							navigate={navigate}
+						/>
+					</div>
+					<ResizeHandle onResize={setWidth} />
 				</aside>
 			) : null}
 		</>

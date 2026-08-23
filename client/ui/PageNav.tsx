@@ -27,8 +27,8 @@ function Side({ item, dir }: { item: PageNavLink; dir: "prev" | "next" }) {
 			whileTap={{ y: 0, scale: 0.995 }}
 			transition={T.snap}
 			className={
-				"flex flex-1 flex-col gap-1 rounded-lg border bg-surface-card px-4 py-3 no-underline transition-shadow " +
-				(prev ? "items-start" : "items-end") +
+				"flex min-w-0 flex-1 flex-col gap-1 rounded-lg border bg-surface-card px-4 py-3 no-underline transition-shadow " +
+				(prev ? "items-start text-left" : "items-end text-right") +
 				" " +
 				(hover ? "border-border-accent shadow-sm" : "border-border-default")
 			}
@@ -48,7 +48,7 @@ function Side({ item, dir }: { item: PageNavLink; dir: "prev" | "next" }) {
 			</span>
 			<span
 				className={
-					"text-[15px] leading-normal font-semibold transition-colors " +
+					"max-w-full break-words text-[15px] leading-normal font-semibold transition-colors " +
 					(hover ? "text-text-accent" : "text-text-heading")
 				}
 			>

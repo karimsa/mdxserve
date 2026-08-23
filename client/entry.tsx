@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { MDXProvider } from "@mdx-js/react";
+import { TaskCheckbox } from "./TaskCheckbox";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
 import { Figure, Pre } from "./CodeBlock";
@@ -32,7 +33,15 @@ function main() {
 	root.render(
 		<MotionConfig reducedMotion="user">
 			<MDXProvider
-				components={{ ...builtinComponents, pre: Pre, figure: Figure, h2: H2, h3: H3, h4: H4 }}
+				components={{
+					...builtinComponents,
+					pre: Pre,
+					figure: Figure,
+					h2: H2,
+					h3: H3,
+					h4: H4,
+					input: TaskCheckbox,
+				}}
 			>
 				<App initialRoute={initialRoute} />
 			</MDXProvider>

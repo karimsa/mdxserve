@@ -44,9 +44,20 @@ function flattenDocs(nodes: TreeNode[] | null): TreeNode[] {
 	return result;
 }
 
-/** Root name -> path segments; every segment is a folder link except a doc's last segment. */
-function breadcrumbItems(route: Route): BreadcrumbItem[] {
-	const items: BreadcrumbItem[] = [{ label: route.rootName, href: "/" }];
+/**
+ * Root name -> path segments; every segment is a folder link except a doc's
+ * last segment. Folder listings lead with the served directory's absolute
+ * path instead, with only the served root onwards being navigable.
+ */
+function breadcrumbItems(route: Route, rootDir: string): BreadcrumbItem[] {
+	const items: BreadcrumbItem[] = [];
+	if (route.kind === "listing" && rootDir) {
+		// The server hands back its raw root, so split on either separator.
+		const parents = rootDir.split(/[\\/]/).filter(Boolean).slice(0, -1);
+		if (parents.length === 0) items.push({ label: "/" });
+		for (const parent of parents) items.push({ label: parent });
+	}
+	items.push({ label: route.rootName, href: "/" });
 	const segments = route.path.split("/").filter(Boolean);
 	let acc = "";
 	segments.forEach((segment, i) => {
@@ -198,7 +209,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 							exit="exit"
 							className="w-full max-w-prose"
 						>
-							<Breadcrumb items={breadcrumbItems(route)} />
+							<Breadcrumb items={breadcrumbItems(route, rootDir)} />
 							<div className="mt-4">
 								{route.kind === "listing" ? (
 									<ListingView route={route} />

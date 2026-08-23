@@ -31,6 +31,7 @@
 		"diff": "9.0.0",
 		"framer-motion": "13.0.0",
 		"hast-util-to-html": "9.0.5",
+		"jotai": "2.20.2",
 		"lucide-react": "1.30.0",
 		"mdast-util-from-markdown": "2.0.3",
 		"mdast-util-mdx": "3.0.0",

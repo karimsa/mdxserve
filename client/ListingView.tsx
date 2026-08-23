@@ -1,29 +1,17 @@
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useAtom } from "jotai";
+import { useMemo } from "react";
 import { stagger } from "./motion";
 import { Icon } from "./ui/Icon";
 import type { ListingEntry, Route } from "./router";
 import Dropdown from "./builtins/Dropdown";
+import { listingSortAtom, type SortKey } from "./state";
 
 function formatSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-type SortKey = "name" | "modified";
-
-const SORT_STORAGE_KEY = "mdxserve.listing.sort";
-
-function readStoredSort(): SortKey {
-	try {
-		const v = localStorage.getItem(SORT_STORAGE_KEY);
-		if (v === "name" || v === "modified") return v;
-	} catch {
-		// localStorage may be unavailable; fall through to default.
-	}
-	return "name";
 }
 
 function sortEntries(entries: ListingEntry[], sort: SortKey): ListingEntry[] {
@@ -134,17 +122,8 @@ export function ListingView({ route }: { route: Extract<Route, { kind: "listing"
 	const parentSegments = segments.slice(0, -1);
 	const parentHref = parentSegments.length ? `/${parentSegments.join("/")}/` : "/";
 
-	const [sort, setSort] = useState<SortKey>(readStoredSort);
+	const [sort, setSort] = useAtom(listingSortAtom);
 	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
-
-	const onSortChange = (next: SortKey) => {
-		setSort(next);
-		try {
-			localStorage.setItem(SORT_STORAGE_KEY, next);
-		} catch {
-			// Ignore storage failures; the in-memory state still applies.
-		}
-	};
 
 	return (
 		<div>
@@ -154,7 +133,7 @@ export function ListingView({ route }: { route: Extract<Route, { kind: "listing"
 					<Dropdown
 						size="sm"
 						value={sort}
-						onChange={(next) => onSortChange(next as SortKey)}
+						onChange={(next) => setSort(next as SortKey)}
 						options={[
 							{ value: "name", label: "Name" },
 							{ value: "modified", label: "Last modified" },

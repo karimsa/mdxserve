@@ -6,6 +6,7 @@ import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import remarkGfm from "remark-gfm";
+import { escapeBareLt } from "./lenient-md.js";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import { getPackageRoot } from "./pkg.js";
@@ -96,7 +97,19 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		enforce: "pre" as const,
 	};
 
+	// Runs ahead of the MDX compiler; see escapeBareLt for why.
+	const lenientMdPlugin = {
+		name: "mdxserve:lenient-md",
+		enforce: "pre" as const,
+		transform(code: string, id: string) {
+			if (!/\.md(\?|$)/.test(id)) return null;
+			const escaped = escapeBareLt(code);
+			return escaped === code ? null : { code: escaped, map: null };
+		},
+	};
+
 	const plugins: PluginOption[] = [
+		lenientMdPlugin,
 		mdxPlugin,
 		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
 		tailwindcss(),

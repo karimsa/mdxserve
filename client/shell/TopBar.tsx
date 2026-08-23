@@ -70,7 +70,6 @@ export function TopBar({
 				size="sm"
 				onClick={onToggleTheme}
 			/>
-			<IconButton icon="printer" label="Print this page" size="sm" onClick={() => window.print()} />
 		</header>
 	);
 }
