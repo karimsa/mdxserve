@@ -5,12 +5,9 @@ import { createServer as createViteServer, type PluginOption, type ViteDevServer
 import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import remarkGfm from "remark-gfm";
 import { escapeBareLt } from "./lenient-md.js";
-import rehypePrettyCode from "rehype-pretty-code";
-import rehypeSlug from "rehype-slug";
+import { mdxCompileOptions } from "./mdx-options.js";
 import { getPackageRoot } from "./pkg.js";
-import { designTokenTheme } from "./shiki-theme.js";
 
 const require = createRequire(import.meta.url);
 
@@ -80,27 +77,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
 	const mdxPlugin = {
-		...mdx({
-			// Treat .md exactly like .mdx: builtin components and JSX work in both.
-			// (The default "detect" mode parses .md as plain Markdown and silently
-			// drops unknown tags.)
-			format: "mdx",
-			mdxExtensions: [".mdx", ".md"],
-			mdExtensions: [],
-			remarkPlugins: [remarkGfm],
-			rehypePlugins: [
-				// Stable heading ids for the TOC rail and `.mdx-anchor` links.
-				rehypeSlug,
-				[
-					rehypePrettyCode,
-					{
-						theme: designTokenTheme,
-						keepBackground: false,
-					},
-				],
-			],
-			providerImportSource: "@mdx-js/react",
-		}),
+		// The compiler options live in mdx-options.ts so the validator shares
+		// them; the extension lists are rollup-plugin-only and make .md go through
+		// the same MDX path as .mdx.
+		...mdx({ ...mdxCompileOptions(), mdxExtensions: [".mdx", ".md"], mdExtensions: [] }),
 		enforce: "pre" as const,
 	};
 

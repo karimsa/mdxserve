@@ -67,6 +67,7 @@ export function daemonize(options: DaemonOptions): number {
 mdxserve is running in the background as "${options.name}" (managed by oxmgr).
 
   http://localhost:${options.port}
+  http://localhost:${options.port}/__mdxserve/mcp   (MCP)
 
   oxmgr logs ${options.name}      tail the server log
   oxmgr stop ${options.name}      stop it (keeps the registration)

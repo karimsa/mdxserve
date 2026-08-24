@@ -127,18 +127,45 @@ export function formatComponent(entry: RegistryComponent): string {
 	return lines.join("\n");
 }
 
-/**
- * Suggest up to 3 registry components whose name is a case-insensitive
- * includes/startsWith match for `name`, for "did you mean" hints.
- */
-export function suggest(registry: Registry, name: string): string[] {
-	const q = name.toLowerCase();
-	const startsWith = registry.components
-		.filter((c) => c.name.toLowerCase().startsWith(q))
-		.map((c) => c.name);
-	const includes = registry.components
-		.filter((c) => !startsWith.includes(c.name) && c.name.toLowerCase().includes(q))
-		.map((c) => c.name);
+/** Levenshtein distance, for catching typos that neither prefix nor substring matching sees. */
+function editDistance(a: string, b: string): number {
+	const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+	for (let i = 1; i <= a.length; i++) {
+		let diag = prev[0];
+		prev[0] = i;
+		for (let j = 1; j <= b.length; j++) {
+			const tmp = prev[j];
+			prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+			diag = tmp;
+		}
+	}
+	return prev[b.length];
+}
 
-	return [...startsWith, ...includes].slice(0, 3);
+/**
+ * Suggest up to 3 of `names` for a "did you mean" hint: case-insensitive
+ * prefix matches first, then substring matches, then close typos (edit
+ * distance at most 2, e.g. "Calout" → "Callout").
+ */
+export function suggestFrom(names: string[], query: string): string[] {
+	const q = query.toLowerCase();
+	const startsWith = names.filter((n) => n.toLowerCase().startsWith(q));
+	const includes = names.filter((n) => !startsWith.includes(n) && n.toLowerCase().includes(q));
+	const seen = new Set([...startsWith, ...includes]);
+	const close = names
+		.filter((n) => !seen.has(n))
+		.map((n) => ({ n, d: editDistance(n.toLowerCase(), q) }))
+		.filter(({ d }) => d <= 2)
+		.sort((a, b) => a.d - b.d)
+		.map(({ n }) => n);
+
+	return [...startsWith, ...includes, ...close].slice(0, 3);
+}
+
+/** `suggestFrom` over the registry's component names. */
+export function suggest(registry: Registry, name: string): string[] {
+	return suggestFrom(
+		registry.components.map((c) => c.name),
+		name,
+	);
 }

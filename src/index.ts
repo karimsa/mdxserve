@@ -1,10 +1,14 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
 import { cleanCache, getCacheDir } from "./cache.js";
 import { daemonize } from "./daemon.js";
+import { createMcpServer } from "./mcp.js";
+import { computeRootInfos, pruneNestedRoots } from "./roots.js";
+import { liveServers } from "./server-registry.js";
 
 const program = new Command();
 
@@ -107,6 +111,33 @@ program
 			await startServer({ roots, port, host: opts.host });
 		},
 	);
+
+program
+	.command("mcp")
+	.description("Run the MCP server over stdio (for Claude Code, Codex, …)")
+	.action(async () => {
+		let registry;
+		try {
+			registry = loadRegistry();
+		} catch (error) {
+			console.error((error as Error).message);
+			process.exitCode = 1;
+			return;
+		}
+
+		// Every `mdxserve serve` registers itself in the server registry; this
+		// bridge searches/lists across the union of their roots (already
+		// realpaths, so string dedupe is enough; nested roots from separate
+		// servers collapse to the outer one) so a single stdio registration
+		// works no matter which `mdxserve serve` is running.
+		const server = createMcpServer({
+			registry,
+			getRoots: () => computeRootInfos(pruneNestedRoots(liveServers().flatMap((s) => s.roots))),
+		});
+
+		const transport = new StdioServerTransport();
+		await server.connect(transport); // keeps the process alive until stdin closes
+	});
 
 const components = program
 	.command("components")

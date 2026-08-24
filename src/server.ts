@@ -6,12 +6,18 @@ import fsp from "node:fs/promises";
 import trash from "trash";
 import { z } from "zod";
 import type { ViteDevServer } from "vite";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
 import { getViteCacheDir } from "./cache.js";
 import { readListing, readTree, isServable } from "./listing.js";
 import { search as searchDocs } from "./search.js";
 import { renderShell, type Route, type RootInfo } from "./shell.js";
+import { resolveRoot } from "./paths.js";
+import { loadRegistry } from "./registry.js";
+import { createMcpServer, type McpContext } from "./mcp.js";
+import { computeRootInfos, rootNameOf } from "./roots.js";
+import { registerServer, unregisterServer } from "./server-registry.js";
 
 export interface StartServerOptions {
 	roots: string[];
@@ -40,36 +46,8 @@ function toPosix(p: string): string {
 	return p.split(path.sep).join("/");
 }
 
-function rootNameOf(root: string): string {
-	return path.basename(root) || root;
-}
-
-/** Display names for every mounted root: basename, disambiguated with the parent dir on collision. */
-function computeRootInfos(roots: string[]): RootInfo[] {
-	const counts = new Map<string, number>();
-	for (const root of roots) {
-		const name = rootNameOf(root);
-		counts.set(name, (counts.get(name) ?? 0) + 1);
-	}
-	return roots.map((dir) => {
-		const name = rootNameOf(dir);
-		if ((counts.get(name) ?? 0) <= 1) return { name, dir };
-		return { name: `${name} (${path.basename(path.dirname(dir))})`, dir };
-	});
-}
-
 function rootInfoFor(rootInfos: RootInfo[], root: string): RootInfo {
 	return rootInfos.find((r) => r.dir === root) ?? { name: rootNameOf(root), dir: root };
-}
-
-/** The mounted root that contains `absPath`, or null if it lies outside all of them. */
-function resolveRoot(roots: string[], absPath: string): { root: string; abs: string } | null {
-	const abs = path.resolve("/", absPath); // collapses ".." segments; never relative
-	for (const root of roots) {
-		const rel = path.relative(root, abs);
-		if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) return { root, abs };
-	}
-	return null;
 }
 
 async function generateAppCss(
@@ -175,6 +153,7 @@ function printBanner(
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
 	if (networkUrl) lines.push(`- Network:  ${networkUrl}`);
+	lines.push(`- MCP:      ${localUrl}/__mdxserve/mcp`);
 	lines.push("");
 	for (const r of rootInfos) lines.push(`- ${r.name}: ${localUrl}${r.dir}/`);
 	if (fallbackUsed) lines.push("", "(port was in use; fell back to a free port)");
@@ -217,6 +196,7 @@ interface RequestContext {
 	pkgRoot: string;
 	vite: ViteDevServer;
 	cssFile: string;
+	mcp: McpContext;
 }
 
 async function handleRequest(
@@ -237,6 +217,33 @@ async function handleRequest(
 		res.setHeader("Content-Type", "image/svg+xml");
 		res.setHeader("Cache-Control", "public, max-age=86400");
 		res.end(await fsp.readFile(path.join(pkgRoot, "client", "favicon.svg")));
+		return;
+	}
+
+	// Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
+	// since this path also starts with MDXSERVE_PREFIX.
+	if (pathname === "/__mdxserve/mcp") {
+		if (req.method !== "POST" && req.method !== "GET" && req.method !== "DELETE") {
+			res.statusCode = 405;
+			res.setHeader("Allow", "GET, POST, DELETE");
+			res.end();
+			return;
+		}
+		// Stateless: a fresh transport+server per request; the SDK answers
+		// GET/DELETE itself in this mode. DNS-rebinding protection is left off,
+		// matching the posture of the /__mdxserve/api/* routes below (loopback
+		// by default, and these tools are read-only).
+		const transport = new StreamableHTTPServerTransport({
+			sessionIdGenerator: undefined,
+			enableJsonResponse: true,
+		});
+		const mcpServer = createMcpServer(ctx.mcp);
+		res.on("close", () => {
+			void transport.close();
+			void mcpServer.close();
+		});
+		await mcpServer.connect(transport);
+		await transport.handleRequest(req, res); // SDK reads the body itself
 		return;
 	}
 
@@ -591,6 +598,10 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	const pkgRoot = getPackageRoot();
 	const rootInfos = computeRootInfos(roots);
 
+	// Let a missing dist/registry.json (i.e. "run yarn build" first) propagate
+	// and fail startup fast, rather than only failing the first MCP call.
+	const registry = loadRegistry();
+
 	const { dir: cssDir, file: cssFile } = await generateAppCss(roots, pkgRoot);
 
 	const httpServer = http.createServer();
@@ -608,7 +619,14 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	for (const r of roots) vite.watcher.add(r);
 
 	httpServer.on("request", (req, res) => {
-		handleRequest(req, res, { roots, rootInfos, pkgRoot, vite, cssFile }).catch((error) => {
+		handleRequest(req, res, {
+			roots,
+			rootInfos,
+			pkgRoot,
+			vite,
+			cssFile,
+			mcp: { getRoots: () => rootInfos, registry },
+		}).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {
 				res.statusCode = 500;
@@ -646,12 +664,14 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
 	printBanner(actualPort, host, actualPort !== options.port, rootInfos);
+	registerServer({ port: actualPort, pid: process.pid, host, roots });
 
 	let shuttingDown = false;
 	async function shutdown(): Promise<void> {
 		if (shuttingDown) return;
 		shuttingDown = true;
 		console.log("\n  Shutting down…");
+		unregisterServer(actualPort);
 		try {
 			if (flushTimer) clearTimeout(flushTimer);
 			await vite.close();

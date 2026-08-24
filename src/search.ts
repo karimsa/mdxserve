@@ -141,12 +141,16 @@ class SearchIndex {
 				allNodes.push(node);
 				seen.add(node.path);
 				const mtime = node.mtime ?? 0;
+				// The label carries the root's display name, which can change
+				// between calls when roots with colliding basenames come and go
+				// (the stdio bridge unions roots from independent servers), so a
+				// label change must re-index just like an edit does.
+				const label = `${root.name}/${path.relative(root.dir, node.path)}`;
 				const existing = this.indexed.get(node.path);
-				if (existing && existing.mtime === mtime) continue;
+				if (existing && existing.mtime === mtime && existing.path === label) continue;
 
 				const doc = readDoc(node.path, mtime);
 				const { headings, body } = classifyLines(doc.lines);
-				const label = `${root.name}/${path.relative(root.dir, node.path)}`;
 				const entry: IndexedDoc = {
 					id: node.path,
 					title: doc.h1 ?? node.name,

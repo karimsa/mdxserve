@@ -5,6 +5,8 @@
 #   3. link bin/mdxserve    -> `mdxserve` on PATH system-wide (~/.local/bin or /usr/local/bin),
 #                             independent of the current nvm/volta node version
 #   4. npx skills add      -> ./skills registered with Claude Code, Codex, and ~/.agents/skills
+#   5. register the MCP server (`mdxserve mcp`) with claude/codex, if present
+#                             -> pass --no-mcp to skip
 #
 # Safe to re-run. Re-run after editing ./skills (the skills CLI copies them, it
 # doesn't symlink back to this repo).
@@ -14,6 +16,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 step() { printf '\n==> %s\n' "$*"; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+no_mcp=false
+for arg in "$@"; do
+  case "$arg" in
+    --no-mcp) no_mcp=true ;;
+    *) die "unknown flag: $arg (usage: ./setup.sh [--no-mcp])" ;;
+  esac
+done
 
 step "Checking prerequisites"
 command -v node >/dev/null || die "node is required (https://nodejs.org)"
@@ -59,6 +69,28 @@ else
   echo "no skills in ./skills yet, skipping"
 fi
 
+step "Registering the MCP server"
+if $no_mcp; then
+  echo "--no-mcp passed, skipping"
+else
+  registered=false
+  if command -v claude >/dev/null; then
+    claude mcp remove -s user mdxserve >/dev/null 2>&1 || true
+    claude mcp add -s user mdxserve -- "$launcher" mcp
+    echo "registered with claude"
+    registered=true
+  fi
+  if command -v codex >/dev/null; then
+    codex mcp remove mdxserve >/dev/null 2>&1 || true
+    codex mcp add mdxserve -- "$launcher" mcp
+    echo "registered with codex"
+    registered=true
+  fi
+  if ! $registered; then
+    echo "no claude/codex CLI found; add ./mcp.json to your client by hand"
+  fi
+fi
+
 step "Done"
 case ":$PATH:" in
   *":$bin_dir:"*) echo "mdxserve -> $launcher" ;;
@@ -66,3 +98,4 @@ case ":$PATH:" in
      echo "  export PATH=\"$bin_dir:\$PATH\"" ;;
 esac
 echo "Re-run ./setup.sh after changing ./skills to refresh the installed copies."
+echo "Pass --no-mcp to skip registering the MCP server with claude/codex."

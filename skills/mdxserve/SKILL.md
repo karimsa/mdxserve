@@ -93,7 +93,10 @@ Task lists for progress; keep them flat:
 
 Available in any `.md` or `.mdx` with no import. The registry — not this file — is the
 authoritative list of components and props. Before using a component for the first time in a
-session, check it:
+session, check it. If the `mdxserve` MCP server is connected, use its tools instead (named
+like `list_components` / `show_component` — the exact prefix depends on how the user
+registered the server; `./setup.sh` registers it as `mdxserve`); the commands below are the
+fallback:
 
 ```bash
 npx mdxserve components search           # list every builtin with a one-line description
@@ -135,6 +138,18 @@ Plans are read in mdxserve and in plain text. Use headings for phases, a task li
 a table for files-to-change, and at most one mermaid diagram (the architecture or the main
 flow). Skip components in plans unless the user views plans only in mdxserve.
 
+## After writing
+
+If the `mdxserve` MCP server is connected: after saving any `.md`/`.mdx` file, call
+`validate_doc` with its absolute path — this works even when no `mdxserve serve` is running (a
+path relative to a served root also works, but only when a server is running and exactly one
+root contains it). Read every diagnostic. Fix every `error` (MDX compile errors, unknown
+components) and any `unknown-prop` warning where a real prop was intended, then re-run
+`validate_doc` until it returns `ok: true`. Compile errors and unknown components blank the
+page or throw at render time — invisible until a human opens it — so this is not optional when
+the tool is available. If the MCP server is not connected, tell the user the file was not
+validated; don't skip this silently.
+
 ## Before saving
 
 - Every code fence has a language tag; titles and highlights only where they help.
@@ -142,3 +157,4 @@ flow). Skip components in plans unless the user views plans only in mdxserve.
 - No raw HTML, styles, imports, or custom components.
 - Any builtin component used was checked with `components show` and genuinely clarifies.
 - The file still reads well as plain text.
+- `validate_doc` returned `ok: true` (when the mdxserve MCP server is connected).
