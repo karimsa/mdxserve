@@ -14,6 +14,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { z } from "zod";
 import { CrossFade } from "../CrossFade";
 import { T, V } from "../motion";
+import { Icon } from "../ui/Icon";
 
 const dropdownOption = z.union([
 	z.string().describe("Option value and label, both the same string."),
@@ -29,6 +30,12 @@ const dropdownOption = z.union([
 
 export const dropdownProps = z.object({
 	label: z.string().optional().describe("Label shown above the control."),
+	icon: z
+		.string()
+		.optional()
+		.describe(
+			"Lucide icon name; renders an icon-only trigger instead of the labelled control. `label` becomes the accessible name.",
+		),
 	options: z
 		.array(dropdownOption)
 		.optional()
@@ -138,6 +145,7 @@ const SIZE_CLASSES: Record<
  */
 export default function Dropdown({
 	label,
+	icon,
 	options,
 	value,
 	defaultValue,
@@ -251,10 +259,14 @@ export default function Dropdown({
 	const control = (
 		<div
 			ref={rootRef}
-			className="not-prose relative inline-flex w-full max-w-xs flex-col gap-1.5"
+			className={
+				icon
+					? "not-prose relative inline-flex"
+					: "not-prose relative inline-flex w-full max-w-xs flex-col gap-1.5"
+			}
 			onKeyDown={onKeyDown}
 		>
-			{label ? (
+			{label && !icon ? (
 				<span
 					id={`${id}-label`}
 					className="font-sans text-[length:var(--size-sm)] font-semibold leading-normal text-text-heading"
@@ -262,38 +274,60 @@ export default function Dropdown({
 					{label}
 				</span>
 			) : null}
-			<button
-				ref={triggerRef}
-				type="button"
-				role="combobox"
-				aria-haspopup="listbox"
-				aria-expanded={open}
-				aria-controls={listboxId}
-				aria-labelledby={label ? `${id}-label` : undefined}
-				disabled={disabled}
-				onClick={() => (open ? setOpen(false) : openMenu())}
-				className={[
-					"flex w-full cursor-pointer items-center gap-2 rounded-md border bg-surface-card text-left shadow-xs",
-					"font-sans font-normal leading-normal text-text-body transition-colors duration-150",
-					open
-						? "border-border-accent"
-						: "border-border-default hover:border-border-strong hover:bg-surface-hover",
-					"disabled:cursor-not-allowed disabled:opacity-45",
-					SIZE_CLASSES[size].trigger,
-					SIZE_CLASSES[size].text,
-				].join(" ")}
-			>
-				<span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-text-subtle"}`}>
-					{selected ? selected.label : placeholder}
-				</span>
-				<motion.span
-					animate={{ rotate: open ? 180 : 0 }}
-					transition={T.snap}
-					className="inline-flex text-text-subtle"
+			{icon ? (
+				<button
+					ref={triggerRef}
+					type="button"
+					role="combobox"
+					aria-haspopup="listbox"
+					aria-expanded={open}
+					aria-controls={listboxId}
+					disabled={disabled}
+					onClick={() => (open ? setOpen(false) : openMenu())}
+					aria-label={`${label ?? "Choose"}: ${selected ? selected.label : placeholder}`}
+					title={`${label ?? "Choose"}: ${selected ? selected.label : placeholder}`}
+					className={[
+						"inline-flex h-[26px] w-[26px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent transition-colors",
+						"disabled:cursor-not-allowed disabled:opacity-45",
+						open ? "bg-surface-active text-text-heading" : "text-text-muted hover:bg-surface-hover",
+					].join(" ")}
 				>
-					<ChevronDown aria-hidden="true" size={14} strokeWidth={1.75} />
-				</motion.span>
-			</button>
+					<Icon name={icon} size="sm" />
+				</button>
+			) : (
+				<button
+					ref={triggerRef}
+					type="button"
+					role="combobox"
+					aria-haspopup="listbox"
+					aria-expanded={open}
+					aria-controls={listboxId}
+					aria-labelledby={label ? `${id}-label` : undefined}
+					disabled={disabled}
+					onClick={() => (open ? setOpen(false) : openMenu())}
+					className={[
+						"flex w-full cursor-pointer items-center gap-2 rounded-md border bg-surface-card text-left shadow-xs",
+						"font-sans font-normal leading-normal text-text-body transition-colors duration-150",
+						open
+							? "border-border-accent"
+							: "border-border-default hover:border-border-strong hover:bg-surface-hover",
+						"disabled:cursor-not-allowed disabled:opacity-45",
+						SIZE_CLASSES[size].trigger,
+						SIZE_CLASSES[size].text,
+					].join(" ")}
+				>
+					<span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-text-subtle"}`}>
+						{selected ? selected.label : placeholder}
+					</span>
+					<motion.span
+						animate={{ rotate: open ? 180 : 0 }}
+						transition={T.snap}
+						className="inline-flex text-text-subtle"
+					>
+						<ChevronDown aria-hidden="true" size={14} strokeWidth={1.75} />
+					</motion.span>
+				</button>
+			)}
 
 			<AnimatePresence>
 				{open ? (
@@ -304,7 +338,11 @@ export default function Dropdown({
 						aria-activedescendant={entries[highlighted] ? `${id}-opt-${highlighted}` : undefined}
 						{...V.pop}
 						style={{ zIndex: "var(--z-dropdown)" }}
-						className="absolute left-0 top-full mt-1.5 max-h-72 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-border-default bg-surface-raised p-1 shadow-md"
+						className={
+							icon
+								? "absolute right-0 top-full mt-1.5 max-h-72 min-w-[12rem] overflow-y-auto rounded-lg border border-border-default bg-surface-raised p-1 shadow-md"
+								: "absolute left-0 top-full mt-1.5 max-h-72 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-border-default bg-surface-raised p-1 shadow-md"
+						}
 					>
 						{entries.map((entry, i) => {
 							const isSelected = entry.value === current;

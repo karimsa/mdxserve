@@ -22,14 +22,21 @@ const handleBar: Record<
 };
 
 /**
- * Resize handle just outside one edge of a centred content block. The hover
- * zone is wide (it spans the inset gap) so it's easy to find; the bar itself
- * rests as a short pill, grows to a full-height line on hover, and thickens +
- * turns teal mid-drag. The content is centred in the area marked with
- * `data-content-area`, so moving one edge by `d` changes the width by `2d` —
- * computed from the content's centre rather than accumulated deltas so the
- * drag can't drift. Widths are clamped to [minWidth, maxWidth] and to the
- * content area so the block never runs under the surrounding chrome.
+ * Resize handle just outside one edge of a content block. The hover zone is
+ * wide (it spans the inset gap) so it's easy to find; the bar itself rests as
+ * a short pill, grows to a full-height line on hover, and thickens + turns
+ * teal mid-drag.
+ *
+ * Two modes:
+ * - Default: the content is centred in the area marked with
+ *   `data-content-area`, so moving one edge by `d` changes the width by `2d` —
+ *   computed from the content's centre rather than accumulated deltas so the
+ *   drag can't drift. Widths are clamped to [minWidth, maxWidth] and to the
+ *   content area so the block never runs under the surrounding chrome.
+ * - `anchored`: the panel is flush against the viewport's left edge (e.g. a
+ *   docked sidebar with `side="right"`), so the dragged edge maps 1:1 to the
+ *   width with no doubling or centring, and the width is only clamped to
+ *   [minWidth, maxWidth]. Only `side="right"` is supported in this mode.
  */
 export function ResizeHandle({
 	side,
@@ -38,6 +45,7 @@ export function ResizeHandle({
 	label,
 	minWidth,
 	maxWidth,
+	anchored = false,
 }: {
 	side: "left" | "right";
 	container: React.RefObject<HTMLDivElement | null>;
@@ -45,6 +53,8 @@ export function ResizeHandle({
 	label: string;
 	minWidth: number;
 	maxWidth: number;
+	/** Panel flush against the viewport's left edge; only `side="right"` is supported. */
+	anchored?: boolean;
 }) {
 	const [hovered, setHovered] = useState(false);
 	const [dragging, setDragging] = useState(false);
@@ -64,17 +74,25 @@ export function ResizeHandle({
 
 	const clamp = useCallback(
 		(px: number) => {
+			// Anchored panels aren't centred in a content area — clamp to the
+			// configured bounds only.
+			if (anchored) return Math.min(maxWidth, Math.max(minWidth, Math.round(px)));
 			const area = container.current?.closest("[data-content-area]");
 			const available = area instanceof HTMLElement ? area.clientWidth : maxWidth;
 			return Math.min(Math.min(maxWidth, available), Math.max(minWidth, Math.round(px)));
 		},
-		[container, minWidth, maxWidth],
+		[container, minWidth, maxWidth, anchored],
 	);
 
 	const onPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLDivElement>) => {
 			event.preventDefault();
-			if (container.current) {
+			if (anchored && container.current) {
+				// Pointer distance past the panel's right edge, so the drag stays
+				// relative to where it was grabbed instead of snapping the edge to the cursor.
+				const rect = container.current.getBoundingClientRect();
+				grabOffset.current = event.clientX - rect.right;
+			} else if (container.current) {
 				const rect = container.current.getBoundingClientRect();
 				const centre = rect.left + rect.width / 2;
 				const half = side === "right" ? event.clientX - centre : centre - event.clientX;
@@ -92,18 +110,23 @@ export function ResizeHandle({
 			document.body.style.cursor = "col-resize";
 			document.body.style.userSelect = "none";
 		},
-		[container, side],
+		[container, side, anchored],
 	);
 
 	const onPointerMove = useCallback(
 		(event: React.PointerEvent<HTMLDivElement>) => {
 			if (!draggingRef.current || !container.current) return;
+			if (anchored) {
+				const rect = container.current.getBoundingClientRect();
+				onResize(clamp(event.clientX - rect.left - grabOffset.current));
+				return;
+			}
 			const rect = container.current.getBoundingClientRect();
 			const centre = rect.left + rect.width / 2;
 			const half = side === "right" ? event.clientX - centre : centre - event.clientX;
 			onResize(clamp((half - HANDLE_INSET - grabOffset.current) * 2));
 		},
-		[container, onResize, side, clamp],
+		[container, onResize, side, clamp, anchored],
 	);
 
 	const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -119,8 +142,11 @@ export function ResizeHandle({
 	const state: HandleState = dragging ? "drag" : hovered ? "hover" : "idle";
 	// Centre the bar on the inset line: the zone starts at the content edge and
 	// extends outward, so the line sits HANDLE_INSET in from the zone's inner edge.
-	const zoneStyle =
-		side === "right"
+	// Anchored panels sit beside the main column, so rather than overhang into it the zone
+	// straddles the panel's border instead, centred on it.
+	const zoneStyle = anchored
+		? { right: -HANDLE_ZONE / 2, paddingLeft: 0 }
+		: side === "right"
 			? { right: -HANDLE_ZONE, paddingLeft: HANDLE_INSET }
 			: { left: -HANDLE_ZONE, paddingRight: HANDLE_INSET };
 
@@ -138,7 +164,7 @@ export function ResizeHandle({
 			style={{ width: HANDLE_ZONE, ...zoneStyle }}
 			className={
 				"absolute inset-y-0 z-10 flex cursor-col-resize items-center " +
-				(side === "right" ? "justify-start" : "justify-end")
+				(anchored ? "justify-center" : side === "right" ? "justify-start" : "justify-end")
 			}
 		>
 			<motion.div

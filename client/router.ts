@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+	type ComponentType,
+} from "react";
 
 export interface ListingEntry {
 	name: string;
@@ -82,6 +89,13 @@ function ensureDocModule(path: string): Promise<void> {
 	return promise;
 }
 
+interface ListingApiResponse {
+	path: string;
+	rootName: string;
+	rootDir: string;
+	entries: ListingEntry[];
+}
+
 interface TreeApiResponse {
 	roots: { name: string; dir: string; nodes: TreeNode[] }[];
 }
@@ -148,10 +162,21 @@ if (import.meta.hot) {
 	import.meta.hot.on("vite:afterUpdate", () => {
 		treeLoadPromise = null;
 		void loadTree();
+		// Editing a doc's first h1 changes the title the sidebar shows for it, and
+		// that only ships as a module HMR update, not a listing-changed event —
+		// so refetch every listing currently on screen to pick the new title up.
+		for (const dir of listingListeners.keys()) void fetchListing(dir);
 	});
-	import.meta.hot.on("mdxserve:listing-changed", () => {
+	import.meta.hot.on("mdxserve:listing-changed", (data: { dirs?: string[] }) => {
 		treeLoadPromise = null;
 		void loadTree();
+		for (const dir of data?.dirs ?? []) {
+			// A change that lands while the first fetch is still in flight would be
+			// deduped away by fetchListing; queue one more behind it instead.
+			const pending = listingPromises.get(dir);
+			if (pending) void pending.then(() => fetchListing(dir));
+			else if (listingCache.has(dir) || listingListeners.has(dir)) void fetchListing(dir);
+		}
 	});
 }
 
@@ -209,6 +234,93 @@ export function rootFor(path: string): RootInfo | undefined {
 	return best;
 }
 
+export interface FolderListing {
+	/** null until the first successful fetch. */
+	entries: ListingEntry[] | null;
+	error: boolean;
+}
+
+const EMPTY_LISTING: FolderListing = { entries: null, error: false };
+
+/**
+ * Module-scope cache of folder listings, keyed by root-relative folder path
+ * (same shape as treeStore/docModuleCache above): fetched once per folder and
+ * shared across every consumer, so re-opening a folder doesn't re-fetch it
+ * and the sidebar/listing view can share a live-updating copy.
+ */
+const listingCache = new Map<string, FolderListing>();
+const listingPromises = new Map<string, Promise<void>>();
+const listingListeners = new Map<string, Set<() => void>>();
+
+function notifyListing(folder: string): void {
+	const listeners = listingListeners.get(folder);
+	if (!listeners) return;
+	for (const listener of listeners) listener();
+}
+
+/** Seed the cache for a folder from data already fetched elsewhere (e.g. loadRoute). */
+export function seedListing(path: string, entries: ListingEntry[]): void {
+	// Always a fresh object — useSyncExternalStore snapshots must never be mutated in place.
+	listingCache.set(path, { entries, error: false });
+	notifyListing(path);
+}
+
+function fetchListing(folder: string): Promise<void> {
+	const pending = listingPromises.get(folder);
+	if (pending) return pending;
+
+	const promise = fetch(`/__mdxserve/api/listing?path=${encodeURIComponent(folder)}`)
+		.then(async (res) => {
+			if (!res.ok) throw new Error(`listing fetch failed: ${res.status}`);
+			const data = (await res.json()) as ListingApiResponse;
+			seedListing(data.path, data.entries);
+			// The server can resolve/normalize the requested path (e.g. trailing
+			// slash quirks); make sure whoever asked under `folder` sees it too.
+			if (data.path !== folder) seedListing(folder, data.entries);
+		})
+		.catch(() => {
+			// A transient refetch failure (an HMR-triggered reload racing a watcher
+			// hiccup, say) must not blank out a listing that already rendered fine;
+			// only fall back to the error state if we have nothing to show yet.
+			if (!listingCache.get(folder)?.entries) {
+				listingCache.set(folder, { entries: null, error: true });
+			}
+		})
+		.finally(() => {
+			listingPromises.delete(folder);
+			notifyListing(folder);
+		});
+
+	listingPromises.set(folder, promise);
+	return promise;
+}
+
+/** React hook for a single folder's listing; triggers the initial fetch on first use. */
+export function useFolderListing(folder: string): FolderListing {
+	const subscribe = useCallback(
+		(onStoreChange: () => void) => {
+			let listeners = listingListeners.get(folder);
+			if (!listeners) {
+				listeners = new Set();
+				listingListeners.set(folder, listeners);
+			}
+			listeners.add(onStoreChange);
+			// Stale-while-revalidate: a cached listing renders immediately, but an
+			// h1 edit in a folder nobody was watching only ships as a module HMR
+			// update, so always refetch on subscribe to pick up new titles.
+			if (folder) void fetchListing(folder);
+			return () => {
+				listeners.delete(onStoreChange);
+				if (listeners.size === 0) listingListeners.delete(folder);
+			};
+		},
+		[folder],
+	);
+	const getSnapshot = useCallback(() => listingCache.get(folder) ?? EMPTY_LISTING, [folder]);
+
+	return useSyncExternalStore(subscribe, getSnapshot);
+}
+
 function titleFor(route: Route): string {
 	if (route.kind === "home") return "mdxserve";
 	if (route.kind === "listing") return `${route.rootName}${route.path.slice(route.rootDir.length)}`;
@@ -217,13 +329,6 @@ function titleFor(route: Route): string {
 		return segments[segments.length - 1] ?? route.rootName;
 	}
 	return "Not found";
-}
-
-interface ListingApiResponse {
-	path: string;
-	rootName: string;
-	rootDir: string;
-	entries: ListingEntry[];
 }
 
 /** The `rootName`/`rootDir` a route carries, if any (every kind but `home`). */
@@ -259,6 +364,7 @@ export function useRouter(initialRoute: Route) {
 					return { kind: "notfound", path, ...routeRootFields(routeRef.current) };
 				}
 				const data = (await res.json()) as ListingApiResponse;
+				seedListing(data.path, data.entries);
 				return {
 					kind: "listing",
 					path: data.path,
@@ -324,6 +430,9 @@ export function useRouter(initialRoute: Route) {
 
 	useEffect(() => {
 		document.title = titleFor(initialRoute);
+		// The server embeds the initial listing's entries straight into the page,
+		// but useFolderListing consumers still need them in the shared cache.
+		if (initialRoute.kind === "listing") seedListing(initialRoute.path, initialRoute.entries);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 

@@ -1,10 +1,11 @@
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { useRef } from "react";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { V } from "../motion";
 import { Icon } from "../ui/Icon";
-import { SidebarNav, type NavItem } from "../ui/SidebarNav";
-import type { RootTree, TreeNode } from "../router";
+import { ResizeHandle } from "../ui/ResizeHandle";
+import { ListingView } from "../ListingView";
+import { useFolderListing } from "../router";
 import { shortenHome } from "../format";
 import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, sidebarWidthAtom } from "../state";
 
@@ -15,116 +16,30 @@ function clampWidth(px: number): number {
 	return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(px)));
 }
 
-/**
- * Thin vertical strip on the sidebar's right edge; dragging it resizes the
- * docked column. Uses pointer capture so the drag survives the cursor leaving
- * the strip.
- */
-function ResizeHandle({ onResize }: { onResize: (width: number) => void }) {
-	const dragging = useRef(false);
-
-	// The handle unmounts with the sidebar (navigating to a folder, toggling it
-	// closed); make sure an interrupted drag doesn't leave the body styles behind.
-	useEffect(() => {
-		return () => {
-			if (!dragging.current) return;
-			dragging.current = false;
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
-		};
-	}, []);
-
-	const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		dragging.current = true;
-		event.currentTarget.setPointerCapture(event.pointerId);
-		document.body.style.cursor = "col-resize";
-		document.body.style.userSelect = "none";
-	}, []);
-
-	const onPointerMove = useCallback(
-		(event: React.PointerEvent<HTMLDivElement>) => {
-			if (!dragging.current) return;
-			// The sidebar is flush with the viewport's left edge, so clientX is the width.
-			onResize(clampWidth(event.clientX));
-		},
-		[onResize],
-	);
-
-	const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-		dragging.current = false;
-		event.currentTarget.releasePointerCapture(event.pointerId);
-		document.body.style.cursor = "";
-		document.body.style.userSelect = "";
-	}, []);
-
-	return (
-		<div
-			role="separator"
-			aria-orientation="vertical"
-			aria-label="Resize sidebar"
-			onPointerDown={onPointerDown}
-			onPointerMove={onPointerMove}
-			onPointerUp={onPointerUp}
-			onPointerCancel={onPointerUp}
-			className="absolute inset-y-0 -right-1 z-10 w-2.5 cursor-col-resize transition-colors hover:bg-border-subtle active:bg-border-subtle"
-		/>
-	);
-}
-
-function stripDocExt(name: string): string {
-	return name.replace(/\.mdx?$/i, "");
-}
-
-function toNavItems(nodes: TreeNode[], activePath: string): NavItem[] {
-	return nodes.map((node) => {
-		if (node.isDir) {
-			return {
-				label: node.name,
-				items: node.children ? toNavItems(node.children, activePath) : [],
-				open: activePath.startsWith(node.path),
-			};
-		}
-		return { label: stripDocExt(node.name), path: node.path };
-	});
-}
-
-function countDocs(nodes: TreeNode[] | null): number {
-	if (!nodes) return 0;
-	let count = 0;
-	for (const node of nodes) {
-		if (node.isDoc) count++;
-		if (node.children) count += countDocs(node.children);
-	}
-	return count;
+/** "/a/b.md" -> "/a/"; "/x.md" -> "/"; a path already ending in "/" is unchanged. */
+function folderOf(path: string): string {
+	if (path.endsWith("/")) return path;
+	const lastSlash = path.lastIndexOf("/");
+	return path.slice(0, lastSlash + 1);
 }
 
 function SidebarBody({
-	roots,
 	rootDir,
 	activePath,
-	navigate,
+	docCount,
+	singleRoot,
+	layoutGroupId,
 }: {
-	roots: RootTree[] | null;
 	rootDir: string;
 	activePath: string;
-	navigate: (path?: string) => void;
+	docCount: number;
+	singleRoot: boolean;
+	layoutGroupId: string;
 }) {
-	// A single root keeps today's look (no section title repeating the root
-	// name the header link already shows).
-	const multiRoot = (roots?.length ?? 0) > 1;
-	const sections = useMemo(
-		() =>
-			(roots ?? []).map((root) => ({
-				title: multiRoot ? root.name : undefined,
-				items: toNavItems(root.tree, activePath),
-			})),
-		[roots, activePath, multiRoot],
-	);
-	const docCount = useMemo(
-		() => (roots ?? []).reduce((sum, root) => sum + countDocs(root.tree), 0),
-		[roots],
-	);
+	// The roots home page has no path of its own (the mobile drawer can still
+	// open there); skip the listing rather than fetch "".
+	const folder = activePath ? folderOf(activePath) : "";
+	const { entries, error } = useFolderListing(folder);
 
 	return (
 		<>
@@ -132,13 +47,27 @@ function SidebarBody({
 			<a
 				href={rootDir ? `${rootDir}/` : "/"}
 				title={rootDir}
-				className="mb-4 flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[length:var(--size-2xs)] text-text-subtle no-underline hover:bg-surface-hover hover:text-text-heading"
+				className="mb-1 flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[length:var(--size-2xs)] text-text-subtle no-underline hover:bg-surface-hover hover:text-text-heading"
 			>
 				<Icon name="folder-open" size={13} className="shrink-0" />
 				<span className="truncate">{rootDir ? shortenHome(rootDir) : "mdxserve"}</span>
 			</a>
-			<SidebarNav sections={sections} activePath={activePath} onNavigate={navigate} />
-			<div className="mt-8 flex items-center gap-2 border-t border-border-subtle px-2 pt-3 text-[13px] leading-normal font-medium text-text-subtle">
+			{!folder ? null : entries ? (
+				// The desktop column and mobile drawer can both be mounted, and both
+				// contain a row with layoutId="sidebar-active", so each gets its own
+				// namespace here.
+				<LayoutGroup id={layoutGroupId}>
+					<ListingView
+						route={{ path: folder, rootDir, entries }}
+						mode="sidebar"
+						activePath={activePath}
+						singleRoot={singleRoot}
+					/>
+				</LayoutGroup>
+			) : error ? (
+				<p className="px-2 text-[13px] text-text-subtle">Couldn't load this folder.</p>
+			) : null}
+			<div className="mt-4 flex items-center gap-2 border-t border-border-subtle px-2 pt-3 text-[13px] leading-normal font-medium text-text-subtle">
 				<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400" />
 				Watching {docCount} {docCount === 1 ? "file" : "files"}
 			</div>
@@ -147,28 +76,24 @@ function SidebarBody({
 }
 
 export function Sidebar({
-	roots,
 	rootDir,
 	activePath,
-	navigate,
+	docCount,
+	singleRoot,
 	desktopOpen,
 	mobileOpen,
 	onCloseMobile,
 }: {
-	roots: RootTree[] | null;
 	rootDir: string;
 	activePath: string;
-	navigate: (path?: string) => void;
+	docCount: number;
+	singleRoot: boolean;
 	desktopOpen: boolean;
 	mobileOpen: boolean;
 	onCloseMobile: () => void;
 }) {
 	const [width, setWidth] = useAtom(sidebarWidthAtom);
-
-	function handleNavigate(path?: string) {
-		onCloseMobile();
-		navigate(path);
-	}
+	const asideRef = useRef<HTMLDivElement>(null);
 
 	return (
 		<>
@@ -190,15 +115,21 @@ export function Sidebar({
 						key="sidebar-panel"
 						data-print-hide
 						{...V.pop}
+						// Rows are plain links handled by the router, and tapping the already
+						// active doc never changes the route, so close on any link tap here.
+						onClick={(event) => {
+							if ((event.target as HTMLElement).closest("a[href]")) onCloseMobile();
+						}}
 						className={
 							"fixed inset-y-0 left-0 z-[var(--z-modal)] overflow-y-auto border-r border-border-subtle bg-surface-raised px-3 py-6 shadow-lg md:hidden w-sidebar"
 						}
 					>
 						<SidebarBody
-							roots={roots}
 							rootDir={rootDir}
 							activePath={activePath}
-							navigate={handleNavigate}
+							docCount={docCount}
+							singleRoot={singleRoot}
+							layoutGroupId="sidebar-mobile"
 						/>
 					</motion.aside>
 				) : null}
@@ -207,19 +138,30 @@ export function Sidebar({
 			{/* Desktop docked column. */}
 			{desktopOpen ? (
 				<aside
+					ref={asideRef}
 					data-print-hide
 					className={"relative hidden md:block " + DOCKED_CLASS}
 					style={{ width: clampWidth(width) }}
 				>
 					<div className="h-full overflow-y-auto px-3 py-6">
 						<SidebarBody
-							roots={roots}
 							rootDir={rootDir}
 							activePath={activePath}
-							navigate={navigate}
+							docCount={docCount}
+							singleRoot={singleRoot}
+							layoutGroupId="sidebar-desktop"
 						/>
 					</div>
-					<ResizeHandle onResize={setWidth} />
+					{/* Sibling of the scroller, not inside it, so overflow-y-auto can't clip it. */}
+					<ResizeHandle
+						side="right"
+						anchored
+						container={asideRef}
+						onResize={setWidth}
+						label="Resize sidebar"
+						minWidth={SIDEBAR_MIN_WIDTH}
+						maxWidth={SIDEBAR_MAX_WIDTH}
+					/>
 				</aside>
 			) : null}
 		</>

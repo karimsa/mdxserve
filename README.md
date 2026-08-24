@@ -58,7 +58,7 @@ yarn dev   # runs `mdxserve example`
 
 ## Reading
 
-Every page sits in the same shell: a sidebar tree of the served folder, the rendered
+Every page sits in the same shell: a sidebar listing the current document's folder, the rendered
 document in a 44rem column, and a table of contents that tracks the heading you are
 reading. The topbar has search (`⌘K` / `Ctrl K`), a light/dark toggle that remembers
 your choice, and print. Pages link to their previous and next neighbour and name the

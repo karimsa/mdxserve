@@ -232,6 +232,13 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	// The docked sidebar is hidden on folder views and the roots home page.
 	const sidebarHidden = route.kind === "listing" || route.kind === "home";
+
+	// Drawer rows are plain links handled by the router's global click
+	// delegation, not a per-row handler, so close the drawer on any navigation.
+	useEffect(() => {
+		setMobileOpen(false);
+	}, [activePath]);
+
 	const handleToggleSidebar = useCallback(() => {
 		if (window.matchMedia(DESKTOP_BREAKPOINT).matches) {
 			// A click here would otherwise silently flip (and persist) the
@@ -277,13 +284,10 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		[navigate],
 	);
 
-	// SidebarNav's onNavigate is `(path?: string) => void` (group rows have no
-	// path); the router's navigate always wants a string.
-	const handleSidebarNavigate = useCallback(
-		(path?: string) => {
-			if (path) navigate(path);
-		},
-		[navigate],
+	// The sidebar footer counts every doc across all mounted roots.
+	const docCount = useMemo(
+		() => (roots ?? []).reduce((sum, root) => sum + flattenDocs(root.tree).length, 0),
+		[roots],
 	);
 
 	// Prev/next is scoped to the root the open doc lives in, not every mounted root.
@@ -324,10 +328,10 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			/>
 			<div className="flex items-start">
 				<Sidebar
-					roots={roots}
 					rootDir={activeRootDir}
 					activePath={activePath}
-					navigate={handleSidebarNavigate}
+					docCount={docCount}
+					singleRoot={rootCount <= 1}
 					desktopOpen={showSidebar}
 					mobileOpen={mobileOpen}
 					onCloseMobile={() => setMobileOpen(false)}

@@ -2,12 +2,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { formatModified, formatSize } from "./format";
-import { stagger, V } from "./motion";
+import { stagger, T, V } from "./motion";
 import { Icon } from "./ui/Icon";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { ConfirmDeleteDialog } from "./ui/ConfirmDeleteDialog";
 import { pushToast } from "./ui/Toast";
-import type { ListingEntry, Route } from "./router";
+import type { ListingEntry } from "./router";
 import Button from "./builtins/Button";
 import Dropdown from "./builtins/Dropdown";
 import {
@@ -49,6 +49,8 @@ function Row({
 	checked = false,
 	selectionActive = false,
 	onToggle,
+	dense = false,
+	active = false,
 }: {
 	href: string | null;
 	icon: "folder" | "file";
@@ -66,75 +68,120 @@ function Row({
 	/** Whether any row in the listing is currently selected (keeps unchecked boxes visible). */
 	selectionActive?: boolean;
 	onToggle?: () => void;
+	/** Sidebar mode: tighter padding and smaller type, no checkbox gutter. */
+	dense?: boolean;
+	/** Sidebar mode: this row is the doc currently being viewed. */
+	active?: boolean;
 }) {
 	const inner = (
 		<>
 			<Icon
 				name={icon === "folder" ? "folder" : "file-text"}
-				size="md"
+				size={dense ? "sm" : "md"}
 				className="shrink-0 text-text-subtle"
 			/>
 			<span className="flex min-w-0 flex-col">
 				{labelHtml ? (
 					<span
-						className="listing-title truncate font-sans font-medium leading-normal text-[length:var(--size-md)]"
+						className={
+							"listing-title truncate font-sans font-medium leading-normal " +
+							(dense ? "text-[length:var(--size-sm)]" : "text-[length:var(--size-md)]") +
+							(active ? " font-semibold text-text-accent" : "")
+						}
 						dangerouslySetInnerHTML={{ __html: labelHtml }}
 					/>
 				) : (
-					<span className="truncate font-sans font-medium leading-normal text-[length:var(--size-md)]">
+					<span
+						className={
+							"truncate font-sans font-medium leading-normal " +
+							(dense ? "text-[length:var(--size-sm)]" : "text-[length:var(--size-md)]") +
+							(active ? " font-semibold text-text-accent" : "")
+						}
+					>
 						{label}
 					</span>
 				)}
 				{sublabel ? (
-					<span className="truncate font-mono font-normal leading-normal text-[length:var(--size-xs)] text-text-subtle">
+					<span
+						className={
+							"truncate font-mono font-normal leading-normal text-text-subtle " +
+							(dense ? "text-[length:var(--size-2xs)]" : "text-[length:var(--size-xs)]")
+						}
+					>
 						{sublabel}
 					</span>
 				) : null}
 			</span>
-			<span className="ml-auto flex shrink-0 items-center gap-4 pl-4 font-mono font-normal leading-[1.62] text-[length:var(--size-xs)] text-text-subtle tabular-nums">
-				{typeof mtime === "number" ? (
-					<span title={new Date(mtime).toLocaleString()}>{formatModified(mtime)}</span>
-				) : null}
-				{typeof size === "number" ? (
-					<span className="w-16 text-right">{formatSize(size)}</span>
-				) : null}
-			</span>
+			{typeof mtime === "number" || typeof size === "number" ? (
+				<span className="ml-auto flex shrink-0 items-center gap-4 pl-4 font-mono font-normal leading-[1.62] text-[length:var(--size-xs)] text-text-subtle tabular-nums">
+					{typeof mtime === "number" ? (
+						<span title={new Date(mtime).toLocaleString()}>{formatModified(mtime)}</span>
+					) : null}
+					{typeof size === "number" ? (
+						<span className="w-16 text-right">{formatSize(size)}</span>
+					) : null}
+				</span>
+			) : null}
 		</>
 	);
+
+	// Dense rows have no checkbox gutter, so give the link its own left inset
+	// or the icon sits flush against the active pill's edge.
+	const rowPadding = dense ? "py-1.5 pl-2" : "py-2";
 
 	return (
 		<motion.div
 			variants={rowVariants}
 			className={
 				"group flex items-center rounded-md " +
-				(checked ? "bg-surface-active" : "hover:bg-surface-hover")
+				(active ? "relative " : "") +
+				(checked ? "bg-surface-active" : active ? "" : "hover:bg-surface-hover")
 			}
 		>
-			<span data-print-hide className="flex w-7 shrink-0 justify-center">
-				{selectable ? (
-					<input
-						type="checkbox"
-						checked={checked}
-						aria-label={`Select ${label}`}
-						onChange={onToggle}
-						className={
-							"size-3.5 cursor-pointer accent-[var(--teal-550)] " +
-							(checked || selectionActive
-								? "opacity-100"
-								: "opacity-0 group-hover:opacity-100 focus-visible:opacity-100")
-						}
-					/>
-				) : null}
-			</span>
+			{active ? (
+				<motion.span
+					layoutId="sidebar-active"
+					transition={T.glide}
+					className="absolute inset-0 z-0 rounded-md bg-surface-accent-soft"
+					aria-hidden="true"
+				/>
+			) : null}
+			{dense ? null : (
+				<span data-print-hide className="flex w-7 shrink-0 justify-center">
+					{selectable ? (
+						<input
+							type="checkbox"
+							checked={checked}
+							aria-label={`Select ${label}`}
+							onChange={onToggle}
+							className={
+								"size-3.5 cursor-pointer accent-[var(--teal-550)] " +
+								(checked || selectionActive
+									? "opacity-100"
+									: "opacity-0 group-hover:opacity-100 focus-visible:opacity-100")
+							}
+						/>
+					) : null}
+				</span>
+			)}
 			{muted || !href ? (
-				<div className="flex min-w-0 flex-1 cursor-default items-center gap-2 py-2 pr-3 text-text-subtle">
+				<div
+					className={`flex min-w-0 flex-1 cursor-default items-center gap-2 ${rowPadding} pr-3 text-text-subtle`}
+				>
 					{inner}
 				</div>
 			) : (
 				// Plain <a>: the router's global click delegation (client/router.ts)
 				// intercepts this for client-side navigation; no per-row handler needed.
 				// The checkbox above is a sibling, not a descendant, so it never triggers it.
-				<a href={href} className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-3">
+				<a
+					href={href}
+					aria-current={active ? "page" : undefined}
+					className={
+						`flex min-w-0 flex-1 items-center gap-2 ${rowPadding} pr-3` +
+						(active ? " relative z-10" : "")
+					}
+				>
 					{inner}
 				</a>
 			)}
@@ -292,15 +339,34 @@ function SelectMenu({
 	);
 }
 
+const SORT_OPTIONS = [
+	{ value: "name", label: "Name" },
+	{ value: "modified", label: "Last modified" },
+];
+
+export interface ListingViewRoute {
+	path: string;
+	/** The served root this folder lives in (no trailing slash). */
+	rootDir: string;
+	entries: ListingEntry[];
+}
+
 export function ListingView({
 	route,
 	singleRoot,
+	mode = "page",
+	activePath,
 }: {
-	route: Extract<Route, { kind: "listing" }>;
+	route: ListingViewRoute;
 	/** Whether the server serves only one root — hides the top-of-root parent row. */
 	singleRoot: boolean;
+	/** "sidebar": slim rail beside a doc — no selection/delete, no mtime/size, no resize handles, icon-only sort. */
+	mode?: "page" | "sidebar";
+	/** Route path of the doc being viewed; its row gets the active pill (sidebar mode). */
+	activePath?: string;
 }) {
 	const { path, rootDir, entries } = route;
+	const sidebar = mode === "sidebar";
 	const atRootTop = path === `${rootDir}/`;
 	const segments = path.split("/").filter(Boolean);
 	const parentSegments = segments.slice(0, -1);
@@ -313,6 +379,11 @@ export function ListingView({
 
 	const [sort, setSort] = useAtom(listingSortAtom);
 	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
+	// Non-doc files aren't navigable in the sidebar rail and just cost space there.
+	const visible = useMemo(
+		() => (sidebar ? sorted.filter((e) => e.isDir || e.isDoc) : sorted),
+		[sorted, sidebar],
+	);
 	const setWidth = useSetAtom(listingWidthAtom);
 	const container = useRef<HTMLDivElement>(null);
 
@@ -359,14 +430,16 @@ export function ListingView({
 
 	// Escape clears the selection, unless a popover (e.g. SelectMenu) already
 	// consumed it, or the confirm dialog is up (it handles its own Escape).
+	// Sidebar mode has no selection to clear, so skip wiring the listener.
 	useEffect(() => {
+		if (sidebar) return;
 		function onKeyDown(event: globalThis.KeyboardEvent) {
 			if (event.defaultPrevented || confirmOpen) return;
 			if (event.key === "Escape" && selectionActive) setSelectedNames(new Set());
 		}
 		document.addEventListener("keydown", onKeyDown);
 		return () => document.removeEventListener("keydown", onKeyDown);
-	}, [confirmOpen, selectionActive]);
+	}, [sidebar, confirmOpen, selectionActive]);
 
 	// Ref, not just state: a second click in the same tick would see stale
 	// `pending` and fire a duplicate request before React re-renders.
@@ -422,72 +495,103 @@ export function ListingView({
 
 	return (
 		<div ref={container} className="relative">
-			<ResizeHandle
-				side="left"
-				container={container}
-				onResize={setWidth}
-				label="Resize listing"
-				minWidth={LISTING_MIN_WIDTH}
-				maxWidth={LISTING_MAX_WIDTH}
-			/>
-			<ResizeHandle
-				side="right"
-				container={container}
-				onResize={setWidth}
-				label="Resize listing"
-				minWidth={LISTING_MIN_WIDTH}
-				maxWidth={LISTING_MAX_WIDTH}
-			/>
-			<div className="mb-2 flex items-center justify-between gap-2">
-				<div data-print-hide className="flex items-center gap-2">
-					<SelectMenu fileEntries={fileEntries} onSelect={setSelectedNames} />
-					{selectionActive ? (
-						<>
-							<span className="font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle tabular-nums">
-								{selected.length} selected
-							</span>
-							<Button variant="ghost" size="sm" onClick={() => setSelectedNames(new Set())}>
-								Clear
-							</Button>
-							<Button
-								variant="danger"
-								size="sm"
-								icon="trash-2"
-								onClick={() => setConfirmOpen(true)}
-							>
-								Delete…
-							</Button>
-						</>
-					) : null}
+			{sidebar ? null : (
+				<>
+					<ResizeHandle
+						side="left"
+						container={container}
+						onResize={setWidth}
+						label="Resize listing"
+						minWidth={LISTING_MIN_WIDTH}
+						maxWidth={LISTING_MAX_WIDTH}
+					/>
+					<ResizeHandle
+						side="right"
+						container={container}
+						onResize={setWidth}
+						label="Resize listing"
+						minWidth={LISTING_MIN_WIDTH}
+						maxWidth={LISTING_MAX_WIDTH}
+					/>
+				</>
+			)}
+			{sidebar ? (
+				<div data-print-hide className="mb-1 flex justify-end">
+					<Dropdown
+						icon="arrow-up-down"
+						size="sm"
+						label="Sort"
+						value={sort}
+						onChange={(next) => setSort(next as SortKey)}
+						options={SORT_OPTIONS}
+					/>
 				</div>
-				<div className="flex items-center gap-2 font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle">
-					<span>Sort by</span>
-					<div className="w-40">
-						<Dropdown
-							size="sm"
-							value={sort}
-							onChange={(next) => setSort(next as SortKey)}
-							options={[
-								{ value: "name", label: "Name" },
-								{ value: "modified", label: "Last modified" },
-							]}
-						/>
+			) : (
+				<div className="mb-2 flex items-center justify-between gap-2">
+					<div data-print-hide className="flex items-center gap-2">
+						<SelectMenu fileEntries={fileEntries} onSelect={setSelectedNames} />
+						{selectionActive ? (
+							<>
+								<span className="font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle tabular-nums">
+									{selected.length} selected
+								</span>
+								<Button variant="ghost" size="sm" onClick={() => setSelectedNames(new Set())}>
+									Clear
+								</Button>
+								<Button
+									variant="danger"
+									size="sm"
+									icon="trash-2"
+									onClick={() => setConfirmOpen(true)}
+								>
+									Delete…
+								</Button>
+							</>
+						) : null}
+					</div>
+					<div className="flex items-center gap-2 font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle">
+						<span>Sort by</span>
+						<div className="w-40">
+							<Dropdown
+								size="sm"
+								value={sort}
+								onChange={(next) => setSort(next as SortKey)}
+								options={SORT_OPTIONS}
+							/>
+						</div>
 					</div>
 				</div>
-			</div>
+			)}
 			<motion.div
 				key={sort}
 				variants={stagger}
 				initial="initial"
 				animate="enter"
-				className="divide-y divide-border-subtle border-y border-border-subtle"
+				className={
+					sidebar
+						? "flex flex-col gap-0.5"
+						: "divide-y divide-border-subtle border-y border-border-subtle"
+				}
 			>
 				{showParentRow ? (
-					<Row href={parentHref} icon="folder" label=".." muted={false} selectable={false} />
+					<Row
+						href={parentHref}
+						icon="folder"
+						label=".."
+						muted={false}
+						selectable={false}
+						dense={sidebar}
+						active={false}
+					/>
 				) : null}
-				{sorted.map((entry: ListingEntry) => {
+				{visible.map((entry: ListingEntry) => {
 					const href = `${path}${entry.name}${entry.isDir ? "/" : ""}`;
-					const common = { label: entry.name, size: entry.size, mtime: entry.mtime };
+					const common = {
+						label: entry.name,
+						...(sidebar ? {} : { size: entry.size, mtime: entry.mtime }),
+					};
+					const dense = sidebar;
+					const active = sidebar && href === activePath;
 					if (entry.isDir) {
 						return (
 							<Row
@@ -496,16 +600,20 @@ export function ListingView({
 								icon="folder"
 								muted={false}
 								selectable={false}
+								dense={dense}
+								active={active}
 								{...common}
 							/>
 						);
 					}
-					const selection = {
-						selectable: true,
-						checked: selectedNames.has(entry.name),
-						selectionActive,
-						onToggle: () => toggleSelected(entry.name),
-					};
+					const selection = sidebar
+						? {}
+						: {
+								selectable: true,
+								checked: selectedNames.has(entry.name),
+								selectionActive,
+								onToggle: () => toggleSelected(entry.name),
+							};
 					if (entry.isDoc) {
 						return (
 							<Row
@@ -513,6 +621,8 @@ export function ListingView({
 								href={href}
 								icon="file"
 								muted={false}
+								dense={dense}
+								active={active}
 								{...common}
 								{...selection}
 								label={entry.title ?? entry.name}
@@ -521,18 +631,31 @@ export function ListingView({
 							/>
 						);
 					}
-					return <Row key={entry.name} href={null} icon="file" muted {...common} {...selection} />;
+					return (
+						<Row
+							key={entry.name}
+							href={null}
+							icon="file"
+							muted
+							dense={dense}
+							active={active}
+							{...common}
+							{...selection}
+						/>
+					);
 				})}
 			</motion.div>
-			<ConfirmDeleteDialog
-				open={confirmOpen}
-				files={selected}
-				pending={pending}
-				onCancel={() => {
-					if (!pending) setConfirmOpen(false);
-				}}
-				onConfirm={handleConfirm}
-			/>
+			{sidebar ? null : (
+				<ConfirmDeleteDialog
+					open={confirmOpen}
+					files={selected}
+					pending={pending}
+					onCancel={() => {
+						if (!pending) setConfirmOpen(false);
+					}}
+					onConfirm={handleConfirm}
+				/>
+			)}
 		</div>
 	);
 }
