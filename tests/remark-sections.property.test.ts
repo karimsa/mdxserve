@@ -213,6 +213,19 @@ describe("remarkSections — examples", () => {
 		}
 	});
 
+	it("a doc that opens with a plain horizontal rule (blank line after it) stays editable from line 1", () => {
+		const src = "---\n\nIntro paragraph.\n\n---\n\nMore text.\n";
+		const tree = runPlugin(src);
+		const first = tree.children.find(isMdSection);
+		expect(first && attrValue(first, "startLine")).toBe("1");
+	});
+
+	it("an unclosed leading `---` is not front matter: the doc stays editable", () => {
+		const src = "---\nnot: closed\n\nBody paragraph.\n";
+		const tree = runPlugin(src);
+		expect(tree.children.some(isMdSection)).toBe(true);
+	});
+
 	// Front matter has two Markdown shapes with no remark-frontmatter in the
 	// pipeline: `key: v` alone becomes a setext heading (the closing `---` is
 	// its underline); anything with lists/blank lines becomes several nodes

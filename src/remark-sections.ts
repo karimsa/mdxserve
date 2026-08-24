@@ -47,6 +47,10 @@ function isEditable(node: RootContent): boolean {
 function frontmatterExtent(children: RootContent[]): number {
 	const first = children[0];
 	if (!first || first.type !== "thematicBreak" || first.position?.start.line !== 1) return 0;
+	// Front matter content sits flush under the opening rule. A plain
+	// horizontal rule at the top of a doc is followed by a blank line, so its
+	// next node starts on line 3 or later — leave that doc fully editable.
+	if (children[1]?.position?.start.line !== 2) return 0;
 	for (let i = 1; i < children.length; i++) {
 		const node = children[i];
 		if (node.type === "thematicBreak") return i + 1;
@@ -54,9 +58,9 @@ function frontmatterExtent(children: RootContent[]): number {
 		// the closing `---`, so the block ends with it.
 		if (node.type === "heading" && i === 1) return 2;
 	}
-	// Never closed: treat the whole doc as front matter rather than exposing
-	// half of it.
-	return children.length;
+	// Never closed, so not front matter: an ordinary rule at the top of an
+	// ordinary doc.
+	return 0;
 }
 
 function attr(name: string, value: string): MdxJsxAttribute {
