@@ -5,7 +5,9 @@
 .mdx-prose {
 	font: var(--type-prose);
 	color: var(--text-body);
-	max-width: var(--width-prose);
+	/* No max-width here: the column width is owned by AppShell's wrapper
+	   (`max-w-prose` by default, or the user's dragged doc width), so the
+	   article must fill it or the resize handles would only move the frame. */
 	/* Long identifiers in headings/prose (`Foo.get_arrow_schema`) have no break
 	   opportunities; let them wrap instead of pushing past the column. */
 	overflow-wrap: break-word;

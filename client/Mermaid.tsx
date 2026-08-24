@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Icon } from "./ui/Icon";
 import { IconButton } from "./ui/IconButton";
+import { ExpandModal } from "./ui/ExpandModal";
 import { T, V } from "./motion";
 
 type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
@@ -153,7 +154,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 				</motion.div>
 			) : (
 				<motion.div key="ok" {...V.fade}>
-					<PanZoomSvg svg={state.svg} />
+					<ExpandableDiagram svg={state.svg} />
 				</motion.div>
 			)}
 		</AnimatePresence>
@@ -161,10 +162,21 @@ export function MermaidDiagram({ source }: { source: string }) {
 }
 
 /**
- * Hosts the rendered SVG in a fixed-height viewport with svg-pan-zoom
- * (drag to pan, wheel / double-click to zoom, +/−/reset controls).
+ * Hosts the rendered SVG in a pan/zoom viewport (drag to pan, wheel /
+ * double-click to zoom, +/−/reset controls) that fills its parent. The inline
+ * card gives it a fixed height; the full-screen modal gives it the whole panel.
  */
-function PanZoomSvg({ svg }: { svg: string }) {
+function PanZoomSvg({
+	svg,
+	viewportClassName,
+	onExpand,
+}: {
+	svg: string;
+	/** Sizes the viewport; the inline card uses `h-96`, the modal `h-full`. */
+	viewportClassName: string;
+	/** When set, an expand control opens the diagram in the full-screen modal. */
+	onExpand?: () => void;
+}) {
 	const hostRef = useRef<HTMLDivElement>(null);
 	const instanceRef = useRef<SvgPanZoom.Instance | null>(null);
 
@@ -244,13 +256,21 @@ function PanZoomSvg({ svg }: { svg: string }) {
 	}
 
 	return (
-		<div className="relative">
+		<div className="relative h-full">
 			{/* The host div is mutated imperatively (host.innerHTML = svg, above) and must
           never be re-rendered by React/motion; the fade lives on this wrapper instead. */}
-			<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={T.base}>
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={T.base}
+				className="h-full"
+			>
 				<div
 					ref={hostRef}
-					className="mermaid-viewport h-96 w-full cursor-grab select-none active:cursor-grabbing"
+					className={
+						"mermaid-viewport w-full cursor-grab select-none active:cursor-grabbing " +
+						viewportClassName
+					}
 				/>
 			</motion.div>
 			<motion.div
@@ -259,6 +279,9 @@ function PanZoomSvg({ svg }: { svg: string }) {
 				transition={{ ...T.base, delay: 0.1 }}
 				className="absolute right-3 bottom-3 flex flex-col divide-y divide-border-subtle overflow-hidden rounded-md border border-border-default bg-surface-card shadow-xs"
 			>
+				{onExpand ? (
+					<IconButton icon="expand" label="Expand diagram" size="sm" onClick={onExpand} />
+				) : null}
 				<IconButton
 					icon="plus"
 					label="Zoom in"
@@ -274,5 +297,46 @@ function PanZoomSvg({ svg }: { svg: string }) {
 				/>
 			</motion.div>
 		</div>
+	);
+}
+
+/**
+ * Inline diagram card with an expand control that opens the same SVG in a
+ * near-full-screen modal, where a second pan/zoom instance gets the whole
+ * viewport to explore a large diagram at scale.
+ */
+function ExpandableDiagram({ svg }: { svg: string }) {
+	const [expanded, setExpanded] = useState(false);
+	return (
+		<>
+			{/* Only one copy of the markup is live at a time. Mermaid doesn't namespace
+			    the ids it emits (markers, clip paths, gradients), so with both copies
+			    mounted the modal's `url(#…)` references would resolve to the inline
+			    SVG — the one svg-pan-zoom has already wrapped and transformed. The
+			    card sits behind the scrim while expanded, so the placeholder that
+			    holds its height never shows. */}
+			{expanded ? (
+				<div className="h-96 w-full" aria-hidden="true" />
+			) : (
+				<PanZoomSvg svg={svg} viewportClassName="h-96" onExpand={() => setExpanded(true)} />
+			)}
+			<DiagramModal open={expanded} svg={svg} onClose={() => setExpanded(false)} />
+		</>
+	);
+}
+
+function DiagramModal({ open, svg, onClose }: { open: boolean; svg: string; onClose: () => void }) {
+	return (
+		<ExpandModal
+			open={open}
+			onClose={onClose}
+			icon="image"
+			title="Diagram"
+			hint="Drag to pan · scroll to zoom"
+		>
+			<div className="h-full bg-[var(--diagram-bg)]">
+				<PanZoomSvg svg={svg} viewportClassName="h-full" />
+			</div>
+		</ExpandModal>
 	);
 }
