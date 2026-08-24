@@ -2,11 +2,26 @@ import { motion } from "framer-motion";
 import { useLayoutEffect, useRef } from "react";
 import { useSetAtom } from "jotai";
 import { fadeRise } from "./motion";
+import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { docModuleCache, type Route } from "./router";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom } from "./state";
 
-function ErrorBox({ message }: { message: string }) {
+// Each Component a re-import produces (including an HMR re-import after a
+// fix) is a distinct function identity, so this assigns it a stable, unique
+// key the RenderErrorBoundary below can be keyed on to reset itself.
+const moduleKeys = new WeakMap<object, number>();
+let nextModuleKey = 0;
+function keyForComponent(Component: object): number {
+	let key = moduleKeys.get(Component);
+	if (key === undefined) {
+		key = nextModuleKey++;
+		moduleKeys.set(Component, key);
+	}
+	return key;
+}
+
+export function ErrorBox({ message }: { message: string }) {
 	return (
 		<motion.div
 			variants={fadeRise}
@@ -73,7 +88,9 @@ export function DocView({
 				maxWidth={DOC_MAX_WIDTH}
 			/>
 			<article className="mdx-prose min-w-0 max-w-full">
-				<Content />
+				<RenderErrorBoundary key={keyForComponent(Content)}>
+					<Content />
+				</RenderErrorBoundary>
 			</article>
 		</div>
 	);

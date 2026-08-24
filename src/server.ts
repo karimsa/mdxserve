@@ -13,11 +13,13 @@ import { getViteCacheDir } from "./cache.js";
 import { readListing, readTree, isServable } from "./listing.js";
 import { search as searchDocs } from "./search.js";
 import { renderShell, type Route, type RootInfo } from "./shell.js";
-import { resolveRoot } from "./paths.js";
+import { resolveRoot, resolveDocPath, importResolves } from "./paths.js";
 import { loadRegistry } from "./registry.js";
 import { createMcpServer, type McpContext } from "./mcp.js";
 import { computeRootInfos, rootNameOf } from "./roots.js";
 import { registerServer, unregisterServer } from "./server-registry.js";
+import { validateSource, type ValidationResult } from "./validate.js";
+import { renderDocument } from "./render.js";
 
 export interface StartServerOptions {
 	roots: string[];
@@ -88,6 +90,14 @@ const MAX_DELETE_BODY = 64 * 1024;
 
 const deleteBodySchema = z.object({
 	paths: z.array(z.string().min(1)).min(1).max(500),
+});
+
+// A single path string, nothing more — no batching like /api/delete, since
+// validation is a per-doc, agent-in-the-loop check.
+const MAX_VALIDATE_BODY = 4 * 1024;
+
+const validateBodySchema = z.object({
+	path: z.string().min(1),
 });
 
 /** Read the full request body as UTF-8, or null if it exceeds `limit`. */
@@ -190,7 +200,7 @@ function listenWithFallback(server: http.Server, port: number, host: string): Pr
 	});
 }
 
-interface RequestContext {
+export interface RequestContext {
 	roots: string[];
 	rootInfos: RootInfo[];
 	pkgRoot: string;
@@ -199,7 +209,27 @@ interface RequestContext {
 	mcp: McpContext;
 }
 
-async function handleRequest(
+/**
+ * The same static + render validation the `validate_doc` MCP tool runs,
+ * shared with `POST /__mdxserve/api/validate` so the two paths can never
+ * drift.
+ */
+async function validateDocAt(
+	absPath: string,
+	ctx: RequestContext,
+	allowRender: boolean,
+): Promise<ValidationResult> {
+	const source = await fsp.readFile(absPath, "utf8");
+	return validateSource({
+		source,
+		path: absPath,
+		registry: ctx.mcp.registry,
+		resolveImport: (specifier) => importResolves(absPath, specifier),
+		render: allowRender ? ctx.mcp.render : undefined,
+	});
+}
+
+export async function handleRequest(
 	req: http.IncomingMessage,
 	res: http.ServerResponse,
 	ctx: RequestContext,
@@ -211,6 +241,24 @@ async function handleRequest(
 	const url = req.url ?? "/";
 	const pathname = url.split("?")[0] ?? "/";
 	const search = url.slice(pathname.length);
+
+	// The validate_doc render step executes a served doc's top-level JS in a
+	// Node worker. Serving pages to the LAN (--host 0.0.0.0) is deliberate
+	// sharing, but remote peers shouldn't be able to run served files with
+	// Node's privileges — so rendering (via /__mdxserve/mcp and
+	// /__mdxserve/api/validate) is reserved for same-machine callers;
+	// everyone else gets the static-only validation (`rendered: false`).
+	// "Same machine" is loopback, or a connection whose remote address is
+	// this socket's own local address: the stdio bridge connects to the
+	// host a server registered (e.g. --host 192.168.1.10), which arrives
+	// with the LAN address on both ends — something no other machine's
+	// packet can present.
+	const remoteAddress = req.socket.remoteAddress;
+	const isLoopback =
+		remoteAddress === "127.0.0.1" ||
+		remoteAddress === "::1" ||
+		remoteAddress === "::ffff:127.0.0.1" ||
+		(remoteAddress !== undefined && remoteAddress === req.socket.localAddress);
 
 	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
 		res.statusCode = 200;
@@ -237,7 +285,7 @@ async function handleRequest(
 			sessionIdGenerator: undefined,
 			enableJsonResponse: true,
 		});
-		const mcpServer = createMcpServer(ctx.mcp);
+		const mcpServer = createMcpServer(isLoopback ? ctx.mcp : { ...ctx.mcp, render: undefined });
 		res.on("close", () => {
 			void transport.close();
 			void mcpServer.close();
@@ -405,6 +453,59 @@ async function handleRequest(
 
 			res.statusCode = 200;
 			res.end(JSON.stringify({ deleted, failed }));
+			return;
+		}
+
+		// Same static + render validation as the validate_doc MCP tool, exposed
+		// over HTTP so the stdio bridge (which has no Vite instance of its own)
+		// can proxy to whichever live server actually owns the path instead of
+		// falling back to a static-only check.
+		if (pathname === "/__mdxserve/api/validate") {
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+			if (req.method !== "POST") {
+				res.statusCode = 405;
+				res.setHeader("Allow", "POST");
+				res.end(JSON.stringify({ error: "Method not allowed" }));
+				return;
+			}
+
+			// Compare the parsed media type, not a substring: a non-preflighted
+			// cross-origin request can smuggle "application/json" into a
+			// text/plain parameter (`text/plain;x=application/json`).
+			const mediaType = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+			if (mediaType !== "application/json") {
+				res.statusCode = 415;
+				res.end(JSON.stringify({ error: "Expected application/json" }));
+				return;
+			}
+
+			const body = await readBody(req, MAX_VALIDATE_BODY);
+			if (body === null) {
+				res.statusCode = 413;
+				res.end(JSON.stringify({ error: "Body too large" }));
+				return;
+			}
+
+			let docPath: string;
+			try {
+				docPath = validateBodySchema.parse(JSON.parse(body)).path;
+			} catch {
+				res.statusCode = 400;
+				res.end(JSON.stringify({ error: "Invalid body: expected { path: string }" }));
+				return;
+			}
+
+			const resolved = await resolveDocPath(roots, docPath);
+			if (!resolved.ok) {
+				res.statusCode = 404;
+				res.end(JSON.stringify({ error: resolved.error }));
+				return;
+			}
+
+			const result = await validateDocAt(resolved.abs, ctx, isLoopback);
+			res.statusCode = 200;
+			res.end(JSON.stringify(result));
 			return;
 		}
 
@@ -625,7 +726,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 			pkgRoot,
 			vite,
 			cssFile,
-			mcp: { getRoots: () => rootInfos, registry },
+			mcp: { getRoots: () => rootInfos, registry, render: (p) => renderDocument(vite, p) },
 		}).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {

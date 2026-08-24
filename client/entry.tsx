@@ -1,12 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
 import { MDXProvider } from "@mdx-js/react";
-import { TaskCheckbox } from "./TaskCheckbox";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
-import { Figure, Pre } from "./CodeBlock";
-import { H2, H3, H4 } from "./Heading";
-import { Table } from "./Table";
-import { builtinComponents } from "./builtins/index";
+import { mdxComponents } from "./mdx-components";
 import { ToastStack } from "./ui/Toast";
 import { shellInfo, type Route } from "./router";
 
@@ -35,18 +31,7 @@ function main() {
 
 	root.render(
 		<MotionConfig reducedMotion="user">
-			<MDXProvider
-				components={{
-					...builtinComponents,
-					pre: Pre,
-					figure: Figure,
-					h2: H2,
-					h3: H3,
-					h4: H4,
-					input: TaskCheckbox,
-					table: Table,
-				}}
-			>
+			<MDXProvider components={mdxComponents}>
 				<App initialRoute={initialRoute} />
 			</MDXProvider>
 			<ToastStack />

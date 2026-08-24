@@ -9,9 +9,10 @@ import type { Pattern, Program } from "estree";
 import { mdxCompileOptions } from "./mdx-options.js";
 import { escapeBareLt } from "./lenient-md.js";
 import { suggest, suggestFrom, type Registry } from "./registry.js";
+import type { RenderOutcome } from "./render.js";
 
 export type DiagnosticCode =
-	"mdx-compile" | "unknown-component" | "unknown-prop" | "unresolved-import";
+	"mdx-compile" | "unknown-component" | "unknown-prop" | "unresolved-import" | "render-error";
 
 export interface Diagnostic {
 	severity: "error" | "warning";
@@ -30,6 +31,8 @@ export interface ValidationResult {
 	ok: boolean;
 	path: string;
 	diagnostics: Diagnostic[];
+	/** Whether the render step actually ran (a `render` was given and no static error existed). */
+	rendered: boolean;
 }
 
 /**
@@ -344,15 +347,22 @@ export interface ValidateSourceInput {
 	path: string;
 	registry: Registry;
 	resolveImport?: (specifier: string) => boolean;
+	/**
+	 * Server-side render step, run after static analysis finds no `error`
+	 * diagnostic (an unknown component would just throw again with a worse
+	 * message). Absent when no mdxserve server is available to render with.
+	 */
+	render?: (absPath: string) => Promise<RenderOutcome>;
 }
 
 /**
  * Compile `source` as MDX and report unregistered components, unrecognized
- * props on registered ones, and (when `resolveImport` is given) unresolved
- * relative imports.
+ * props on registered ones, (when `resolveImport` is given) unresolved
+ * relative imports, and (when `render` is given, and only once the doc is
+ * otherwise clean) any error thrown while actually rendering it.
  */
 export async function validateSource(input: ValidateSourceInput): Promise<ValidationResult> {
-	const { path: filePath, registry, resolveImport } = input;
+	const { path: filePath, registry, resolveImport, render } = input;
 
 	// escapeBareLt never adds/removes lines, so `line` stays exact; `column`
 	// may drift by a character or two on a line where a `<` got escaped.
@@ -363,17 +373,15 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 		captured = tree;
 	};
 
+	let diagnostics: Diagnostic[];
 	try {
 		await compile({ value, path: filePath }, mdxCompileOptions({ remarkPlugins: [captureTree] }));
+		diagnostics = captured ? analyzeTree(captured, registry) : [];
 	} catch (error) {
-		return { ok: false, path: filePath, diagnostics: [fromCompileError(error)] };
+		diagnostics = [fromCompileError(error)];
 	}
 
-	if (!captured) return { ok: true, path: filePath, diagnostics: [] };
-
-	const diagnostics = analyzeTree(captured, registry);
-
-	if (resolveImport) {
+	if (captured && resolveImport) {
 		for (const { specifier, ...position } of collectRelativeImports(captured)) {
 			if (!resolveImport(specifier)) {
 				diagnostics.push({
@@ -386,6 +394,21 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 		}
 	}
 
+	let rendered = false;
+	if (render && !diagnostics.some((d) => d.severity === "error")) {
+		rendered = true;
+		const outcome = await render(filePath);
+		if (!outcome.ok) {
+			diagnostics.push({
+				severity: "error",
+				code: "render-error",
+				message: outcome.message,
+				line: outcome.line,
+				column: outcome.column,
+			});
+		}
+	}
+
 	const ok = !diagnostics.some((d) => d.severity === "error");
-	return { ok, path: filePath, diagnostics };
+	return { ok, path: filePath, diagnostics, rendered };
 }

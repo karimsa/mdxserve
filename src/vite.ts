@@ -36,6 +36,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	const reactEntry = resolveFromPkg("react");
 	const reactDomEntry = resolveFromPkg("react-dom");
 	const reactDomClientEntry = resolveFromPkg("react-dom/client");
+	// SSR-only entry, used by src/render.ts's server-side render check
+	// (client/ssr-entry.tsx imports it). Same reasoning as react-dom/client.
+	const reactDomServerEntry = resolveFromPkg("react-dom/server");
 	const jsxRuntime = resolveFromPkg("react/jsx-runtime");
 	const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
 	const mdxReactEntry = resolveFromPkg("@mdx-js/react");
@@ -159,6 +162,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				{ find: "react/jsx-runtime", replacement: jsxRuntime },
 				{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
 				{ find: "react-dom/client", replacement: reactDomClientEntry },
+				{ find: "react-dom/server", replacement: reactDomServerEntry },
 				{ find: "react-dom", replacement: reactDomEntry },
 				{ find: "react", replacement: reactEntry },
 				{ find: "@mdx-js/react", replacement: mdxReactEntry },
@@ -195,6 +199,52 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				"jotai",
 				"jotai/utils",
 			],
+		},
+		// The rest of this `ssr` block exists only for src/render.ts's
+		// ssrLoadModule (client/ssr-entry.tsx and, transitively, everything
+		// mdx-components.ts pulls in), used to catch render-time errors during
+		// `validate_doc`. Nothing else in this dev server uses the SSR
+		// environment.
+		//
+		// Several of the packages aliased above have no ESM build — their real
+		// entry files (react's index.js/client.js/jsx-runtime.js/jsx-dev-runtime.js,
+		// react-dom's server.node.js, zod's index.cjs, ...) are plain CommonJS
+		// (`module.exports = require(...)`). The *client* bundle only works with
+		// these because the client dep optimizer (`optimizeDeps.include` above)
+		// pre-bundles them into interop-safe ESM before the browser ever sees
+		// them. SSR has its own, separate dep optimizer, off by default in dev,
+		// so without mirroring that include list here, ssrLoadModule hits our
+		// `resolve.alias` entries directly, Vite's SSR module runner transforms
+		// those raw CJS files as if they were ESM (no `require`/`module`/`exports`
+		// shim), and it throws ("require is not defined", "exports is not
+		// defined", ...). Since `client/mdx-components.ts` pulls in every builtin
+		// unconditionally (`client/builtins/index.ts`), rendering *any* doc reaches
+		// this whole dependency set, not just what that one doc happens to use —
+		// so everything aliased above that has a CJS-only entry needs to be
+		// listed here too, run through the SAME optimizer as react/react-dom so
+		// they all end up sharing one pre-bundled "react" (an externalized,
+		// natively-`require`d react-dom/server would otherwise load a *second*,
+		// un-optimized copy of "react" via Node's own resolution, breaking
+		// hooks/context with "Cannot read properties of null").
+		ssr: {
+			optimizeDeps: {
+				include: [
+					"react",
+					"react-dom",
+					"react-dom/client",
+					"react-dom/server",
+					"react/jsx-runtime",
+					"react/jsx-dev-runtime",
+					"@mdx-js/react",
+					"zod",
+					"framer-motion",
+					"@tippyjs/react",
+					"tippy.js",
+					"diff",
+					"lucide-react",
+					"date-fns",
+				],
+			},
 		},
 	});
 

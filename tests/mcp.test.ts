@@ -1,10 +1,16 @@
 import fs from "node:fs/promises";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import type { AddressInfo } from "node:net";
+import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "../src/mcp.js";
+import { createMcpServer, type McpContext } from "../src/mcp.js";
+import { handleRequest, type RequestContext } from "../src/server.js";
+import type { RenderOutcome } from "../src/render.js";
+import type { ValidationResult } from "../src/validate.js";
 import { fixtureRegistry as registry } from "./fixtures/registry.js";
 
 let fixtureDir: string;
@@ -15,8 +21,9 @@ async function connectedClient(
 		{ name: "docs", dir: fixtureDir },
 		{ name: "other", dir: otherDir },
 	],
+	extra: Partial<McpContext> = {},
 ) {
-	const server = createMcpServer({ getRoots, registry });
+	const server = createMcpServer({ getRoots, registry, ...extra });
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const client = new Client({ name: "test-client", version: "0.0.0" });
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
@@ -294,6 +301,106 @@ describe("createMcpServer", () => {
 		}
 	});
 
+	describe("validate_doc render wiring", () => {
+		it("reports rendered:false when no render function is configured", async () => {
+			const { client, server } = await connectedClient();
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toMatchObject({ ok: true, rendered: false });
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("Not rendered (no mdxserve server is running");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("runs the configured render function and reports a render-error on failure", async () => {
+			const render = async (): Promise<RenderOutcome> => ({
+				ok: false,
+				message: "boom is not defined",
+				line: 4,
+			});
+			const { client, server } = await connectedClient(undefined, { render });
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				const structured = result.structuredContent as ValidationResult;
+				expect(structured.rendered).toBe(true);
+				expect(structured.ok).toBe(false);
+				expect(structured.diagnostics).toContainEqual(
+					expect.objectContaining({
+						code: "render-error",
+						message: "boom is not defined",
+						line: 4,
+					}),
+				);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("Rendered with errors");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("reports Rendered OK when the render function succeeds", async () => {
+			const render = async (): Promise<RenderOutcome> => ({ ok: true });
+			const { client, server } = await connectedClient(undefined, { render });
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toMatchObject({ ok: true, rendered: true });
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("Rendered OK");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("returns a validateRemote result verbatim, without running local validation", async () => {
+			const canned: ValidationResult = {
+				ok: false,
+				path: "/somewhere/entirely/else.md",
+				diagnostics: [
+					{ severity: "error", code: "render-error", message: "from the remote server" },
+				],
+				rendered: true,
+			};
+			const validateRemote = async (): Promise<ValidationResult | null> => canned;
+			const { client, server } = await connectedClient(undefined, { validateRemote });
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toEqual(canned);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("from the remote server");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("falls back to local validation when validateRemote returns null", async () => {
+			const validateRemote = async (): Promise<ValidationResult | null> => null;
+			const { client, server } = await connectedClient(undefined, { validateRemote });
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toMatchObject({ ok: true, path: abs, rendered: false });
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+	});
+
 	describe("with no server running (getRoots returns [])", () => {
 		it("validate_doc still validates an absolute path", async () => {
 			const { client, server } = await connectedClient(() => []);
@@ -353,5 +460,121 @@ describe("createMcpServer", () => {
 				await server.close();
 			}
 		});
+	});
+});
+
+describe("POST /__mdxserve/api/validate", () => {
+	function makeCtx(overrides: Partial<RequestContext> = {}): RequestContext {
+		return {
+			roots: [fixtureDir],
+			rootInfos: [{ name: "docs", dir: fixtureDir }],
+			pkgRoot: "",
+			vite: {} as unknown as ViteDevServer,
+			cssFile: "",
+			mcp: { getRoots: () => [{ name: "docs", dir: fixtureDir }], registry },
+			...overrides,
+		};
+	}
+
+	async function startTestServer(ctx: RequestContext) {
+		const server = http.createServer((req, res) => {
+			handleRequest(req, res, ctx).catch((error) => {
+				if (!res.headersSent) res.statusCode = 500;
+				res.end(String(error));
+			});
+		});
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const port = (server.address() as AddressInfo).port;
+		return { server, base: `http://127.0.0.1:${port}` };
+	}
+
+	it("405s a non-POST request", async () => {
+		const { server, base } = await startTestServer(makeCtx());
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, { method: "GET" });
+			expect(res.status).toBe(405);
+			expect(res.headers.get("allow")).toBe("POST");
+		} finally {
+			server.close();
+		}
+	});
+
+	it("415s a non-JSON content type", async () => {
+		const { server, base } = await startTestServer(makeCtx());
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "text/plain" },
+				body: JSON.stringify({ path: path.join(fixtureDir, "good.md") }),
+			});
+			expect(res.status).toBe(415);
+		} finally {
+			server.close();
+		}
+	});
+
+	it("413s an oversized body", async () => {
+		const { server, base } = await startTestServer(makeCtx());
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ path: "x".repeat(8 * 1024) }),
+			});
+			expect(res.status).toBe(413);
+		} finally {
+			server.close();
+		}
+	});
+
+	it("400s an invalid body", async () => {
+		const { server, base } = await startTestServer(makeCtx());
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ nope: true }),
+			});
+			expect(res.status).toBe(400);
+		} finally {
+			server.close();
+		}
+	});
+
+	it("404s a path outside every root", async () => {
+		const { server, base } = await startTestServer(makeCtx());
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ path: "/etc/passwd" }),
+			});
+			expect(res.status).toBe(404);
+		} finally {
+			server.close();
+		}
+	});
+
+	it("validates a doc, running the configured render function", async () => {
+		const render = async (): Promise<RenderOutcome> => ({ ok: false, message: "boom", line: 2 });
+		const { server, base } = await startTestServer(
+			makeCtx({ mcp: { getRoots: () => [{ name: "docs", dir: fixtureDir }], registry, render } }),
+		);
+		try {
+			const res = await fetch(`${base}/__mdxserve/api/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ path: path.join(fixtureDir, "good.md") }),
+			});
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as ValidationResult;
+			expect(body.rendered).toBe(true);
+			expect(body.ok).toBe(false);
+			expect(body.diagnostics).toContainEqual(
+				expect.objectContaining({ code: "render-error", message: "boom", line: 2 }),
+			);
+		} finally {
+			server.close();
+		}
 	});
 });

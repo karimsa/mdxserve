@@ -139,16 +139,25 @@ the roots of every live server; `validate_doc` does too, but also accepts an abs
 straight through with no server running at all — handy for validating a doc before a server is
 even started.
 
-| Tool              | Input                  | What it does                                                                                       |
-| ----------------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `validate_doc`    | `{ path }`             | Compiles a `.md`/`.mdx` file and reports MDX compile errors, unknown components, and unknown props |
-| `list_components` | `{ query? }`           | Same as `mdxserve components search`                                                               |
-| `show_component`  | `{ name }`             | Same as `mdxserve components show`                                                                 |
-| `search_docs`     | `{ query }`            | The `⌘K` search                                                                                    |
-| `list_docs`       | `{ path?, maxDepth? }` | The doc tree of every served root, or of one directory                                             |
+| Tool              | Input                  | What it does                                                                                                           |
+| ----------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `validate_doc`    | `{ path }`             | Compiles a `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, and render-time errors |
+| `list_components` | `{ query? }`           | Same as `mdxserve components search`                                                                                   |
+| `show_component`  | `{ name }`             | Same as `mdxserve components show`                                                                                     |
+| `search_docs`     | `{ query }`            | The `⌘K` search                                                                                                        |
+| `list_docs`       | `{ path?, maxDepth? }` | The doc tree of every served root, or of one directory                                                                 |
 
 Paths are absolute, in the same form as the site's URLs (`/Users/you/notes/foo.md`);
 `validate_doc` also takes a root-relative path when exactly one served root contains it.
+
+`validate_doc`'s result also carries a `rendered` flag alongside `ok`: whenever a live
+`mdxserve serve` owns the path (in HTTP mode, or proxied from the stdio bridge over
+`POST /__mdxserve/api/validate`), the tool actually renders the doc server-side and reports any
+throw as a `render-error` diagnostic — this is what catches a component that compiles fine but
+blanks the page at render time. `rendered: false` means no live server was available, so only
+the static checks ran. Even when `rendered: true`, errors thrown inside a
+`useEffect`/`useLayoutEffect` and hydration mismatches are never caught — those stay
+browser-only.
 
 ### HTTP, per instance
 

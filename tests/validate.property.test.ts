@@ -283,6 +283,112 @@ describe("member tags on builtins", () => {
 	});
 });
 
+// ---- render step -------------------------------------------------------
+// The real `renderDocument` lives in src/render.ts (owned by a concurrent
+// change); here we inject a fake `render` matching its shape so the wiring
+// in validateSource can be tested in isolation.
+
+type FakeRenderOutcome =
+	{ ok: true } | { ok: false; message: string; line?: number; column?: number };
+
+function fakeRender(outcome: FakeRenderOutcome): (absPath: string) => Promise<FakeRenderOutcome> {
+	return async () => outcome;
+}
+
+// A doc generator that never contains `{` or `<` anywhere, including inside
+// fenced code blocks (unlike the top-level `docArb`, whose fence bodies draw
+// from the full string alphabet) — used by the render-step invariance test
+// below, which needs that guarantee to hold for the whole generated string.
+const plainFenceBodyArb = fc
+	.string({ maxLength: 40 })
+	.filter((s) => !s.includes("```") && !s.includes("{") && !s.includes("<"));
+const plainFenceArb = fc
+	.tuple(fenceLangArb, plainFenceBodyArb)
+	.map(([lang, body]) => ["```" + lang, body, "```"].join("\n"));
+const plainBlockArb = fc.oneof(
+	headingArb,
+	paragraphArb,
+	listArb,
+	taskListArb,
+	tableArb,
+	plainFenceArb,
+);
+const plainDocArb = fc
+	.array(plainBlockArb, { minLength: 0, maxLength: 6 })
+	.map((blocks) => blocks.join("\n\n"));
+
+describe("validateSource — render step", () => {
+	it("a render failure yields exactly one render-error diagnostic, ok:false, rendered:true", async () => {
+		const result = await validateSource({
+			source: "# Fine\n\nSome plain content.\n",
+			path: "x.mdx",
+			registry: fixtureRegistry,
+			render: fakeRender({ ok: false, message: "boom is not defined", line: 3, column: 1 }),
+		});
+		expect(result.rendered).toBe(true);
+		expect(result.ok).toBe(false);
+		const renderErrors = result.diagnostics.filter((d) => d.code === "render-error");
+		expect(renderErrors).toHaveLength(1);
+		expect(renderErrors[0]).toMatchObject({
+			severity: "error",
+			code: "render-error",
+			message: "boom is not defined",
+			line: 3,
+			column: 1,
+		});
+	});
+
+	it("render is not called when a static error already exists", async () => {
+		let called = false;
+		const result = await validateSource({
+			source: "<Calout />\n",
+			path: "x.mdx",
+			registry: fixtureRegistry,
+			render: async () => {
+				called = true;
+				return { ok: true };
+			},
+		});
+		expect(result.ok).toBe(false);
+		expect(result.rendered).toBe(false);
+		expect(called).toBe(false);
+	});
+
+	it("property: for docs with no `{`/`<` at all that validate ok statically, a passing render never flips ok, and render-error only appears when rendered:true", async () => {
+		await fc.assert(
+			fc.asyncProperty(plainDocArb, fc.boolean(), async (doc, renderOk) => {
+				const outcome: FakeRenderOutcome = renderOk
+					? { ok: true }
+					: { ok: false, message: "render failed" };
+				const result = await validateSource({
+					source: doc,
+					path: "x.mdx",
+					registry: fixtureRegistry,
+					render: fakeRender(outcome),
+				});
+
+				expect(result.rendered).toBe(true);
+				const hasRenderError = result.diagnostics.some((d) => d.code === "render-error");
+				expect(hasRenderError).toBe(!renderOk);
+				expect(hasRenderError ? true : result.rendered).toBe(true);
+				if (renderOk) expect(result.ok).toBe(true);
+				else expect(result.ok).toBe(false);
+			}),
+			{ numRuns: 25 },
+		);
+	});
+
+	it("no render-error diagnostic is ever present when rendered is false", async () => {
+		const result = await validateSource({
+			source: "# No render configured\n",
+			path: "x.mdx",
+			registry: fixtureRegistry,
+		});
+		expect(result.rendered).toBe(false);
+		expect(result.diagnostics.some((d) => d.code === "render-error")).toBe(false);
+	});
+});
+
 describe("unresolved-import positions", () => {
 	it("points at the import statement", async () => {
 		const result = await validateSource({

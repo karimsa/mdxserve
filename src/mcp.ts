@@ -8,11 +8,21 @@ import { searchRegistry, formatComponent, suggest, type Registry } from "./regis
 import { importResolves, resolveDirPath, resolveDocPath } from "./paths.js";
 import type { RootInfo } from "./shell.js";
 import { validateSource, type ValidationResult, type Diagnostic } from "./validate.js";
+import type { RenderOutcome } from "./render.js";
 
 export interface McpContext {
 	/** Every currently-mounted root, in mount order. Called fresh per tool call. */
 	getRoots: () => RootInfo[];
 	registry: Registry;
+	/** Renders a doc server-side (HTTP mode only, where a Vite dev server is live). */
+	render?: (absPath: string) => Promise<RenderOutcome>;
+	/**
+	 * Stdio mode only: proxy the whole validation (static + render) to whichever
+	 * live `mdxserve serve` actually owns this path, over HTTP. Returns `null`
+	 * when no live server matches or the request fails, so the caller falls
+	 * back to a local, static-only `validateSource`.
+	 */
+	validateRemote?: (absPath: string) => Promise<ValidationResult | null>;
 }
 
 const NO_SERVER_MESSAGE = "No mdxserve server is running; start one with `mdxserve serve <dir>`";
@@ -29,23 +39,42 @@ function formatDiagnostic(reportedPath: string, d: Diagnostic): string {
 	return base;
 }
 
+function renderStatusLine(result: ValidationResult): string {
+	if (result.rendered) return result.ok ? "Rendered OK" : "Rendered with errors";
+	// `rendered: false` has three causes; don't blame a missing server for the
+	// other two.
+	if (result.diagnostics.some((d) => d.severity === "error")) {
+		return "Not rendered (fix the errors above first)";
+	}
+	return "Not rendered (no mdxserve server is running, or the caller is not on loopback)";
+}
+
 function formatValidationResult(result: ValidationResult): string {
 	const lines = result.diagnostics.map((d) => formatDiagnostic(result.path, d));
-	if (result.diagnostics.length === 0) return `OK: ${result.path}`;
+	const renderLine = renderStatusLine(result);
+	if (result.diagnostics.length === 0) return [`OK: ${result.path}`, renderLine].join("\n");
 	// `ok` only means "no errors" — warnings still need to reach an agent that
 	// reads the text rather than the structured output.
 	if (result.ok) {
 		const n = result.diagnostics.length;
-		return [`OK with ${n} warning${n === 1 ? "" : "s"}: ${result.path}`, ...lines].join("\n");
+		return [`OK with ${n} warning${n === 1 ? "" : "s"}: ${result.path}`, ...lines, renderLine].join(
+			"\n",
+		);
 	}
-	return lines.join("\n");
+	return [...lines, renderLine].join("\n");
 }
 
 const validateDocInput = { path: z.string().min(1) };
 
 const diagnosticSchema = z.object({
 	severity: z.enum(["error", "warning"]),
-	code: z.enum(["mdx-compile", "unknown-component", "unknown-prop", "unresolved-import"]),
+	code: z.enum([
+		"mdx-compile",
+		"unknown-component",
+		"unknown-prop",
+		"unresolved-import",
+		"render-error",
+	]),
 	message: z.string(),
 	line: z.number().optional(),
 	column: z.number().optional(),
@@ -60,6 +89,7 @@ const validateDocOutput = {
 	ok: z.boolean(),
 	path: z.string(),
 	diagnostics: z.array(diagnosticSchema),
+	rendered: z.boolean(),
 };
 
 const listComponentsInput = { query: z.string().optional() };
@@ -117,7 +147,7 @@ function indentTree(nodes: ReturnType<typeof readTree>, depth = 0): string[] {
 }
 
 export function createMcpServer(ctx: McpContext): McpServer {
-	const { getRoots, registry } = ctx;
+	const { getRoots, registry, render, validateRemote } = ctx;
 
 	const server = new McpServer({ name: "mdxserve", version: SERVER_VERSION });
 
@@ -126,7 +156,7 @@ export function createMcpServer(ctx: McpContext): McpServer {
 		{
 			title: "Validate a doc",
 			description:
-				"Validate a Markdown/MDX file under the served root for MDX compile errors, unknown components, and unknown props against the builtin component registry. Call this after writing or editing a .md/.mdx file to catch mistakes (e.g. misspelled component or prop names) before a human sees them rendered. Pass the absolute path (the same form the site uses in its URLs), or a path relative to a served root when only one root contains it.",
+				"Validate a Markdown/MDX file under the served root: MDX compile errors, unknown components, and unknown props against the builtin component registry, plus a server-side render of the doc to catch errors that only throw once React actually renders it (reported as a render-error diagnostic). Call this after writing or editing a .md/.mdx file to catch mistakes before a human sees them rendered. The `rendered` field on the result is true only when the render step actually ran — it stays false when no mdxserve server is available to render with, in which case only the static checks apply. Errors thrown inside a useEffect/useLayoutEffect, and hydration mismatches, are never caught by this tool even when rendered is true — those are browser-only. Pass the absolute path (the same form the site uses in its URLs), or a path relative to a served root when only one root contains it.",
 			inputSchema: validateDocInput,
 			outputSchema: validateDocOutput,
 		},
@@ -139,6 +169,11 @@ export function createMcpServer(ctx: McpContext): McpServer {
 
 			const resolved = await resolveDocPath(rootDirs, docPath);
 			if (!resolved.ok) return errorResult(resolved.error);
+
+			if (validateRemote) {
+				const remote = await validateRemote(resolved.abs);
+				if (remote) return textResult(formatValidationResult(remote), { ...remote });
+			}
 
 			let source: string;
 			try {
@@ -153,6 +188,7 @@ export function createMcpServer(ctx: McpContext): McpServer {
 				path: resolved.abs,
 				registry,
 				resolveImport: (specifier) => importResolves(resolved.abs, specifier),
+				render,
 			});
 
 			return textResult(formatValidationResult(result), { ...result });
