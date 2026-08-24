@@ -29,7 +29,6 @@ This runs `yarn install`, `yarn build`, links `mdxserve` onto your `PATH` with
 npx mdxserve [dir]           # serve `dir` (defaults to the current directory)
 npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free port if taken)
 npx mdxserve --host 0.0.0.0 [dir]  # expose on the LAN (default binds to 127.0.0.1 only)
-npx mdxserve -D [dir]        # run in the background via oxmgr (prints the stop/delete commands)
 npx mdxserve -w ~/notes -w ~/work/docs  # serve several unrelated folders at once
 npx mdxserve docs -w ~/notes            # [dir] is shorthand for one more `-w` root
 ```
@@ -40,6 +39,21 @@ the absolute filesystem path (`~/notes/foo.md` is served at
 `/Users/you/notes/foo.md`), and anything outside a mounted root 404s. Folders
 always show a listing; `.md`/`.mdx` files render as pages. Everything else in
 a directory is listed too, muted and unclickable, so you can see what's there.
+
+### Running in the background
+
+`mdxserve` has no daemon mode of its own: `mdxserve serve` runs in the foreground until you
+stop it. If you want it to keep running after you close the terminal, that's optional and
+entirely up to you — any process manager works. [oxmgr](https://github.com/Vladimir-Urik/OxMgr) is
+one option:
+
+```bash
+oxmgr start --name mdxserve --cwd ~/notes "mdxserve serve -p 4040 ~/notes"
+
+oxmgr logs mdxserve      # tail the server log
+oxmgr stop mdxserve      # stop it (keeps the registration)
+oxmgr delete mdxserve    # stop and forget it
+```
 
 ## Writing docs
 

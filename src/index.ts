@@ -5,7 +5,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
 import { cleanCache, getCacheDir } from "./cache.js";
-import { daemonize } from "./daemon.js";
 import { createMcpServer } from "./mcp.js";
 import { computeRootInfos, pruneNestedRoots } from "./roots.js";
 import { liveServers } from "./server-registry.js";
@@ -23,8 +22,6 @@ program
 	.description("Serve a directory of Markdown/MDX files")
 	.option("-p, --port <n>", "port to listen on", "4040")
 	.option("--host <host>", "host to bind to (use 0.0.0.0 to expose on the LAN)", "127.0.0.1")
-	.option("-D, --daemon", "run in the background as an oxmgr-managed process")
-	.option("--name <name>", "process name to register with oxmgr (with --daemon)", "mdxserve")
 	.option(
 		"-w, --watch <dir>",
 		"serve this directory (repeatable)",
@@ -37,8 +34,6 @@ program
 			opts: {
 				port: string;
 				host: string;
-				daemon?: boolean;
-				name: string;
 				watch: string[];
 			},
 		) => {
@@ -97,16 +92,6 @@ program
 			if (Number.isNaN(port)) {
 				console.error(`mdxserve: invalid port: ${opts.port}`);
 				process.exitCode = 1;
-				return;
-			}
-
-			if (opts.daemon) {
-				process.exitCode = daemonize({
-					roots,
-					port,
-					host: opts.host,
-					name: opts.name,
-				});
 				return;
 			}
 
