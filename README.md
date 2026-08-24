@@ -48,7 +48,7 @@ entirely up to you — any process manager works. [oxmgr](https://github.com/Vla
 one option:
 
 ```bash
-oxmgr start --name mdxserve --cwd ~/notes "mdxserve serve -p 4040 ~/notes"
+oxmgr start "mdxserve -w ~/notes"
 
 oxmgr logs mdxserve      # tail the server log
 oxmgr stop mdxserve      # stop it (keeps the registration)
@@ -148,10 +148,11 @@ with `claude mcp add -s user` and/or `codex mcp add`, whichever CLIs are present
 
 Discovery works because every `mdxserve serve` registers itself (port, pid, roots) in
 `~/.mdxserve/servers.db` on startup and unregisters on a clean shutdown; a stale row from a
-crash is pruned automatically by checking its pid. `list_docs` and `search_docs` search across
-the roots of every live server; `validate_doc` does too, but also accepts an absolute path
-straight through with no server running at all — handy for validating a doc before a server is
-even started.
+crash is pruned automatically by checking its pid. The bridge then talks to those servers
+over their HTTP API (a tRPC client, see below): `list_docs` and `search_docs` ask every live
+server and merge the answers, and `validate_doc` asks whichever server owns the path. With no
+server running, `validate_doc` still accepts an absolute path and runs the static checks
+locally — handy for validating a doc before a server is even started.
 
 | Tool              | Input                  | What it does                                                                                                           |
 | ----------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -165,8 +166,8 @@ Paths are absolute, in the same form as the site's URLs (`/Users/you/notes/foo.m
 `validate_doc` also takes a root-relative path when exactly one served root contains it.
 
 `validate_doc`'s result also carries a `rendered` flag alongside `ok`: whenever a live
-`mdxserve serve` owns the path (in HTTP mode, or proxied from the stdio bridge over
-`POST /__mdxserve/api/validate`), the tool actually renders the doc server-side and reports any
+`mdxserve serve` owns the path (in HTTP mode, or proxied from the stdio bridge through the
+`validateDoc` API method), the tool actually renders the doc server-side and reports any
 throw as a `render-error` diagnostic — this is what catches a component that compiles fine but
 blanks the page at render time. `rendered: false` means no live server was available, so only
 the static checks ran. Even when `rendered: true`, errors thrown inside a
@@ -184,8 +185,35 @@ claude mcp add --transport http mdxserve http://127.0.0.1:4040/__mdxserve/mcp
 ```
 
 The port must match `-p` — the startup banner prints the exact URL to use. With
-`--host 0.0.0.0`, anyone on the LAN can call these tools too, same as the existing delete
-API; unlike that one, the MCP tools are read-only.
+`--host 0.0.0.0`, anyone on the LAN can call these tools too, same as the HTTP API below;
+unlike `moveDocsToTrash`, the MCP tools are read-only.
+
+## HTTP API
+
+Everything the browser UI and the stdio MCP bridge need from a running server goes through one
+[tRPC](https://trpc.io) router, mounted at `http://127.0.0.1:<port>/__mdxserve/trpc` (the
+banner prints it as `API:`). Every method has a zod schema on both its input and its output, and
+a required description; the router lives in `src/api/router.ts` and the browser and the bridge
+import its `AppRouter` type, so a change to a method's shape fails to compile on every caller.
+Queries are `GET`, mutations are `POST` with a JSON body (a `POST` with any other content type
+is rejected with 415, and a mutation over `GET` with 405). Mutations are write surfaces, so a
+request carrying an `Origin` header that doesn't match the `Host` it arrived on is rejected
+with 403 — a page on another origin can't reach them even when the server is bound to
+`0.0.0.0`.
+
+| Method             | Kind     | Input                                           | What it is used for                                                                                                                                                                                                                                                 |
+| ------------------ | -------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getFolderListing` | query    | `{ path }`                                      | Lists the entries (subfolders and `.md`/`.mdx` docs, with titles, sizes, and mtimes) of one folder under a served root. Used by the folder view and the sidebar when a folder is opened or changes on disk.                                                         |
+| `getDocTree`       | query    | `{ path?, maxDepth? }`                          | Returns the full doc tree of every served root, or of one directory, up to `maxDepth` levels. Used by the sidebar, `⌘K` search, prev/next navigation, and the MCP `list_docs` tool.                                                                                 |
+| `searchDocs`       | query    | `{ query }`                                     | Full-text search across the titles, headings, and bodies of every served doc, ranked, capped at 30 results. Used by the `⌘K` search dialog and the MCP `search_docs` tool; an empty query returns docs in tree order.                                               |
+| `moveDocsToTrash`  | mutation | `{ paths }`                                     | Moves the given doc files (never directories) to the OS Trash, so they are recoverable. Used by the folder view's multi-select delete; returns which paths were trashed and which failed, with a reason each.                                                       |
+| `validateDoc`      | mutation | `{ path }`                                      | Validates one `.md`/`.mdx` file: MDX compile errors, unknown components/props against the builtin registry, and — for same-machine callers only — a server-side render to catch render-time throws. Used by the MCP `validate_doc` tool.                            |
+| `getDocSource`     | query    | `{ path }`                                      | Returns the raw on-disk text of one doc together with its mtime, so the in-place section editor can seed itself from exactly what is on disk and later detect concurrent edits. Used when a section is opened for editing.                                          |
+| `saveDocSection`   | mutation | `{ path, startLine, endLine, mtime, markdown }` | Replaces one line range of a doc with edited markdown: the mtime must still match the one the caller read (`CONFLICT` otherwise), the resulting file must validate (`UNPROCESSABLE_CONTENT` otherwise), and the write is atomic. Used by the section editor's Save. |
+
+Render-time validation executes the doc's top-level code in a Node worker, so `validateDoc` only
+runs it for callers on the same machine (loopback, or the stdio bridge connecting to the address
+the server registered); anyone else on the LAN gets the static checks with `rendered: false`.
 
 ## Agent skill
 

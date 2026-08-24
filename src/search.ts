@@ -12,6 +12,8 @@ export interface SearchResult {
 	excerpt: string;
 	/** Query terms MiniSearch matched for this hit, for client-side highlighting. */
 	terms: string[];
+	/** MiniSearch's relevance score for this hit; 1 for an empty (tree-order) query. */
+	score: number;
 }
 
 interface IndexedDoc {
@@ -187,6 +189,7 @@ class SearchIndex {
 					title: doc.h1 ?? node.name,
 					excerpt: firstExcerpt(classifyLines(doc.lines).body),
 					terms: [],
+					score: 1,
 				};
 			});
 		}
@@ -206,6 +209,7 @@ class SearchIndex {
 					title: (hit.title as string | undefined) ?? doc.h1 ?? node.name,
 					excerpt: matchExcerpt(classifyLines(doc.lines), terms),
 					terms,
+					score: hit.score,
 				},
 			];
 		});

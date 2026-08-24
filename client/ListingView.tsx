@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useSetAtom } from "jotai";
+import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { queryClient, trpc } from "./api";
 import { formatModified, formatSize } from "./format";
 import { stagger, T, V } from "./motion";
 import { Icon } from "./ui/Icon";
@@ -441,6 +443,12 @@ export function ListingView({
 		return () => document.removeEventListener("keydown", onKeyDown);
 	}, [sidebar, confirmOpen, selectionActive]);
 
+	const trashMutation = useMutation(
+		trpc.moveDocsToTrash.mutationOptions({
+			onSuccess: () => queryClient.invalidateQueries(trpc.getFolderListing.queryFilter({ path })),
+		}),
+	);
+
 	// Ref, not just state: a second click in the same tick would see stale
 	// `pending` and fire a duplicate request before React re-renders.
 	const pendingRef = useRef(false);
@@ -450,16 +458,7 @@ export function ListingView({
 		setPending(true);
 		const byPath = new Map(selected.map((e) => [`${path}${e.name}`, e.name]));
 		try {
-			const res = await fetch("/__mdxserve/api/delete", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ paths: [...byPath.keys()] }),
-			});
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = (await res.json()) as {
-				deleted: string[];
-				failed: { path: string; error: string }[];
-			};
+			const data = await trashMutation.mutateAsync({ paths: [...byPath.keys()] });
 			setConfirmOpen(false);
 			if (data.failed.length === 0) {
 				setSelectedNames(new Set());

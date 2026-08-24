@@ -1004,6 +1004,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/query-core@npm:5.101.4":
+  version: 5.101.4
+  resolution: "@tanstack/query-core@npm:5.101.4"
+  checksum: 10c0/a407960303431e6498c6518cf6f8cc7283d3e4a95dbdc5e9fa42c217b9dd7afaffb82a4f2d36b38f578f745e8cf69ff8551abb947f5abcc0a290f3e3e75dc654
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query@npm:5.101.4":
+  version: 5.101.4
+  resolution: "@tanstack/react-query@npm:5.101.4"
+  dependencies:
+    "@tanstack/query-core": "npm:5.101.4"
+  peerDependencies:
+    react: ^18 || ^19
+  checksum: 10c0/92e7c5b44740e753b05a6a19c166ea1a000df64c1bf5edb315d08a5b555a9f16a9d35288ac38f650bd38fc3015b135c392749fd6db24d09db42bfaf758d119fa
+  languageName: node
+  linkType: hard
+
 "@tippyjs/react@npm:4.2.6":
   version: 4.2.6
   resolution: "@tippyjs/react@npm:4.2.6"
@@ -1360,6 +1378,44 @@ __metadata:
     "@tiptap/extensions": "npm:^3.29.2"
     "@tiptap/pm": "npm:^3.29.2"
   checksum: 10c0/565867d422ec215c412d66b2b12bce4ef2d7d00f18d8441fd70d5cef38cd26fd637a75fa57976ea9e7ea396eab6e66db80a16bbd23880bab193b6259b140ffba
+  languageName: node
+  linkType: hard
+
+"@trpc/client@npm:11.18.0":
+  version: 11.18.0
+  resolution: "@trpc/client@npm:11.18.0"
+  peerDependencies:
+    "@trpc/server": 11.18.0
+    typescript: ">=5.7.2"
+  bin:
+    intent: bin/intent.js
+  checksum: 10c0/5f508ef927f8d2fb86016d367c1368e9a628b24088a366db6d2b806e1fd481e3a6791411053afc3985067bf651d39fe91d9fb10e40acab3ec625d6820071fa67
+  languageName: node
+  linkType: hard
+
+"@trpc/server@npm:11.18.0":
+  version: 11.18.0
+  resolution: "@trpc/server@npm:11.18.0"
+  peerDependencies:
+    typescript: ">=5.7.2"
+  bin:
+    intent: bin/intent.js
+  checksum: 10c0/4cf53c786c4c0c2c15e11d8ea3c05093ad27c40c8663fc0d23b31ecdbbb58a2003e528c15661058526b15079f9612bf561daf79ef3f4f87f43ef22fa7af23640
+  languageName: node
+  linkType: hard
+
+"@trpc/tanstack-react-query@npm:11.18.0":
+  version: 11.18.0
+  resolution: "@trpc/tanstack-react-query@npm:11.18.0"
+  peerDependencies:
+    "@tanstack/react-query": ^5.80.3
+    "@trpc/client": 11.18.0
+    "@trpc/server": 11.18.0
+    react: ">=18.2.0"
+    typescript: ">=5.7.2"
+  bin:
+    intent: bin/intent.js
+  checksum: 10c0/93f5fd33cbfd8520b4c0f6efa176fe591fc122a37ea38b580a8c982fbf4a64459693dd109a0d4d7ceadc417d5fc82416e0fac42f1fa21470185f5ff9e9f06617
   languageName: node
   linkType: hard
 
@@ -4278,6 +4334,7 @@ __metadata:
     "@mdx-js/rollup": "npm:3.1.1"
     "@modelcontextprotocol/sdk": "npm:1.30.0"
     "@tailwindcss/vite": "npm:4.3.3"
+    "@tanstack/react-query": "npm:5.101.4"
     "@tippyjs/react": "npm:4.2.6"
     "@tiptap/core": "npm:3.29.2"
     "@tiptap/extension-image": "npm:3.29.2"
@@ -4287,6 +4344,9 @@ __metadata:
     "@tiptap/pm": "npm:3.29.2"
     "@tiptap/react": "npm:3.29.2"
     "@tiptap/starter-kit": "npm:3.29.2"
+    "@trpc/client": "npm:11.18.0"
+    "@trpc/server": "npm:11.18.0"
+    "@trpc/tanstack-react-query": "npm:11.18.0"
     "@types/mdast": "npm:4.0.4"
     "@types/node": "npm:26.2.0"
     "@types/react": "npm:19.2.18"

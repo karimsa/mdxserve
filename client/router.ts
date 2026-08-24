@@ -1,24 +1,16 @@
-import {
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-	useSyncExternalStore,
-	type ComponentType,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { isCancelledError, useQuery } from "@tanstack/react-query";
+import { isTRPCClientError } from "@trpc/client";
+import type { inferRouterOutputs } from "@trpc/server";
+import { queryClient, trpc } from "./api";
+// Type-only: see the comment in client/api.ts — src/ is not served by Vite.
+import type { AppRouter } from "../src/api/router";
 
-export interface ListingEntry {
-	name: string;
-	isDir: boolean;
-	isDoc: boolean;
-	/** Plain-text first h1 of the doc, when it has one. */
-	title?: string;
-	/** The same h1 as inline HTML, for display. */
-	titleHtml?: string;
-	size?: number;
-	/** Last modified time, epoch milliseconds. */
-	mtime?: number;
-}
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type DocTreeOutput = RouterOutputs["getDocTree"];
+type FolderListingOutput = RouterOutputs["getFolderListing"];
+
+export type ListingEntry = FolderListingOutput["entries"][number];
 
 // Kept in sync with the same type in src/shell.ts — client code can't import
 // from src/, so this is a deliberate copy. `dir` has no trailing slash.
@@ -33,18 +25,10 @@ export type Route =
 	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
 	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
-// Kept in sync with the same type in src/listing.ts — client code can't
-// import from src/, so this is a deliberate copy.
-export interface TreeNode {
-	name: string;
-	/** Absolute URL path; directories end in "/". */
-	path: string;
-	isDir: boolean;
-	isDoc: boolean;
-	/** Last modified time, epoch milliseconds. */
-	mtime?: number;
-	children?: TreeNode[];
-}
+// Derived from the router's own output schema (src/api/schemas.ts's
+// treeNodeSchema is itself typed against src/listing.ts's TreeNode), so this
+// can't drift from the server the way a hand-copied interface could.
+export type TreeNode = DocTreeOutput["roots"][number]["nodes"][number];
 
 /** A mounted root together with its doc tree. */
 export interface RootTree extends RootInfo {
@@ -89,114 +73,37 @@ function ensureDocModule(path: string): Promise<void> {
 	return promise;
 }
 
-interface ListingApiResponse {
-	path: string;
-	rootName: string;
-	rootDir: string;
-	entries: ListingEntry[];
-}
-
-interface TreeApiResponse {
-	roots: { name: string; dir: string; nodes: TreeNode[] }[];
-}
-
-interface TreeState {
-	roots: RootTree[] | null;
-}
-
-type TreeListener = (state: TreeState) => void;
-
-/**
- * Module-scope cache of the doc tree, shared across the whole SPA session
- * (like docModuleCache above) so the shell only fetches it once and every
- * consumer (sidebar, search, docMtime lookups) reads the same snapshot.
- */
-export const treeStore: TreeState & { listeners: Set<TreeListener> } = {
-	roots: null,
-	listeners: new Set(),
-};
-
 /**
  * What the server-rendered shell already knows about the roots, seeded by
  * entry.tsx before React mounts so multi-root navigation (home crumb, `..`
- * row) doesn't flash in or out while the tree API is still loading.
+ * row) doesn't flash in or out while the tree query is still loading.
  */
 export const shellInfo: { rootCount: number | null } = { rootCount: null };
 
-let treeLoadPromise: Promise<TreeState> | null = null;
-
-function snapshotTree(): TreeState {
-	return { roots: treeStore.roots };
+function mapRoots(data: DocTreeOutput): RootTree[] {
+	return data.roots.map((root) => ({ name: root.name, dir: root.dir, tree: root.nodes }));
 }
 
-function notifyTreeListeners(): void {
-	const snapshot = snapshotTree();
-	for (const listener of treeStore.listeners) listener(snapshot);
-}
-
-async function fetchTree(): Promise<TreeState> {
+/** Fetch the doc tree once and cache it; subsequent calls reuse the react-query cache. */
+export async function loadTree(): Promise<{ roots: RootTree[] | null }> {
 	try {
-		const res = await fetch("/__mdxserve/api/tree");
-		if (res.ok) {
-			const data = (await res.json()) as TreeApiResponse;
-			treeStore.roots = data.roots.map((r) => ({ name: r.name, dir: r.dir, tree: r.nodes }));
-		}
+		const data = await queryClient.ensureQueryData(
+			trpc.getDocTree.queryOptions({}, { staleTime: Infinity }),
+		);
+		return { roots: mapRoots(data) };
 	} catch {
-		// Leave the previous (possibly null) tree in place; callers can retry.
+		// Leave the previous (possibly absent) tree in place; callers can retry.
+		const cached = queryClient.getQueryData(trpc.getDocTree.queryKey({}));
+		return { roots: cached ? mapRoots(cached) : null };
 	}
-	notifyTreeListeners();
-	return snapshotTree();
-}
-
-/** Fetch the doc tree once and cache it; subsequent calls reuse the same promise. */
-export function loadTree(): Promise<TreeState> {
-	if (!treeLoadPromise) treeLoadPromise = fetchTree();
-	return treeLoadPromise;
-}
-
-// Files change on disk during a dev session; re-fetch the tree whenever Vite
-// applies an HMR update (edits to existing files) or the watcher reports a
-// listing change (deletions/creations, which don't trigger a module HMR
-// update) so the sidebar/search stay in sync with the watcher.
-if (import.meta.hot) {
-	import.meta.hot.on("vite:afterUpdate", () => {
-		treeLoadPromise = null;
-		void loadTree();
-		// Editing a doc's first h1 changes the title the sidebar shows for it, and
-		// that only ships as a module HMR update, not a listing-changed event —
-		// so refetch every listing currently on screen to pick the new title up.
-		for (const dir of listingListeners.keys()) void fetchListing(dir);
-	});
-	import.meta.hot.on("mdxserve:listing-changed", (data: { dirs?: string[] }) => {
-		treeLoadPromise = null;
-		void loadTree();
-		for (const dir of data?.dirs ?? []) {
-			// A change that lands while the first fetch is still in flight would be
-			// deduped away by fetchListing; queue one more behind it instead.
-			const pending = listingPromises.get(dir);
-			if (pending) void pending.then(() => fetchListing(dir));
-			else if (listingCache.has(dir) || listingListeners.has(dir)) void fetchListing(dir);
-		}
-	});
 }
 
 /** React hook for the shared doc tree; triggers the initial fetch on first use. */
-export function useTree(): TreeState {
-	const [state, setState] = useState<TreeState>(snapshotTree);
-
-	useEffect(() => {
-		treeStore.listeners.add(setState);
-		if (treeStore.roots === null) {
-			void loadTree();
-		} else {
-			setState(snapshotTree());
-		}
-		return () => {
-			treeStore.listeners.delete(setState);
-		};
-	}, []);
-
-	return state;
+export function useTree(): { roots: RootTree[] | null } {
+	const { data } = useQuery(trpc.getDocTree.queryOptions({}, { staleTime: Infinity }));
+	// Referentially stable across renders (consumers use this in deps arrays)
+	// as long as the underlying query data hasn't changed.
+	return useMemo(() => ({ roots: data ? mapRoots(data) : null }), [data]);
 }
 
 /** Look up a doc's mtime in the cached tree (undefined if not loaded/found). */
@@ -211,9 +118,10 @@ export function docMtime(path: string): number | undefined {
 		}
 		return undefined;
 	}
-	if (!treeStore.roots) return undefined;
-	for (const root of treeStore.roots) {
-		const found = find(root.tree);
+	const data = queryClient.getQueryData(trpc.getDocTree.queryKey({}));
+	if (!data) return undefined;
+	for (const root of data.roots) {
+		const found = find(root.nodes);
 		if (found !== undefined) return found;
 	}
 	return undefined;
@@ -224,11 +132,12 @@ export function docMtime(path: string): number | undefined {
  * undefined before the tree loads or when `path` lies outside every root.
  */
 export function rootFor(path: string): RootInfo | undefined {
-	if (!treeStore.roots) return undefined;
+	const data = queryClient.getQueryData(trpc.getDocTree.queryKey({}));
+	if (!data) return undefined;
 	let best: RootInfo | undefined;
-	for (const root of treeStore.roots) {
+	for (const root of data.roots) {
 		if (path === root.dir || path.startsWith(`${root.dir}/`)) {
-			if (!best || root.dir.length > best.dir.length) best = root;
+			if (!best || root.dir.length > best.dir.length) best = { name: root.name, dir: root.dir };
 		}
 	}
 	return best;
@@ -238,87 +147,72 @@ export interface FolderListing {
 	/** null until the first successful fetch. */
 	entries: ListingEntry[] | null;
 	error: boolean;
+	/**
+	 * The server answered NOT_FOUND on a refetch: the folder was renamed or
+	 * deleted on disk after it was opened, so `entries` (kept for
+	 * stale-while-revalidate) no longer describe anything real.
+	 */
+	notFound: boolean;
 }
-
-const EMPTY_LISTING: FolderListing = { entries: null, error: false };
 
 /**
- * Module-scope cache of folder listings, keyed by root-relative folder path
- * (same shape as treeStore/docModuleCache above): fetched once per folder and
- * shared across every consumer, so re-opening a folder doesn't re-fetch it
- * and the sidebar/listing view can share a live-updating copy.
+ * Query options for a folder's listing: disabled for the empty path (the
+ * roots home page has no folder of its own), always refetched on mount (an
+ * h1 edit only ships as a module HMR update, not a listing-changed event, so
+ * a cached listing can be stale the moment it's shown), and never cached
+ * across navigations (`staleTime: 0`) so re-opening a folder mid-session
+ * always sees the latest disk state.
  */
-const listingCache = new Map<string, FolderListing>();
-const listingPromises = new Map<string, Promise<void>>();
-const listingListeners = new Map<string, Set<() => void>>();
-
-function notifyListing(folder: string): void {
-	const listeners = listingListeners.get(folder);
-	if (!listeners) return;
-	for (const listener of listeners) listener();
-}
-
-/** Seed the cache for a folder from data already fetched elsewhere (e.g. loadRoute). */
-export function seedListing(path: string, entries: ListingEntry[]): void {
-	// Always a fresh object — useSyncExternalStore snapshots must never be mutated in place.
-	listingCache.set(path, { entries, error: false });
-	notifyListing(path);
-}
-
-function fetchListing(folder: string): Promise<void> {
-	const pending = listingPromises.get(folder);
-	if (pending) return pending;
-
-	const promise = fetch(`/__mdxserve/api/listing?path=${encodeURIComponent(folder)}`)
-		.then(async (res) => {
-			if (!res.ok) throw new Error(`listing fetch failed: ${res.status}`);
-			const data = (await res.json()) as ListingApiResponse;
-			seedListing(data.path, data.entries);
+export function listingQueryOptions(folder: string) {
+	const base = trpc.getFolderListing.queryOptions(
+		{ path: folder },
+		{ enabled: folder !== "", staleTime: 0, refetchOnMount: "always" },
+	);
+	const baseQueryFn = base.queryFn;
+	return {
+		...base,
+		queryFn: async (context: Parameters<NonNullable<typeof baseQueryFn>>[0]) => {
+			if (!baseQueryFn) throw new Error("getFolderListing queryOptions did not provide a queryFn");
+			const data = await baseQueryFn(context);
 			// The server can resolve/normalize the requested path (e.g. trailing
 			// slash quirks); make sure whoever asked under `folder` sees it too.
-			if (data.path !== folder) seedListing(folder, data.entries);
-		})
-		.catch(() => {
-			// A transient refetch failure (an HMR-triggered reload racing a watcher
-			// hiccup, say) must not blank out a listing that already rendered fine;
-			// only fall back to the error state if we have nothing to show yet.
-			if (!listingCache.get(folder)?.entries) {
-				listingCache.set(folder, { entries: null, error: true });
+			if (data.path !== folder) {
+				queryClient.setQueryData(trpc.getFolderListing.queryKey({ path: data.path }), data);
 			}
-		})
-		.finally(() => {
-			listingPromises.delete(folder);
-			notifyListing(folder);
-		});
+			return data;
+		},
+	};
+}
 
-	listingPromises.set(folder, promise);
-	return promise;
+/** Seed the cache for a folder from data already fetched elsewhere (e.g. the initial route). */
+export function seedListing(listing: FolderListingOutput): void {
+	queryClient.setQueryData(trpc.getFolderListing.queryKey({ path: listing.path }), listing);
+}
+
+/**
+ * Fetch a folder's listing through the cache. A watcher event that lands
+ * while this is in flight makes api.ts invalidate the same query with
+ * `cancelRefetch`, which rejects *this* caller's promise with a
+ * CancelledError even though the refetch it started will succeed — so try
+ * once more rather than reporting a perfectly good folder as not found.
+ */
+async function fetchListing(folder: string): Promise<FolderListingOutput> {
+	try {
+		return await queryClient.fetchQuery(listingQueryOptions(folder));
+	} catch (error) {
+		if (!isCancelledError(error)) throw error;
+		return queryClient.fetchQuery(listingQueryOptions(folder));
+	}
 }
 
 /** React hook for a single folder's listing; triggers the initial fetch on first use. */
 export function useFolderListing(folder: string): FolderListing {
-	const subscribe = useCallback(
-		(onStoreChange: () => void) => {
-			let listeners = listingListeners.get(folder);
-			if (!listeners) {
-				listeners = new Set();
-				listingListeners.set(folder, listeners);
-			}
-			listeners.add(onStoreChange);
-			// Stale-while-revalidate: a cached listing renders immediately, but an
-			// h1 edit in a folder nobody was watching only ships as a module HMR
-			// update, so always refetch on subscribe to pick up new titles.
-			if (folder) void fetchListing(folder);
-			return () => {
-				listeners.delete(onStoreChange);
-				if (listeners.size === 0) listingListeners.delete(folder);
-			};
-		},
-		[folder],
-	);
-	const getSnapshot = useCallback(() => listingCache.get(folder) ?? EMPTY_LISTING, [folder]);
-
-	return useSyncExternalStore(subscribe, getSnapshot);
+	const { data, isError, error } = useQuery(listingQueryOptions(folder));
+	// Stale-while-revalidate: keep showing the last good entries on a failed
+	// refetch rather than blanking the listing out — unless the server says
+	// the folder itself is gone, which the caller must surface.
+	const notFound = isError && isTRPCClientError(error) && error.data?.code === "NOT_FOUND";
+	return { entries: data?.entries ?? null, error: isError && !data, notFound };
 }
 
 function titleFor(route: Route): string {
@@ -338,8 +232,8 @@ function routeRootFields(route: Route): { rootName?: string; rootDir?: string } 
 }
 
 /**
- * Drives the client-side SPA: resolves a path to a `Route` (fetching the
- * listing JSON API or dynamic-importing a doc module as needed), intercepts
+ * Drives the client-side SPA: resolves a path to a `Route` (querying the
+ * folder listing or dynamic-importing a doc module as needed), intercepts
  * same-origin folder/doc link clicks so navigation never triggers a full
  * page load, and keeps `history`/`document.title` in sync.
  */
@@ -354,17 +248,15 @@ export function useRouter(initialRoute: Route) {
 			// straight to its listing; otherwise show the roots home page.
 			const { roots } = await loadTree();
 			if (roots && roots.length === 1) return loadRoute(`${roots[0].dir}/`);
-			return { kind: "home", roots: (roots ?? []).map((r) => ({ name: r.name, dir: r.dir })) };
+			return {
+				kind: "home",
+				roots: (roots ?? []).map((rootInfo) => ({ name: rootInfo.name, dir: rootInfo.dir })),
+			};
 		}
 
 		if (path.endsWith("/")) {
 			try {
-				const res = await fetch(`/__mdxserve/api/listing?path=${encodeURIComponent(path)}`);
-				if (!res.ok) {
-					return { kind: "notfound", path, ...routeRootFields(routeRef.current) };
-				}
-				const data = (await res.json()) as ListingApiResponse;
-				seedListing(data.path, data.entries);
+				const data = await fetchListing(path);
 				return {
 					kind: "listing",
 					path: data.path,
@@ -432,7 +324,14 @@ export function useRouter(initialRoute: Route) {
 		document.title = titleFor(initialRoute);
 		// The server embeds the initial listing's entries straight into the page,
 		// but useFolderListing consumers still need them in the shared cache.
-		if (initialRoute.kind === "listing") seedListing(initialRoute.path, initialRoute.entries);
+		if (initialRoute.kind === "listing") {
+			seedListing({
+				path: initialRoute.path,
+				rootName: initialRoute.rootName,
+				rootDir: initialRoute.rootDir,
+				entries: initialRoute.entries,
+			});
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -488,26 +387,10 @@ export function useRouter(initialRoute: Route) {
 		return () => document.removeEventListener("click", onClick);
 	}, [navigate]);
 
-	// The server pushes this over the same HMR websocket Vite already uses for
-	// module updates whenever files are added/removed under a watched dir (see
-	// src/server.ts). Refetch the open listing in place — no history entry, no
-	// title change — so it stays live the way an open .md already does via HMR.
-	useEffect(() => {
-		if (!import.meta.hot) return;
-		function onListingChanged(data: { dirs: string[] }) {
-			const current = routeRef.current;
-			if (current.kind !== "listing" || !data.dirs.includes(current.path)) return;
-			const path = current.path;
-			loadRoute(path).then((next) => {
-				if (!next) return;
-				const latest = routeRef.current;
-				if (latest.kind !== "listing" || latest.path !== path) return; // user navigated away meanwhile
-				setRoute(next);
-			});
-		}
-		import.meta.hot.on("mdxserve:listing-changed", onListingChanged);
-		return () => import.meta.hot?.off("mdxserve:listing-changed", onListingChanged);
-	}, [loadRoute]);
+	// Files added/removed under the open folder are handled by api.ts: the
+	// watcher's `mdxserve:listing-changed` event invalidates that folder's
+	// query, and AppShell renders the listing route from the live query, so
+	// there is nothing route-level to do here.
 
 	return { route, navigate };
 }

@@ -1,7 +1,9 @@
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MDXProvider } from "@mdx-js/react";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
+import { queryClient } from "./api";
 import { mdxComponents } from "./mdx-components";
 import { ToastStack } from "./ui/Toast";
 import { shellInfo, type Route } from "./router";
@@ -30,12 +32,14 @@ function main() {
 	const initialRoute = parseInitialRoute();
 
 	root.render(
-		<MotionConfig reducedMotion="user">
-			<MDXProvider components={mdxComponents}>
-				<App initialRoute={initialRoute} />
-			</MDXProvider>
-			<ToastStack />
-		</MotionConfig>,
+		<QueryClientProvider client={queryClient}>
+			<MotionConfig reducedMotion="user">
+				<MDXProvider components={mdxComponents}>
+					<App initialRoute={initialRoute} />
+				</MDXProvider>
+				<ToastStack />
+			</MotionConfig>
+		</QueryClientProvider>,
 	);
 }
 

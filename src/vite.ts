@@ -125,6 +125,15 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		find: name,
 		replacement: packageDir(name),
 	}));
+	const reactQueryEntry = path.dirname(resolveFromPkg("@tanstack/react-query/package.json"));
+	const trpcClientEntry = path.dirname(resolveFromPkg("@trpc/client/package.json"));
+	const trpcTanstackReactQueryEntry = path.dirname(
+		resolveFromPkg("@trpc/tanstack-react-query/package.json"),
+	);
+	// @trpc/client pulls runtime helpers (error shapes, transformer types) from
+	// @trpc/server/unstable-core-do-not-import, so @trpc/server must be
+	// aliased too even though it looks server-only.
+	const trpcServerEntry = path.dirname(resolveFromPkg("@trpc/server/package.json"));
 
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
@@ -236,6 +245,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				{ find: "date-fns", replacement: dateFnsEntry },
 				{ find: "jotai", replacement: jotaiEntry },
 				...tiptapAliases,
+				{ find: "@tanstack/react-query", replacement: reactQueryEntry },
+				{ find: "@trpc/client", replacement: trpcClientEntry },
+				{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
+				{ find: "@trpc/server", replacement: trpcServerEntry },
 			],
 			dedupe: ["react", "react-dom"],
 		},
@@ -260,6 +273,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				"jotai",
 				"jotai/utils",
 				...tiptapPackages,
+				"@tanstack/react-query",
+				"@trpc/client",
+				"@trpc/tanstack-react-query",
+				"@trpc/server",
 			],
 		},
 		// The rest of this `ssr` block exists only for src/render.ts's
@@ -311,6 +328,14 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					"jotai/utils",
 					"lucide-react",
 					"date-fns",
+					// MdSection imports client/api.ts for the section editor's tRPC
+					// client, which pulls these four in on every SSR render too.
+					// @tanstack/react-query and @trpc/tanstack-react-query import
+					// react, so they must share the optimizer's single copy of it.
+					"@tanstack/react-query",
+					"@trpc/client",
+					"@trpc/tanstack-react-query",
+					"@trpc/server",
 				],
 			},
 		},

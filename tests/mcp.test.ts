@@ -1,15 +1,18 @@
 import fs from "node:fs/promises";
-import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import type { AddressInfo } from "node:net";
-import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer, type McpContext } from "../src/mcp.js";
-import { handleRequest, type RequestContext } from "../src/server.js";
+import {
+	createMcpServer,
+	type DocTreeRoot,
+	type McpContext,
+	type RemoteDocs,
+	type RemoteOutcome,
+} from "../src/mcp.js";
 import type { RenderOutcome } from "../src/render.js";
+import type { SearchResult } from "../src/search.js";
 import type { ValidationResult } from "../src/validate.js";
 import { fixtureRegistry as registry } from "./fixtures/registry.js";
 
@@ -362,7 +365,7 @@ describe("createMcpServer", () => {
 			}
 		});
 
-		it("returns a validateRemote result verbatim, without running local validation", async () => {
+		it("returns a remote validate_doc result verbatim, without running local validation", async () => {
 			const canned: ValidationResult = {
 				ok: false,
 				path: "/somewhere/entirely/else.md",
@@ -371,8 +374,12 @@ describe("createMcpServer", () => {
 				],
 				rendered: true,
 			};
-			const validateRemote = async (): Promise<ValidationResult | null> => canned;
-			const { client, server } = await connectedClient(undefined, { validateRemote });
+			const remote = {
+				validateDoc: async (): Promise<ValidationResult | null> => canned,
+				searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({ kind: "unavailable" }),
+				listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({ kind: "unavailable" }),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
 			try {
 				const abs = path.join(fixtureDir, "good.md");
 				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
@@ -386,14 +393,158 @@ describe("createMcpServer", () => {
 			}
 		});
 
-		it("falls back to local validation when validateRemote returns null", async () => {
-			const validateRemote = async (): Promise<ValidationResult | null> => null;
-			const { client, server } = await connectedClient(undefined, { validateRemote });
+		it("falls back to local validation when the remote validateDoc returns null", async () => {
+			const remote = {
+				validateDoc: async (): Promise<ValidationResult | null> => null,
+				searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({ kind: "unavailable" }),
+				listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({ kind: "unavailable" }),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
 			try {
 				const abs = path.join(fixtureDir, "good.md");
 				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
 				expect(result.isError).toBeFalsy();
 				expect(result.structuredContent).toMatchObject({ ok: true, path: abs, rendered: false });
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+	});
+
+	describe("remote search_docs/list_docs wiring", () => {
+		function unavailableRemote(): RemoteDocs {
+			return {
+				validateDoc: async () => null,
+				searchDocs: async () => ({ kind: "unavailable" }),
+				listDocs: async () => ({ kind: "unavailable" }),
+			};
+		}
+
+		it("search_docs prefers a remote ok result over the local index", async () => {
+			const canned: SearchResult[] = [
+				{
+					path: "/remote/only.md",
+					label: "remote/only.md",
+					title: "Remote only",
+					excerpt: "This result only exists on the remote server.",
+					terms: ["widgets"],
+					score: 5,
+				},
+			];
+			const remote = {
+				...unavailableRemote(),
+				searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({
+					kind: "ok",
+					value: canned,
+				}),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
+			try {
+				const result = await client.callTool({
+					name: "search_docs",
+					arguments: { query: "widgets" },
+				});
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toEqual({ results: canned });
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("This result only exists on the remote server.");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("search_docs with a remote error returns isError with the message", async () => {
+			const remote = {
+				...unavailableRemote(),
+				searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({
+					kind: "error",
+					message: "the remote server exploded",
+				}),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
+			try {
+				const result = await client.callTool({
+					name: "search_docs",
+					arguments: { query: "widgets" },
+				});
+				expect(result.isError).toBe(true);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("the remote server exploded");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("search_docs falls back to the local index when the remote is unavailable", async () => {
+			const { client, server } = await connectedClient(undefined, { remote: unavailableRemote() });
+			try {
+				const result = await client.callTool({
+					name: "search_docs",
+					arguments: { query: "widgets" },
+				});
+				expect(result.isError).toBeFalsy();
+				const structured = result.structuredContent as { results: Array<{ path: string }> };
+				expect(structured.results.some((hit) => hit.path.endsWith("good.md"))).toBe(true);
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("list_docs prefers a remote ok result over the local walk", async () => {
+			const canned: DocTreeRoot[] = [{ name: "remote-root", dir: "/remote/root", nodes: [] }];
+			const remote = {
+				...unavailableRemote(),
+				listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({
+					kind: "ok",
+					value: canned,
+				}),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
+			try {
+				const result = await client.callTool({ name: "list_docs", arguments: {} });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toEqual({ roots: canned });
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("remote-root");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("list_docs with a remote error returns isError with the message", async () => {
+			const remote = {
+				...unavailableRemote(),
+				listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({
+					kind: "error",
+					message: "the remote directory does not exist",
+				}),
+			};
+			const { client, server } = await connectedClient(undefined, { remote });
+			try {
+				const result = await client.callTool({ name: "list_docs", arguments: {} });
+				expect(result.isError).toBe(true);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("the remote directory does not exist");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("list_docs falls back to the local walk when the remote is unavailable", async () => {
+			const { client, server } = await connectedClient(undefined, { remote: unavailableRemote() });
+			try {
+				const result = await client.callTool({ name: "list_docs", arguments: {} });
+				expect(result.isError).toBeFalsy();
+				const structured = result.structuredContent as {
+					roots: Array<{ name: string; nodes: unknown[] }>;
+				};
+				expect(structured.roots.map((rootEntry) => rootEntry.name)).toEqual(["docs", "other"]);
 			} finally {
 				await client.close();
 				await server.close();
@@ -460,121 +611,5 @@ describe("createMcpServer", () => {
 				await server.close();
 			}
 		});
-	});
-});
-
-describe("POST /__mdxserve/api/validate", () => {
-	function makeCtx(overrides: Partial<RequestContext> = {}): RequestContext {
-		return {
-			roots: [fixtureDir],
-			rootInfos: [{ name: "docs", dir: fixtureDir }],
-			pkgRoot: "",
-			vite: {} as unknown as ViteDevServer,
-			cssFile: "",
-			mcp: { getRoots: () => [{ name: "docs", dir: fixtureDir }], registry },
-			...overrides,
-		};
-	}
-
-	async function startTestServer(ctx: RequestContext) {
-		const server = http.createServer((req, res) => {
-			handleRequest(req, res, ctx).catch((error) => {
-				if (!res.headersSent) res.statusCode = 500;
-				res.end(String(error));
-			});
-		});
-		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-		const port = (server.address() as AddressInfo).port;
-		return { server, base: `http://127.0.0.1:${port}` };
-	}
-
-	it("405s a non-POST request", async () => {
-		const { server, base } = await startTestServer(makeCtx());
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, { method: "GET" });
-			expect(res.status).toBe(405);
-			expect(res.headers.get("allow")).toBe("POST");
-		} finally {
-			server.close();
-		}
-	});
-
-	it("415s a non-JSON content type", async () => {
-		const { server, base } = await startTestServer(makeCtx());
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, {
-				method: "POST",
-				headers: { "Content-Type": "text/plain" },
-				body: JSON.stringify({ path: path.join(fixtureDir, "good.md") }),
-			});
-			expect(res.status).toBe(415);
-		} finally {
-			server.close();
-		}
-	});
-
-	it("413s an oversized body", async () => {
-		const { server, base } = await startTestServer(makeCtx());
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ path: "x".repeat(8 * 1024) }),
-			});
-			expect(res.status).toBe(413);
-		} finally {
-			server.close();
-		}
-	});
-
-	it("400s an invalid body", async () => {
-		const { server, base } = await startTestServer(makeCtx());
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ nope: true }),
-			});
-			expect(res.status).toBe(400);
-		} finally {
-			server.close();
-		}
-	});
-
-	it("404s a path outside every root", async () => {
-		const { server, base } = await startTestServer(makeCtx());
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ path: "/etc/passwd" }),
-			});
-			expect(res.status).toBe(404);
-		} finally {
-			server.close();
-		}
-	});
-
-	it("validates a doc, running the configured render function", async () => {
-		const render = async (): Promise<RenderOutcome> => ({ ok: false, message: "boom", line: 2 });
-		const { server, base } = await startTestServer(
-			makeCtx({ mcp: { getRoots: () => [{ name: "docs", dir: fixtureDir }], registry, render } }),
-		);
-		try {
-			const res = await fetch(`${base}/__mdxserve/api/validate`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ path: path.join(fixtureDir, "good.md") }),
-			});
-			expect(res.status).toBe(200);
-			const body = (await res.json()) as ValidationResult;
-			expect(body.rendered).toBe(true);
-			expect(body.ok).toBe(false);
-			expect(body.diagnostics).toContainEqual(
-				expect.objectContaining({ code: "render-error", message: "boom", line: 2 }),
-			);
-		} finally {
-			server.close();
-		}
 	});
 });

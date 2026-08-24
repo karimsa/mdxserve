@@ -1,14 +1,37 @@
-import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { readTree } from "./listing.js";
-import { search as searchDocs } from "./search.js";
+import { readTree, type TreeNode } from "./listing.js";
+import { search as searchDocs, type SearchResult } from "./search.js";
 import { searchRegistry, formatComponent, suggest, type Registry } from "./registry.js";
-import { importResolves, resolveDirPath, resolveDocPath } from "./paths.js";
+import { resolveDirPath, resolveDocPath } from "./paths.js";
 import type { RootInfo } from "./shell.js";
-import { validateSource, type ValidationResult, type Diagnostic } from "./validate.js";
+import { validateDocAt } from "./validate-doc.js";
+import { validationResultSchema } from "./api/schemas.js";
+import type { DocTree } from "./api/schemas.js";
+import type { ValidationResult, Diagnostic } from "./validate.js";
 import type { RenderOutcome } from "./render.js";
+
+/** One entry of `getDocTree`'s output — reused so `list_docs` doesn't keep its own copy. */
+export type DocTreeRoot = DocTree["roots"][number];
+
+export type RemoteOutcome<T> =
+	{ kind: "ok"; value: T } | { kind: "error"; message: string } | { kind: "unavailable" };
+
+/**
+ * Stdio mode only: proxies `validate_doc`/`search_docs`/`list_docs` to
+ * whichever live `mdxserve serve` instance(s) actually own the relevant
+ * path(s), over a tRPC client (see `src/remote.ts`), so the server's warm
+ * search index and render worker are the single source of truth. `null` (for
+ * `validateDoc`) or `{ kind: "unavailable" }` means no owning server, or the
+ * request itself failed, and the caller falls back to local, static-only
+ * handling.
+ */
+export interface RemoteDocs {
+	validateDoc(absPath: string): Promise<ValidationResult | null>;
+	searchDocs(query: string): Promise<RemoteOutcome<SearchResult[]>>;
+	listDocs(dirPath: string | undefined, maxDepth: number): Promise<RemoteOutcome<DocTreeRoot[]>>;
+}
 
 export interface McpContext {
 	/** Every currently-mounted root, in mount order. Called fresh per tool call. */
@@ -17,24 +40,24 @@ export interface McpContext {
 	/** Renders a doc server-side (HTTP mode only, where a Vite dev server is live). */
 	render?: (absPath: string) => Promise<RenderOutcome>;
 	/**
-	 * Stdio mode only: proxy the whole validation (static + render) to whichever
-	 * live `mdxserve serve` actually owns this path, over HTTP. Returns `null`
-	 * when no live server matches or the request fails, so the caller falls
-	 * back to a local, static-only `validateSource`.
+	 * Stdio mode only (`mdxserve mcp`): a tRPC-backed proxy to whichever
+	 * `mdxserve serve` instance(s) are live. Left undefined in HTTP mode
+	 * (the in-process `/__mdxserve/mcp` route), which already has direct
+	 * access to the registry and render worker it needs.
 	 */
-	validateRemote?: (absPath: string) => Promise<ValidationResult | null>;
+	remote?: RemoteDocs;
 }
 
 const NO_SERVER_MESSAGE = "No mdxserve server is running; start one with `mdxserve serve <dir>`";
 
 const SERVER_VERSION = "0.1.0";
 
-function formatDiagnostic(reportedPath: string, d: Diagnostic): string {
-	const line = d.line ?? 0;
-	const column = d.column ?? 0;
-	const base = `${reportedPath}:${line}:${column}  ${d.severity}  ${d.code}  ${d.message}`;
-	if (d.suggestions && d.suggestions.length > 0) {
-		return `${base}\n    did you mean: ${d.suggestions.join(", ")}`;
+function formatDiagnostic(reportedPath: string, diagnostic: Diagnostic): string {
+	const line = diagnostic.line ?? 0;
+	const column = diagnostic.column ?? 0;
+	const base = `${reportedPath}:${line}:${column}  ${diagnostic.severity}  ${diagnostic.code}  ${diagnostic.message}`;
+	if (diagnostic.suggestions && diagnostic.suggestions.length > 0) {
+		return `${base}\n    did you mean: ${diagnostic.suggestions.join(", ")}`;
 	}
 	return base;
 }
@@ -43,54 +66,50 @@ function renderStatusLine(result: ValidationResult): string {
 	if (result.rendered) return result.ok ? "Rendered OK" : "Rendered with errors";
 	// `rendered: false` has three causes; don't blame a missing server for the
 	// other two.
-	if (result.diagnostics.some((d) => d.severity === "error")) {
+	if (result.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
 		return "Not rendered (fix the errors above first)";
 	}
 	return "Not rendered (no mdxserve server is running, or the caller is not on loopback)";
 }
 
 function formatValidationResult(result: ValidationResult): string {
-	const lines = result.diagnostics.map((d) => formatDiagnostic(result.path, d));
+	const lines = result.diagnostics.map((diagnostic) => formatDiagnostic(result.path, diagnostic));
 	const renderLine = renderStatusLine(result);
 	if (result.diagnostics.length === 0) return [`OK: ${result.path}`, renderLine].join("\n");
 	// `ok` only means "no errors" — warnings still need to reach an agent that
 	// reads the text rather than the structured output.
 	if (result.ok) {
-		const n = result.diagnostics.length;
-		return [`OK with ${n} warning${n === 1 ? "" : "s"}: ${result.path}`, ...lines, renderLine].join(
-			"\n",
-		);
+		const warningCount = result.diagnostics.length;
+		return [
+			`OK with ${warningCount} warning${warningCount === 1 ? "" : "s"}: ${result.path}`,
+			...lines,
+			renderLine,
+		].join("\n");
 	}
 	return [...lines, renderLine].join("\n");
 }
 
+function formatSearchResults(query: string, results: SearchResult[]): string {
+	return results.length === 0
+		? `No docs match "${query}".`
+		: results.map((result) => `${result.path} — ${result.title}\n    ${result.excerpt}`).join("\n");
+}
+
+function formatDocTree(roots: DocTreeRoot[], dirAbs: string | null): string {
+	return roots
+		.map((rootEntry) => {
+			const body =
+				rootEntry.nodes.length === 0 ? "  (no docs)" : indentTree(rootEntry.nodes, 1).join("\n");
+			return `${rootEntry.name} (${dirAbs ?? rootEntry.dir})\n${body}`;
+		})
+		.join("\n\n");
+}
+
 const validateDocInput = { path: z.string().min(1) };
 
-const diagnosticSchema = z.object({
-	severity: z.enum(["error", "warning"]),
-	code: z.enum([
-		"mdx-compile",
-		"unknown-component",
-		"unknown-prop",
-		"unresolved-import",
-		"render-error",
-	]),
-	message: z.string(),
-	line: z.number().optional(),
-	column: z.number().optional(),
-	endLine: z.number().optional(),
-	endColumn: z.number().optional(),
-	component: z.string().optional(),
-	prop: z.string().optional(),
-	suggestions: z.array(z.string()).optional(),
-});
-
-const validateDocOutput = {
-	ok: z.boolean(),
-	path: z.string(),
-	diagnostics: z.array(diagnosticSchema),
-	rendered: z.boolean(),
-};
+// Kept in lockstep with the `validateDoc` tRPC procedure's output — importing
+// its zod shape (rather than a hand-copied one) means the two can't drift.
+const validateDocOutput = validationResultSchema.shape;
 
 const listComponentsInput = { query: z.string().optional() };
 
@@ -137,7 +156,7 @@ function componentPropNames(props: Record<string, unknown>): string[] {
 	return Object.keys((props?.properties as Record<string, unknown>) ?? {});
 }
 
-function indentTree(nodes: ReturnType<typeof readTree>, depth = 0): string[] {
+function indentTree(nodes: TreeNode[], depth = 0): string[] {
 	const lines: string[] = [];
 	for (const node of nodes) {
 		lines.push(`${"  ".repeat(depth)}${node.isDir ? `${node.name}/` : node.name}`);
@@ -147,7 +166,7 @@ function indentTree(nodes: ReturnType<typeof readTree>, depth = 0): string[] {
 }
 
 export function createMcpServer(ctx: McpContext): McpServer {
-	const { getRoots, registry, render, validateRemote } = ctx;
+	const { getRoots, registry, render, remote } = ctx;
 
 	const server = new McpServer({ name: "mdxserve", version: SERVER_VERSION });
 
@@ -162,7 +181,7 @@ export function createMcpServer(ctx: McpContext): McpServer {
 		},
 		async ({ path: docPath }) => {
 			const roots = getRoots();
-			const rootDirs = roots.map((r) => r.dir);
+			const rootDirs = roots.map((rootInfo) => rootInfo.dir);
 			if (roots.length === 0 && !path.isAbsolute(docPath)) {
 				return errorResult(`${NO_SERVER_MESSAGE}, or pass an absolute path`);
 			}
@@ -170,26 +189,19 @@ export function createMcpServer(ctx: McpContext): McpServer {
 			const resolved = await resolveDocPath(rootDirs, docPath);
 			if (!resolved.ok) return errorResult(resolved.error);
 
-			if (validateRemote) {
-				const remote = await validateRemote(resolved.abs);
-				if (remote) return textResult(formatValidationResult(remote), { ...remote });
+			if (remote) {
+				const remoteResult = await remote.validateDoc(resolved.abs);
+				if (remoteResult)
+					return textResult(formatValidationResult(remoteResult), { ...remoteResult });
 			}
 
-			let source: string;
+			let result: ValidationResult;
 			try {
-				source = await fs.promises.readFile(resolved.abs, "utf8");
+				result = await validateDocAt(resolved.abs, { registry, render });
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				return errorResult(`Failed to read ${resolved.abs}: ${message}`);
 			}
-
-			const result = await validateSource({
-				source,
-				path: resolved.abs,
-				registry,
-				resolveImport: (specifier) => importResolves(resolved.abs, specifier),
-				render,
-			});
 
 			return textResult(formatValidationResult(result), { ...result });
 		},
@@ -206,19 +218,21 @@ export function createMcpServer(ctx: McpContext): McpServer {
 		},
 		async ({ query }) => {
 			const matches = searchRegistry(registry, query);
-			const components = matches.map((c) => ({
-				name: c.name,
-				description: c.description,
-				whenToUse: c.whenToUse,
-				props: componentPropNames(c.props),
+			const components = matches.map((component) => ({
+				name: component.name,
+				description: component.description,
+				whenToUse: component.whenToUse,
+				props: componentPropNames(component.props),
 			}));
 
 			const text =
 				components.length === 0
 					? `No components match "${query ?? ""}".`
 					: (() => {
-							const width = Math.max(...components.map((c) => c.name.length));
-							return components.map((c) => `${c.name.padEnd(width)}  ${c.description}`).join("\n");
+							const width = Math.max(...components.map((component) => component.name.length));
+							return components
+								.map((component) => `${component.name.padEnd(width)}  ${component.description}`)
+								.join("\n");
 						})();
 
 			return textResult(text, { components });
@@ -235,7 +249,9 @@ export function createMcpServer(ctx: McpContext): McpServer {
 			outputSchema: showComponentOutput,
 		},
 		async ({ name }) => {
-			const entry = registry.components.find((c) => c.name.toLowerCase() === name.toLowerCase());
+			const entry = registry.components.find(
+				(component) => component.name.toLowerCase() === name.toLowerCase(),
+			);
 			if (!entry) {
 				const suggestions = suggest(registry, name);
 				const hint = suggestions.length > 0 ? ` Did you mean: ${suggestions.join(", ")}?` : "";
@@ -258,12 +274,17 @@ export function createMcpServer(ctx: McpContext): McpServer {
 			const roots = getRoots();
 			if (roots.length === 0) return errorResult(NO_SERVER_MESSAGE);
 
+			if (remote) {
+				const outcome = await remote.searchDocs(query);
+				if (outcome.kind === "error") return errorResult(outcome.message);
+				if (outcome.kind === "ok") {
+					return textResult(formatSearchResults(query, outcome.value), { results: outcome.value });
+				}
+				// unavailable: fall through to the local index below.
+			}
+
 			const { results } = searchDocs(roots, query);
-			const text =
-				results.length === 0
-					? `No docs match "${query}".`
-					: results.map((r) => `${r.path} — ${r.title}\n    ${r.excerpt}`).join("\n");
-			return textResult(text, { results });
+			return textResult(formatSearchResults(query, results), { results });
 		},
 	);
 
@@ -279,7 +300,21 @@ export function createMcpServer(ctx: McpContext): McpServer {
 		async ({ path: dirPath, maxDepth }) => {
 			const roots = getRoots();
 			if (roots.length === 0) return errorResult(NO_SERVER_MESSAGE);
-			const rootDirs = roots.map((r) => r.dir);
+			const rootDirs = roots.map((rootInfo) => rootInfo.dir);
+
+			if (remote) {
+				const outcome = await remote.listDocs(dirPath, maxDepth);
+				if (outcome.kind === "error") return errorResult(outcome.message);
+				if (outcome.kind === "ok") {
+					let dirAbs: string | null = null;
+					if (dirPath !== undefined) {
+						const hit = await resolveDirPath(rootDirs, dirPath);
+						dirAbs = hit.ok ? hit.abs : null;
+					}
+					return textResult(formatDocTree(outcome.value, dirAbs), { roots: outcome.value });
+				}
+				// unavailable: fall through to the local walk below.
+			}
 
 			let selected: RootInfo[];
 			let dirAbs: string | null = null;
@@ -288,22 +323,16 @@ export function createMcpServer(ctx: McpContext): McpServer {
 			} else {
 				const hit = await resolveDirPath(rootDirs, dirPath);
 				if (!hit.ok) return errorResult(hit.error);
-				selected = roots.filter((r) => r.dir === hit.root);
+				selected = roots.filter((rootInfo) => rootInfo.dir === hit.root);
 				dirAbs = hit.abs;
 			}
 
-			const out = selected.map((r) => ({
-				name: r.name,
-				dir: r.dir,
-				nodes: readTree(dirAbs ?? r.dir, maxDepth),
+			const out = selected.map((rootInfo) => ({
+				name: rootInfo.name,
+				dir: rootInfo.dir,
+				nodes: readTree(dirAbs ?? rootInfo.dir, maxDepth),
 			}));
-			const text = out
-				.map((r) => {
-					const body = r.nodes.length === 0 ? "  (no docs)" : indentTree(r.nodes, 1).join("\n");
-					return `${r.name} (${dirAbs ?? r.dir})\n${body}`;
-				})
-				.join("\n\n");
-			return textResult(text, { roots: out });
+			return textResult(formatDocTree(out, dirAbs), { roots: out });
 		},
 	);
 

@@ -6,10 +6,9 @@ import { startServer } from "./server.js";
 import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
 import { cleanCache, getCacheDir } from "./cache.js";
 import { createMcpServer } from "./mcp.js";
+import { createRemote } from "./remote.js";
 import { computeRootInfos, pruneNestedRoots } from "./roots.js";
 import { liveServers } from "./server-registry.js";
-import { resolveRoot } from "./paths.js";
-import type { ValidationResult } from "./validate.js";
 
 const program = new Command();
 
@@ -116,36 +115,21 @@ program
 		// bridge searches/lists across the union of their roots (already
 		// realpaths, so string dedupe is enough; nested roots from separate
 		// servers collapse to the outer one) so a single stdio registration
-		// works no matter which `mdxserve serve` is running.
+		// works no matter which `mdxserve serve` is running. `validate_doc`,
+		// `search_docs`, and `list_docs` proxy to the owning live server(s)
+		// over a tRPC client (src/remote.ts) so the server's warm search index
+		// and render worker are the single source of truth — the stdio bridge
+		// has neither. A `null`/`unavailable` outcome (no owning server, or the
+		// request itself fails — e.g. a registry row surviving a crash before
+		// its pid check catches up) falls back to local, static-only handling
+		// inside createMcpServer.
 		const server = createMcpServer({
 			registry,
-			getRoots: () => computeRootInfos(pruneNestedRoots(liveServers().flatMap((s) => s.roots))),
-			// validate_doc's render step needs a live Vite instance, which the
-			// stdio bridge doesn't have — so proxy the whole validation to
-			// whichever running `mdxserve serve` actually owns this path. `null`
-			// (no owning server, or the request itself fails — e.g. a registry
-			// row surviving a crash before its pid check catches up) falls back
-			// to a local, static-only validateSource inside createMcpServer.
-			validateRemote: async (absPath) => {
-				const owner = liveServers().find((s) => resolveRoot(s.roots, absPath) !== null);
-				if (!owner) return null;
-				try {
-					// A server bound to a wildcard address accepts loopback; one bound
-					// to a concrete address (e.g. --host 192.168.1.10) may not, so
-					// connect to the host it registered, not a hard-coded 127.0.0.1.
-					const host = owner.host === "0.0.0.0" || owner.host === "::" ? "127.0.0.1" : owner.host;
-					const hostPart = host.includes(":") ? `[${host}]` : host;
-					const res = await fetch(`http://${hostPart}:${owner.port}/__mdxserve/api/validate`, {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ path: absPath }),
-					});
-					if (!res.ok) return null;
-					return (await res.json()) as ValidationResult;
-				} catch {
-					return null;
-				}
-			},
+			getRoots: () =>
+				computeRootInfos(
+					pruneNestedRoots(liveServers().flatMap((serverRecord) => serverRecord.roots)),
+				),
+			remote: createRemote(),
 		});
 
 		const transport = new StdioServerTransport();

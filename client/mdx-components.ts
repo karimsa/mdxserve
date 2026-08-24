@@ -1,5 +1,13 @@
 import type { ComponentType } from "react";
 import { MdSection } from "./MdSection";
+// This module (and everything it pulls in — every builtin, transitively) is
+// reachable from the SSR entry (client/ssr-entry.tsx) that validate_doc's
+// render check loads via Vite's SSR module runner. Nothing in this file or
+// its dependency graph may import client/router.ts (it touches `window` and
+// the query cache at module scope). client/api.ts is the one exception:
+// MdSection imports its `trpcClient`, and api.ts is written to evaluate
+// without a `window` for exactly that reason — keep it that way, and keep
+// every package it imports in src/vite.ts's `ssr.optimizeDeps.include`.
 import { TaskCheckbox } from "./TaskCheckbox";
 import { Figure, Pre } from "./CodeBlock";
 import { H2, H3, H4 } from "./Heading";

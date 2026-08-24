@@ -5,6 +5,11 @@ export function rootNameOf(root: string): string {
 	return path.basename(root) || root;
 }
 
+/** The `RootInfo` for `root`, falling back to a freshly computed one if it isn't in `rootInfos`. */
+export function rootInfoFor(rootInfos: RootInfo[], root: string): RootInfo {
+	return rootInfos.find((info) => info.dir === root) ?? { name: rootNameOf(root), dir: root };
+}
+
 /** Display names for every mounted root: basename, disambiguated with the parent dir on collision. */
 export function computeRootInfos(roots: string[]): RootInfo[] {
 	const counts = new Map<string, number>();

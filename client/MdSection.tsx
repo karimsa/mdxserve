@@ -9,6 +9,7 @@ import {
 	type ReactNode,
 } from "react";
 import { useAtom } from "jotai";
+import { trpcClient } from "./api";
 import { DocContext } from "./DocContext";
 import { openSectionAtom } from "./state";
 import { IconButton } from "./ui/IconButton";
@@ -125,9 +126,9 @@ function Section({
 		setOpenSection(key);
 		setMode("loading");
 		try {
-			const res = await fetch(`/__mdxserve/api/source?path=${encodeURIComponent(path)}`);
-			if (!res.ok) throw new Error(`source fetch failed: ${res.status}`);
-			const data = (await res.json()) as { text: string; mtime: number };
+			// The vanilla client, not the query cache: the source must be exactly
+			// what is on disk at this moment, never a cached copy.
+			const data = await trpcClient.getDocSource.query({ path });
 			// Functional update so a response that lands after another section
 			// took the atom (the effect above has already reset us to "read")
 			// is dropped rather than resurrecting this section's editor.

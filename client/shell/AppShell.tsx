@@ -1,12 +1,15 @@
 import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { trpc } from "../api";
 import { DocView } from "../DocView";
 import { HomeView } from "../HomeView";
+import { useDebounced } from "../hooks";
 import { ListingView } from "../ListingView";
 import { fadeRise, T } from "../motion";
 import { useTheme } from "../theme";
-import { shellInfo, useTree, type Route, type TreeNode } from "../router";
+import { shellInfo, useFolderListing, useTree, type Route, type TreeNode } from "../router";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -184,6 +187,27 @@ function useDocMaxWidth(contentWidth: number, stored: number | null) {
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
 	const { theme, toggle } = useTheme();
 	const { roots } = useTree();
+
+	// The listing route's entries come from the server-embedded route JSON (or
+	// the navigation fetch) and are seeded into the query cache, so read them
+	// back *live* from there: when files are added/removed under the open
+	// folder, api.ts invalidates that query and this re-renders with the fresh
+	// entries — no route reload, no second fetch racing the invalidation.
+	const liveListing = useFolderListing(route.kind === "listing" ? route.path : "");
+	const listingRoute = useMemo((): Route | null => {
+		if (route.kind !== "listing") return null;
+		// A NOT_FOUND refetch means the folder was renamed or deleted on disk
+		// after it was opened: show that rather than its stale entries.
+		if (liveListing.notFound) {
+			return {
+				kind: "notfound",
+				path: route.path,
+				rootName: route.rootName,
+				rootDir: route.rootDir,
+			};
+		}
+		return liveListing.entries ? { ...route, entries: liveListing.entries } : route;
+	}, [route, liveListing.entries, liveListing.notFound]);
 	// Until the tree API answers, trust the count the server-rendered shell
 	// embedded so multi-root navigation doesn't flash in after first paint.
 	const rootCount = roots?.length ?? shellInfo.rootCount ?? 1;
@@ -204,7 +228,14 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const listingMaxWidth = useListingMaxWidth(contentWidth, listingWidth);
 	const docMaxWidth = useDocMaxWidth(contentWidth, docWidth);
 	const [query, setQuery] = useState("");
-	const [results, setResults] = useState<SearchResult[]>([]);
+	const debouncedQuery = useDebounced(query, SEARCH_DEBOUNCE_MS);
+	const { data: searchData, isError: searchIsError } = useQuery(
+		trpc.searchDocs.queryOptions(
+			{ query: debouncedQuery },
+			{ enabled: searchOpen, placeholderData: keepPreviousData, staleTime: 0 },
+		),
+	);
+	const results = searchIsError ? [] : (searchData?.results ?? []);
 
 	// Doc content can render asynchronously after this component's own commit
 	// (see DocView's onRendered / client/router.ts's initial-route bootstrap
@@ -261,20 +292,6 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, []);
-
-	// Debounced search fetch; empty query still fetches the endpoint's default results.
-	useEffect(() => {
-		if (!searchOpen) return;
-		const handle = setTimeout(() => {
-			fetch(`/__mdxserve/api/search?q=${encodeURIComponent(query)}`)
-				.then((res) =>
-					res.ok ? (res.json() as Promise<{ results: SearchResult[] }>) : { results: [] },
-				)
-				.then((data) => setResults(data.results ?? []))
-				.catch(() => setResults([]));
-		}, SEARCH_DEBOUNCE_MS);
-		return () => clearTimeout(handle);
-	}, [query, searchOpen]);
 
 	const handleSelectResult = useCallback(
 		(result: SearchResult) => {
@@ -363,7 +380,14 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 								<Breadcrumb items={breadcrumbItems(route, rootCount)} />
 								<div className="mt-4">
 									{route.kind === "listing" ? (
-										<ListingView route={route} singleRoot={rootCount <= 1} />
+										listingRoute?.kind === "notfound" ? (
+											<NotFoundView route={listingRoute} />
+										) : (
+											<ListingView
+												route={listingRoute?.kind === "listing" ? listingRoute : route}
+												singleRoot={rootCount <= 1}
+											/>
+										)
 									) : route.kind === "doc" ? (
 										<DocView route={route} onRendered={bumpTocVersion} />
 									) : route.kind === "home" ? (

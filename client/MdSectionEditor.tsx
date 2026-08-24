@@ -8,6 +8,8 @@ import { TableKit } from "@tiptap/extension-table";
 import { Image } from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { motion } from "framer-motion";
+import { isTRPCClientError } from "@trpc/client";
+import { trpcClient } from "./api";
 import { T } from "./motion";
 import { isApplePlatform } from "./platform";
 import { Kbd } from "./ui/Kbd";
@@ -132,46 +134,35 @@ export default function MdSectionEditor({
 		if (!editor || saving) return;
 		setSaving(true);
 		try {
-			const res = await fetch("/__mdxserve/api/save", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					path,
-					startLine,
-					endLine,
-					mtime,
-					markdown: editor.getMarkdown(),
-				}),
+			await trpcClient.saveDocSection.mutate({
+				path,
+				startLine,
+				endLine,
+				mtime,
+				markdown: editor.getMarkdown(),
 			});
-
-			if (res.ok) {
-				// The write lands on disk, chokidar → Vite HMR re-executes the doc
-				// module, and Fast Refresh re-renders this section's MdSection
-				// wrapper with fresh line numbers — no need to do anything here
-				// beyond leaving edit mode.
-				onDone();
-				return;
-			}
-			if (res.status === 409) {
+			// The write lands on disk, chokidar → Vite HMR re-executes the doc
+			// module, and Fast Refresh re-renders this section's MdSection
+			// wrapper with fresh line numbers — no need to do anything here
+			// beyond leaving edit mode.
+			onDone();
+		} catch (error) {
+			const code = isTRPCClientError(error) ? error.data?.code : undefined;
+			if (code === "CONFLICT") {
 				pushToast({
 					tone: "warn",
 					title: "File changed on disk",
 					message: "Reopen the section to edit the newer version.",
 				});
-				return;
-			}
-			if (res.status === 422) {
-				const body = (await res.json().catch(() => null)) as { error?: string } | null;
+			} else if (code === "UNPROCESSABLE_CONTENT") {
 				pushToast({
 					tone: "danger",
 					title: "Couldn't save section",
-					message: body?.error ?? "The edited markdown doesn't compile.",
+					message: error instanceof Error ? error.message : "The edited markdown doesn't compile.",
 				});
-				return;
+			} else {
+				pushToast({ tone: "danger", title: "Couldn't save section" });
 			}
-			throw new Error(`save failed: ${res.status}`);
-		} catch {
-			pushToast({ tone: "danger", title: "Couldn't save section" });
 		} finally {
 			setSaving(false);
 		}
