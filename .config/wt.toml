@@ -1,0 +1,2 @@
+pre-start = "./worktree-setup.sh"
+
