@@ -6,6 +6,8 @@ import { T } from "../motion";
 const HANDLE_INSET = 12;
 /** Hover zone width: covers the inset gap plus room on either side of the line. */
 const HANDLE_ZONE = 40;
+/** Height of the resting pill. */
+const PILL_HEIGHT = 40;
 
 type HandleState = "idle" | "hover" | "drag";
 
@@ -14,7 +16,12 @@ const handleBar: Record<
 	{ width: number; height: string; opacity: number; backgroundColor: string }
 > = {
 	// A short muted pill at rest, so the affordance is discoverable.
-	idle: { width: 3, height: "40px", opacity: 0.6, backgroundColor: "var(--border-default)" },
+	idle: {
+		width: 3,
+		height: `${PILL_HEIGHT}px`,
+		opacity: 0.6,
+		backgroundColor: "var(--border-default)",
+	},
 	// Full-height line on hover.
 	hover: { width: 2, height: "100%", opacity: 1, backgroundColor: "var(--border-default)" },
 	// Thicker and teal while dragging.
@@ -25,7 +32,10 @@ const handleBar: Record<
  * Resize handle just outside one edge of a content block. The hover zone is
  * wide (it spans the inset gap) so it's easy to find; the bar itself rests as
  * a short pill, grows to a full-height line on hover, and thickens + turns
- * teal mid-drag.
+ * teal mid-drag. For a page-height content block the pill sticks to the
+ * viewport's vertical centre (rather than the block's, which is usually off
+ * screen) so it's always in view; anchored panels are already viewport-bound,
+ * so theirs is simply centred.
  *
  * Two modes:
  * - Default: the content is centred in the area marked with
@@ -33,10 +43,10 @@ const handleBar: Record<
  *   computed from the content's centre rather than accumulated deltas so the
  *   drag can't drift. Widths are clamped to [minWidth, maxWidth] and to the
  *   content area so the block never runs under the surrounding chrome.
- * - `anchored`: the panel is flush against the viewport's left edge (e.g. a
- *   docked sidebar with `side="right"`), so the dragged edge maps 1:1 to the
- *   width with no doubling or centring, and the width is only clamped to
- *   [minWidth, maxWidth]. Only `side="right"` is supported in this mode.
+ * - `anchored`: the panel is flush against one edge of the layout (the docked
+ *   sidebar on the left with `side="right"`, the toc rail on the right with
+ *   `side="left"`), so the dragged edge maps 1:1 to the width with no doubling
+ *   or centring, and the width is only clamped to [minWidth, maxWidth].
  */
 export function ResizeHandle({
 	side,
@@ -53,7 +63,7 @@ export function ResizeHandle({
 	label: string;
 	minWidth: number;
 	maxWidth: number;
-	/** Panel flush against the viewport's left edge; only `side="right"` is supported. */
+	/** Panel flush against the layout edge opposite `side`, so the drag maps 1:1 to the width. */
 	anchored?: boolean;
 }) {
 	const [hovered, setHovered] = useState(false);
@@ -88,10 +98,11 @@ export function ResizeHandle({
 		(event: React.PointerEvent<HTMLDivElement>) => {
 			event.preventDefault();
 			if (anchored && container.current) {
-				// Pointer distance past the panel's right edge, so the drag stays
+				// Pointer distance past the panel's dragged edge, so the drag stays
 				// relative to where it was grabbed instead of snapping the edge to the cursor.
 				const rect = container.current.getBoundingClientRect();
-				grabOffset.current = event.clientX - rect.right;
+				grabOffset.current =
+					side === "right" ? event.clientX - rect.right : rect.left - event.clientX;
 			} else if (container.current) {
 				const rect = container.current.getBoundingClientRect();
 				const centre = rect.left + rect.width / 2;
@@ -118,7 +129,8 @@ export function ResizeHandle({
 			if (!draggingRef.current || !container.current) return;
 			if (anchored) {
 				const rect = container.current.getBoundingClientRect();
-				onResize(clamp(event.clientX - rect.left - grabOffset.current));
+				const edge = side === "right" ? event.clientX - rect.left : rect.right - event.clientX;
+				onResize(clamp(edge - grabOffset.current));
 				return;
 			}
 			const rect = container.current.getBoundingClientRect();
@@ -142,13 +154,16 @@ export function ResizeHandle({
 	const state: HandleState = dragging ? "drag" : hovered ? "hover" : "idle";
 	// Centre the bar on the inset line: the zone starts at the content edge and
 	// extends outward, so the line sits HANDLE_INSET in from the zone's inner edge.
-	// Anchored panels sit beside the main column, so rather than overhang into it the zone
-	// straddles the panel's border instead, centred on it.
-	const zoneStyle = anchored
-		? { right: -HANDLE_ZONE / 2, paddingLeft: 0 }
-		: side === "right"
-			? { right: -HANDLE_ZONE, paddingLeft: HANDLE_INSET }
-			: { left: -HANDLE_ZONE, paddingRight: HANDLE_INSET };
+	// The left-anchored sidebar sits flush beside the main column, so rather than
+	// overhang into it the zone straddles the panel's border, centred on it. The
+	// right-anchored toc rail has a gutter on its left and its list draws its own
+	// left border, so its bar sits out in the gutter like the centred handles.
+	const zoneStyle =
+		anchored && side === "right"
+			? { right: -HANDLE_ZONE / 2 }
+			: side === "right"
+				? { right: -HANDLE_ZONE, paddingLeft: HANDLE_INSET }
+				: { left: -HANDLE_ZONE, paddingRight: HANDLE_INSET };
 
 	return (
 		<div
@@ -163,15 +178,19 @@ export function ResizeHandle({
 			onPointerCancel={onPointerUp}
 			style={{ width: HANDLE_ZONE, ...zoneStyle }}
 			className={
-				"absolute inset-y-0 z-10 flex cursor-col-resize items-center " +
-				(anchored ? "justify-center" : side === "right" ? "justify-start" : "justify-end")
+				"absolute inset-y-0 z-10 flex cursor-col-resize " +
+				(anchored
+					? "items-center " + (side === "right" ? "justify-center" : "justify-end")
+					: // A column so the sticky pill can slide along the zone's full height.
+						"flex-col " + (side === "right" ? "items-start" : "items-end"))
 			}
 		>
 			<motion.div
 				initial={false}
 				animate={handleBar[state]}
 				transition={{ ...T.snap, opacity: T.fast, backgroundColor: T.fast }}
-				className="shrink-0 rounded-full"
+				className={"shrink-0 rounded-full" + (anchored ? "" : " sticky")}
+				style={anchored ? undefined : { top: `calc(50vh - ${PILL_HEIGHT / 2}px)` }}
 			/>
 		</div>
 	);

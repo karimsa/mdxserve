@@ -48,6 +48,18 @@ export const sidebarWidthAtom = atomWithStorage<number>(
 	{ getOnInit: true },
 );
 
+export const TOC_MIN_WIDTH = 160;
+export const TOC_MAX_WIDTH = 420;
+export const TOC_DEFAULT_WIDTH = 220;
+
+/** "On this page" rail width in px; dragged via the resize handle. */
+export const tocWidthAtom = atomWithStorage<number>(
+	"mdxserve.toc.width",
+	TOC_DEFAULT_WIDTH,
+	undefined,
+	{ getOnInit: true },
+);
+
 export const LISTING_MIN_WIDTH = 360;
 export const LISTING_MAX_WIDTH = 1600;
 
