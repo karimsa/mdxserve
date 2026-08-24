@@ -193,8 +193,9 @@ unlike `moveDocsToTrash`, the MCP tools are read-only.
 Everything the browser UI and the stdio MCP bridge need from a running server goes through one
 [tRPC](https://trpc.io) router, mounted at `http://127.0.0.1:<port>/__mdxserve/trpc` (the
 banner prints it as `API:`). Every method has a zod schema on both its input and its output, and
-a required description; the router lives in `src/api/router.ts` and the browser and the bridge
-import its `AppRouter` type, so a change to a method's shape fails to compile on every caller.
+a required description; each domain module's `controller.ts` (`src/listing/`, `src/search/`,
+`src/validation/`, `src/docs/`, `src/trash/`) defines its procedures and schemas, `src/api/router.ts`
+aggregates them, and the browser and the bridge import its `AppRouter` type, so a change to a method's shape fails to compile on every caller.
 Queries are `GET`, mutations are `POST` with a JSON body (a `POST` with any other content type
 is rejected with 415, and a mutation over `GET` with 405). Mutations are write surfaces, so a
 request carrying an `Origin` header that doesn't match the `Host` it arrived on is rejected

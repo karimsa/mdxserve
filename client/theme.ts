@@ -23,7 +23,7 @@ function applyTheme(theme: Theme): void {
 }
 
 /**
- * The page theme. `src/html.ts` sets `data-theme` on `<html>` before the
+ * The page theme. `src/http/html.ts` sets `data-theme` on `<html>` before the
  * stylesheet loads (same rules as here) so there is no flash; this hook keeps
  * that attribute, localStorage, and React state in sync afterwards.
  *

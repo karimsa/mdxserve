@@ -5,7 +5,7 @@
  *      system's tokens and base styles (client/design/, ported verbatim from the
  *      "mdxserve Design System" Claude Design project).
  *   2. @custom-variant dark — the `dark:` utility variant keys on the
- *      `data-theme` attribute that src/html.ts sets on <html>, not on the OS
+ *      `data-theme` attribute that src/http/html.ts sets on <html>, not on the OS
  *      media query, so the in-app toggle works.
  *   3. @theme inline — exposes the design tokens to Tailwind so utilities like
  *      `bg-surface-card` / `text-text-muted` / `shadow-sm` point straight at

@@ -1,22 +1,30 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import type { Registry } from "../registry.js";
-import type { RootInfo } from "../shell.js";
-import type { RenderOutcome } from "../render.js";
+import type { Registry } from "../components/registry.js";
+import type { RootInfo } from "../roots/root-info.js";
+import type { RenderOutcome } from "../rendering/protocol.js";
+import type { DocCache } from "../docs/doc-cache.js";
+import type { SearchService } from "../search/service.js";
+import type { DocsService } from "../docs/service.js";
 
 /**
  * Everything a procedure resolver needs, built fresh per request by
- * `createContext` in `src/server.ts`. `registry` always comes from here,
+ * `createContext` in `src/http/server.ts`. `registry` always comes from here,
  * never a module-scope `loadRegistry()` — CI runs tests before `yarn build`,
  * so `dist/registry.json` may not exist yet.
  */
 export interface ApiContext {
-	roots: string[];
 	rootInfos: RootInfo[];
 	registry: Registry;
-	/** Whether this request came from the same machine (see src/server.ts). */
+	/** Whether this request came from the same machine (see src/http/server.ts). */
 	isLoopback: boolean;
 	/** Renders a doc server-side; only defined when a Vite dev server is live. */
 	render?: (absPath: string) => Promise<RenderOutcome>;
+	/** Per-process state, created once in startServer. */
+	docCache: DocCache;
+	/** Per-process state, created once in startServer. */
+	search: SearchService;
+	/** Per-process state, created once in startServer: it owns the per-file save lock. */
+	docs: DocsService;
 	/** The request's `Origin` header, when the caller sent one (browsers do on every POST). */
 	origin?: string;
 	/** The `Host` header the request arrived on. */

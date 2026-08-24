@@ -9,7 +9,7 @@
 		"skills"
 	],
 	"scripts": {
-		"build": "tsx scripts/build-registry.ts && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild src/render-worker.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/render-worker.js",
+		"build": "tsx scripts/build-registry.ts && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild src/rendering/render-worker.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/render-worker.js",
 		"registry": "tsx scripts/build-registry.ts",
 		"dev": "tsx scripts/build-registry.ts && tsx src/index.ts example",
 		"typecheck": "tsc --noEmit",

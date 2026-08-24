@@ -12,8 +12,9 @@ type FolderListingOutput = RouterOutputs["getFolderListing"];
 
 export type ListingEntry = FolderListingOutput["entries"][number];
 
-// Kept in sync with the same type in src/shell.ts — client code can't import
-// from src/, so this is a deliberate copy. `dir` has no trailing slash.
+// Kept in sync with the same type in src/roots/root-info.ts — client code
+// can't import from src/, so this is a deliberate copy. `dir` has no
+// trailing slash.
 export interface RootInfo {
 	name: string;
 	dir: string;
@@ -25,8 +26,8 @@ export type Route =
 	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
 	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
-// Derived from the router's own output schema (src/api/schemas.ts's
-// treeNodeSchema is itself typed against src/listing.ts's TreeNode), so this
+// Derived from the router's own output schema (src/listing/controller.ts's
+// treeNodeSchema is itself typed against src/listing/tree.ts's TreeNode), so this
 // can't drift from the server the way a hand-copied interface could.
 export type TreeNode = DocTreeOutput["roots"][number]["nodes"][number];
 

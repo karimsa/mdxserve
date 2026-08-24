@@ -1,4 +1,4 @@
-import type { Registry } from "../../src/registry.js";
+import type { Registry } from "../../src/components/registry.js";
 
 /**
  * A small, hand-built registry for tests — deliberately independent of

@@ -2,13 +2,16 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { startServer } from "./server.js";
-import { loadRegistry, searchRegistry, formatComponent, suggest } from "./registry.js";
-import { cleanCache, getCacheDir } from "./cache.js";
-import { createMcpServer } from "./mcp.js";
-import { createRemote } from "./remote.js";
-import { computeRootInfos, pruneNestedRoots } from "./roots.js";
-import { liveServers } from "./server-registry.js";
+import { startServer } from "./http/start.js";
+import { loadRegistry, formatComponent } from "./components/registry.js";
+import { ComponentsService } from "./components/service.js";
+import { cleanCache, getCacheDir } from "./infra/cache.js";
+import { createMcpServer } from "./mcp/server.js";
+import { RemoteDocsClient } from "./servers/remote.js";
+import { computeRootInfos, pruneNestedRoots } from "./roots/root-info.js";
+import { ServerRegistry } from "./servers/server-registry.js";
+import { DocCache } from "./docs/doc-cache.js";
+import { SearchService } from "./search/service.js";
 
 const program = new Command();
 
@@ -117,19 +120,24 @@ program
 		// servers collapse to the outer one) so a single stdio registration
 		// works no matter which `mdxserve serve` is running. `validate_doc`,
 		// `search_docs`, and `list_docs` proxy to the owning live server(s)
-		// over a tRPC client (src/remote.ts) so the server's warm search index
+		// over a tRPC client (src/servers/remote.ts) so the server's warm search index
 		// and render worker are the single source of truth — the stdio bridge
 		// has neither. A `null`/`unavailable` outcome (no owning server, or the
 		// request itself fails — e.g. a registry row surviving a crash before
 		// its pid check catches up) falls back to local, static-only handling
 		// inside createMcpServer.
+		const serverRegistry = new ServerRegistry();
+		const docCache = new DocCache();
+		const search = new SearchService(docCache);
 		const server = createMcpServer({
 			registry,
 			getRoots: () =>
 				computeRootInfos(
-					pruneNestedRoots(liveServers().flatMap((serverRecord) => serverRecord.roots)),
+					pruneNestedRoots(serverRegistry.live().flatMap((serverRecord) => serverRecord.roots)),
 				),
-			remote: createRemote(),
+			remote: new RemoteDocsClient(() => serverRegistry.live()),
+			docCache,
+			search,
 		});
 
 		const transport = new StdioServerTransport();
@@ -154,7 +162,7 @@ components
 			return;
 		}
 
-		const matches = searchRegistry(registry, query);
+		const matches = new ComponentsService(registry).list(query);
 
 		if (opts.json) {
 			console.log(JSON.stringify(matches, null, 2));
@@ -186,11 +194,12 @@ components
 			return;
 		}
 
-		const entry = registry.components.find((c) => c.name.toLowerCase() === name.toLowerCase());
+		const componentsService = new ComponentsService(registry);
+		const entry = componentsService.find(name);
 
 		if (!entry) {
 			console.error(`Unknown component "${name}".`);
-			const suggestions = suggest(registry, name);
+			const suggestions = componentsService.suggest(name);
 			if (suggestions.length > 0) {
 				console.error(`Did you mean: ${suggestions.join(", ")}?`);
 			}
