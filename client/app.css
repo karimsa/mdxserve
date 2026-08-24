@@ -32,6 +32,7 @@
 @import "./design/tokens/motion.css";
 @import "./design/base/reset.css";
 @import "./design/base/prose.css";
+@import "./design/base/editor.css";
 
 /* `:root[...]` (not bare `[data-theme]`) because rehype-pretty-code stamps
    data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
@@ -218,8 +219,13 @@ html {
 	border-radius: 0;
 }
 
-.mdx-prose > figure[data-rehype-pretty-code-figure] + *,
-.mdx-prose > * + figure[data-rehype-pretty-code-figure] {
+/* Same `:is()` widening as prose.css's direct-child rhythm rules — a code
+   block can sit inside a `.mdx-section` wrapper or a section's own edit-mode
+   `.ProseMirror` surface, not just bare under `.mdx-prose`. */
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > figure[data-rehype-pretty-code-figure] + *,
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror)
+	> *
+	+ figure[data-rehype-pretty-code-figure] {
 	margin-top: var(--prose-gap);
 }
 

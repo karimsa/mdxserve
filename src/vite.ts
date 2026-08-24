@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import type { Server as HttpServer } from "node:http";
@@ -7,12 +8,33 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { escapeBareLt } from "./lenient-md.js";
 import { mdxCompileOptions } from "./mdx-options.js";
+import { remarkSections } from "./remark-sections.js";
 import { getPackageRoot } from "./pkg.js";
 
 const require = createRequire(import.meta.url);
 
 function resolveFromPkg(specifier: string): string {
 	return require.resolve(specifier, { paths: [getPackageRoot()] });
+}
+
+/**
+ * The on-disk directory of a package whose package.json is not in its
+ * "exports" map (so `resolveFromPkg("<name>/package.json")` would throw):
+ * resolve its entry file, then walk up to the nearest package.json that
+ * actually declares that name (skipping any nested one in a dist/ folder).
+ */
+function packageDir(name: string): string {
+	let dir = path.dirname(resolveFromPkg(name));
+	for (;;) {
+		const manifest = path.join(dir, "package.json");
+		if (fs.existsSync(manifest)) {
+			const pkg = JSON.parse(fs.readFileSync(manifest, "utf8")) as { name?: string };
+			if (pkg.name === name) return dir;
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) throw new Error(`Cannot locate package directory for ${name}`);
+		dir = parent;
+	}
 }
 
 export interface CreateDevServerOptions {
@@ -76,14 +98,48 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// date-fns (listing + footer relative times) ships an "exports" map with an
 	// ESM branch; aliasing the package dir lets Vite's resolver pick it.
 	const dateFnsEntry = path.dirname(resolveFromPkg("date-fns/package.json"));
+	// jotai (the single-open-section atom read by MdSection) has no "main"/"module"
+	// ESM default and its subpaths (jotai/utils, and jotai/vanilla + jotai/react
+	// re-exported from within its own entry) all need to keep resolving through
+	// its "exports" map — alias the package dir, same as tippy.js/lucide-react
+	// above, so subpath imports keep working and Vite's resolver (not a fixed
+	// file) picks the ESM branch.
+	const jotaiEntry = path.dirname(resolveFromPkg("jotai/package.json"));
+	// Tiptap (the section editor, client/MdSectionEditor.tsx) is behind a
+	// React.lazy import, so without this Vite would only discover it on the
+	// first edit — then re-optimise ~50 packages and full-reload the page
+	// mid-edit. And because Vite's root here is a fresh temp dir per start, the
+	// dep cache never survives a restart, so that stall would recur every
+	// launch. Pre-bundle the six directly-imported packages at startup instead;
+	// @tiptap/core, @tiptap/pm/* and marked come along transitively. Their
+	// package.json isn't in their "exports" map, hence packageDir().
+	const tiptapPackages = [
+		"@tiptap/react",
+		"@tiptap/starter-kit",
+		"@tiptap/markdown",
+		"@tiptap/extension-list",
+		"@tiptap/extension-table",
+		"@tiptap/extension-image",
+	];
+	const tiptapAliases = tiptapPackages.map((name) => ({
+		find: name,
+		replacement: packageDir(name),
+	}));
 
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
 	const mdxPlugin = {
 		// The compiler options live in mdx-options.ts so the validator shares
 		// them; the extension lists are rollup-plugin-only and make .md go through
-		// the same MDX path as .mdx.
-		...mdx({ ...mdxCompileOptions(), mdxExtensions: [".mdx", ".md"], mdExtensions: [] }),
+		// the same MDX path as .mdx. remarkSections is passed only here, not into
+		// mdx-options.ts's shared mdxCompileOptions(): the validator must never
+		// see an MdSection wrapper, or it would report it as an unregistered
+		// component on every doc.
+		...mdx({
+			...mdxCompileOptions({ remarkPlugins: [remarkSections] }),
+			mdxExtensions: [".mdx", ".md"],
+			mdExtensions: [],
+		}),
 		enforce: "pre" as const,
 	};
 
@@ -132,6 +188,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					"**/build/**",
 					"**/target/**",
 					"**/__pycache__/**",
+					// The save endpoint's atomic-write temp file — never a real edit,
+					// so it shouldn't trigger HMR or the listing-changed watcher.
+					"**/.*.mdxserve-tmp",
 				],
 			},
 			fs: {
@@ -175,6 +234,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				{ find: "tippy.js", replacement: tippyEntry },
 				{ find: "lucide-react", replacement: lucideEntry },
 				{ find: "date-fns", replacement: dateFnsEntry },
+				{ find: "jotai", replacement: jotaiEntry },
+				...tiptapAliases,
 			],
 			dedupe: ["react", "react-dom"],
 		},
@@ -198,6 +259,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				"date-fns",
 				"jotai",
 				"jotai/utils",
+				...tiptapPackages,
 			],
 		},
 		// The rest of this `ssr` block exists only for src/render.ts's
@@ -241,6 +303,12 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					"@tippyjs/react",
 					"tippy.js",
 					"diff",
+					// MdSection (client/mdx-components.ts) reads the open-section atom
+					// with useAtom in its read path — not behind the Tiptap lazy
+					// import — so it's reachable on every SSR render, same as the rest
+					// of this list.
+					"jotai",
+					"jotai/utils",
 					"lucide-react",
 					"date-fns",
 				],

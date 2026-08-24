@@ -20,6 +20,7 @@ import { computeRootInfos, rootNameOf } from "./roots.js";
 import { registerServer, unregisterServer } from "./server-registry.js";
 import { validateSource, type ValidationResult } from "./validate.js";
 import { renderDocument } from "./render.js";
+import { spliceLines } from "./edit.js";
 
 export interface StartServerOptions {
 	roots: string[];
@@ -90,6 +91,43 @@ const MAX_DELETE_BODY = 64 * 1024;
 
 const deleteBodySchema = z.object({
 	paths: z.array(z.string().min(1)).min(1).max(500),
+});
+
+// A doc above this size isn't a "quick prose fix" candidate; refuse to load
+// it into the (in-memory, un-virtualized) Tiptap editor at all.
+const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
+
+// markdown is capped well below the body cap so the 413/400 distinction is
+// meaningful: a body that's merely oversized because of a huge `markdown`
+// field fails schema validation (400) rather than the coarser byte-count
+// check (413).
+const MAX_SAVE_BODY = 320 * 1024;
+
+// Saves to the same file run one at a time. Two overlapping saves that both
+// passed the mtime check could otherwise each read the pre-edit file and
+// each write, the second silently discarding the first; chaining them means
+// the second re-stats after the first's rename and gets the 409 it should.
+const saveQueues = new Map<string, Promise<void>>();
+function withSaveLock<T>(abs: string, task: () => Promise<T>): Promise<T> {
+	const prev = saveQueues.get(abs) ?? Promise.resolve();
+	const run = prev.then(task, task);
+	const settled = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	saveQueues.set(abs, settled);
+	void settled.then(() => {
+		if (saveQueues.get(abs) === settled) saveQueues.delete(abs);
+	});
+	return run;
+}
+
+const saveBodySchema = z.object({
+	path: z.string().min(1),
+	startLine: z.number().int().positive(),
+	endLine: z.number().int().positive(),
+	mtime: z.number(),
+	markdown: z.string().max(256 * 1024),
 });
 
 // A single path string, nothing more — no batching like /api/delete, since
@@ -335,6 +373,191 @@ export async function handleRequest(
 			res.setHeader("Content-Type", "application/json; charset=utf-8");
 			res.statusCode = 200;
 			res.end(JSON.stringify(searchDocs(rootInfos, q)));
+			return;
+		}
+
+		// Serves the raw file for the per-section editor to seed itself from.
+		// "Raw" matters: the compiled doc module has gone through escapeBareLt
+		// and remarkSections, neither of which the editor should ever see —
+		// startLine/endLine from the compiled MdSection props index into the
+		// on-disk file, not the transformed one.
+		if (pathname === "/__mdxserve/api/source") {
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+			if (req.method !== "GET") {
+				res.statusCode = 405;
+				res.setHeader("Allow", "GET");
+				res.end(JSON.stringify({ error: "Method not allowed" }));
+				return;
+			}
+
+			const queryPath = new URLSearchParams(search).get("path") ?? "";
+			const resolved = await resolveDocPath(roots, queryPath);
+			if (!resolved.ok) {
+				res.statusCode = 400;
+				res.end(JSON.stringify({ error: resolved.error }));
+				return;
+			}
+
+			const st = await fsp.stat(resolved.abs);
+			if (st.size > MAX_SOURCE_BYTES) {
+				res.statusCode = 413;
+				res.end(JSON.stringify({ error: "File too large to edit" }));
+				return;
+			}
+
+			const text = await fsp.readFile(resolved.abs, "utf8");
+			res.statusCode = 200;
+			res.end(JSON.stringify({ text, mtime: st.mtimeMs }));
+			return;
+		}
+
+		// Writes back exactly the line range a section editor was seeded from.
+		// mtime is checked against the file the client actually read (not "now"),
+		// so an edit made elsewhere between open and save is caught as a
+		// conflict (409) instead of silently overwritten; the proposed full-file
+		// text is then run through the same validator as validate_doc/`/api/validate`
+		// before anything touches disk, so a save can never leave a doc broken.
+		if (pathname === "/__mdxserve/api/save") {
+			res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+			if (req.method !== "POST") {
+				res.statusCode = 405;
+				res.setHeader("Allow", "POST");
+				res.end(JSON.stringify({ error: "Method not allowed" }));
+				return;
+			}
+
+			// Compare the parsed media type, not a substring: a non-preflighted
+			// cross-origin request can smuggle "application/json" into a
+			// text/plain parameter (`text/plain;x=application/json`).
+			const mediaType = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+			if (mediaType !== "application/json") {
+				res.statusCode = 415;
+				res.end(JSON.stringify({ error: "Expected application/json" }));
+				return;
+			}
+
+			const body = await readBody(req, MAX_SAVE_BODY);
+			if (body === null) {
+				res.statusCode = 413;
+				res.end(JSON.stringify({ error: "Body too large" }));
+				return;
+			}
+
+			let save: z.infer<typeof saveBodySchema>;
+			try {
+				save = saveBodySchema.parse(JSON.parse(body));
+			} catch {
+				res.statusCode = 400;
+				res.end(
+					JSON.stringify({
+						error: "Invalid body: expected { path, startLine, endLine, mtime, markdown }",
+					}),
+				);
+				return;
+			}
+
+			// This is a write surface, and the server may be bound to 0.0.0.0 for
+			// LAN sharing — unlike the read-only API routes, a cross-origin caller
+			// must not be able to reach it. A same-origin request either omits
+			// Origin (plain navigation/fetch without CORS) or sends one whose host
+			// matches the Host header it's arriving on; anything else is rejected.
+			const origin = req.headers.origin;
+			if (origin !== undefined) {
+				let originHost: string | null;
+				try {
+					originHost = new URL(origin).host;
+				} catch {
+					originHost = null;
+				}
+				if (originHost !== req.headers.host) {
+					res.statusCode = 403;
+					res.end(JSON.stringify({ error: "Cross-origin write rejected" }));
+					return;
+				}
+			}
+
+			const resolved = await resolveDocPath(roots, save.path);
+			if (!resolved.ok) {
+				res.statusCode = 400;
+				res.end(JSON.stringify({ error: resolved.error }));
+				return;
+			}
+			// Write to the real file, not the path the user navigated to: if
+			// `save.path` is a symlink, rename() onto it would replace the link
+			// itself with a regular file and leave the target untouched.
+			// resolveDocPath already checked the realpath stays inside the root.
+			const abs = await fsp.realpath(resolved.abs);
+
+			await withSaveLock(abs, async () => {
+				const st = await fsp.stat(abs);
+				if (st.mtimeMs !== save.mtime) {
+					res.statusCode = 409;
+					res.end(JSON.stringify({ error: "stale", mtime: st.mtimeMs }));
+					return;
+				}
+
+				const source = await fsp.readFile(abs, "utf8");
+				const spliced = spliceLines(source, save.startLine, save.endLine, save.markdown);
+				if (!spliced.ok) {
+					// The file changed shape (fewer lines than the editor expects) even
+					// though mtime matched at the check above — treat it the same as a
+					// stale-mtime conflict rather than writing garbage.
+					res.statusCode = 409;
+					res.end(JSON.stringify({ error: spliced.error }));
+					return;
+				}
+
+				const validation = await validateSource({
+					source: spliced.text,
+					path: abs,
+					registry: ctx.mcp.registry,
+					resolveImport: (specifier) => importResolves(abs, specifier),
+				});
+				if (!validation.ok) {
+					const firstError = validation.diagnostics.find((d) => d.severity === "error");
+					res.statusCode = 422;
+					res.end(
+						JSON.stringify({
+							error: firstError?.message ?? "Validation failed",
+							diagnostics: validation.diagnostics,
+						}),
+					);
+					return;
+				}
+
+				// Atomic write: stage in a hidden dotfile next to the target (same
+				// directory => same filesystem => rename() is atomic), carry over the
+				// original file's mode, then rename over it. The dotfile is also
+				// chokidar-ignored (src/vite.ts `server.watch.ignored`), so it never
+				// triggers HMR or the listing-changed watcher on its own.
+				const tmp = path.join(path.dirname(abs), "." + path.basename(abs) + ".mdxserve-tmp");
+				try {
+					await fsp.writeFile(tmp, spliced.text, "utf8");
+					await fsp.chmod(tmp, st.mode);
+					// Last look before committing: an editor or another process may
+					// have written the file while we were validating. Same 409 as the
+					// check at the top; the client's mtime is still the one it read.
+					const latest = await fsp.stat(abs);
+					if (latest.mtimeMs !== save.mtime) {
+						res.statusCode = 409;
+						res.end(JSON.stringify({ error: "stale", mtime: latest.mtimeMs }));
+						return;
+					}
+					await fsp.rename(tmp, abs);
+				} finally {
+					await fsp.unlink(tmp).catch(() => {});
+				}
+
+				// No websocket push: every root is already on vite.watcher, so the
+				// rename above fires chokidar's own "change" event, which drives
+				// Vite's HMR and re-renders the doc with fresh MdSection line numbers.
+				const finalStat = await fsp.stat(abs);
+				res.statusCode = 200;
+				res.end(JSON.stringify({ mtime: finalStat.mtimeMs }));
+				return;
+			});
 			return;
 		}
 

@@ -10,7 +10,21 @@
 	   opportunities; let them wrap instead of pushing past the column. */
 	overflow-wrap: break-word;
 }
-.mdx-prose > * + * {
+/* `<MdSection>` (client/MdSection.tsx) wraps every editable run of top-level
+   markdown nodes but must be visually transparent in read mode — no padding,
+   border or overflow, just `position: relative` for the hover pencil — so
+   its children's margins keep collapsing through it exactly as if `.mdx-prose`
+   were their direct parent. */
+.mdx-section {
+	position: relative;
+}
+/* The direct-child rhythm rules below therefore have to reach three levels:
+   `.mdx-prose` itself (docs with no sections, or content before the first
+   one), `.mdx-section` (the normal wrapped case), and `.mdx-prose .ProseMirror`
+   (a section's own edit-mode surface) — the last one is what makes editing
+   WYSIWYG, since without it a heading/list typed into the editor would use
+   ProseMirror's default spacing instead of mdxserve's. */
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > * + * {
 	margin-top: var(--prose-gap);
 }
 .mdx-prose h1:not(:where(.not-prose, .not-prose *)) {
@@ -33,13 +47,13 @@
 .mdx-prose h4:not(:where(.not-prose, .not-prose *)) {
 	position: relative;
 }
-.mdx-prose > h2 {
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > h2 {
 	margin-top: var(--prose-gap-heading);
 	padding-top: var(--space-6);
 	border-top: 1px solid var(--border-subtle);
 }
-.mdx-prose > h3,
-.mdx-prose > h4 {
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > h3,
+:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > h4 {
 	margin-top: var(--prose-gap-block);
 }
 .mdx-prose strong:not(:where(.not-prose, .not-prose *)) {
@@ -106,6 +120,10 @@
 .mdx-anchor {
 	position: absolute;
 	left: -1.1em;
+	/* Above DocView's ResizeHandle (z-10, absolute inset-y-0 on the same
+	   container): the glyph hangs in the left gutter where the handle lives,
+	   and without this the handle takes the hover and the click. */
+	z-index: 20;
 	/* `top: 0` would sit in an h2's padding-top (the rule above it); anchor
 	   to the bottom of the box so the glyph shares the heading's last line. */
 	bottom: 0;

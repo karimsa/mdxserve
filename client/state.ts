@@ -1,3 +1,4 @@
+import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
 export type SortKey = "name" | "modified";
@@ -78,3 +79,12 @@ export const DOC_MAX_WIDTH = 1600;
 export const docWidthAtom = atomWithStorage<number | null>("mdxserve.doc.width", null, undefined, {
 	getOnInit: true,
 });
+
+/**
+ * The key (`${path}:${startLine}:${endLine}`) of the `MdSection` currently in
+ * edit mode, or null. Plain in-memory atom — not persisted, since an open
+ * editor holding unsaved edits should never survive a reload. Only one
+ * section edits at a time: a `Section` that isn't this atom's value drops
+ * back to read mode, discarding whatever it had open (see client/MdSection.tsx).
+ */
+export const openSectionAtom = atom<string | null>(null);

@@ -2,10 +2,7 @@ import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
 import { Kbd } from "../ui/Kbd";
 import type { Theme } from "../theme";
-
-function isApplePlatform(): boolean {
-	return /Mac|iPhone|iPod|iPad/.test(navigator.platform);
-}
+import { isApplePlatform } from "../platform";
 
 function Wordmark() {
 	return (

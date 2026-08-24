@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { MdSection } from "./MdSection";
 import { TaskCheckbox } from "./TaskCheckbox";
 import { Figure, Pre } from "./CodeBlock";
 import { H2, H3, H4 } from "./Heading";
@@ -19,4 +20,10 @@ export const mdxComponents: Record<string, ComponentType<any>> = {
 	h4: H4,
 	input: TaskCheckbox,
 	table: Table,
+	// The remark-sections compiler plugin (src/remark-sections.ts, server-owned)
+	// wraps every editable run of top-level markdown nodes in this synthetic
+	// element. It is NOT in the base compile options seen by validate_doc's
+	// static registry check (src/mdx-options.ts), only in the live Vite config
+	// — so it must be registered here (SSR-safe) but never listed as a builtin.
+	MdSection,
 };

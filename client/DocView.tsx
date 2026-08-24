@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { useLayoutEffect, useRef } from "react";
-import { useSetAtom } from "jotai";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { DocContext } from "./DocContext";
 import { fadeRise } from "./motion";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { docModuleCache, type Route } from "./router";
 import { ResizeHandle } from "./ui/ResizeHandle";
-import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom } from "./state";
+import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "./state";
 
 // Each Component a re-import produces (including an HMR re-import after a
 // fix) is a distinct function identity, so this assigns it a stable, unique
@@ -52,7 +53,17 @@ export function DocView({
 }) {
 	const cached = docModuleCache.get(route.path);
 	const setWidth = useSetAtom(docWidthAtom);
+	// While a section is being edited the page width is pinned: a drag would
+	// reflow the editor under the caret, and the handles' hover strips sit
+	// exactly where the frame's glow and hints live.
+	const editing = useAtomValue(openSectionAtom) !== null;
 	const container = useRef<HTMLDivElement>(null);
+	// Every `MdSection` inside `<Content/>` reads the doc's path off this
+	// context (see client/DocContext.ts) instead of a prop, since MDX content
+	// components render through the MDXProvider map and never see route props
+	// directly. Memoized on the path so identity-sensitive children (none
+	// currently, but cheap insurance) don't see a new object every render.
+	const docContext = useMemo(() => ({ path: route.path }), [route.path]);
 
 	useLayoutEffect(() => {
 		if (cached?.status === "ok") onRendered?.();
@@ -71,26 +82,32 @@ export function DocView({
 	const Content = cached.Component;
 	return (
 		<div ref={container} className="relative">
-			<ResizeHandle
-				side="left"
-				container={container}
-				onResize={setWidth}
-				label="Resize page"
-				minWidth={DOC_MIN_WIDTH}
-				maxWidth={DOC_MAX_WIDTH}
-			/>
-			<ResizeHandle
-				side="right"
-				container={container}
-				onResize={setWidth}
-				label="Resize page"
-				minWidth={DOC_MIN_WIDTH}
-				maxWidth={DOC_MAX_WIDTH}
-			/>
+			{!editing && (
+				<>
+					<ResizeHandle
+						side="left"
+						container={container}
+						onResize={setWidth}
+						label="Resize page"
+						minWidth={DOC_MIN_WIDTH}
+						maxWidth={DOC_MAX_WIDTH}
+					/>
+					<ResizeHandle
+						side="right"
+						container={container}
+						onResize={setWidth}
+						label="Resize page"
+						minWidth={DOC_MIN_WIDTH}
+						maxWidth={DOC_MAX_WIDTH}
+					/>
+				</>
+			)}
 			<article className="mdx-prose min-w-0 max-w-full">
-				<RenderErrorBoundary key={keyForComponent(Content)}>
-					<Content />
-				</RenderErrorBoundary>
+				<DocContext value={docContext}>
+					<RenderErrorBoundary key={keyForComponent(Content)}>
+						<Content />
+					</RenderErrorBoundary>
+				</DocContext>
 			</article>
 		</div>
 	);
