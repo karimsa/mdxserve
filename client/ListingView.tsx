@@ -292,11 +292,24 @@ function SelectMenu({
 	);
 }
 
-export function ListingView({ route }: { route: Extract<Route, { kind: "listing" }> }) {
-	const { path, entries } = route;
+export function ListingView({
+	route,
+	singleRoot,
+}: {
+	route: Extract<Route, { kind: "listing" }>;
+	/** Whether the server serves only one root — hides the top-of-root parent row. */
+	singleRoot: boolean;
+}) {
+	const { path, rootDir, entries } = route;
+	const atRootTop = path === `${rootDir}/`;
 	const segments = path.split("/").filter(Boolean);
 	const parentSegments = segments.slice(0, -1);
-	const parentHref = parentSegments.length ? `/${parentSegments.join("/")}/` : "/";
+	const parentHref = atRootTop
+		? "/"
+		: parentSegments.length
+			? `/${parentSegments.join("/")}/`
+			: "/";
+	const showParentRow = !atRootTop || !singleRoot;
 
 	const [sort, setSort] = useAtom(listingSortAtom);
 	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
@@ -469,7 +482,7 @@ export function ListingView({ route }: { route: Extract<Route, { kind: "listing"
 				animate="enter"
 				className="divide-y divide-border-subtle border-y border-border-subtle"
 			>
-				{path !== "/" ? (
+				{showParentRow ? (
 					<Row href={parentHref} icon="folder" label=".." muted={false} selectable={false} />
 				) : null}
 				{sorted.map((entry: ListingEntry) => {

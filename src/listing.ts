@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readDoc } from "./doc.js";
+import type { RootInfo } from "./shell.js";
 
 export interface ListingEntry {
 	name: string;
@@ -19,6 +20,7 @@ export interface ListingRoute {
 	kind: "listing";
 	path: string;
 	rootName: string;
+	rootDir: string;
 	entries: ListingEntry[];
 }
 
@@ -47,7 +49,7 @@ const TREE_IGNORED_DIRS = new Set([
 
 export interface TreeNode {
 	name: string;
-	/** Root-relative URL path; directories end in "/". */
+	/** Absolute filesystem path; directories end in "/". */
 	path: string;
 	isDir: boolean;
 	isDoc: boolean;
@@ -57,18 +59,15 @@ export interface TreeNode {
 }
 
 /**
- * Recursively read the doc tree rooted at `urlPath` within the served
- * directory `root`. Only .md/.mdx files and directories that (transitively)
- * contain at least one doc are included. Purely data — no HTML.
+ * Recursively read the doc tree rooted at the absolute directory `dirAbs`.
+ * Only .md/.mdx files and directories that (transitively) contain at least
+ * one doc are included. Purely data — no HTML.
  */
-export function readTree(root: string, urlPath = "/", maxDepth = 8): TreeNode[] {
-	function walk(dirUrlPath: string, depth: number): TreeNode[] {
-		const normalized = dirUrlPath.endsWith("/") ? dirUrlPath : `${dirUrlPath}/`;
-		const dirFsPath = path.join(root, normalized);
-
+export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
+	function walk(dir: string, depth: number): TreeNode[] {
 		let dirents: fs.Dirent[];
 		try {
-			dirents = fs.readdirSync(dirFsPath, { withFileTypes: true });
+			dirents = fs.readdirSync(dir, { withFileTypes: true });
 		} catch {
 			return [];
 		}
@@ -76,22 +75,22 @@ export function readTree(root: string, urlPath = "/", maxDepth = 8): TreeNode[] 
 		const nodes: TreeNode[] = [];
 		for (const d of dirents) {
 			if (!isServable(d.name)) continue;
+			const abs = path.join(dir, d.name);
 
 			if (d.isDirectory()) {
 				if (TREE_IGNORED_DIRS.has(d.name)) continue;
 				if (depth >= maxDepth) continue;
-				const childUrlPath = `${normalized}${d.name}/`;
-				const children = walk(childUrlPath, depth + 1);
+				const children = walk(abs, depth + 1);
 				if (children.length === 0) continue;
 				let mtime: number | undefined;
 				try {
-					mtime = fs.statSync(path.join(dirFsPath, d.name)).mtimeMs;
+					mtime = fs.statSync(abs).mtimeMs;
 				} catch {
 					mtime = undefined;
 				}
 				nodes.push({
 					name: d.name,
-					path: childUrlPath,
+					path: `${abs}/`,
 					isDir: true,
 					isDoc: false,
 					mtime,
@@ -105,13 +104,13 @@ export function readTree(root: string, urlPath = "/", maxDepth = 8): TreeNode[] 
 
 			let mtime: number | undefined;
 			try {
-				mtime = fs.statSync(path.join(dirFsPath, d.name)).mtimeMs;
+				mtime = fs.statSync(abs).mtimeMs;
 			} catch {
 				mtime = undefined;
 			}
 			nodes.push({
 				name: d.name,
-				path: `${normalized}${d.name}`,
+				path: abs,
 				isDir: false,
 				isDoc: true,
 				mtime,
@@ -126,18 +125,15 @@ export function readTree(root: string, urlPath = "/", maxDepth = 8): TreeNode[] 
 		return nodes;
 	}
 
-	return walk(urlPath, 0);
+	return walk(dirAbs, 0);
 }
 
 /**
- * Read a directory listing for `urlPath` (root-relative, e.g. "/" or
- * "/sub/") within the served directory `root`. Purely data — no HTML.
+ * Read a directory listing for the absolute directory `dirAbs`, which belongs
+ * to the mounted root `rootInfo`. Purely data — no HTML.
  */
-export function readListing(root: string, urlPath: string): ListingRoute {
-	const normalized = urlPath.endsWith("/") ? urlPath : `${urlPath}/`;
-	const dirFsPath = path.join(root, normalized);
-
-	const dirents = fs.readdirSync(dirFsPath, { withFileTypes: true });
+export function readListing(dirAbs: string, rootInfo: RootInfo): ListingRoute {
+	const dirents = fs.readdirSync(dirAbs, { withFileTypes: true });
 
 	const entries: ListingEntry[] = dirents
 		.filter((d) => isServable(d.name))
@@ -145,7 +141,7 @@ export function readListing(root: string, urlPath: string): ListingRoute {
 			const isDir = d.isDirectory();
 			const ext = path.extname(d.name).toLowerCase();
 			const isDoc = !isDir && (ext === ".md" || ext === ".mdx");
-			const absPath = path.join(dirFsPath, d.name);
+			const absPath = path.join(dirAbs, d.name);
 			let size: number | undefined;
 			let mtime: number | undefined;
 			try {
@@ -172,7 +168,11 @@ export function readListing(root: string, urlPath: string): ListingRoute {
 			return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
 		});
 
-	const rootName = path.basename(root) || root;
-
-	return { kind: "listing", path: normalized, rootName, entries };
+	return {
+		kind: "listing",
+		path: `${dirAbs}/`,
+		rootName: rootInfo.name,
+		rootDir: rootInfo.dir,
+		entries,
+	};
 }

@@ -27,7 +27,10 @@ export function Footer({ route }: { route: Extract<Route, { kind: "doc" }> }) {
 	return (
 		<div className="mt-8 flex items-center gap-2 font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle">
 			<Icon name="file-text" size="sm" strokeWidth="light" />
-			<span className="font-mono text-[length:var(--size-xs)]">{route.path}</span>
+			<span className="font-mono text-[length:var(--size-xs)]">
+				{route.rootName}
+				{route.path.slice(route.rootDir.length)}
+			</span>
 			<span>·</span>
 			<span>{formatEdited(mtime)}</span>
 		</div>

@@ -8,12 +8,14 @@ import { H2, H3, H4 } from "./Heading";
 import { Table } from "./Table";
 import { builtinComponents } from "./builtins/index";
 import { ToastStack } from "./ui/Toast";
-import type { Route } from "./router";
+import { shellInfo, type Route } from "./router";
 
 function parseInitialRoute(): Route {
-	const fallback: Route = { kind: "notfound", path: location.pathname, rootName: "" };
+	const fallback: Route = { kind: "notfound", path: location.pathname };
 	const el = document.getElementById("__mdxserve_route");
 	if (!el?.textContent) return fallback;
+	const rootCount = Number.parseInt(el.dataset.rootCount ?? "", 10);
+	if (Number.isFinite(rootCount)) shellInfo.rootCount = rootCount;
 	try {
 		return JSON.parse(el.textContent) as Route;
 	} catch {

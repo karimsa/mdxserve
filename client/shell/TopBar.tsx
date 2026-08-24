@@ -61,7 +61,7 @@ export function TopBar({
 				className="flex h-[30px] w-60 items-center gap-2 rounded-md border border-border-default bg-surface-card px-2.5 text-[13px] text-text-subtle shadow-xs cursor-pointer"
 			>
 				<Icon name="search" size="sm" />
-				<span className="flex-1 text-left">Search this folder</span>
+				<span className="flex-1 text-left">Search docs</span>
 				<Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
 			</button>
 			<IconButton

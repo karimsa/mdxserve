@@ -49,7 +49,7 @@ export function TocList({
 								}
 							}}
 							className={
-								"relative block border-l-2 border-border-default py-[5px] text-[13px] leading-normal no-underline transition-colors " +
+								"relative block break-words border-l-2 border-border-default py-[5px] text-[13px] leading-normal no-underline transition-colors " +
 								(active ? "font-semibold text-text-accent" : "font-normal text-text-muted")
 							}
 							style={{ paddingLeft: 10 + ((item.level ?? 2) - 2) * 12 }}

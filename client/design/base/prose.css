@@ -6,6 +6,9 @@
 	font: var(--type-prose);
 	color: var(--text-body);
 	max-width: var(--width-prose);
+	/* Long identifiers in headings/prose (`Foo.get_arrow_schema`) have no break
+	   opportunities; let them wrap instead of pushing past the column. */
+	overflow-wrap: break-word;
 }
 .mdx-prose > * + * {
 	margin-top: var(--prose-gap);
@@ -103,7 +106,9 @@
 .mdx-anchor {
 	position: absolute;
 	left: -1.1em;
-	top: 0;
+	/* `top: 0` would sit in an h2's padding-top (the rule above it); anchor
+	   to the bottom of the box so the glyph shares the heading's last line. */
+	bottom: 0;
 	opacity: 0;
 	color: var(--text-subtle);
 	text-decoration: none;

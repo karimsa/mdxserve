@@ -13,16 +13,24 @@ export interface ListingEntry {
 	mtime?: number;
 }
 
+// Kept in sync with the same type in src/shell.ts — client code can't import
+// from src/, so this is a deliberate copy. `dir` has no trailing slash.
+export interface RootInfo {
+	name: string;
+	dir: string;
+}
+
 export type Route =
-	| { kind: "listing"; path: string; rootName: string; entries: ListingEntry[] }
-	| { kind: "doc"; path: string; rootName: string; mtime?: number }
-	| { kind: "notfound"; path: string; rootName: string };
+	| { kind: "home"; roots: RootInfo[] }
+	| { kind: "listing"; path: string; rootName: string; rootDir: string; entries: ListingEntry[] }
+	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
+	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
 // Kept in sync with the same type in src/listing.ts — client code can't
 // import from src/, so this is a deliberate copy.
 export interface TreeNode {
 	name: string;
-	/** Root-relative URL path; directories end in "/". */
+	/** Absolute URL path; directories end in "/". */
 	path: string;
 	isDir: boolean;
 	isDoc: boolean;
@@ -31,11 +39,16 @@ export interface TreeNode {
 	children?: TreeNode[];
 }
 
+/** A mounted root together with its doc tree. */
+export interface RootTree extends RootInfo {
+	tree: TreeNode[];
+}
+
 export type DocModuleState =
 	{ status: "ok"; Component: ComponentType } | { status: "error"; message: string };
 
 /**
- * Modules imported for doc routes, keyed by root-relative path. Shared across
+ * Modules imported for doc routes, keyed by absolute path. Shared across
  * the whole SPA session (module scope, not component state) so DocView can
  * render synchronously once a route resolves, and so re-visiting a doc
  * doesn't re-trigger the dynamic import.
@@ -48,7 +61,8 @@ function ensureDocModule(path: string): Promise<void> {
 	const pending = docModulePromises.get(path);
 	if (pending) return pending;
 
-	const promise = import(/* @vite-ignore */ path)
+	// Vite serves absolute filesystem paths through its /@fs/ scheme.
+	const promise = import(/* @vite-ignore */ "/@fs" + path)
 		.then((mod: { default?: ComponentType }) => {
 			if (!mod.default) {
 				docModuleCache.set(path, { status: "error", message: `${path} has no default export.` });
@@ -69,15 +83,11 @@ function ensureDocModule(path: string): Promise<void> {
 }
 
 interface TreeApiResponse {
-	rootName: string;
-	root: string;
-	nodes: TreeNode[];
+	roots: { name: string; dir: string; nodes: TreeNode[] }[];
 }
 
 interface TreeState {
-	tree: TreeNode[] | null;
-	rootName: string;
-	rootDir: string;
+	roots: RootTree[] | null;
 }
 
 type TreeListener = (state: TreeState) => void;
@@ -88,16 +98,21 @@ type TreeListener = (state: TreeState) => void;
  * consumer (sidebar, search, docMtime lookups) reads the same snapshot.
  */
 export const treeStore: TreeState & { listeners: Set<TreeListener> } = {
-	tree: null,
-	rootName: "",
-	rootDir: "",
+	roots: null,
 	listeners: new Set(),
 };
+
+/**
+ * What the server-rendered shell already knows about the roots, seeded by
+ * entry.tsx before React mounts so multi-root navigation (home crumb, `..`
+ * row) doesn't flash in or out while the tree API is still loading.
+ */
+export const shellInfo: { rootCount: number | null } = { rootCount: null };
 
 let treeLoadPromise: Promise<TreeState> | null = null;
 
 function snapshotTree(): TreeState {
-	return { tree: treeStore.tree, rootName: treeStore.rootName, rootDir: treeStore.rootDir };
+	return { roots: treeStore.roots };
 }
 
 function notifyTreeListeners(): void {
@@ -110,9 +125,7 @@ async function fetchTree(): Promise<TreeState> {
 		const res = await fetch("/__mdxserve/api/tree");
 		if (res.ok) {
 			const data = (await res.json()) as TreeApiResponse;
-			treeStore.tree = data.nodes;
-			treeStore.rootName = data.rootName;
-			treeStore.rootDir = data.root;
+			treeStore.roots = data.roots.map((r) => ({ name: r.name, dir: r.dir, tree: r.nodes }));
 		}
 	} catch {
 		// Leave the previous (possibly null) tree in place; callers can retry.
@@ -148,7 +161,7 @@ export function useTree(): TreeState {
 
 	useEffect(() => {
 		treeStore.listeners.add(setState);
-		if (treeStore.tree === null) {
+		if (treeStore.roots === null) {
 			void loadTree();
 		} else {
 			setState(snapshotTree());
@@ -163,8 +176,7 @@ export function useTree(): TreeState {
 
 /** Look up a doc's mtime in the cached tree (undefined if not loaded/found). */
 export function docMtime(path: string): number | undefined {
-	function find(nodes: TreeNode[] | null): number | undefined {
-		if (!nodes) return undefined;
+	function find(nodes: TreeNode[]): number | undefined {
 		for (const node of nodes) {
 			if (!node.isDir && node.path === path) return node.mtime;
 			if (node.children) {
@@ -174,11 +186,32 @@ export function docMtime(path: string): number | undefined {
 		}
 		return undefined;
 	}
-	return find(treeStore.tree);
+	if (!treeStore.roots) return undefined;
+	for (const root of treeStore.roots) {
+		const found = find(root.tree);
+		if (found !== undefined) return found;
+	}
+	return undefined;
+}
+
+/**
+ * The mounted root containing `path` (longest `dir` prefix match), or
+ * undefined before the tree loads or when `path` lies outside every root.
+ */
+export function rootFor(path: string): RootInfo | undefined {
+	if (!treeStore.roots) return undefined;
+	let best: RootInfo | undefined;
+	for (const root of treeStore.roots) {
+		if (path === root.dir || path.startsWith(`${root.dir}/`)) {
+			if (!best || root.dir.length > best.dir.length) best = root;
+		}
+	}
+	return best;
 }
 
 function titleFor(route: Route): string {
-	if (route.kind === "listing") return `${route.rootName}${route.path}`;
+	if (route.kind === "home") return "mdxserve";
+	if (route.kind === "listing") return `${route.rootName}${route.path.slice(route.rootDir.length)}`;
 	if (route.kind === "doc") {
 		const segments = route.path.split("/").filter(Boolean);
 		return segments[segments.length - 1] ?? route.rootName;
@@ -189,7 +222,14 @@ function titleFor(route: Route): string {
 interface ListingApiResponse {
 	path: string;
 	rootName: string;
+	rootDir: string;
 	entries: ListingEntry[];
+}
+
+/** The `rootName`/`rootDir` a route carries, if any (every kind but `home`). */
+function routeRootFields(route: Route): { rootName?: string; rootDir?: string } {
+	if (route.kind === "home") return {};
+	return { rootName: route.rootName, rootDir: route.rootDir };
 }
 
 /**
@@ -200,28 +240,47 @@ interface ListingApiResponse {
  */
 export function useRouter(initialRoute: Route) {
 	const [route, setRoute] = useState<Route>(initialRoute);
-	const rootNameRef = useRef(initialRoute.rootName);
 	const routeRef = useRef(route);
 	routeRef.current = route;
 
 	const loadRoute = useCallback(async (path: string): Promise<Route | null> => {
+		if (path === "/") {
+			// Mirrors the server's own "/" handling: a single root redirects
+			// straight to its listing; otherwise show the roots home page.
+			const { roots } = await loadTree();
+			if (roots && roots.length === 1) return loadRoute(`${roots[0].dir}/`);
+			return { kind: "home", roots: (roots ?? []).map((r) => ({ name: r.name, dir: r.dir })) };
+		}
+
 		if (path.endsWith("/")) {
 			try {
 				const res = await fetch(`/__mdxserve/api/listing?path=${encodeURIComponent(path)}`);
 				if (!res.ok) {
-					return { kind: "notfound", path, rootName: rootNameRef.current };
+					return { kind: "notfound", path, ...routeRootFields(routeRef.current) };
 				}
 				const data = (await res.json()) as ListingApiResponse;
-				rootNameRef.current = data.rootName;
-				return { kind: "listing", path: data.path, rootName: data.rootName, entries: data.entries };
+				return {
+					kind: "listing",
+					path: data.path,
+					rootName: data.rootName,
+					rootDir: data.rootDir,
+					entries: data.entries,
+				};
 			} catch {
-				return { kind: "notfound", path, rootName: rootNameRef.current };
+				return { kind: "notfound", path, ...routeRootFields(routeRef.current) };
 			}
 		}
 
 		if (path.endsWith(".md") || path.endsWith(".mdx")) {
 			await ensureDocModule(path);
-			return { kind: "doc", path, rootName: rootNameRef.current };
+			const root = rootFor(path);
+			const fallback = routeRootFields(routeRef.current);
+			return {
+				kind: "doc",
+				path,
+				rootName: root?.name ?? fallback.rootName ?? "",
+				rootDir: root?.dir ?? fallback.rootDir ?? "",
+			};
 		}
 
 		// Not a listing or a doc: let the browser handle it as a normal navigation.
@@ -233,7 +292,10 @@ export function useRouter(initialRoute: Route) {
 		(path: string) => {
 			loadRoute(path).then((next) => {
 				if (!next) return;
-				history.pushState({}, "", path);
+				// Push the path the route actually resolved to: with a single root,
+				// "/" resolves to that root's listing (mirroring the server's 302),
+				// and the address bar should say so.
+				history.pushState({}, "", next.kind === "home" ? "/" : next.path);
 				document.title = titleFor(next);
 				setRoute(next);
 			});
@@ -249,7 +311,9 @@ export function useRouter(initialRoute: Route) {
 		let cancelled = false;
 		ensureDocModule(initialRoute.path).then(() => {
 			if (cancelled) return;
-			setRoute((current) => (current.path === initialRoute.path ? { ...current } : current));
+			setRoute((current) =>
+				current.kind === "doc" && current.path === initialRoute.path ? { ...current } : current,
+			);
 		});
 		return () => {
 			cancelled = true;
@@ -327,7 +391,8 @@ export function useRouter(initialRoute: Route) {
 			const path = current.path;
 			loadRoute(path).then((next) => {
 				if (!next) return;
-				if (routeRef.current.path !== path) return; // user navigated away meanwhile
+				const latest = routeRef.current;
+				if (latest.kind !== "listing" || latest.path !== path) return; // user navigated away meanwhile
 				setRoute(next);
 			});
 		}

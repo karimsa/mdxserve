@@ -2,10 +2,17 @@ import path from "node:path";
 import { renderDocument, escapeHtml } from "./html.js";
 import type { ListingEntry } from "./listing.js";
 
+export interface RootInfo {
+	name: string;
+	/** Absolute filesystem path, no trailing slash. */
+	dir: string;
+}
+
 export type Route =
-	| { kind: "listing"; path: string; rootName: string; entries: ListingEntry[] }
-	| { kind: "doc"; path: string; rootName: string; mtime?: number }
-	| { kind: "notfound"; path: string; rootName: string };
+	| { kind: "home"; roots: RootInfo[] }
+	| { kind: "listing"; path: string; rootName: string; rootDir: string; entries: ListingEntry[] }
+	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
+	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
 // Route JSON is embedded inside an inline <script type="application/json">.
 // Escape "</" and "<!--" so nothing in a file/dir name (or the JSON itself)
@@ -16,6 +23,8 @@ function escapeForInlineScript(json: string): string {
 
 function titleFor(route: Route): string {
 	switch (route.kind) {
+		case "home":
+			return "mdxserve";
 		case "listing": {
 			const segments = route.path.split("/").filter(Boolean);
 			return segments.length > 0 ? segments[segments.length - 1] : route.rootName;
@@ -32,11 +41,17 @@ function titleFor(route: Route): string {
  * not-found) is rendered client-side by the SPA, which reads the embedded
  * route JSON and boots from there.
  */
-export function renderShell(route: Route, entrySrc = "/__mdxserve/entry.tsx"): string {
+export function renderShell(
+	route: Route,
+	entrySrc = "/__mdxserve/entry.tsx",
+	rootCount = 1,
+): string {
 	const routeJson = escapeForInlineScript(JSON.stringify(route));
 
+	// The root count rides along so the client knows whether to show
+	// multi-root navigation before the tree API has answered.
 	const body = `    <div id="root"></div>
-    <script id="__mdxserve_route" type="application/json">${routeJson}</script>
+    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}">${routeJson}</script>
     <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
 	return renderDocument({ title: titleFor(route), body });

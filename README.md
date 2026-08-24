@@ -30,12 +30,16 @@ npx mdxserve [dir]           # serve `dir` (defaults to the current directory)
 npx mdxserve -p 5000 [dir]   # pick a port (default 4040; falls back to a free port if taken)
 npx mdxserve --host 0.0.0.0 [dir]  # expose on the LAN (default binds to 127.0.0.1 only)
 npx mdxserve -D [dir]        # run in the background via oxmgr (prints the stop/delete commands)
-npx mdxserve -w ~/notes docs # chdir into ~/notes first; [dir] is relative to it
+npx mdxserve -w ~/notes -w ~/work/docs  # serve several unrelated folders at once
+npx mdxserve docs -w ~/notes            # [dir] is shorthand for one more `-w` root
 ```
 
-Then open the printed URL. Folders always show a listing; `.md`/`.mdx` files
-render as pages. Everything else in a directory is listed too, muted and
-unclickable, so you can see what's there.
+Then open the printed URL — with a single root it redirects straight to that
+folder's listing; with more than one, `/` lists the mounted roots. URLs mirror
+the absolute filesystem path (`~/notes/foo.md` is served at
+`/Users/you/notes/foo.md`), and anything outside a mounted root 404s. Folders
+always show a listing; `.md`/`.mdx` files render as pages. Everything else in
+a directory is listed too, muted and unclickable, so you can see what's there.
 
 ## Writing docs
 
@@ -129,10 +133,10 @@ Code, Codex, and `~/.agents/skills`; re-run it after editing anything under `ski
 ## Cache
 
 Vite pre-bundles the browser dependencies (React, mermaid, framer-motion, …)
-on first start and keeps that cache in a hidden `.mdxserve/` folder inside the
-directory you serve, so later starts are fast and nothing is written outside
-your docs folder. It is safe to delete at any time, and worth adding to that
-folder's `.gitignore`.
+on first start and keeps that cache in a hidden `.mdxserve/` folder under the
+first root you pass (the first `-w`, or `[dir]` if you didn't pass `-w`), so
+later starts are fast and nothing is written outside your docs folders. It is
+safe to delete at any time, and worth adding to that folder's `.gitignore`.
 
 ```bash
 npx mdxserve cache clean          # remove ./.mdxserve

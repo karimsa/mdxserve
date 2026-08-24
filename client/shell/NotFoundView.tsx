@@ -11,8 +11,11 @@ export function NotFoundView({ route }: { route: Extract<Route, { kind: "notfoun
 					{route.path}
 				</code>
 			</p>
-			<a href="/" className="text-[13px] font-semibold text-text-accent hover:text-text-link-hover">
-				Back to {route.rootName}
+			<a
+				href={route.rootDir ? `${route.rootDir}/` : "/"}
+				className="text-[13px] font-semibold text-text-accent hover:text-text-link-hover"
+			>
+				Back to {route.rootName ?? "home"}
 			</a>
 		</div>
 	);

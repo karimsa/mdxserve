@@ -14,6 +14,8 @@ export interface SearchResult {
 	title: ReactNode;
 	excerpt?: ReactNode;
 	path?: string;
+	/** Display path, e.g. "<rootName>/<relative path>"; shown above the title. */
+	label?: ReactNode;
 	/** Matched query terms; occurrences are highlighted in each field. */
 	terms?: string[];
 }
@@ -122,7 +124,7 @@ export function SearchDialog({
 								data-bare-focus
 								value={query}
 								onChange={(event) => onQueryChange?.(event.target.value)}
-								placeholder="Search this folder"
+								placeholder="Search docs"
 								className="flex-1 border-0 bg-transparent text-[18px] font-normal text-text-body outline-none placeholder:text-text-subtle"
 							/>
 							<Kbd>esc</Kbd>
@@ -130,7 +132,7 @@ export function SearchDialog({
 						<motion.div layout transition={T.glide} className="max-h-80 overflow-y-auto p-2">
 							{results.length === 0 ? (
 								<div className="p-6 text-center text-[13px] leading-normal font-medium text-text-subtle">
-									No matches in this folder
+									No matches
 								</div>
 							) : (
 								results.map((result, i) => {
@@ -151,9 +153,9 @@ export function SearchDialog({
 										>
 											<Icon name="file-text" size="sm" className="mt-0.5 text-text-subtle" />
 											<div className="min-w-0 flex-1">
-												{result.path ? (
+												{result.label ? (
 													<div className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[length:var(--size-2xs)] text-text-subtle">
-														{highlight(result.path, result.terms)}
+														{highlight(result.label, result.terms)}
 													</div>
 												) : null}
 												<div className="text-[13px] leading-normal font-semibold text-text-heading">

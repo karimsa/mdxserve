@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export interface DaemonOptions {
-	root: string;
+	roots: string[];
 	port: number;
 	host: string;
 	name: string;
@@ -43,7 +43,7 @@ export function daemonize(options: DaemonOptions): number {
 		process.execPath,
 		cli,
 		"serve",
-		options.root,
+		...options.roots.flatMap((r) => ["-w", r]),
 		"-p",
 		String(options.port),
 		"--host",
@@ -53,7 +53,7 @@ export function daemonize(options: DaemonOptions): number {
 
 	const result = spawnSync(
 		"oxmgr",
-		["start", "--name", options.name, "--cwd", options.root, command],
+		["start", "--name", options.name, "--cwd", options.roots[0], command],
 		{
 			stdio: "inherit",
 		},

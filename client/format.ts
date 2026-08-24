@@ -9,3 +9,9 @@ export function formatSize(bytes: number): string {
 export function formatModified(mtime: number): string {
 	return formatDistanceToNow(mtime, { addSuffix: true });
 }
+
+/** "/Users/karim/foo" -> "~/foo" (best-effort; the client has no direct os.homedir()). */
+export function shortenHome(dir: string): string {
+	const match = dir.match(/^\/(?:Users|home)\/[^/]+/);
+	return match ? `~${dir.slice(match[0].length)}` : dir;
+}

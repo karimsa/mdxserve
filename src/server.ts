@@ -8,12 +8,13 @@ import { z } from "zod";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "./vite.js";
 import { getPackageRoot } from "./pkg.js";
+import { getViteCacheDir } from "./cache.js";
 import { readListing, readTree, isServable } from "./listing.js";
 import { search as searchDocs } from "./search.js";
-import { renderShell, type Route } from "./shell.js";
+import { renderShell, type Route, type RootInfo } from "./shell.js";
 
 export interface StartServerOptions {
-	root: string;
+	roots: string[];
 	port: number;
 	host: string;
 }
@@ -43,8 +44,36 @@ function rootNameOf(root: string): string {
 	return path.basename(root) || root;
 }
 
+/** Display names for every mounted root: basename, disambiguated with the parent dir on collision. */
+function computeRootInfos(roots: string[]): RootInfo[] {
+	const counts = new Map<string, number>();
+	for (const root of roots) {
+		const name = rootNameOf(root);
+		counts.set(name, (counts.get(name) ?? 0) + 1);
+	}
+	return roots.map((dir) => {
+		const name = rootNameOf(dir);
+		if ((counts.get(name) ?? 0) <= 1) return { name, dir };
+		return { name: `${name} (${path.basename(path.dirname(dir))})`, dir };
+	});
+}
+
+function rootInfoFor(rootInfos: RootInfo[], root: string): RootInfo {
+	return rootInfos.find((r) => r.dir === root) ?? { name: rootNameOf(root), dir: root };
+}
+
+/** The mounted root that contains `absPath`, or null if it lies outside all of them. */
+function resolveRoot(roots: string[], absPath: string): { root: string; abs: string } | null {
+	const abs = path.resolve("/", absPath); // collapses ".." segments; never relative
+	for (const root of roots) {
+		const rel = path.relative(root, abs);
+		if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) return { root, abs };
+	}
+	return null;
+}
+
 async function generateAppCss(
-	root: string,
+	roots: string[],
 	pkgRoot: string,
 ): Promise<{ dir: string; file: string }> {
 	const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));
@@ -55,13 +84,19 @@ async function generateAppCss(
 	const tailwindImport = path.join(pkgRoot, "node_modules", "tailwindcss", "index.css");
 	const designCssPath = path.join(pkgRoot, "client", "app.css");
 
+	const rootSources = roots
+		.map(
+			(root) => `@source "${toPosix(root)}/**/*.{md,mdx,js,jsx,ts,tsx}";
+@source not "${toPosix(root)}/**/.{git,mdxserve,venv,cache}/**";
+@source not "${toPosix(root)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";`,
+		)
+		.join("\n");
+
 	// @import (rather than inlining) the package's own app.css so edits to it
 	// are tracked as a real CSS dependency and hot-reload without a restart.
 	const css = `@import "${toPosix(tailwindImport)}";
 @import "${toPosix(designCssPath)}";
-@source "${toPosix(root)}/**/*.{md,mdx,js,jsx,ts,tsx}";
-@source not "${toPosix(root)}/**/.{git,mdxserve,venv,cache}/**";
-@source not "${toPosix(root)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";
+${rootSources}
 @source "${toPosix(path.join(pkgRoot, "client"))}";
 @source "${toPosix(path.join(pkgRoot, "src"))}";
 `;
@@ -69,25 +104,6 @@ async function generateAppCss(
 	const file = path.join(tmpDir, "app.css");
 	await fsp.writeFile(file, css, "utf8");
 	return { dir: tmpDir, file };
-}
-
-// Inverse of safeResolve: map an absolute directory on disk back to a
-// root-relative URL path with a leading and trailing slash ("/" for root
-// itself). Returns null for anything outside root.
-function dirToUrlPath(root: string, absDir: string): string | null {
-	const rel = path.relative(root, absDir);
-	if (rel === "") return "/";
-	if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
-	return `/${toPosix(rel)}/`;
-}
-
-function safeResolve(root: string, decodedPathname: string): string | null {
-	const relative = decodedPathname.replace(/^\/+/, "");
-	const resolved = path.resolve(root, relative);
-	const rel = path.relative(root, resolved);
-	if (rel === "") return resolved;
-	if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
-	return resolved;
 }
 
 const MAX_DELETE_BODY = 64 * 1024;
@@ -147,13 +163,20 @@ function networkAddress(host: string): string | undefined {
 	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
 }
 
-function printBanner(port: number, host: string, fallbackUsed: boolean): void {
+function printBanner(
+	port: number,
+	host: string,
+	fallbackUsed: boolean,
+	rootInfos: RootInfo[],
+): void {
 	const localUrl = `http://localhost:${port}`;
 	const ip = networkAddress(host);
 	const networkUrl = ip ? `http://${ip}:${port}` : undefined;
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
 	if (networkUrl) lines.push(`- Network:  ${networkUrl}`);
+	lines.push("");
+	for (const r of rootInfos) lines.push(`- ${r.name}: ${localUrl}${r.dir}/`);
 	if (fallbackUsed) lines.push("", "(port was in use; fell back to a free port)");
 
 	const width = Math.max(...lines.map((l) => l.length)) + 2;
@@ -189,7 +212,8 @@ function listenWithFallback(server: http.Server, port: number, host: string): Pr
 }
 
 interface RequestContext {
-	root: string;
+	roots: string[];
+	rootInfos: RootInfo[];
 	pkgRoot: string;
 	vite: ViteDevServer;
 	cssFile: string;
@@ -200,7 +224,7 @@ async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { root, pkgRoot, vite } = ctx;
+	const { roots, rootInfos, pkgRoot, vite } = ctx;
 	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
 	// can resolve it (the /__mdxserve/ alias only exists in our router).
 	const entrySrc = `/@fs/${toPosix(path.join(pkgRoot, "client", "entry.tsx"))}`;
@@ -221,33 +245,33 @@ async function handleRequest(
 	if (pathname.startsWith("/__mdxserve/api/")) {
 		if (pathname === "/__mdxserve/api/listing") {
 			const queryPath = new URLSearchParams(search).get("path") ?? "/";
-			const resolvedForListing = safeResolve(root, queryPath);
+			const hit = resolveRoot(roots, queryPath);
 
 			let listingStat: fs.Stats | null = null;
-			if (resolvedForListing) {
+			if (hit) {
 				try {
-					listingStat = await fsp.stat(resolvedForListing);
+					listingStat = await fsp.stat(hit.abs);
 				} catch {
 					listingStat = null;
 				}
 			}
 
 			res.setHeader("Content-Type", "application/json; charset=utf-8");
-			if (!resolvedForListing || !listingStat?.isDirectory()) {
+			if (!hit || !listingStat?.isDirectory()) {
 				res.statusCode = 404;
 				res.end(JSON.stringify({ error: "Not found" }));
 				return;
 			}
 
 			res.statusCode = 200;
-			res.end(JSON.stringify(readListing(root, queryPath)));
+			res.end(JSON.stringify(readListing(hit.abs, rootInfoFor(rootInfos, hit.root))));
 			return;
 		}
 
 		if (pathname === "/__mdxserve/api/tree") {
 			res.setHeader("Content-Type", "application/json; charset=utf-8");
 			res.statusCode = 200;
-			res.end(JSON.stringify({ rootName: rootNameOf(root), root, nodes: readTree(root, "/") }));
+			res.end(JSON.stringify({ roots: rootInfos.map((r) => ({ ...r, nodes: readTree(r.dir) })) }));
 			return;
 		}
 
@@ -255,7 +279,7 @@ async function handleRequest(
 			const q = new URLSearchParams(search).get("q") ?? "";
 			res.setHeader("Content-Type", "application/json; charset=utf-8");
 			res.statusCode = 200;
-			res.end(JSON.stringify(searchDocs(root, q)));
+			res.end(JSON.stringify(searchDocs(rootInfos, q)));
 			return;
 		}
 
@@ -302,32 +326,45 @@ async function handleRequest(
 			const deleted: string[] = [];
 			const failed: { path: string; error: string }[] = [];
 
-			// safeResolve is string-level only; a directory symlink inside the root
+			// resolveRoot is string-level only; a directory symlink inside a root
 			// could point outside it. Re-check each file's real parent directory
-			// against the real root before trashing anything.
-			const realRoot = await fsp.realpath(root);
+			// against its real root before trashing anything. Cache per root since
+			// a batch typically hits the same root many times.
+			const realRoots = new Map<string, Promise<string>>();
+			function realRoot(root: string): Promise<string> {
+				let p = realRoots.get(root);
+				if (!p) {
+					p = fsp.realpath(root);
+					realRoots.set(root, p);
+				}
+				return p;
+			}
 
 			// Serial so a failure attributes to its own path rather than racing
 			// with the rest of the batch.
 			for (const p of paths) {
-				const abs = safeResolve(root, p);
-				if (!abs || abs === root) {
+				const hit = resolveRoot(roots, p);
+				if (!hit || hit.abs === hit.root) {
 					failed.push({ path: p, error: "Invalid path" });
 					continue;
 				}
 
 				// Same servability rule as the listing: dotfiles, node_modules,
 				// etc. are never surfaced in the UI, so they can't be deleted
-				// through its API either.
-				if (!p.split("/").filter(Boolean).every(isServable)) {
+				// through its API either. Checked on the root-relative segments,
+				// not the whole absolute path — a root like ~/.config/... would
+				// otherwise be undeletable.
+				const rel = path.relative(hit.root, hit.abs);
+				if (!rel.split("/").filter(Boolean).every(isServable)) {
 					failed.push({ path: p, error: "Invalid path" });
 					continue;
 				}
 
 				try {
-					const realDir = await fsp.realpath(path.dirname(abs));
-					const rel = path.relative(realRoot, realDir);
-					if (rel.startsWith("..") || path.isAbsolute(rel)) {
+					const realRootPath = await realRoot(hit.root);
+					const realDir = await fsp.realpath(path.dirname(hit.abs));
+					const relReal = path.relative(realRootPath, realDir);
+					if (relReal.startsWith("..") || path.isAbsolute(relReal)) {
 						failed.push({ path: p, error: "Invalid path" });
 						continue;
 					}
@@ -338,7 +375,7 @@ async function handleRequest(
 
 				let st: fs.Stats;
 				try {
-					st = await fsp.lstat(abs);
+					st = await fsp.lstat(hit.abs);
 				} catch {
 					failed.push({ path: p, error: "Not found" });
 					continue;
@@ -352,7 +389,7 @@ async function handleRequest(
 				try {
 					// glob: false — trash expands `*`/`[...]` metacharacters by default,
 					// which would let a literal filename like "notes[1].md" match others.
-					await trash(abs, { glob: false });
+					await trash(hit.abs, { glob: false });
 					deleted.push(p);
 				} catch (error) {
 					failed.push({ path: p, error: error instanceof Error ? error.message : String(error) });
@@ -381,18 +418,89 @@ async function handleRequest(
 		return;
 	}
 
-	const decodedPathname = decodeURIComponent(pathname);
-	const resolved = safeResolve(root, decodedPathname);
+	// The client re-fetches a doc module as /@fs/<abs>.md?t=… after an HMR
+	// edit. Vite's own transform middleware doesn't recognize .md/.mdx as
+	// JS-like, so route it through transformRequest() directly, same as the
+	// doc branch below. Every other /@fs/ request (client entry, client/
+	// assets, .tsx component imports, optimized deps) passes straight through
+	// to vite.middlewares, gated by fs.allow.
+	if (pathname.startsWith("/@fs/")) {
+		const rest = pathname.slice("/@fs/".length);
+		const abs = `/${decodeURIComponent(rest)}`;
+		const hit = resolveRoot(roots, abs);
 
-	if (resolved === null) {
+		if (hit && isDocFile(hit.abs)) {
+			try {
+				const result = await vite.transformRequest(`/@fs${hit.abs}`);
+				if (result) {
+					res.statusCode = 200;
+					res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+					res.end(result.code);
+					return;
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				console.error(error);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+				res.end(`throw new Error(${JSON.stringify(`Failed to compile ${hit.abs}: ${message}`)});`);
+				return;
+			}
+		}
+
+		vite.middlewares(req, res, () => {
+			res.statusCode = 404;
+			res.end("Not found");
+		});
+		return;
+	}
+
+	// /@vite/client, /@react-refresh, /@id/… etc. — resolveRoot below would
+	// 404 these; let Vite's own middleware handle them.
+	if (pathname.startsWith("/@")) {
+		vite.middlewares(req, res, () => {
+			res.statusCode = 404;
+			res.end("Not found");
+		});
+		return;
+	}
+
+	if (pathname === "/") {
+		if (roots.length === 1) {
+			res.statusCode = 302;
+			res.setHeader("Location", encodeURI(`${roots[0]}/`));
+			res.end();
+			return;
+		}
+		const route: Route = { kind: "home", roots: rootInfos };
+		res.statusCode = 200;
+		res.setHeader("Content-Type", "text/html; charset=utf-8");
+		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+		return;
+	}
+
+	const decodedPathname = decodeURIComponent(pathname);
+	const hit = resolveRoot(roots, decodedPathname);
+
+	if (hit === null) {
+		if (wantsHtml(req)) {
+			const route: Route = { kind: "notfound", path: decodedPathname };
+			res.statusCode = 404;
+			res.setHeader("Content-Type", "text/html; charset=utf-8");
+			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			return;
+		}
 		res.statusCode = 404;
 		res.end("Not found");
 		return;
 	}
 
+	const { root, abs } = hit;
+	const rootInfo = rootInfoFor(rootInfos, root);
+
 	let stat: fs.Stats | null = null;
 	try {
-		stat = await fsp.stat(resolved);
+		stat = await fsp.stat(abs);
 	} catch {
 		stat = null;
 	}
@@ -404,34 +512,33 @@ async function handleRequest(
 			res.end();
 			return;
 		}
-		const route = readListing(root, decodedPathname);
+		const route = readListing(abs, rootInfo);
 		res.statusCode = 200;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
+		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
 		return;
 	}
 
-	if (stat?.isFile() && isDocFile(resolved)) {
+	if (stat?.isFile() && isDocFile(abs)) {
 		if (wantsHtml(req)) {
 			const route: Route = {
 				kind: "doc",
-				path: decodedPathname,
-				rootName: rootNameOf(root),
+				path: abs,
+				rootName: rootInfo.name,
+				rootDir: rootInfo.dir,
 				mtime: stat.mtimeMs,
 			};
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
+			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
 			return;
 		}
 
 		// The client entry does `import(file)` for this same URL to fetch the
-		// compiled module. Vite's own transform middleware only recognizes a
-		// fixed set of "JS-like" extensions (.mdx is on that list, .md is not),
-		// so route both through transformRequest() directly instead of relying
-		// on vite.middlewares' URL-pattern gate.
+		// compiled module. Use the decoded, resolved abs path (not the raw
+		// pathname) so a doc whose path contains spaces compiles correctly.
 		try {
-			const result = await vite.transformRequest(pathname);
+			const result = await vite.transformRequest(`/@fs${abs}`);
 			if (result) {
 				res.statusCode = 200;
 				res.setHeader("Content-Type", "text/javascript; charset=utf-8");
@@ -443,16 +550,33 @@ async function handleRequest(
 			console.error(error);
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-			res.end(`throw new Error(${JSON.stringify(`Failed to compile ${pathname}: ${message}`)});`);
+			res.end(`throw new Error(${JSON.stringify(`Failed to compile ${abs}: ${message}`)});`);
 			return;
 		}
 	}
 
-	if (stat === null && wantsHtml(req)) {
-		const route: Route = { kind: "notfound", path: decodedPathname, rootName: rootNameOf(root) };
-		res.statusCode = 404;
-		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc)));
+	if (stat === null) {
+		if (wantsHtml(req)) {
+			const route: Route = {
+				kind: "notfound",
+				path: decodedPathname,
+				rootName: rootInfo.name,
+				rootDir: rootInfo.dir,
+			};
+			res.statusCode = 404;
+			res.setHeader("Content-Type", "text/html; charset=utf-8");
+			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			return;
+		}
+	} else if (stat.isFile()) {
+		// Non-doc file inside a root (images, .txt, …): hand it to Vite as a
+		// static asset via /@fs/, mirroring the /__mdxserve/ rewrite above. This
+		// is what makes `![](./img.png)` work in a root that isn't Vite's own.
+		req.url = `/@fs${pathname}${search}`;
+		vite.middlewares(req, res, () => {
+			res.statusCode = 404;
+			res.end("Not found");
+		});
 		return;
 	}
 
@@ -463,16 +587,28 @@ async function handleRequest(
 }
 
 export async function startServer(options: StartServerOptions): Promise<void> {
-	const { root, host } = options;
+	const { roots, host } = options;
 	const pkgRoot = getPackageRoot();
+	const rootInfos = computeRootInfos(roots);
 
-	const { dir: cssDir, file: cssFile } = await generateAppCss(root, pkgRoot);
+	const { dir: cssDir, file: cssFile } = await generateAppCss(roots, pkgRoot);
 
 	const httpServer = http.createServer();
-	const vite = await createDevServer({ root, httpServer, extraFsAllow: [cssDir] });
+	const vite = await createDevServer({
+		roots,
+		viteRoot: cssDir,
+		cacheDir: getViteCacheDir(roots[0]),
+		httpServer,
+		extraFsAllow: [cssDir],
+	});
+
+	// Vite's own root is the generated CSS temp dir, not any served root, so
+	// none of them are watched by default — every root needs adding explicitly.
+	// Chokidar applies the configured `ignored` globs to added paths too.
+	for (const r of roots) vite.watcher.add(r);
 
 	httpServer.on("request", (req, res) => {
-		handleRequest(req, res, { root, pkgRoot, vite, cssFile }).catch((error) => {
+		handleRequest(req, res, { roots, rootInfos, pkgRoot, vite, cssFile }).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {
 				res.statusCode = 500;
@@ -481,19 +617,19 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 		});
 	});
 
-	// Auto-refresh open listings: chokidar already watches `root` for Vite's
-	// own HMR, so ride the same watcher instead of standing up a second one.
-	// Debounce so a bulk op (git checkout, rm -rf dir) fires one event instead
-	// of a storm.
+	// Auto-refresh open listings: chokidar already watches every root for
+	// Vite's own HMR, so ride the same watcher instead of standing up a second
+	// one. Debounce so a bulk op (git checkout, rm -rf dir) fires one event
+	// instead of a storm.
 	const changedDirs = new Set<string>();
 	let flushTimer: NodeJS.Timeout | null = null;
 
 	function onWatchEvent(p: string): void {
 		if (!isServable(path.basename(p))) return;
-		const dirPath = dirToUrlPath(root, path.dirname(p));
-		if (dirPath === null) return;
+		const hit = resolveRoot(roots, path.dirname(p));
+		if (!hit) return;
 
-		changedDirs.add(dirPath);
+		changedDirs.add(hit.abs.endsWith("/") ? hit.abs : `${hit.abs}/`);
 		if (flushTimer) return;
 		flushTimer = setTimeout(() => {
 			flushTimer = null;
@@ -509,7 +645,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	vite.watcher.on("unlinkDir", onWatchEvent);
 
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
-	printBanner(actualPort, host, actualPort !== options.port);
+	printBanner(actualPort, host, actualPort !== options.port, rootInfos);
 
 	let shuttingDown = false;
 	async function shutdown(): Promise<void> {

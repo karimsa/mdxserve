@@ -2,10 +2,11 @@ import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DocView } from "../DocView";
+import { HomeView } from "../HomeView";
 import { ListingView } from "../ListingView";
 import { fadeRise, T } from "../motion";
 import { useTheme } from "../theme";
-import { useTree, type Route, type TreeNode } from "../router";
+import { shellInfo, useTree, type Route, type TreeNode } from "../router";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -56,19 +57,30 @@ function flattenDocs(nodes: TreeNode[] | null): TreeNode[] {
 /**
  * Root name -> path segments; every segment is a folder link except a doc's
  * last segment. Folder listings lead with the served directory's absolute
- * path instead, with only the served root onwards being navigable.
+ * path instead, with only the served root onwards being navigable. On the
+ * home page there's just the "mdxserve" crumb; everywhere else it's the
+ * leading crumb too, but only when the server serves more than one root.
  */
-function breadcrumbItems(route: Route, rootDir: string): BreadcrumbItem[] {
+function breadcrumbItems(route: Route, rootsCount: number): BreadcrumbItem[] {
+	if (route.kind === "home") return [{ label: "mdxserve" }];
+
 	const items: BreadcrumbItem[] = [];
+	if (rootsCount > 1) items.push({ label: "mdxserve", href: "/" });
+
+	const rootDir = route.rootDir ?? "";
+	const rootName = route.rootName ?? "";
+
 	if (route.kind === "listing" && rootDir) {
 		// The server hands back its raw root, so split on either separator.
 		const parents = rootDir.split(/[\\/]/).filter(Boolean).slice(0, -1);
 		if (parents.length === 0) items.push({ label: "/" });
 		for (const parent of parents) items.push({ label: parent });
 	}
-	items.push({ label: route.rootName, href: "/" });
-	const segments = route.path.split("/").filter(Boolean);
-	let acc = "";
+
+	if (rootDir) items.push({ label: rootName, href: `${rootDir}/` });
+
+	const segments = route.path.slice(rootDir.length).split("/").filter(Boolean);
+	let acc = rootDir;
 	segments.forEach((segment, i) => {
 		acc += `/${segment}`;
 		const isLast = i === segments.length - 1;
@@ -171,7 +183,15 @@ function useDocMaxWidth(contentWidth: number, stored: number | null) {
 
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
 	const { theme, toggle } = useTheme();
-	const { tree, rootDir } = useTree();
+	const { roots } = useTree();
+	// Until the tree API answers, trust the count the server-rendered shell
+	// embedded so multi-root navigation doesn't flash in after first paint.
+	const rootCount = roots?.length ?? shellInfo.rootCount ?? 1;
+	// Neither "home" nor a bare "notfound" (before any doc/listing loaded)
+	// carries a path/root of its own; fall back to values every consumer below
+	// can key off safely.
+	const activePath = route.kind === "home" ? "" : route.path;
+	const activeRootDir = route.kind === "home" ? "" : (route.rootDir ?? "");
 
 	const [desktopOpen, setDesktopOpen] = useState(readStoredSidebarOpen);
 	const [mobileOpen, setMobileOpen] = useState(false);
@@ -210,17 +230,18 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		}
 	}, [desktopOpen]);
 
-	const isListing = route.kind === "listing";
+	// The docked sidebar is hidden on folder views and the roots home page.
+	const sidebarHidden = route.kind === "listing" || route.kind === "home";
 	const handleToggleSidebar = useCallback(() => {
 		if (window.matchMedia(DESKTOP_BREAKPOINT).matches) {
-			// The docked sidebar is hidden on folder views, so a click here would
-			// silently flip (and persist) the preference for the next doc.
-			if (isListing) return;
+			// A click here would otherwise silently flip (and persist) the
+			// preference for the next doc.
+			if (sidebarHidden) return;
 			setDesktopOpen((v) => !v);
 		} else {
 			setMobileOpen((v) => !v);
 		}
-	}, [isListing]);
+	}, [sidebarHidden]);
 
 	// Global ⌘K / Ctrl+K to open search, from anywhere on the page.
 	useEffect(() => {
@@ -265,7 +286,12 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		[navigate],
 	);
 
-	const flatDocs = useMemo(() => flattenDocs(tree), [tree]);
+	// Prev/next is scoped to the root the open doc lives in, not every mounted root.
+	const activeTree = useMemo(() => {
+		if (route.kind !== "doc") return null;
+		return roots?.find((root) => root.dir === route.rootDir)?.tree ?? null;
+	}, [roots, route]);
+	const flatDocs = useMemo(() => flattenDocs(activeTree), [activeTree]);
 	const { prev, next } = useMemo((): { prev?: PageNavLink; next?: PageNavLink } => {
 		if (route.kind !== "doc") return {};
 		const index = flatDocs.findIndex((doc) => doc.path === route.path);
@@ -283,8 +309,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	}
 
 	// A folder view is the file navigation, so the docked sidebar would repeat
-	// it; hide the column there and let the listing take the space.
-	const showSidebar = desktopOpen && route.kind !== "listing";
+	// it; hide the column there (and on the roots home page) and let the
+	// content take the space.
+	const showSidebar = desktopOpen && !sidebarHidden;
 
 	return (
 		<div className="min-h-screen bg-surface-page">
@@ -297,9 +324,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			/>
 			<div className="flex items-start">
 				<Sidebar
-					tree={tree}
-					rootDir={rootDir}
-					activePath={route.path}
+					roots={roots}
+					rootDir={activeRootDir}
+					activePath={activePath}
 					navigate={handleSidebarNavigate}
 					desktopOpen={showSidebar}
 					mobileOpen={mobileOpen}
@@ -311,7 +338,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">
 						<AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
 							<motion.div
-								key={route.path}
+								key={activePath || "/"}
 								variants={fadeRise}
 								initial="initial"
 								animate="enter"
@@ -329,12 +356,14 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 											: undefined
 								}
 							>
-								<Breadcrumb items={breadcrumbItems(route, rootDir)} />
+								<Breadcrumb items={breadcrumbItems(route, rootCount)} />
 								<div className="mt-4">
 									{route.kind === "listing" ? (
-										<ListingView route={route} />
+										<ListingView route={route} singleRoot={rootCount <= 1} />
 									) : route.kind === "doc" ? (
 										<DocView route={route} onRendered={bumpTocVersion} />
+									) : route.kind === "home" ? (
+										<HomeView route={route} />
 									) : (
 										<NotFoundView route={route} />
 									)}

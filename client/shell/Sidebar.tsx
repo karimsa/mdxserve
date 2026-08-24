@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { V } from "../motion";
 import { Icon } from "../ui/Icon";
 import { SidebarNav, type NavItem } from "../ui/SidebarNav";
-import type { TreeNode } from "../router";
+import type { RootTree, TreeNode } from "../router";
+import { shortenHome } from "../format";
 import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, sidebarWidthAtom } from "../state";
 
 const DOCKED_CLASS =
@@ -71,12 +72,6 @@ function ResizeHandle({ onResize }: { onResize: (width: number) => void }) {
 	);
 }
 
-/** "/Users/karim/foo" -> "~/foo" (best-effort; the client has no direct os.homedir()). */
-function shortenHome(dir: string): string {
-	const match = dir.match(/^\/(?:Users|home)\/[^/]+/);
-	return match ? `~${dir.slice(match[0].length)}` : dir;
-}
-
 function stripDocExt(name: string): string {
 	return name.replace(/\.mdx?$/i, "");
 }
@@ -105,32 +100,42 @@ function countDocs(nodes: TreeNode[] | null): number {
 }
 
 function SidebarBody({
-	tree,
+	roots,
 	rootDir,
 	activePath,
 	navigate,
 }: {
-	tree: TreeNode[] | null;
+	roots: RootTree[] | null;
 	rootDir: string;
 	activePath: string;
 	navigate: (path?: string) => void;
 }) {
+	// A single root keeps today's look (no section title repeating the root
+	// name the header link already shows).
+	const multiRoot = (roots?.length ?? 0) > 1;
 	const sections = useMemo(
-		() => [{ items: toNavItems(tree ?? [], activePath) }],
-		[tree, activePath],
+		() =>
+			(roots ?? []).map((root) => ({
+				title: multiRoot ? root.name : undefined,
+				items: toNavItems(root.tree, activePath),
+			})),
+		[roots, activePath, multiRoot],
 	);
-	const docCount = useMemo(() => countDocs(tree), [tree]);
+	const docCount = useMemo(
+		() => (roots ?? []).reduce((sum, root) => sum + countDocs(root.tree), 0),
+		[roots],
+	);
 
 	return (
 		<>
 			{/* Plain <a>: the router's global click delegation handles navigation. */}
 			<a
-				href="/"
+				href={rootDir ? `${rootDir}/` : "/"}
 				title={rootDir}
 				className="mb-4 flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[length:var(--size-2xs)] text-text-subtle no-underline hover:bg-surface-hover hover:text-text-heading"
 			>
 				<Icon name="folder-open" size={13} className="shrink-0" />
-				<span className="truncate">{shortenHome(rootDir)}</span>
+				<span className="truncate">{rootDir ? shortenHome(rootDir) : "mdxserve"}</span>
 			</a>
 			<SidebarNav sections={sections} activePath={activePath} onNavigate={navigate} />
 			<div className="mt-8 flex items-center gap-2 border-t border-border-subtle px-2 pt-3 text-[13px] leading-normal font-medium text-text-subtle">
@@ -142,7 +147,7 @@ function SidebarBody({
 }
 
 export function Sidebar({
-	tree,
+	roots,
 	rootDir,
 	activePath,
 	navigate,
@@ -150,7 +155,7 @@ export function Sidebar({
 	mobileOpen,
 	onCloseMobile,
 }: {
-	tree: TreeNode[] | null;
+	roots: RootTree[] | null;
 	rootDir: string;
 	activePath: string;
 	navigate: (path?: string) => void;
@@ -190,7 +195,7 @@ export function Sidebar({
 						}
 					>
 						<SidebarBody
-							tree={tree}
+							roots={roots}
 							rootDir={rootDir}
 							activePath={activePath}
 							navigate={handleNavigate}
@@ -208,7 +213,7 @@ export function Sidebar({
 				>
 					<div className="h-full overflow-y-auto px-3 py-6">
 						<SidebarBody
-							tree={tree}
+							roots={roots}
 							rootDir={rootDir}
 							activePath={activePath}
 							navigate={navigate}

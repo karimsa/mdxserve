@@ -20,8 +20,10 @@ program
 	.option("-D, --daemon", "run in the background as an oxmgr-managed process")
 	.option("--name <name>", "process name to register with oxmgr (with --daemon)", "mdxserve")
 	.option(
-		"-w, --wd <folder>",
-		"change into this folder first; [dir] is then resolved relative to it",
+		"-w, --watch <dir>",
+		"serve this directory (repeatable)",
+		(v: string, acc: string[]) => acc.concat(v),
+		[] as string[],
 	)
 	.action(
 		async (
@@ -31,33 +33,58 @@ program
 				host: string;
 				daemon?: boolean;
 				name: string;
-				wd?: string;
+				watch: string[];
 			},
 		) => {
-			if (opts.wd) {
-				const wd = path.resolve(process.cwd(), opts.wd);
-				try {
-					process.chdir(wd);
-				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error);
-					console.error(`mdxserve: cannot change into ${wd}: ${message}`);
+			const inputs = [...opts.watch, ...(dir ? [dir] : [])];
+			if (inputs.length === 0) inputs.push(".");
+
+			const resolved = inputs.map((d) => path.resolve(process.cwd(), d));
+
+			for (const dirAbs of resolved) {
+				if (!fs.existsSync(dirAbs)) {
+					console.error(`mdxserve: no such directory: ${dirAbs}`);
+					process.exitCode = 1;
+					return;
+				}
+
+				if (!fs.statSync(dirAbs).isDirectory()) {
+					console.error(`mdxserve: not a directory: ${dirAbs}`);
 					process.exitCode = 1;
 					return;
 				}
 			}
 
-			const root = path.resolve(process.cwd(), dir ?? ".");
+			// Dedupe by realpath, not the resolved string, so a symlinked alias of
+			// an already-mounted root isn't served twice — and keep the realpath'd
+			// value since Vite's fs.allow compares real paths.
+			const seen = new Set<string>();
+			const roots: string[] = [];
+			for (const dirAbs of resolved) {
+				const real = fs.realpathSync(dirAbs);
+				if (seen.has(real)) continue;
+				seen.add(real);
+				roots.push(real);
+			}
 
-			if (!fs.existsSync(root)) {
-				console.error(`mdxserve: no such directory: ${root}`);
+			if (roots.includes("/")) {
+				console.error("mdxserve: refusing to serve /");
 				process.exitCode = 1;
 				return;
 			}
 
-			if (!fs.statSync(root).isDirectory()) {
-				console.error(`mdxserve: not a directory: ${root}`);
-				process.exitCode = 1;
-				return;
+			// Reject nested roots: they'd make resolveRoot's first-match ambiguous
+			// and would list/index the same docs twice.
+			for (const a of roots) {
+				for (const b of roots) {
+					if (a === b) continue;
+					const rel = path.relative(a, b);
+					if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) {
+						console.error(`mdxserve: ${b} is inside ${a}; serve only the outer one`);
+						process.exitCode = 1;
+						return;
+					}
+				}
 			}
 
 			const port = Number.parseInt(opts.port, 10);
@@ -69,7 +96,7 @@ program
 
 			if (opts.daemon) {
 				process.exitCode = daemonize({
-					root,
+					roots,
 					port,
 					host: opts.host,
 					name: opts.name,
@@ -77,7 +104,7 @@ program
 				return;
 			}
 
-			await startServer({ root, port, host: opts.host });
+			await startServer({ roots, port, host: opts.host });
 		},
 	);
 

@@ -2,9 +2,12 @@ import path from "node:path";
 import MiniSearch, { type SearchResult as MiniSearchHit } from "minisearch";
 import { readTree, type TreeNode } from "./listing.js";
 import { readDoc } from "./doc.js";
+import type { RootInfo } from "./shell.js";
 
 export interface SearchResult {
 	path: string;
+	/** Display label: `"<rootName>/<relative path>"`. */
+	label: string;
 	title: string;
 	excerpt: string;
 	/** Query terms MiniSearch matched for this hit, for client-side highlighting. */
@@ -14,6 +17,7 @@ export interface SearchResult {
 interface IndexedDoc {
 	id: string;
 	title: string;
+	/** `"<rootName>/<relative path>"` — searchable, and reused as the display label. */
 	path: string;
 	/** Section headings (h2+) with their `#` markers stripped. */
 	headings: string;
@@ -101,16 +105,18 @@ function matchExcerpt(
 }
 
 /**
- * One MiniSearch index per served root, kept in sync incrementally: every
- * search diffs the current tree (path + mtime) against what's indexed and only
- * re-reads docs that were added, changed, or removed.
+ * One MiniSearch index for the whole server, spanning every mounted root,
+ * kept in sync incrementally: every search diffs the current trees (path +
+ * mtime) against what's indexed and only re-reads docs that were added,
+ * changed, or removed. Doc ids are absolute paths, so they never collide
+ * across roots and scores are directly comparable.
  */
 class SearchIndex {
 	private readonly mini = new MiniSearch<IndexedDoc>({
 		fields: ["title", "path", "headings", "body"],
-		storeFields: ["title"],
+		storeFields: ["title", "path"],
 		// Split the path field on separators too, so `nested-page` and
-		// `deep` match `/nested/deep/05-nested-page.md`.
+		// `deep` match `docs/nested/deep/05-nested-page.md`.
 		tokenize: (text, fieldName) =>
 			fieldName === "path"
 				? text.split(/[/\-_.\s]+/).filter(Boolean)
@@ -124,32 +130,35 @@ class SearchIndex {
 	});
 	private readonly indexed = new Map<string, IndexedDoc>();
 
-	constructor(private readonly root: string) {}
-
 	/** Bring the index up to date and return the docs in tree order. */
-	sync(): TreeNode[] {
-		const nodes = flatten(readTree(this.root, "/"));
+	sync(roots: RootInfo[]): TreeNode[] {
+		const allNodes: TreeNode[] = [];
 		const seen = new Set<string>();
 
-		for (const node of nodes) {
-			seen.add(node.path);
-			const mtime = node.mtime ?? 0;
-			const existing = this.indexed.get(node.path);
-			if (existing && existing.mtime === mtime) continue;
+		for (const root of roots) {
+			const nodes = flatten(readTree(root.dir));
+			for (const node of nodes) {
+				allNodes.push(node);
+				seen.add(node.path);
+				const mtime = node.mtime ?? 0;
+				const existing = this.indexed.get(node.path);
+				if (existing && existing.mtime === mtime) continue;
 
-			const doc = readDoc(path.join(this.root, node.path), mtime);
-			const { headings, body } = classifyLines(doc.lines);
-			const entry: IndexedDoc = {
-				id: node.path,
-				title: doc.h1 ?? node.name,
-				path: node.path,
-				headings: headings.join("\n"),
-				body: body.join("\n"),
-				mtime,
-			};
-			if (existing) this.mini.replace(entry);
-			else this.mini.add(entry);
-			this.indexed.set(node.path, entry);
+				const doc = readDoc(node.path, mtime);
+				const { headings, body } = classifyLines(doc.lines);
+				const label = `${root.name}/${path.relative(root.dir, node.path)}`;
+				const entry: IndexedDoc = {
+					id: node.path,
+					title: doc.h1 ?? node.name,
+					path: label,
+					headings: headings.join("\n"),
+					body: body.join("\n"),
+					mtime,
+				};
+				if (existing) this.mini.replace(entry);
+				else this.mini.add(entry);
+				this.indexed.set(node.path, entry);
+			}
 		}
 
 		for (const [id] of this.indexed) {
@@ -158,18 +167,19 @@ class SearchIndex {
 			this.indexed.delete(id);
 		}
 
-		return nodes;
+		return allNodes;
 	}
 
-	search(q: string): SearchResult[] {
-		const nodes = this.sync();
+	search(roots: RootInfo[], q: string): SearchResult[] {
+		const nodes = this.sync(roots);
 		const query = q.trim();
 
 		if (query === "") {
 			return nodes.slice(0, MAX_RESULTS).map((node) => {
-				const doc = readDoc(path.join(this.root, node.path), node.mtime ?? 0);
+				const doc = readDoc(node.path, node.mtime ?? 0);
 				return {
 					path: node.path,
+					label: this.indexed.get(node.path)?.path ?? node.name,
 					title: doc.h1 ?? node.name,
 					excerpt: firstExcerpt(classifyLines(doc.lines).body),
 					terms: [],
@@ -183,11 +193,12 @@ class SearchIndex {
 		return hits.flatMap((hit) => {
 			const node = byPath.get(hit.id as string);
 			if (!node) return [];
-			const doc = readDoc(path.join(this.root, node.path), node.mtime ?? 0);
+			const doc = readDoc(node.path, node.mtime ?? 0);
 			const terms = hit.terms.length > 0 ? hit.terms : [query];
 			return [
 				{
 					path: node.path,
+					label: (hit.path as string | undefined) ?? node.name,
 					title: (hit.title as string | undefined) ?? doc.h1 ?? node.name,
 					excerpt: matchExcerpt(classifyLines(doc.lines), terms),
 					terms,
@@ -197,18 +208,14 @@ class SearchIndex {
 	}
 }
 
-const indexes = new Map<string, SearchIndex>();
+let singleton: SearchIndex | null = null;
 
 /**
- * Full-text search of doc titles and bodies under the served directory `root`
- * for `q`, powered by MiniSearch (prefix + light fuzzy matching, titles
- * boosted). Purely data — no HTML.
+ * Full-text search of doc titles and bodies across every mounted root for
+ * `q`, powered by MiniSearch (prefix + light fuzzy matching, titles boosted).
+ * Purely data — no HTML.
  */
-export function search(root: string, q: string): { results: SearchResult[] } {
-	let index = indexes.get(root);
-	if (!index) {
-		index = new SearchIndex(root);
-		indexes.set(root, index);
-	}
-	return { results: index.search(q) };
+export function search(roots: RootInfo[], q: string): { results: SearchResult[] } {
+	singleton ??= new SearchIndex();
+	return { results: singleton.search(roots, q) };
 }

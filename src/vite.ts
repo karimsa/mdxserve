@@ -11,7 +11,6 @@ import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import { getPackageRoot } from "./pkg.js";
 import { designTokenTheme } from "./shiki-theme.js";
-import { getViteCacheDir } from "./cache.js";
 
 const require = createRequire(import.meta.url);
 
@@ -20,13 +19,21 @@ function resolveFromPkg(specifier: string): string {
 }
 
 export interface CreateDevServerOptions {
-	root: string;
+	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
+	roots: string[];
+	/**
+	 * Vite's own project root. This is a neutral, generated-CSS temp dir — not
+	 * one of the served roots — so every file Vite serves gets a uniform
+	 * `/@fs/<abs>` URL instead of some being root-relative.
+	 */
+	viteRoot: string;
+	cacheDir: string;
 	httpServer: HttpServer;
 	extraFsAllow?: string[];
 }
 
 export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
-	const { root, httpServer, extraFsAllow = [] } = options;
+	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
 	const pkgRoot = getPackageRoot();
 
 	const reactEntry = resolveFromPkg("react");
@@ -116,13 +123,13 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	];
 
 	const vite = await createViteServer({
-		root,
+		root: viteRoot,
 		configFile: false,
 		// Pin the dep-optimizer cache next to the served content instead of letting
 		// Vite derive it from the nearest package.json above `root` (which could be
 		// an unrelated project). Hidden, so the listing skips it; `mdxserve cache
 		// clean` removes it.
-		cacheDir: getViteCacheDir(root),
+		cacheDir,
 		logLevel: "warn",
 		appType: "custom",
 		server: {
@@ -145,8 +152,13 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				],
 			},
 			fs: {
+				// cacheDir must be listed explicitly (rather than relying on it being
+				// under a served root): optimized deps are served as
+				// /@fs/<cacheDir>/deps/…, and with a neutral Vite root nothing else
+				// implies it's allowed.
 				allow: [
-					root,
+					...roots,
+					cacheDir,
 					path.join(pkgRoot, "client"),
 					path.join(pkgRoot, "node_modules"),
 					...extraFsAllow,
@@ -187,6 +199,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 			include: [
 				"react",
 				"react-dom",
+				"react-dom/client",
 				"react/jsx-runtime",
 				"react/jsx-dev-runtime",
 				"@mdx-js/react",
@@ -199,6 +212,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				"diff",
 				"lucide-react",
 				"date-fns",
+				"jotai",
+				"jotai/utils",
 			],
 		},
 	});
