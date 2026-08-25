@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Icon } from "./ui/Icon";
 import { IconButton } from "./ui/IconButton";
@@ -92,15 +92,31 @@ function useThemeTick(): number {
 	return tick;
 }
 
-/** Renders mermaid `source` to inline SVG inside the code card. */
-export function MermaidDiagram({ source }: { source: string }) {
+/**
+ * Renders mermaid `source` to inline SVG inside the code card. `toolbar` is
+ * mirrored into the expanded modal's header so view controls that live in the
+ * code frame (the flow-direction toggle) stay reachable at full size.
+ */
+export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: ReactNode }) {
 	const [state, setState] = useState<State>({ kind: "loading" });
 	const id = useId().replace(/[^a-zA-Z0-9]/g, "");
 	const themeTick = useThemeTick();
+	const renderCount = useRef(0);
 
 	useEffect(() => {
 		let cancelled = false;
-		setState({ kind: "loading" });
+		// A fresh id for every render. mermaid.render() first removes any element
+		// already carrying that id from the document, so reusing one would yank
+		// the SVG still on screen (the one svg-pan-zoom holds) out from under the
+		// reader until the new one lands. A fresh id also sidesteps mermaid's
+		// render cache, which is keyed by id and can serve stale colours after a
+		// theme change.
+		renderCount.current += 1;
+		const renderId = `mermaid-${id}-${renderCount.current}`;
+		// Only the first render shows the placeholder. A re-render (theme flip,
+		// direction change) keeps the previous SVG up until the new one lands, so
+		// the card doesn't flash and an open modal stays open.
+		setState((current) => (current.kind === "ok" ? current : { kind: "loading" }));
 		loadMermaid()
 			.then((mermaid) => {
 				mermaid.initialize({
@@ -109,9 +125,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 					themeVariables: themeVariables(),
 					securityLevel: "strict",
 				});
-				// A fresh id per theme tick: mermaid keeps an internal render cache
-				// keyed by id, so reusing one across a theme change can serve stale colours.
-				return mermaid.render(`mermaid-${id}-${themeTick}`, source);
+				return mermaid.render(renderId, source);
 			})
 			.then(({ svg }) => {
 				if (!cancelled) setState({ kind: "ok", svg });
@@ -154,7 +168,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 				</motion.div>
 			) : (
 				<motion.div key="ok" {...VARIANTS.fade}>
-					<ExpandableDiagram svg={state.svg} />
+					<ExpandableDiagram svg={state.svg} toolbar={toolbar} />
 				</motion.div>
 			)}
 		</AnimatePresence>
@@ -305,7 +319,7 @@ function PanZoomSvg({
  * near-full-screen modal, where a second pan/zoom instance gets the whole
  * viewport to explore a large diagram at scale.
  */
-function ExpandableDiagram({ svg }: { svg: string }) {
+function ExpandableDiagram({ svg, toolbar }: { svg: string; toolbar?: ReactNode }) {
 	const [expanded, setExpanded] = useState(false);
 	return (
 		<>
@@ -320,12 +334,27 @@ function ExpandableDiagram({ svg }: { svg: string }) {
 			) : (
 				<PanZoomSvg svg={svg} viewportClassName="h-96" onExpand={() => setExpanded(true)} />
 			)}
-			<DiagramModal open={expanded} svg={svg} onClose={() => setExpanded(false)} />
+			<DiagramModal
+				open={expanded}
+				svg={svg}
+				toolbar={toolbar}
+				onClose={() => setExpanded(false)}
+			/>
 		</>
 	);
 }
 
-function DiagramModal({ open, svg, onClose }: { open: boolean; svg: string; onClose: () => void }) {
+function DiagramModal({
+	open,
+	svg,
+	toolbar,
+	onClose,
+}: {
+	open: boolean;
+	svg: string;
+	toolbar?: ReactNode;
+	onClose: () => void;
+}) {
 	return (
 		<ExpandModal
 			open={open}
@@ -333,6 +362,7 @@ function DiagramModal({ open, svg, onClose }: { open: boolean; svg: string; onCl
 			icon="image"
 			title="Diagram"
 			hint="Drag to pan · scroll to zoom"
+			actions={toolbar}
 		>
 			<div className="h-full bg-[var(--diagram-bg)]">
 				<PanZoomSvg svg={svg} viewportClassName="h-full" />

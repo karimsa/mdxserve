@@ -13,6 +13,14 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
+import {
+	readFlowchartDirection,
+	setFlowchartDirection,
+	type FlowDirection,
+} from "./mermaid-direction";
+import { useMediaQuery } from "./hooks";
+import { DESKTOP_MEDIA } from "./platform";
+import Dropdown from "./builtins/Dropdown";
 import { TRANSITIONS } from "./motion";
 import { CrossFade } from "./CrossFade";
 import { Icon } from "./ui/Icon";
@@ -117,6 +125,53 @@ function CopyButton({ getText }: { getText: () => string }) {
 	);
 }
 
+const DIRECTION_ICON: Record<FlowDirection, string> = {
+	TB: "arrow-down",
+	BT: "arrow-up",
+	LR: "arrow-right",
+	RL: "arrow-left",
+};
+
+const DIRECTION_LABEL: Record<FlowDirection, string> = {
+	TB: "Top to bottom",
+	BT: "Bottom to top",
+	LR: "Left to right",
+	RL: "Right to left",
+};
+
+/**
+ * Picks how a flowchart is laid out for the reader's view only: the source
+ * on disk, the code pane and the copy button all keep the author's direction.
+ * An icon-only trigger showing the current direction, opening the same menu
+ * the sidebar uses for sorting; the author's own direction is marked so the
+ * reader can always find the way back.
+ */
+function DirectionMenu({
+	value,
+	authored,
+	onChange,
+}: {
+	value: FlowDirection;
+	/** The direction written in the source. */
+	authored: FlowDirection;
+	onChange: (direction: FlowDirection) => void;
+}) {
+	return (
+		<Dropdown
+			icon={DIRECTION_ICON[value]}
+			size="sm"
+			label="Layout"
+			value={value}
+			onChange={(next) => onChange(next as FlowDirection)}
+			options={(Object.keys(DIRECTION_LABEL) as FlowDirection[]).map((direction) => ({
+				value: direction,
+				label: DIRECTION_LABEL[direction],
+				description: direction === authored ? "As written" : undefined,
+			}))}
+		/>
+	);
+}
+
 /** Diagram/Code segmented pill for mermaid frames; the active pill slides via `layoutId`. */
 function ViewToggle({
 	view,
@@ -192,6 +247,29 @@ function CodeFrame({
 	const showDiagram = isMermaid && view === "diagram";
 	const toggleId = useId();
 
+	// A flow-direction choice is a view setting, not an edit: it is applied to
+	// the text handed to mermaid and nowhere else. Remembering which source it
+	// was chosen for means a re-render with new content (the file was saved with
+	// a different header) falls back to the default automatically.
+	const wideScreen = useMediaQuery(DESKTOP_MEDIA, true);
+	const authored = source === null ? null : readFlowchartDirection(source);
+	// A left-to-right chart is wider than a phone column, so narrow screens start
+	// it top-down; vertical charts already fit and keep the author's direction.
+	const preferred =
+		authored !== null && !wideScreen && (authored === "LR" || authored === "RL") ? "TB" : authored;
+	const [chosen, setChosen] = useState<{ source: string; direction: FlowDirection } | null>(null);
+	const direction = chosen !== null && chosen.source === source ? chosen.direction : preferred;
+	const diagramSource =
+		source !== null && direction !== null ? setFlowchartDirection(source, direction) : source;
+	const directionMenu =
+		source !== null && authored !== null && direction !== null ? (
+			<DirectionMenu
+				value={direction}
+				authored={authored}
+				onChange={(next) => setChosen({ source, direction: next })}
+			/>
+		) : null;
+
 	// Pull the raw diagram text out of the (always-mounted) <pre> so the diagram
 	// view and the copy button share one source of truth.
 	useEffect(() => {
@@ -214,6 +292,7 @@ function CodeFrame({
 				actions={
 					<>
 						{isMermaid ? <ViewToggle view={view} onChange={setView} toggleId={toggleId} /> : null}
+						{showDiagram ? directionMenu : null}
 						<CopyButton getText={getCopyText} />
 					</>
 				}
@@ -222,7 +301,13 @@ function CodeFrame({
 				<CrossFade
 					active={showDiagram ? "diagram" : "code"}
 					panes={[
-						{ key: "diagram", node: source !== null ? <MermaidDiagram source={source} /> : null },
+						{
+							key: "diagram",
+							node:
+								diagramSource !== null ? (
+									<MermaidDiagram source={diagramSource} toolbar={directionMenu} />
+								) : null,
+						},
 						{
 							key: "code",
 							node: <InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>,

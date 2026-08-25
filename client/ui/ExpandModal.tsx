@@ -14,6 +14,8 @@ export interface ExpandModalProps {
 	title: string;
 	/** Short interaction hint after the title, e.g. "Drag to pan · scroll to zoom". */
 	hint?: ReactNode;
+	/** Controls shown at the right of the header, before the close button. */
+	actions?: ReactNode;
 	/** Fills the panel below the header; render it `h-full` to take the whole area. */
 	children: ReactNode;
 }
@@ -109,7 +111,15 @@ function resizeFromCentre(
  * handle, or reopen, to reset), and
  * `children` get the whole area under a slim header (icon, title, hint, close).
  */
-export function ExpandModal({ open, onClose, icon, title, hint, children }: ExpandModalProps) {
+export function ExpandModal({
+	open,
+	onClose,
+	icon,
+	title,
+	hint,
+	actions,
+	children,
+}: ExpandModalProps) {
 	const panelRef = useRef<HTMLDivElement>(null);
 	// Whether the reader has taken over the size; the springs below hold it.
 	const [custom, setCustom] = useState(false);
@@ -128,11 +138,14 @@ export function ExpandModal({ open, onClose, icon, title, hint, children }: Expa
 	} | null>(null);
 
 	// Document-level so Escape works wherever focus landed (a pan surface or
-	// chart is a plain element and never holds focus itself).
+	// chart is a plain element and never holds focus itself). A control in the
+	// header that already consumed the key (the layout menu closing itself)
+	// marks the event default-prevented, and that Escape must not also close
+	// the modal.
 	useEffect(() => {
 		if (!open) return;
 		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") {
+			if (event.key === "Escape" && !event.defaultPrevented) {
 				event.preventDefault();
 				onClose();
 			}
@@ -289,14 +302,10 @@ export function ExpandModal({ open, onClose, icon, title, hint, children }: Expa
 								{hint ? <>{hint} · </> : null}
 								drag an edge to resize · <Kbd>esc</Kbd> to close
 							</span>
-							<IconButton
-								icon="x"
-								label="Close"
-								size="md"
-								autoFocus
-								onClick={onClose}
-								className="ml-auto"
-							/>
+							<div className="ml-auto flex items-center gap-2">
+								{actions}
+								<IconButton icon="x" label="Close" size="md" autoFocus onClick={onClose} />
+							</div>
 						</div>
 						<div className="min-h-0 flex-1 overflow-hidden rounded-b-xl">{children}</div>
 						{EDGE_HANDLES.map(({ edge, className, bar }) => (

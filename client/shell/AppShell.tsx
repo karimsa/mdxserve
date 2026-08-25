@@ -18,6 +18,7 @@ import { NotFoundView } from "./NotFoundView";
 import { Sidebar } from "./Sidebar";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
+import { DESKTOP_MEDIA } from "../platform";
 import {
 	DOC_MAX_WIDTH,
 	DOC_MIN_WIDTH,
@@ -28,7 +29,6 @@ import {
 } from "../state";
 
 const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
-const DESKTOP_BREAKPOINT = "(min-width: 768px)";
 const SEARCH_DEBOUNCE_MS = 120;
 
 function readStoredSidebarOpen(): boolean {
@@ -271,7 +271,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	}, [activePath]);
 
 	const handleToggleSidebar = useCallback(() => {
-		if (window.matchMedia(DESKTOP_BREAKPOINT).matches) {
+		if (window.matchMedia(DESKTOP_MEDIA).matches) {
 			// A click here would otherwise silently flip (and persist) the
 			// preference for the next doc.
 			if (sidebarHidden) return;

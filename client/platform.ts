@@ -7,3 +7,10 @@
 export function isApplePlatform(): boolean {
 	return typeof navigator !== "undefined" && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
 }
+
+/**
+ * The viewport width at which the shell docks the sidebar instead of using a
+ * drawer — Tailwind's `md`. Anything narrower is treated as a phone-sized
+ * screen by every component that adapts its layout.
+ */
+export const DESKTOP_MEDIA = "(min-width: 768px)";
