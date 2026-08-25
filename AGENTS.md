@@ -13,7 +13,7 @@ calling it.
 ### Domain modules
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
-`listing/`, `search/`, `validation/`, `trash/`, `components/`.
+`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`.
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
   `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules
@@ -55,7 +55,7 @@ Adapters contain no business logic:
 | `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
 | `src/mcp/`       | MCP tools (`tools/*.ts`), one per file; they call the same services the tRPC procedures do, so a tool and a procedure cannot drift                                 |
 | `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
-| `src/rendering/` | Vite dev server, the SSR render worker, and the MDX compile pipeline                                                                                               |
+| `src/rendering/` | Vite dev server, the SSR render worker, the MDX compile pipeline, and the standalone bundle (`bundle.ts`, a one-shot `vite build()` behind `ExportService`'s port) |
 | `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
 | `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
 | `src/index.ts`   | the commander CLI                                                                                                                                                  |

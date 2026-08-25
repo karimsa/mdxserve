@@ -9,7 +9,15 @@ import { useDebounced } from "../hooks";
 import { ListingView } from "../ListingView";
 import { fadeRise, TRANSITIONS } from "../motion";
 import { useTheme } from "../theme";
-import { shellInfo, useFolderListing, useTree, type Route, type TreeNode } from "../router";
+import {
+	docModuleCache,
+	docMtime,
+	shellInfo,
+	useFolderListing,
+	useTree,
+	type Route,
+	type TreeNode,
+} from "../router";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -18,15 +26,9 @@ import { NotFoundView } from "./NotFoundView";
 import { Sidebar } from "./Sidebar";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
+import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import { DESKTOP_MEDIA } from "../platform";
-import {
-	DOC_MAX_WIDTH,
-	DOC_MIN_WIDTH,
-	docWidthAtom,
-	LISTING_MAX_WIDTH,
-	LISTING_MIN_WIDTH,
-	listingWidthAtom,
-} from "../state";
+import { docWidthAtom, LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
 
 const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
 const SEARCH_DEBOUNCE_MS = 120;
@@ -97,27 +99,6 @@ function breadcrumbItems(route: Route, rootsCount: number): BreadcrumbItem[] {
 const LISTING_DEFAULT_FRACTION = 2 / 3;
 
 /**
- * Width of the content area (the flex column holding the route wrapper),
- * tracked with a ResizeObserver so widths follow window/sidebar/toc resizes.
- * A layout effect so the first paint already has a real measurement.
- */
-function useContentWidth(ref: React.RefObject<HTMLElement | null>) {
-	const [width, setWidth] = useState(0);
-
-	useLayoutEffect(() => {
-		const el = ref.current;
-		if (!el) return;
-		const measure = () => setWidth(el.clientWidth);
-		measure();
-		const observer = new ResizeObserver(measure);
-		observer.observe(el);
-		return () => observer.disconnect();
-	}, [ref]);
-
-	return width;
-}
-
-/**
  * Spring-animated max-width for folder listings: the stored width when the user
  * has dragged one, otherwise 2/3 of the content area's width.
  */
@@ -146,42 +127,6 @@ function useListingMaxWidth(contentWidth: number, stored: number | null) {
 	}, [contentWidth, stored, spring]);
 
 	return spring;
-}
-
-/**
- * Spring-animated max-width for doc pages, or null while the user hasn't
- * dragged one — the wrapper keeps its default `max-w-prose` then. The spring
- * jumps (not animates) when a drag first activates it, so the page doesn't
- * lurch from a stale value to the grabbed width.
- */
-function useDocMaxWidth(contentWidth: number, stored: number | null) {
-	// glide, not snap: the width trails the drag slightly so the spring is felt.
-	const spring = useSpring(0, TRANSITIONS.glide);
-	const active = useRef(false);
-	// Whether the applied target used a real content-area measurement. The first
-	// effect run can see contentWidth === 0 (measurement lands one render later);
-	// keep jumping until a measured target is applied so a stored width doesn't
-	// animate down to its clamp on load.
-	const measured = useRef(false);
-
-	useLayoutEffect(() => {
-		if (stored === null) {
-			active.current = false;
-			measured.current = false;
-			return;
-		}
-		const target = Math.min(
-			DOC_MAX_WIDTH,
-			contentWidth > 0 ? contentWidth : DOC_MAX_WIDTH,
-			Math.max(DOC_MIN_WIDTH, stored),
-		);
-		if (active.current && measured.current) spring.set(target);
-		else spring.jump(target);
-		active.current = true;
-		measured.current = contentWidth > 0;
-	}, [contentWidth, stored, spring]);
-
-	return stored === null ? null : spring;
 }
 
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
@@ -339,9 +284,10 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	return (
 		<div className="min-h-screen bg-surface-page">
 			<TopBar
-				sidebarOpen={showSidebar}
-				onToggleSidebar={handleToggleSidebar}
-				onOpenSearch={() => setSearchOpen(true)}
+				homeHref="/"
+				hostLabel={location.host}
+				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
+				search={{ onOpen: () => setSearchOpen(true) }}
 				theme={theme}
 				onToggleTheme={toggle}
 			/>
@@ -391,7 +337,11 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 											/>
 										)
 									) : route.kind === "doc" ? (
-										<DocView route={route} onRendered={bumpTocVersion} />
+										<DocView
+											path={route.path}
+											module={docModuleCache.get(route.path)}
+											onRendered={bumpTocVersion}
+										/>
 									) : route.kind === "home" ? (
 										<HomeView route={route} />
 									) : (
@@ -403,7 +353,12 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 										<PageNav prev={prev} next={next} />
 									</div>
 								) : null}
-								{route.kind === "doc" ? <Footer route={route} /> : null}
+								{route.kind === "doc" ? (
+									<Footer
+										label={route.rootName + route.path.slice(route.rootDir.length)}
+										mtime={route.mtime ?? docMtime(route.path)}
+									/>
+								) : null}
 							</motion.div>
 						</AnimatePresence>
 					</div>

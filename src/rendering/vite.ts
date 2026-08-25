@@ -11,6 +11,7 @@ import {
 import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import type { PluggableList } from "unified";
 import { escapeBareLt } from "./mdx/lenient-md.js";
 import { mdxCompileOptions } from "./mdx/mdx-options.js";
 import { remarkSections } from "./mdx/remark-sections.js";
@@ -18,7 +19,8 @@ import { getPackageRoot } from "../infra/pkg.js";
 
 const require = createRequire(import.meta.url);
 
-function resolveFromPkg(specifier: string): string {
+/** Resolve `specifier` from mdxserve's own package root, not the caller's cwd. */
+export function resolveFromPkg(specifier: string): string {
 	return require.resolve(specifier, { paths: [getPackageRoot()] });
 }
 
@@ -28,7 +30,7 @@ function resolveFromPkg(specifier: string): string {
  * resolve its entry file, then walk up to the nearest package.json that
  * actually declares that name (skipping any nested one in a dist/ folder).
  */
-function packageDir(name: string): string {
+export function packageDir(name: string): string {
 	let dir = path.dirname(resolveFromPkg(name));
 	for (;;) {
 		const manifest = path.join(dir, "package.json");
@@ -42,23 +44,43 @@ function packageDir(name: string): string {
 	}
 }
 
-export interface CreateDevServerOptions {
-	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
-	roots: string[];
-	/**
-	 * Vite's own project root. This is a neutral, generated-CSS temp dir — not
-	 * one of the served roots — so every file Vite serves gets a uniform
-	 * `/@fs/<abs>` URL instead of some being root-relative.
-	 */
-	viteRoot: string;
-	cacheDir: string;
-	httpServer: HttpServer;
-	extraFsAllow?: string[];
+export interface ViteAlias {
+	find: string;
+	replacement: string;
 }
 
-export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
-	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
-	const pkgRoot = getPackageRoot();
+export interface SharedViteConfigOptions {
+	/** Appended after remarkGfm in mdxCompileOptions (e.g. remarkSections for the dev server). */
+	remarkPlugins?: PluggableList;
+	/** Appended after rehypePrettyCode in mdxCompileOptions (e.g. rehypeInlineImages for the standalone build). */
+	rehypePlugins?: PluggableList;
+	/** Plugins appended after the base lenient-md/MDX/React/Tailwind chain. */
+	extraPlugins?: PluginOption[];
+	/**
+	 * Alias "find" values to drop from resolve.alias. Vite's alias plugin runs
+	 * before every user plugin (even enforce: "pre"), so a virtual
+	 * replacement for one of these specifiers (mermaid, lucide-react/*) only
+	 * wins if the matching alias entry is omitted here.
+	 */
+	omitAliases?: string[];
+}
+
+export interface SharedViteConfig {
+	plugins: PluginOption[];
+	resolve: { alias: ViteAlias[]; dedupe: string[] };
+	/** The client dep-optimizer's `include` list; dev-only concerns (SSR, exclude) live in createDevServer. */
+	optimizeDepsInclude: string[];
+}
+
+/**
+ * The alias list, the lenient-md/MDX/React/Tailwind plugin chain, and the
+ * client dep-optimizer include list shared by the dev server
+ * (`createDevServer`) and the standalone build (`src/rendering/bundle.ts`),
+ * so the two never drift.
+ */
+export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedViteConfig {
+	const { remarkPlugins, rehypePlugins, extraPlugins = [], omitAliases = [] } = options;
+	const omit = new Set(omitAliases);
 
 	const reactEntry = resolveFromPkg("react");
 	const reactDomEntry = resolveFromPkg("react-dom");
@@ -73,7 +95,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// svg-pan-zoom is CJS; alias the package dir (not the browserified dist
 	// main) so Vite picks the plain `module.exports` entry and interops it.
 	const svgPanZoomEntry = path.dirname(resolveFromPkg("svg-pan-zoom/package.json"));
-	const zodEntry = resolveFromPkg("zod");
+	// ESM entry: require.resolve("zod") lands on the CJS "main", which
+	// Rolldown/esbuild cannot tree-shake — the whole library (incl. ~40
+	// locales) would ship. Alias straight to the ESM entry file instead.
+	const zodEntry = path.join(packageDir("zod"), "index.js");
 	// diff's package.json "main" is its CJS entry (libcjs), so a plain
 	// require.resolve("diff") lands there. Unlike svg-pan-zoom/tippy.js (no
 	// "exports" map, so aliasing the package dir falls back to the "module"
@@ -98,7 +123,11 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// entry instead, same as framer-motion/svg-pan-zoom above.
 	const tippyReactEntry = path.dirname(resolveFromPkg("@tippyjs/react/package.json"));
 	// lucide-react's `main` is CJS with no "exports" map; alias the package dir
-	// so Vite picks the `module` (ESM) entry, same as framer-motion above.
+	// so deep subpath imports (lucide-react/dist/esm/icons/<name>.mjs,
+	// lucide-react/dynamicIconImports) resolve. Nothing imports the bare
+	// "lucide-react" entry at runtime any more — client/ui/Icon.tsx imports
+	// chrome icons per file and author icons via dynamicIconImports — so this
+	// alias exists only for those subpaths, not for pre-bundling the whole map.
 	const lucideEntry = path.dirname(resolveFromPkg("lucide-react/package.json"));
 	// date-fns (listing + footer relative times) ships an "exports" map with an
 	// ESM branch; aliasing the package dir lets Vite's resolver pick it.
@@ -140,17 +169,48 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	// aliased too even though it looks server-only.
 	const trpcServerEntry = path.dirname(resolveFromPkg("@trpc/server/package.json"));
 
+	// Vite/rollup-plugin-alias matches on a "find" prefix (id === find or
+	// id.startsWith(find + "/")), taking the first match in list order —
+	// so subpath aliases like "react/jsx-runtime" MUST be listed before
+	// the bare "react" alias, or "react" would prefix-match them first
+	// and mangle the replacement (e.g. ".../react/index.js/jsx-runtime").
+	const fullAlias: ViteAlias[] = [
+		{ find: "react/jsx-runtime", replacement: jsxRuntime },
+		{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
+		{ find: "react-dom/client", replacement: reactDomClientEntry },
+		{ find: "react-dom/server", replacement: reactDomServerEntry },
+		{ find: "react-dom", replacement: reactDomEntry },
+		{ find: "react", replacement: reactEntry },
+		{ find: "@mdx-js/react", replacement: mdxReactEntry },
+		{ find: "mermaid", replacement: mermaidEntry },
+		{ find: "svg-pan-zoom", replacement: svgPanZoomEntry },
+		{ find: "zod", replacement: zodEntry },
+		{ find: "diff", replacement: diffEntry },
+		{ find: "framer-motion", replacement: framerMotionEntry },
+		{ find: "@tippyjs/react", replacement: tippyReactEntry },
+		{ find: "tippy.js", replacement: tippyEntry },
+		{ find: "lucide-react", replacement: lucideEntry },
+		{ find: "date-fns", replacement: dateFnsEntry },
+		{ find: "jotai", replacement: jotaiEntry },
+		...tiptapAliases,
+		{ find: "@tanstack/react-query", replacement: reactQueryEntry },
+		{ find: "@trpc/client", replacement: trpcClientEntry },
+		{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
+		{ find: "@trpc/server", replacement: trpcServerEntry },
+	];
+	const alias = fullAlias.filter((entry) => !omit.has(entry.find));
+
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
 	const mdxPlugin = {
 		// The compiler options live in mdx-options.ts so the validator shares
 		// them; the extension lists are rollup-plugin-only and make .md go through
-		// the same MDX path as .mdx. remarkSections is passed only here, not into
-		// mdx-options.ts's shared mdxCompileOptions(): the validator must never
-		// see an MdSection wrapper, or it would report it as an unregistered
-		// component on every doc.
+		// the same MDX path as .mdx. remarkSections is passed only by the dev
+		// server, not into mdx-options.ts's shared mdxCompileOptions(): the
+		// validator must never see an MdSection wrapper, or it would report it
+		// as an unregistered component on every doc.
 		...mdx({
-			...mdxCompileOptions({ remarkPlugins: [remarkSections] }),
+			...mdxCompileOptions({ remarkPlugins, rehypePlugins }),
 			mdxExtensions: [".mdx", ".md"],
 			mdExtensions: [],
 		}),
@@ -173,7 +233,58 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		mdxPlugin,
 		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
 		tailwindcss(),
+		...extraPlugins,
 	];
+
+	// lucide-react is deliberately absent: nothing imports the bare entry
+	// any more (see the alias comment above), and pre-bundling it here would
+	// undo the point of subsetting it in Icon.tsx.
+	const optimizeDepsInclude = [
+		"react",
+		"react-dom",
+		"react-dom/client",
+		"react/jsx-runtime",
+		"react/jsx-dev-runtime",
+		"@mdx-js/react",
+		"mermaid",
+		"svg-pan-zoom",
+		"zod",
+		"framer-motion",
+		"@tippyjs/react",
+		"tippy.js",
+		"diff",
+		"date-fns",
+		"jotai",
+		"jotai/utils",
+		...tiptapPackages,
+		"@tanstack/react-query",
+		"@trpc/client",
+		"@trpc/tanstack-react-query",
+		"@trpc/server",
+	];
+
+	return { plugins, resolve: { alias, dedupe: ["react", "react-dom"] }, optimizeDepsInclude };
+}
+
+export interface CreateDevServerOptions {
+	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
+	roots: string[];
+	/**
+	 * Vite's own project root. This is a neutral, generated-CSS temp dir — not
+	 * one of the served roots — so every file Vite serves gets a uniform
+	 * `/@fs/<abs>` URL instead of some being root-relative.
+	 */
+	viteRoot: string;
+	cacheDir: string;
+	httpServer: HttpServer;
+	extraFsAllow?: string[];
+}
+
+export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
+	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
+	const pkgRoot = getPackageRoot();
+
+	const shared = sharedViteConfig({ remarkPlugins: [remarkSections] });
 
 	const vite = await createViteServer({
 		root: viteRoot,
@@ -225,65 +336,17 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				server: httpServer,
 			},
 		},
-		plugins,
-		resolve: {
-			// Vite/rollup-plugin-alias matches on a "find" prefix (id === find or
-			// id.startsWith(find + "/")), taking the first match in list order —
-			// so subpath aliases like "react/jsx-runtime" MUST be listed before
-			// the bare "react" alias, or "react" would prefix-match them first
-			// and mangle the replacement (e.g. ".../react/index.js/jsx-runtime").
-			alias: [
-				{ find: "react/jsx-runtime", replacement: jsxRuntime },
-				{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
-				{ find: "react-dom/client", replacement: reactDomClientEntry },
-				{ find: "react-dom/server", replacement: reactDomServerEntry },
-				{ find: "react-dom", replacement: reactDomEntry },
-				{ find: "react", replacement: reactEntry },
-				{ find: "@mdx-js/react", replacement: mdxReactEntry },
-				{ find: "mermaid", replacement: mermaidEntry },
-				{ find: "svg-pan-zoom", replacement: svgPanZoomEntry },
-				{ find: "zod", replacement: zodEntry },
-				{ find: "diff", replacement: diffEntry },
-				{ find: "framer-motion", replacement: framerMotionEntry },
-				{ find: "@tippyjs/react", replacement: tippyReactEntry },
-				{ find: "tippy.js", replacement: tippyEntry },
-				{ find: "lucide-react", replacement: lucideEntry },
-				{ find: "date-fns", replacement: dateFnsEntry },
-				{ find: "jotai", replacement: jotaiEntry },
-				...tiptapAliases,
-				{ find: "@tanstack/react-query", replacement: reactQueryEntry },
-				{ find: "@trpc/client", replacement: trpcClientEntry },
-				{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
-				{ find: "@trpc/server", replacement: trpcServerEntry },
-			],
-			dedupe: ["react", "react-dom"],
-		},
+		plugins: shared.plugins,
+		resolve: shared.resolve,
 		optimizeDeps: {
 			entries: [],
-			include: [
-				"react",
-				"react-dom",
-				"react-dom/client",
-				"react/jsx-runtime",
-				"react/jsx-dev-runtime",
-				"@mdx-js/react",
-				"mermaid",
-				"svg-pan-zoom",
-				"zod",
-				"framer-motion",
-				"@tippyjs/react",
-				"tippy.js",
-				"diff",
-				"lucide-react",
-				"date-fns",
-				"jotai",
-				"jotai/utils",
-				...tiptapPackages,
-				"@tanstack/react-query",
-				"@trpc/client",
-				"@trpc/tanstack-react-query",
-				"@trpc/server",
-			],
+			include: shared.optimizeDepsInclude,
+			// client/ui/Icon.tsx imports chrome icons per file and author icons via
+			// lucide-react/dynamicIconImports; nothing imports the bare
+			// "lucide-react" entry any more. Excluding it stops Vite from
+			// "discovering" each new per-icon deep import mid-session and
+			// re-optimizing + full-reloading the page.
+			exclude: ["lucide-react"],
 		},
 		// The rest of this `ssr` block exists only for src/rendering/render.ts's
 		// ssrLoadModule (client/ssr-entry.tsx and, transitively, everything
@@ -311,6 +374,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		// natively-`require`d react-dom/server would otherwise load a *second*,
 		// un-optimized copy of "react" via Node's own resolution, breaking
 		// hooks/context with "Cannot read properties of null").
+		//
+		// lucide-react is deliberately absent here too — Icon.tsx no longer
+		// imports the bare entry, so SSR never needs a pre-bundled copy of it.
 		ssr: {
 			optimizeDeps: {
 				include: [
@@ -332,7 +398,6 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					// of this list.
 					"jotai",
 					"jotai/utils",
-					"lucide-react",
 					"date-fns",
 					// MdSection imports client/api.ts for the section editor's tRPC
 					// client, which pulls these four in on every SSR render too.

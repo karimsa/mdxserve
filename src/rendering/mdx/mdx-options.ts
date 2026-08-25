@@ -9,9 +9,12 @@ import { designTokenTheme } from "./shiki-theme.js";
  * The MDX compiler options shared by the Vite dev server and the standalone
  * validator. `extra.remarkPlugins` are appended after `remarkGfm` (e.g. to
  * capture the parsed tree for validation) without disturbing the rest of the
- * pipeline.
+ * pipeline. `extra.rehypePlugins` are appended after `rehypePrettyCode` (e.g.
+ * the standalone build's image inliner).
  */
-export function mdxCompileOptions(extra: { remarkPlugins?: PluggableList } = {}): CompileOptions {
+export function mdxCompileOptions(
+	extra: { remarkPlugins?: PluggableList; rehypePlugins?: PluggableList } = {},
+): CompileOptions {
 	return {
 		// Treat .md exactly like .mdx: builtin components and JSX work in both.
 		// (The default "detect" mode parses .md as plain Markdown and silently
@@ -28,6 +31,7 @@ export function mdxCompileOptions(extra: { remarkPlugins?: PluggableList } = {})
 					keepBackground: false,
 				},
 			],
+			...(extra.rehypePlugins ?? []),
 		],
 		providerImportSource: "@mdx-js/react",
 	};

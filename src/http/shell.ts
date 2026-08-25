@@ -11,8 +11,9 @@ export type Route =
 
 // Route JSON is embedded inside an inline <script type="application/json">.
 // Escape "</" and "<!--" so nothing in a file/dir name (or the JSON itself)
-// can break out of the script tag or be misparsed as an HTML comment.
-function escapeForInlineScript(json: string): string {
+// can break out of the script tag or be misparsed as an HTML comment. Also
+// used by src/export/html.ts for its own inline route JSON and JS payload.
+export function escapeForInlineScript(json: string): string {
 	return json.replaceAll("</", "<\\/").replaceAll("<!--", "<\\!--");
 }
 

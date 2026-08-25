@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { ErrorBox } from "./DocView";
+import { ErrorBox } from "./ErrorBox";
 
 type RenderErrorBoundaryState = {
 	error: Error | null;

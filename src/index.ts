@@ -14,6 +14,9 @@ import { expandHome } from "./roots/paths.js";
 import { ServerRegistry, type ServerRecord } from "./servers/server-registry.js";
 import { DocCache } from "./docs/doc-cache.js";
 import { SearchService } from "./search/service.js";
+import { ExportService, EXPORT_FORMATS, type ExportFormat } from "./export/service.js";
+import { bundleStandalone } from "./rendering/bundle.js";
+import type { MermaidMode } from "./rendering/protocol.js";
 
 const program = new Command();
 
@@ -109,6 +112,60 @@ program
 				"  stop it (Ctrl-C, or your process manager) before starting another",
 			].join("\n"),
 		);
+	});
+
+const MERMAID_MODES: readonly MermaidMode[] = ["cdn", "bundle", "none"];
+
+program
+	.command("export <file>")
+	.description("Export one .md/.mdx file to a single self-contained file")
+	.option("-o, --out <file>", "output file path (default: <name>.<ext> in the current directory)")
+	.option("-f, --format <format>", "output format", "html")
+	.option("--mermaid <mode>", "mermaid handling: cdn, bundle, or none", "cdn")
+	.action(async (file: string, opts: { out?: string; format: string; mermaid: string }) => {
+		if (!(EXPORT_FORMATS as readonly string[]).includes(opts.format)) {
+			console.error(
+				`mdxserve: unsupported format "${opts.format}" (supported: ${EXPORT_FORMATS.join(", ")})`,
+			);
+			process.exitCode = 1;
+			return;
+		}
+		if (!MERMAID_MODES.includes(opts.mermaid as MermaidMode)) {
+			console.error(
+				`mdxserve: invalid --mermaid mode "${opts.mermaid}" (expected: ${MERMAID_MODES.join(", ")})`,
+			);
+			process.exitCode = 1;
+			return;
+		}
+
+		// Same treatment as every other path the CLI takes: a leading `~` is
+		// expanded here, since a quoted or non-shell-supplied argument arrives
+		// with it still literal.
+		const docPath = path.resolve(process.cwd(), expandHome(file, os.homedir()));
+		const outFile = opts.out
+			? path.resolve(process.cwd(), expandHome(opts.out, os.homedir()))
+			: undefined;
+		// `export` is independent of the one-server-per-user model: it never
+		// acquires ServerLock and never reads ServerRegistry, so it runs
+		// whether or not `mdxserve serve` is up.
+		const exportService = new ExportService(bundleStandalone);
+		const result = await exportService.export({
+			docPath,
+			outFile,
+			format: opts.format as ExportFormat,
+			mermaid: opts.mermaid as MermaidMode,
+		});
+
+		if (result.kind === "ok") {
+			for (const warning of result.warnings) console.error(`mdxserve: warning: ${warning}`);
+			const kilobytes = (result.bytes / 1024).toFixed(0);
+			console.log(
+				`Wrote ${result.outFile} (${kilobytes} KB, ${opts.format}, mermaid: ${result.mermaid})`,
+			);
+			return;
+		}
+		console.error(`mdxserve: ${result.message}`);
+		process.exitCode = 1;
 	});
 
 program

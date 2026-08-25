@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import fsp from "node:fs/promises";
 import { allowFsDir, createDevServer, disallowFsDir } from "../rendering/vite.js";
+import { renderAppCss } from "../rendering/app-css.js";
 import { getPackageRoot } from "../infra/pkg.js";
 import { getViteCacheDir } from "../infra/cache.js";
 import { resolveRoot } from "../roots/paths.js";
@@ -16,7 +17,7 @@ import { RenderService } from "../rendering/render.js";
 import { DocCache } from "../docs/doc-cache.js";
 import { SearchService } from "../search/service.js";
 import { DocsService } from "../docs/service.js";
-import { handleRequest, toPosix } from "./server.js";
+import { handleRequest } from "./server.js";
 
 export interface StartServerOptions {
 	roots: string[];
@@ -24,37 +25,9 @@ export interface StartServerOptions {
 	host: string;
 }
 
-/** The generated Tailwind entry CSS's text for the current set of mounted roots. */
-function renderAppCss(roots: string[], pkgRoot: string): string {
-	// Tailwind v4's @import/@plugin resolution walks up from the CSS file's
-	// own directory, which won't reach mdxserve's node_modules from a temp
-	// dir — so point directly at the package's own copies.
-	const tailwindImport = path.join(pkgRoot, "node_modules", "tailwindcss", "index.css");
-	const designCssPath = path.join(pkgRoot, "client", "app.css");
-
-	const rootSources = roots
-		.map(
-			(root) => `@source "${toPosix(root)}/**/*.{md,mdx,js,jsx,ts,tsx}";
-@source not "${toPosix(root)}/**/.{git,mdxserve,venv,cache}/**";
-@source not "${toPosix(root)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";`,
-		)
-		.join("\n");
-
-	// @import (rather than inlining) the package's own app.css so edits to it
-	// are tracked as a real CSS dependency and hot-reload without a restart.
-	// Zero roots is a valid input — rootSources is just empty then, and the
-	// rest of the file still compiles.
-	return `@import "${toPosix(tailwindImport)}";
-@import "${toPosix(designCssPath)}";
-${rootSources}
-@source "${toPosix(path.join(pkgRoot, "client"))}";
-@source "${toPosix(path.join(pkgRoot, "src"))}";
-`;
-}
-
 /** Regenerate `file` for the given `roots`, so a root added/removed at runtime shows up in HMR's Tailwind scan. */
 async function writeAppCss(file: string, roots: string[], pkgRoot: string): Promise<void> {
-	await fsp.writeFile(file, renderAppCss(roots, pkgRoot), "utf8");
+	await fsp.writeFile(file, renderAppCss({ sourceDirs: roots, pkgRoot }), "utf8");
 }
 
 function getLocalIPs(): string[] {

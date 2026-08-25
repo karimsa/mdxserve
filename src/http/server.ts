@@ -19,6 +19,7 @@ import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
 import { appRouter } from "../api/router.js";
 import { isTrustedHost } from "./host.js";
+import { toPosix } from "../infra/paths.js";
 
 const MDXSERVE_PREFIX = "/__mdxserve/";
 
@@ -30,11 +31,6 @@ const MDXSERVE_PREFIX = "/__mdxserve/";
 function wantsHtml(req: http.IncomingMessage): boolean {
 	const accept = req.headers.accept ?? "";
 	return accept.includes("text/html");
-}
-
-/** Exported for `src/http/start.ts`'s generated Tailwind entry CSS, which needs the same rewrite. */
-export function toPosix(filePath: string): string {
-	return filePath.split(path.sep).join("/");
 }
 
 export interface RequestContext {

@@ -1,5 +1,4 @@
 import { Icon } from "../ui/Icon";
-import { docMtime, type Route } from "../router";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -22,15 +21,11 @@ function formatEdited(mtime: number | undefined): string {
 }
 
 /** Names the source file below a doc's content — the reader should never lose track of it. */
-export function Footer({ route }: { route: Extract<Route, { kind: "doc" }> }) {
-	const mtime = route.mtime ?? docMtime(route.path);
+export function Footer({ label, mtime }: { label: string; mtime?: number }) {
 	return (
 		<div className="mt-8 flex items-center gap-2 font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle">
 			<Icon name="file-text" size="sm" strokeWidth="light" />
-			<span className="font-mono text-[length:var(--size-xs)]">
-				{route.rootName}
-				{route.path.slice(route.rootDir.length)}
-			</span>
+			<span className="font-mono text-[length:var(--size-xs)]">{label}</span>
 			<span>·</span>
 			<span>{formatEdited(mtime)}</span>
 		</div>

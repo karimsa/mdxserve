@@ -10,7 +10,8 @@ import {
 	type ReactNode,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check.mjs";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import { z } from "zod";
 import { CrossFade } from "../CrossFade";
 import { TRANSITIONS, VARIANTS } from "../motion";

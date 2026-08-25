@@ -1,0 +1,39 @@
+import path from "node:path";
+import { toPosix } from "../infra/paths.js";
+
+/** The generated Tailwind entry CSS's text for a given set of source directories. */
+export function renderAppCss(options: {
+	sourceDirs: string[];
+	/** Individual files to scan on top of the directories (an export's imports from outside the doc's folder). */
+	sourceFiles?: string[];
+	pkgRoot: string;
+}): string {
+	const { sourceDirs, sourceFiles = [], pkgRoot } = options;
+
+	// Tailwind v4's @import/@plugin resolution walks up from the CSS file's
+	// own directory, which won't reach mdxserve's node_modules from a temp
+	// dir — so point directly at the package's own copies.
+	const tailwindImport = path.join(pkgRoot, "node_modules", "tailwindcss", "index.css");
+	const designCssPath = path.join(pkgRoot, "client", "app.css");
+
+	const dirSources = sourceDirs
+		.map(
+			(dir) => `@source "${toPosix(dir)}/**/*.{md,mdx,js,jsx,ts,tsx}";
+@source not "${toPosix(dir)}/**/.{git,mdxserve,venv,cache}/**";
+@source not "${toPosix(dir)}/**/{node_modules,venv,dist,build,target,__pycache__}/**";`,
+		)
+		.join("\n");
+	const fileSources = sourceFiles.map((file) => `@source "${toPosix(file)}";`).join("\n");
+
+	// @import (rather than inlining) the package's own app.css so edits to it
+	// are tracked as a real CSS dependency and hot-reload without a restart.
+	// Zero source directories is a valid input — dirSources is just empty then,
+	// and the rest of the file still compiles.
+	return `@import "${toPosix(tailwindImport)}";
+@import "${toPosix(designCssPath)}";
+${dirSources}
+${fileSources}
+@source "${toPosix(path.join(pkgRoot, "client"))}";
+@source "${toPosix(path.join(pkgRoot, "src"))}";
+`;
+}

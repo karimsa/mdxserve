@@ -80,6 +80,30 @@ oxmgr stop mdxserve      # stop it (keeps the registration)
 oxmgr delete mdxserve    # stop and forget it
 ```
 
+### Exporting a standalone page
+
+`mdxserve export` turns one document into a single HTML file that opens from `file://` on any
+machine — no mdxserve, no node — and reads the same as the live viewer: the same theme and
+fonts, code blocks, mermaid diagrams, builtin components, table of contents, and page-width
+controls. It never touches a running server.
+
+```bash
+npx mdxserve export docs/guide.md                    # writes ./guide.html
+npx mdxserve export docs/guide.md -o ~/Desktop/guide.html
+npx mdxserve export docs/guide.md -f html            # the format; html is the only one today
+npx mdxserve export docs/guide.md --mermaid bundle   # fully offline (inlines mermaid, ~+2.4 MB)
+```
+
+A typical page is under 1 MB. Relative images are inlined; custom components imported by the
+document are compiled in; icons are the ones the document names. Mermaid is loaded from a CDN
+on first open by default (`--mermaid cdn`), pinned to the version mdxserve ships; pass
+`--mermaid bundle` when the file must work with no network at all, or `--mermaid none` to
+leave diagrams out.
+
+What the built page does not have: the sidebar, search, previous/next links, editing, and live
+reload — everything that needs a server. Links to other `.md` files stay plain links, and an
+icon name assembled at runtime (rather than written literally in the document) renders nothing.
+
 ## Writing docs
 
 - `.md` and `.mdx` are treated identically: GitHub-flavored Markdown (tables, task lists, etc.)

@@ -1,10 +1,9 @@
-import { motion } from "framer-motion";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { DocContext } from "./DocContext";
-import { fadeRise } from "./motion";
+import { ErrorBox } from "./ErrorBox";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
-import { docModuleCache, type Route } from "./router";
+import type { DocModuleState } from "./doc-module-cache";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "./state";
 
@@ -22,25 +21,19 @@ function keyForComponent(Component: object): number {
 	return key;
 }
 
-export function ErrorBox({ message }: { message: string }) {
-	return (
-		<motion.div
-			variants={fadeRise}
-			initial="initial"
-			animate="enter"
-			className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-		>
-			<p className="mb-2 font-semibold">Failed to render this page</p>
-			<pre className="whitespace-pre-wrap break-words font-mono text-xs">{message}</pre>
-		</motion.div>
-	);
-}
-
 export function DocView({
-	route,
+	path,
+	module,
 	onRendered,
 }: {
-	route: Extract<Route, { kind: "doc" }>;
+	path: string;
+	/**
+	 * The cached module for `path` (client/doc-module-cache.ts), read
+	 * by the caller rather than here: keeping this component's own import
+	 * graph free of router.ts (and the tRPC/react-query it pulls in) is what
+	 * lets client/standalone-entry.tsx reuse it without either.
+	 */
+	module: DocModuleState | undefined;
 	/**
 	 * Fired once the article for the *current* cached module is on the page —
 	 * keyed on the cached entry's identity (not just route.path) so it fires
@@ -51,7 +44,7 @@ export function DocView({
 	 */
 	onRendered?: () => void;
 }) {
-	const cached = docModuleCache.get(route.path);
+	const cached = module;
 	const setWidth = useSetAtom(docWidthAtom);
 	// While a section is being edited the page width is pinned: a drag would
 	// reflow the editor under the caret, and the handles' hover strips sit
@@ -63,7 +56,7 @@ export function DocView({
 	// components render through the MDXProvider map and never see route props
 	// directly. Memoized on the path so identity-sensitive children (none
 	// currently, but cheap insurance) don't see a new object every render.
-	const docContext = useMemo(() => ({ path: route.path }), [route.path]);
+	const docContext = useMemo(() => ({ path }), [path]);
 
 	useLayoutEffect(() => {
 		if (cached?.status === "ok") onRendered?.();

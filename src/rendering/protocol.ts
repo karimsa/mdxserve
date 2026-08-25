@@ -6,6 +6,27 @@ export type RenderOutcome =
 /** A function that server-side renders an already statically-valid `.md`/`.mdx` file. */
 export type RenderPort = (absPath: string) => Promise<RenderOutcome>;
 
+// ---- the standalone-build port (src/rendering/bundle.ts implements it) ---
+
+export type MermaidMode = "cdn" | "bundle" | "none";
+
+export interface BundleInput {
+	docPath: string;
+	mermaid: MermaidMode;
+	/** From detectMermaidNeeds; only consulted in "bundle" mode. */
+	needs: { mindmap: boolean; math: boolean };
+	iconNames: ReadonlySet<string>;
+}
+
+export interface BundleOutput {
+	js: string;
+	css: string;
+	warnings: string[];
+}
+
+/** Compiles one doc into a single self-contained iife bundle + stylesheet. */
+export type BundlePort = (input: BundleInput) => Promise<BundleOutput>;
+
 // ---- wire protocol between src/rendering/render.ts (the main thread) and
 // src/rendering/render-worker.ts (the worker thread) -----------------------
 //

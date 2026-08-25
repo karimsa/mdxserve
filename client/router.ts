@@ -36,16 +36,11 @@ export interface RootTree extends RootInfo {
 	tree: TreeNode[];
 }
 
-export type DocModuleState =
-	{ status: "ok"; Component: ComponentType } | { status: "error"; message: string };
-
-/**
- * Modules imported for doc routes, keyed by absolute path. Shared across
- * the whole SPA session (module scope, not component state) so DocView can
- * render synchronously once a route resolves, and so re-visiting a doc
- * doesn't re-trigger the dynamic import.
- */
-export const docModuleCache = new Map<string, DocModuleState>();
+// The doc-module cache lives in client/doc-module-cache.ts (so an exported
+// file can use it without this module's tRPC graph); re-exported here for the
+// live viewer's callers.
+import { docModuleCache, type DocModuleState } from "./doc-module-cache";
+export { docModuleCache, type DocModuleState };
 const docModulePromises = new Map<string, Promise<void>>();
 
 function ensureDocModule(path: string): Promise<void> {
