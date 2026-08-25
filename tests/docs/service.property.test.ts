@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
 import { DocsService, versionOf } from "../../src/docs/service.js";
+import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
@@ -63,7 +64,10 @@ describe("DocsService — save-then-read round trip", () => {
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService([{ name: "docs", dir: root }], registry);
+							const service = new DocsService(
+								new RootsService(root, os.homedir(), [root]),
+								registry,
+							);
 
 							const saved = await service.saveSection({
 								path: abs,
@@ -108,7 +112,10 @@ describe("DocsService — rejected saves leave the file untouched", () => {
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService([{ name: "docs", dir: root }], registry);
+							const service = new DocsService(
+								new RootsService(root, os.homedir(), [root]),
+								registry,
+							);
 
 							const input =
 								mode === "stale"
@@ -176,7 +183,10 @@ describe("DocsService — concurrent saves", () => {
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService([{ name: "docs", dir: root }], registry);
+							const service = new DocsService(
+								new RootsService(root, os.homedir(), [root]),
+								registry,
+							);
 
 							const [resultA, resultB] = await Promise.all([
 								service.saveSection({

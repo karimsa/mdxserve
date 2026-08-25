@@ -2,7 +2,8 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchDocsResultSchema } from "../../search/controller.js";
 import type { McpContext } from "../server.js";
-import { errorResult, textResult, formatSearchResults, NO_SERVER_MESSAGE } from "../format.js";
+import { mountedRoots } from "../mounted-roots.js";
+import { errorResult, textResult, formatSearchResults, NO_ROOTS_MESSAGE } from "../format.js";
 
 const searchDocsInput = { query: z.string() };
 
@@ -10,20 +11,22 @@ const searchDocsInput = { query: z.string() };
 const searchDocsOutput = searchDocsResultSchema.shape;
 
 export function registerSearchDocs(server: McpServer, ctx: McpContext): void {
-	const { getRoots, remote, search } = ctx;
+	const { remote, search } = ctx;
 
 	server.registerTool(
 		"search_docs",
 		{
 			title: "Search docs",
 			description:
-				"Full-text search titles, headings, and bodies of the .md/.mdx docs under the served root. Call this to find where a topic is documented before adding new content, or to check whether something is already covered.",
+				"Full-text search titles, headings, and bodies of the .md/.mdx docs under the served roots. Call this to find where a topic is documented before adding new content, or to check whether something is already covered.",
 			inputSchema: searchDocsInput,
 			outputSchema: searchDocsOutput,
 		},
 		async ({ query }) => {
-			const roots = getRoots();
-			if (roots.length === 0) return errorResult(NO_SERVER_MESSAGE);
+			const mounted = await mountedRoots(ctx);
+			if (mounted.kind !== "ok") return errorResult(mounted.message);
+			const roots = mounted.roots;
+			if (roots.length === 0) return errorResult(NO_ROOTS_MESSAGE);
 
 			if (remote) {
 				const outcome = await remote.searchDocs(query);

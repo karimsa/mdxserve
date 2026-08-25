@@ -11,7 +11,7 @@
 	"scripts": {
 		"build": "tsx scripts/build-registry.ts && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' && esbuild src/rendering/render-worker.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/render-worker.js",
 		"registry": "tsx scripts/build-registry.ts",
-		"dev": "tsx scripts/build-registry.ts && tsx src/index.ts example",
+		"dev": "tsx scripts/build-registry.ts && tsx src/index.ts serve -w example",
 		"typecheck": "tsc --noEmit",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
@@ -47,6 +47,7 @@
 		"framer-motion": "13.0.0",
 		"hast-util-to-html": "9.0.5",
 		"jotai": "2.20.2",
+		"lockfile": "1.0.4",
 		"lucide-react": "1.30.0",
 		"mdast-util-from-markdown": "2.0.3",
 		"mdast-util-mdx": "3.0.0",
@@ -71,6 +72,7 @@
 		"zod": "4.4.3"
 	},
 	"devDependencies": {
+		"@types/lockfile": "1.0.4",
 		"@types/mdast": "4.0.4",
 		"@types/node": "26.2.0",
 		"@types/react": "19.2.18",

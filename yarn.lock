@@ -1502,6 +1502,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/lockfile@npm:1.0.4":
+  version: 1.0.4
+  resolution: "@types/lockfile@npm:1.0.4"
+  checksum: 10c0/8be517f176944cef487c54aaa58ff50b6be1247eb6f5ef853df46710e04260d38139cea0d9d46a77d07edf063cd40c97e25ef46f0c02ded14df215b7d86a7903
+  languageName: node
+  linkType: hard
+
 "@types/mdast@npm:4.0.4, @types/mdast@npm:^4.0.0":
   version: 4.0.4
   resolution: "@types/mdast@npm:4.0.4"
@@ -4009,6 +4016,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lockfile@npm:1.0.4":
+  version: 1.0.4
+  resolution: "lockfile@npm:1.0.4"
+  dependencies:
+    signal-exit: "npm:^3.0.2"
+  checksum: 10c0/80b7777ceb43105d9e588733c3efc2514653a5e3a0dae3e61347a1f5381da34dcaa2caaa60c39ed5d4ad31c1735a4831e5639a0ba1c508bfea8dbc9c89777b37
+  languageName: node
+  linkType: hard
+
 "lodash-es@npm:^4.17.21":
   version: 4.18.1
   resolution: "lodash-es@npm:4.18.1"
@@ -4347,6 +4363,7 @@ __metadata:
     "@trpc/client": "npm:11.18.0"
     "@trpc/server": "npm:11.18.0"
     "@trpc/tanstack-react-query": "npm:11.18.0"
+    "@types/lockfile": "npm:1.0.4"
     "@types/mdast": "npm:4.0.4"
     "@types/node": "npm:26.2.0"
     "@types/react": "npm:19.2.18"
@@ -4362,6 +4379,7 @@ __metadata:
     framer-motion: "npm:13.0.0"
     hast-util-to-html: "npm:9.0.5"
     jotai: "npm:2.20.2"
+    lockfile: "npm:1.0.4"
     lucide-react: "npm:1.30.0"
     mdast-util-from-markdown: "npm:2.0.3"
     mdast-util-mdx: "npm:3.0.0"

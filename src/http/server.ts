@@ -7,7 +7,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import { ListingService } from "../listing/service.js";
 import { renderShell, type Route } from "./shell.js";
-import type { RootInfo } from "../roots/root-info.js";
+import type { RootsService } from "../roots/service.js";
 import { resolveRoot } from "../roots/paths.js";
 import { isDocFile } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
@@ -18,6 +18,7 @@ import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
 import { appRouter } from "../api/router.js";
+import { isTrustedHost } from "./host.js";
 
 const MDXSERVE_PREFIX = "/__mdxserve/";
 
@@ -37,7 +38,8 @@ export function toPosix(filePath: string): string {
 }
 
 export interface RequestContext {
-	rootInfos: RootInfo[];
+	/** Per-process state, created once in startServer: owns the mutable set of mounted roots. */
+	roots: RootsService;
 	registry: Registry;
 	pkgRoot: string;
 	vite: ViteDevServer;
@@ -56,7 +58,8 @@ export async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { rootInfos, registry, pkgRoot, vite, docCache, search: searchService, docs, render } = ctx;
+	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render } = ctx;
+	const rootInfos = ctx.roots.list();
 	const roots = rootInfos.map((rootInfo) => rootInfo.dir);
 	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
 	// can resolve it (the /__mdxserve/ alias only exists in our router).
@@ -76,12 +79,16 @@ export async function handleRequest(
 	// host a server registered (e.g. --host 192.168.1.10), which arrives
 	// with the LAN address on both ends — something no other machine's
 	// packet can present.
+	// The Host header must name this machine too (see isTrustedHost): a
+	// DNS-rebinding page reaches loopback from the browser but arrives with
+	// its own domain in Host, and must not inherit same-machine privileges.
 	const remoteAddress = req.socket.remoteAddress;
 	const isLoopback =
-		remoteAddress === "127.0.0.1" ||
-		remoteAddress === "::1" ||
-		remoteAddress === "::ffff:127.0.0.1" ||
-		(remoteAddress !== undefined && remoteAddress === req.socket.localAddress);
+		(remoteAddress === "127.0.0.1" ||
+			remoteAddress === "::1" ||
+			remoteAddress === "::ffff:127.0.0.1" ||
+			(remoteAddress !== undefined && remoteAddress === req.socket.localAddress)) &&
+		isTrustedHost(req.headers.host, req.socket.localAddress);
 
 	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
 		res.statusCode = 200;
@@ -101,9 +108,10 @@ export async function handleRequest(
 			return;
 		}
 		// Stateless: a fresh transport+server per request; the SDK answers
-		// GET/DELETE itself in this mode. DNS-rebinding protection is left off,
-		// matching the posture of the /__mdxserve/trpc/* routes below (loopback
-		// by default, and these tools are read-only).
+		// GET/DELETE itself in this mode. The SDK's own DNS-rebinding option is
+		// left off because `isLoopback` above already folds the Host check in,
+		// and it gates the only tools here with side effects (add_root /
+		// remove_root, plus the render step) — same posture as /__mdxserve/trpc.
 		const transport = new StreamableHTTPServerTransport({
 			sessionIdGenerator: undefined,
 			enableJsonResponse: true,
@@ -117,6 +125,11 @@ export async function handleRequest(
 			docCache,
 			search: searchService,
 			allowRender: isLoopback,
+			// HTTP mount only: a same-machine caller may also mutate the mounted
+			// root set (see requireLoopback in src/api/trpc.ts) — the roots MCP
+			// tools reuse this exact allow/deny decision.
+			allowMutation: isLoopback,
+			roots: ctx.roots,
 		});
 		res.on("close", () => {
 			void transport.close();
@@ -143,6 +156,7 @@ export async function handleRequest(
 			maxBodySize: 320 * 1024,
 			createContext: () => ({
 				rootInfos,
+				roots: ctx.roots,
 				registry,
 				isLoopback,
 				render,

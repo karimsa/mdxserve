@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { shortenHome } from "./format";
 import { stagger } from "./motion";
 import { Icon } from "./ui/Icon";
+import { HomeEmptyState } from "./HomeEmptyState";
 import { useTree, type Route, type TreeNode } from "./router";
 
 function countDocs(nodes: TreeNode[] | null): number {
@@ -19,10 +20,21 @@ const rowVariants = {
 	enter: { opacity: 1, y: 0 },
 };
 
-/** Landing page listing every mounted root; the server only serves this at "/" when there's more than one. */
+/**
+ * Landing page listing every mounted root; the server serves this at "/"
+ * whenever the root count isn't exactly one (zero mounted roots, or more
+ * than one — a single root redirects straight to its listing instead).
+ */
 export function HomeView({ route }: { route: Extract<Route, { kind: "home" }> }) {
-	const { roots } = useTree();
-	const treeByDir = new Map((roots ?? []).map((root) => [root.dir, root.tree]));
+	const { roots: liveRoots } = useTree();
+	// Roots can be added/removed at runtime; once the tree query has loaded,
+	// trust it over the route's own snapshot so the page updates without a
+	// reload. Before that first load, fall back to what the server embedded
+	// so the list doesn't flash empty.
+	const roots = liveRoots ?? route.roots;
+	const treeByDir = new Map((liveRoots ?? []).map((root) => [root.dir, root.tree]));
+
+	if (roots.length === 0) return <HomeEmptyState />;
 
 	return (
 		<motion.div
@@ -31,7 +43,7 @@ export function HomeView({ route }: { route: Extract<Route, { kind: "home" }> })
 			animate="enter"
 			className="divide-y divide-border-subtle border-y border-border-subtle"
 		>
-			{route.roots.map((root) => {
+			{roots.map((root) => {
 				const docCount = countDocs(treeByDir.get(root.dir) ?? null);
 				return (
 					<motion.div

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DocsService, versionOf, MAX_SOURCE_BYTES } from "../../src/docs/service.js";
+import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const ORIGINAL = "# Title\n\nline three\n\nline five\n";
@@ -19,7 +20,7 @@ beforeEach(async () => {
 	);
 	abs = path.join(root, "doc.md");
 	await fs.writeFile(abs, ORIGINAL, "utf8");
-	service = new DocsService([{ name: "docs", dir: root }], registry);
+	service = new DocsService(new RootsService(root, os.homedir(), [root]), registry);
 });
 
 afterEach(async () => {

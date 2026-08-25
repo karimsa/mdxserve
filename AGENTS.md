@@ -40,24 +40,25 @@ service it needs, inline, with the values it already has; a stateless service ma
 constructed per request, and two adapters constructing the same service is fine. Only
 genuinely per-process state is created once — in `startServer` (`src/http/start.ts`) or the
 `mcp` CLI command — and carried through the request context: `DocCache`, `SearchService`,
-`DocsService` (it owns the per-file save lock), and `RenderService` (it owns the render
-worker). Anything that is per-request rather than per-process — whether the caller is on
-loopback, and so whether the render step may run (`allowRender`) — is a method argument, not
-a constructor argument.
+`DocsService` (it owns the per-file save lock), `RenderService` (it owns the render worker),
+`RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
+and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
+is on loopback, and so whether the render step may run (`allowRender`) or a root mutation may
+run (`allowMutation`) — is a method argument, not a constructor argument.
 
 ### Adapters
 
 Adapters contain no business logic:
 
-| Folder           | Role                                                                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)               |
-| `src/mcp/`       | MCP tools (`tools/*.ts`), one per file; they call the same services the tRPC procedures do, so a tool and a procedure cannot drift |
-| `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                 |
-| `src/rendering/` | Vite dev server, the SSR render worker, and the MDX compile pipeline                                                               |
-| `src/servers/`   | the sqlite registry of live servers and the tRPC client to peer servers                                                            |
-| `src/infra/`     | package root and cache-dir helpers                                                                                                 |
-| `src/index.ts`   | the commander CLI                                                                                                                  |
+| Folder           | Role                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
+| `src/mcp/`       | MCP tools (`tools/*.ts`), one per file; they call the same services the tRPC procedures do, so a tool and a procedure cannot drift                                 |
+| `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
+| `src/rendering/` | Vite dev server, the SSR render worker, and the MDX compile pipeline                                                                                               |
+| `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
+| `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
+| `src/index.ts`   | the commander CLI                                                                                                                                                  |
 
 `client/` may only `import type` from `src/` (nothing under `src/` is served to the browser);
 today that is a single `import type { AppRouter } from "../src/api/router"`.

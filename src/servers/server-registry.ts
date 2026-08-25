@@ -17,13 +17,17 @@ export interface ServerRecord {
 }
 
 /**
- * `~/.mdxserve/servers.db`, or `$MDXSERVE_HOME/servers.db` when `MDXSERVE_HOME`
- * is set (used by tests to point at a scratch directory instead of the real
- * home directory).
+ * `~/.mdxserve`, or `$MDXSERVE_HOME` when set (used by tests, and by anything
+ * that wants to point the lockfile and registry at a scratch directory
+ * instead of the real home directory).
  */
+export function mdxserveHome(): string {
+	return process.env.MDXSERVE_HOME || path.join(os.homedir(), ".mdxserve");
+}
+
+/** `<mdxserveHome>/servers.db` — despite the name, holds the single running server's row. */
 export function defaultRegistryPath(): string {
-	const dir = process.env.MDXSERVE_HOME || path.join(os.homedir(), ".mdxserve");
-	return path.join(dir, "servers.db");
+	return path.join(mdxserveHome(), "servers.db");
 }
 
 function warn(action: string, dbPath: string, error: unknown): void {
@@ -36,13 +40,19 @@ function warn(action: string, dbPath: string, error: unknown): void {
 function openDb(dbPath: string): Database {
 	fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 	const db = new Database(dbPath);
-	// Rows are tiny and written rarely (server start/stop), so a short busy
-	// timeout is enough for two servers starting at the same moment.
+	// The row is tiny and written rarely (server start, and whenever roots
+	// change), so a short busy timeout is enough for a starter racing the
+	// still-shutting-down previous instance.
 	db.exec("PRAGMA busy_timeout = 2000");
+	// Legacy multi-server table from the fan-out era: nothing in it is worth
+	// migrating (a dead process's row is meaningless, and a live one will
+	// re-register itself as the single row below on its next write).
+	db.exec("DROP TABLE IF EXISTS servers");
 	db.exec(`
-		CREATE TABLE IF NOT EXISTS servers (
-			port INTEGER PRIMARY KEY,
+		CREATE TABLE IF NOT EXISTS server (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
 			pid INTEGER NOT NULL,
+			port INTEGER NOT NULL,
 			host TEXT NOT NULL,
 			roots TEXT NOT NULL,
 			started_at INTEGER NOT NULL
@@ -52,7 +62,7 @@ function openDb(dbPath: string): Database {
 }
 
 /** Whether a process with this pid is still alive (EPERM still counts as alive: it exists, just owned by someone else). */
-function isAlive(pid: number): boolean {
+export function isAlive(pid: number): boolean {
 	try {
 		process.kill(pid, 0);
 		return true;
@@ -62,25 +72,30 @@ function isAlive(pid: number): boolean {
 }
 
 interface ServerRow {
-	port: number;
 	pid: number;
+	port: number;
 	host: string;
 	roots: string;
 	started_at: number;
 }
 
-/** The registry of `mdxserve serve` instances currently running on this machine, backed by a sqlite db at `dbPath`. */
+/**
+ * The single `mdxserve serve` instance currently running on this machine,
+ * backed by a sqlite db at `dbPath` holding exactly one row (id = 1). The CLI
+ * and the stdio MCP bridge read this row to find the running server; the
+ * server itself keeps it current as its roots change.
+ */
 export class ServerRegistry {
 	constructor(private readonly dbPath: string = defaultRegistryPath()) {}
 
-	/** Register (or replace, on port collision) a running server. */
+	/** Register (or replace) the running server's row. */
 	register(record: Omit<ServerRecord, "startedAt">): void {
 		try {
 			const db = openDb(this.dbPath);
 			try {
 				db.run(
-					`INSERT OR REPLACE INTO servers (port, pid, host, roots, started_at) VALUES (?, ?, ?, ?, ?)`,
-					[record.port, record.pid, record.host, JSON.stringify(record.roots), Date.now()],
+					`INSERT OR REPLACE INTO server (id, pid, port, host, roots, started_at) VALUES (1, ?, ?, ?, ?, ?)`,
+					[record.pid, record.port, record.host, JSON.stringify(record.roots), Date.now()],
 				);
 			} finally {
 				db.close();
@@ -90,11 +105,33 @@ export class ServerRegistry {
 		}
 	}
 
-	unregister(port: number): void {
+	/** Update the roots on the current row, only when it still belongs to `pid`. */
+	updateRoots(pid: number, roots: string[]): void {
 		try {
 			const db = openDb(this.dbPath);
 			try {
-				db.run(`DELETE FROM servers WHERE port = ?`, [port]);
+				db.run(`UPDATE server SET roots = ? WHERE id = 1 AND pid = ?`, [
+					JSON.stringify(roots),
+					pid,
+				]);
+			} finally {
+				db.close();
+			}
+		} catch (error) {
+			warn("update roots in", this.dbPath, error);
+		}
+	}
+
+	/**
+	 * Remove the row, only when it still belongs to `pid` — a guard against a
+	 * slow-exiting old process clobbering its own replacement's row on the
+	 * way out.
+	 */
+	unregister(pid: number): void {
+		try {
+			const db = openDb(this.dbPath);
+			try {
+				db.run(`DELETE FROM server WHERE id = 1 AND pid = ?`, [pid]);
 			} finally {
 				db.close();
 			}
@@ -104,67 +141,47 @@ export class ServerRegistry {
 	}
 
 	/**
-	 * Every registered server whose pid is still alive, ordered by start time.
-	 * Rows whose pid has died are pruned from the db as a side effect (a crashed
-	 * server never gets to call `unregister` itself).
+	 * The running server's row, or `undefined` if none is registered or its
+	 * pid has died. A dead row is pruned as a side effect (a crashed server
+	 * never gets to call `unregister` itself). A malformed `roots` column
+	 * doesn't hide the rest of the row — pid/port/host still matter to a
+	 * caller like `mdxserve status` — so it comes back as `roots: []` instead.
 	 */
-	live(): ServerRecord[] {
+	current(): ServerRecord | undefined {
 		try {
 			const db = openDb(this.dbPath);
 			try {
 				const rows = db.all(
-					`SELECT port, pid, host, roots, started_at FROM servers ORDER BY started_at ASC`,
+					`SELECT pid, port, host, roots, started_at FROM server WHERE id = 1`,
 				) as unknown as ServerRow[];
+				const row = rows[0];
+				if (!row) return undefined;
 
-				const live: ServerRecord[] = [];
-				const dead: number[] = [];
-				for (const row of rows) {
-					if (!isAlive(row.pid)) {
-						dead.push(row.port);
-						continue;
-					}
-					// One malformed row must not hide the healthy servers around it.
-					let roots: string[];
+				if (!isAlive(row.pid)) {
 					try {
-						roots = JSON.parse(row.roots) as string[];
-						if (!Array.isArray(roots)) throw new Error("roots is not an array");
+						db.run(`DELETE FROM server WHERE id = 1 AND pid = ?`, [row.pid]);
 					} catch (error) {
-						warn(`parse roots for port ${row.port} in`, this.dbPath, error);
-						continue;
+						warn("prune dead server from", this.dbPath, error);
 					}
-					live.push({
-						port: row.port,
-						pid: row.pid,
-						host: row.host,
-						roots,
-						startedAt: row.started_at,
-					});
+					return undefined;
 				}
 
-				// Pruning is housekeeping: if it fails, the stale rows just get
-				// another chance next time — the live list is still correct.
-				if (dead.length > 0) {
-					try {
-						db.exec("BEGIN");
-						try {
-							for (const port of dead) db.run(`DELETE FROM servers WHERE port = ?`, [port]);
-							db.exec("COMMIT");
-						} catch (error) {
-							db.exec("ROLLBACK");
-							throw error;
-						}
-					} catch (error) {
-						warn("prune dead servers from", this.dbPath, error);
-					}
+				let roots: string[];
+				try {
+					roots = JSON.parse(row.roots) as string[];
+					if (!Array.isArray(roots)) throw new Error("roots is not an array");
+				} catch (error) {
+					warn(`parse roots for pid ${row.pid} in`, this.dbPath, error);
+					roots = [];
 				}
 
-				return live;
+				return { pid: row.pid, port: row.port, host: row.host, roots, startedAt: row.started_at };
 			} finally {
 				db.close();
 			}
 		} catch (error) {
 			warn("read server registry at", this.dbPath, error);
-			return [];
+			return undefined;
 		}
 	}
 }

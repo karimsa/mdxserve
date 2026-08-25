@@ -4,15 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer, type McpContext } from "../../src/mcp/server.js";
-import { RemoteDocsClient, serverBaseUrl } from "../../src/servers/remote.js";
-import { computeRootInfos, pruneNestedRoots } from "../../src/roots/root-info.js";
+import { TRPCClientError } from "@trpc/client";
+import { RemoteClient, serverBaseUrl, toOutcome } from "../../src/servers/remote.js";
 import type { ServerRecord } from "../../src/servers/server-registry.js";
-import type { RenderOutcome } from "../../src/rendering/protocol.js";
-import { DocCache } from "../../src/docs/doc-cache.js";
-import { SearchService } from "../../src/search/service.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
@@ -53,14 +47,6 @@ describe("serverBaseUrl", () => {
 	});
 });
 
-async function connectedClient(ctx: McpContext) {
-	const server = createMcpServer(ctx);
-	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-	const client = new Client({ name: "test-client", version: "0.0.0" });
-	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
-	return { client, server };
-}
-
 /** A port nothing is listening on, to simulate a registry row surviving a server crash. */
 async function unusedPort(): Promise<number> {
 	return new Promise<number>((resolve, reject) => {
@@ -84,209 +70,181 @@ async function unusedPort(): Promise<number> {
 	});
 }
 
-describe("RemoteDocsClient integration (two real servers)", () => {
-	let rootA: string;
-	let rootAShared: string;
-	let rootB: string;
-	let rootC: string;
-	let serverA: http.Server;
-	let serverB: http.Server;
-	let portA: number;
-	let portB: number;
+describe("RemoteClient (one real server)", () => {
+	let fixtureDir: string;
+	let secondDir: string;
+	let realServer: http.Server;
+	let port: number;
 	let deadPort: number;
 
 	beforeAll(async () => {
-		const workDir = await fs.realpath(
+		fixtureDir = await fs.realpath(
 			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-remote-test-")),
 		);
-		rootA = path.join(workDir, "root-a");
-		rootB = path.join(workDir, "root-b");
-		rootC = path.join(workDir, "root-c");
-		rootAShared = path.join(rootA, "shared");
-		await fs.mkdir(rootAShared, { recursive: true });
-		await fs.mkdir(rootB, { recursive: true });
-		await fs.mkdir(rootC, { recursive: true });
-
+		secondDir = await fs.realpath(
+			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-remote-second-")),
+		);
 		await fs.writeFile(
-			path.join(rootA, "alpha.md"),
+			path.join(fixtureDir, "alpha.md"),
 			"# Alpha\n\nAlpha doc about gizmo widgets.\n",
 			"utf8",
 		);
-		// Deliberately owned by BOTH servers: server A indexes it as part of
-		// rootA's tree, and server B serves rootAShared as its own separate
-		// root — so a search for a word in this doc hits it twice, from two
-		// independent servers, over the same absolute path.
+		await fs.mkdir(path.join(fixtureDir, "sub"));
 		await fs.writeFile(
-			path.join(rootAShared, "shared-doc.md"),
-			"# Shared\n\nShared doc about generic widgets.\n",
+			path.join(fixtureDir, "sub", "nested.md"),
+			"# Nested\n\nNested content.\n",
 			"utf8",
 		);
-		await fs.writeFile(
-			path.join(rootB, "beta.md"),
-			"# Beta\n\nBeta doc about sprocket widgets.\n",
-			"utf8",
-		);
-		await fs.writeFile(path.join(rootC, "gamma.md"), "# Gamma\n\nPlain gamma content.\n", "utf8");
 
-		const docCacheA = new DocCache();
-		const ctxA = makeRequestContext(rootA, registry, {
-			rootInfos: [{ name: "server-a", dir: rootA }],
-			docCache: docCacheA,
-			search: new SearchService(docCacheA),
-			// Simulates a real, successfully-rendering Vite dev server, so
-			// validate_doc through this server reports rendered: true.
-			render: async (): Promise<RenderOutcome> => ({ ok: true }),
-		});
-		const docCacheB = new DocCache();
-		const ctxB = makeRequestContext(rootB, registry, {
-			rootInfos: [
-				{ name: "shared", dir: rootAShared },
-				{ name: "server-b", dir: rootB },
-			],
-			docCache: docCacheB,
-			search: new SearchService(docCacheB),
-		});
-
-		const startedA = await startTestServer(ctxA);
-		const startedB = await startTestServer(ctxB);
-		serverA = startedA.server;
-		serverB = startedB.server;
-		portA = Number(new URL(startedA.base).port);
-		portB = Number(new URL(startedB.base).port);
+		const started = await startTestServer(makeRequestContext(fixtureDir, registry));
+		realServer = started.server;
+		port = Number(new URL(started.base).port);
 		deadPort = await unusedPort();
 	});
 
 	afterAll(async () => {
-		serverA.close();
-		serverB.close();
+		realServer.close();
+		await fs.rm(fixtureDir, { recursive: true, force: true });
+		await fs.rm(secondDir, { recursive: true, force: true });
 	});
 
-	// The test connects to 127.0.0.1, which is loopback on both ends, so
-	// handleRequest's isLoopback gate lets validate_doc's render step run —
-	// same as a real `mdxserve serve` answering a same-machine caller.
-	function fakeListServers(): ServerRecord[] {
-		return [
-			{ pid: process.pid, host: "127.0.0.1", port: portA, roots: [rootA], startedAt: Date.now() },
-			{
-				pid: process.pid,
-				host: "127.0.0.1",
-				port: portB,
-				roots: [rootAShared, rootB],
-				startedAt: Date.now(),
-			},
-			// A row surviving a crash: its process never got to unregister
-			// itself, so it's still in the registry, but nothing answers here.
-			{
-				pid: process.pid,
-				host: "127.0.0.1",
-				port: deadPort,
-				roots: [rootC],
-				startedAt: Date.now(),
-			},
-		];
-	}
-
-	function bridgeContext(): McpContext {
-		const docCache = new DocCache();
+	/** The test server binds to 127.0.0.1, which is loopback on both ends, so
+	 * `handleRequest`'s isLoopback gate lets validate_doc's render step (and
+	 * addRoots/removeRoots) run — same as a real `mdxserve serve` answering a
+	 * same-machine caller. */
+	function currentRecord(): ServerRecord {
 		return {
-			getRoots: () => computeRootInfos(pruneNestedRoots([rootA, rootAShared, rootB, rootC])),
-			registry,
-			docCache,
-			search: new SearchService(docCache),
-			remote: new RemoteDocsClient(fakeListServers),
+			pid: process.pid,
+			host: "127.0.0.1",
+			port,
+			roots: [fixtureDir],
+			startedAt: Date.now(),
 		};
 	}
 
-	it("validate_doc returns the owning server's rendered:true", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const abs = path.join(rootA, "alpha.md");
-			const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
-			expect(result.isError).toBeFalsy();
-			expect(result.structuredContent).toMatchObject({ ok: true, path: abs, rendered: true });
-		} finally {
-			await client.close();
-			await server.close();
+	it("validateDoc: ok", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.validateDoc(path.join(fixtureDir, "alpha.md"));
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind === "ok") {
+			expect(outcome.value).toMatchObject({ ok: true, path: path.join(fixtureDir, "alpha.md") });
 		}
 	});
 
-	it("falls back to local static validation when the owning registry row is dead", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const abs = path.join(rootC, "gamma.md");
-			const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
-			expect(result.isError).toBeFalsy();
-			expect(result.structuredContent).toMatchObject({ ok: true, path: abs, rendered: false });
-		} finally {
-			await client.close();
-			await server.close();
+	it("searchDocs: ok", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.searchDocs("widgets");
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind === "ok") {
+			expect(outcome.value.some((hit) => hit.path.endsWith("alpha.md"))).toBe(true);
 		}
 	});
 
-	it("search_docs merges results across both servers and dedupes by absolute path", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const result = await client.callTool({
-				name: "search_docs",
-				arguments: { query: "widgets" },
-			});
-			expect(result.isError).toBeFalsy();
-			const structured = result.structuredContent as { results: Array<{ path: string }> };
-			const paths = structured.results.map((hit) => hit.path);
-			expect(new Set(paths).size).toBe(paths.length);
-			expect(paths).toContain(path.join(rootA, "alpha.md"));
-			expect(paths).toContain(path.join(rootAShared, "shared-doc.md"));
-			expect(paths).toContain(path.join(rootB, "beta.md"));
-			expect(paths).toHaveLength(3);
-		} finally {
-			await client.close();
-			await server.close();
+	it("listDocs without a path: ok, lists the outer root", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.listDocs(undefined, 8);
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind === "ok") {
+			expect(outcome.value.map((rootEntry) => rootEntry.dir)).toEqual([fixtureDir]);
 		}
 	});
 
-	it("list_docs with no path lists the outer root exactly once", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const result = await client.callTool({ name: "list_docs", arguments: {} });
-			expect(result.isError).toBeFalsy();
-			const structured = result.structuredContent as {
-				roots: Array<{ name: string; dir: string; nodes: unknown[] }>;
-			};
-			expect(structured.roots.map((rootEntry) => rootEntry.dir)).toEqual([rootA, rootB]);
-			const rootAEntry = structured.roots.find((rootEntry) => rootEntry.dir === rootA);
-			expect(JSON.stringify(rootAEntry?.nodes)).toContain("shared-doc.md");
-		} finally {
-			await client.close();
-			await server.close();
+	it("listDocs with a path: ok, lists that subtree", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.listDocs(path.join(fixtureDir, "sub"), 8);
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind === "ok") {
+			expect(JSON.stringify(outcome.value)).toContain("nested.md");
 		}
+	});
+
+	it("listRoots: ok, with the fixture root", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.listRoots();
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind === "ok") {
+			expect(outcome.value.roots.map((rootInfo) => rootInfo.dir)).toEqual([fixtureDir]);
+		}
+	});
+
+	it("addRoots then removeRoots round trip a second directory", async () => {
+		const client = new RemoteClient(currentRecord);
+
+		const added = await client.addRoots([secondDir]);
+		expect(added.kind).toBe("ok");
+		if (added.kind === "ok") {
+			expect(added.value.added).toEqual([secondDir]);
+			expect(added.value.roots.map((rootInfo) => rootInfo.dir)).toContain(secondDir);
+		}
+
+		const listedAfterAdd = await client.listRoots();
+		expect(listedAfterAdd.kind).toBe("ok");
+		if (listedAfterAdd.kind === "ok") {
+			expect(listedAfterAdd.value.roots.map((rootInfo) => rootInfo.dir)).toContain(secondDir);
+		}
+
+		const removed = await client.removeRoots([secondDir]);
+		expect(removed.kind).toBe("ok");
+		if (removed.kind === "ok") {
+			expect(removed.value.removed).toEqual([secondDir]);
+			expect(removed.value.roots.map((rootInfo) => rootInfo.dir)).not.toContain(secondDir);
+		}
+
+		const listedAfterRemove = await client.listRoots();
+		expect(listedAfterRemove.kind).toBe("ok");
+		if (listedAfterRemove.kind === "ok") {
+			expect(listedAfterRemove.value.roots.map((rootInfo) => rootInfo.dir)).not.toContain(
+				secondDir,
+			);
+		}
+	});
+
+	it("getServer undefined: unavailable for all six, without connecting", async () => {
+		const client = new RemoteClient(() => undefined);
+		await expect(client.validateDoc("/x.md")).resolves.toEqual({ kind: "unavailable" });
+		await expect(client.searchDocs("x")).resolves.toEqual({ kind: "unavailable" });
+		await expect(client.listDocs(undefined, 8)).resolves.toEqual({ kind: "unavailable" });
+		await expect(client.listRoots()).resolves.toEqual({ kind: "unavailable" });
+		await expect(client.addRoots(["/x"])).resolves.toEqual({ kind: "unavailable" });
+		await expect(client.removeRoots(["/x"])).resolves.toEqual({ kind: "unavailable" });
+	});
+
+	it("a dead port reports unavailable", async () => {
+		const client = new RemoteClient(() => ({
+			pid: process.pid,
+			host: "127.0.0.1",
+			port: deadPort,
+			roots: [],
+			startedAt: Date.now(),
+		}));
+		const outcome = await client.validateDoc(path.join(fixtureDir, "alpha.md"));
+		expect(outcome).toEqual({ kind: "unavailable" });
+	});
+
+	it("a port change between calls reaches the new server", async () => {
+		let servedPort = deadPort;
+		const client = new RemoteClient(() => ({
+			pid: process.pid,
+			host: "127.0.0.1",
+			port: servedPort,
+			roots: [fixtureDir],
+			startedAt: Date.now(),
+		}));
+
+		const beforeSwitch = await client.listRoots();
+		expect(beforeSwitch).toEqual({ kind: "unavailable" });
+
+		servedPort = port;
+		const afterSwitch = await client.listRoots();
+		expect(afterSwitch.kind).toBe("ok");
 	});
 });
 
-describe("RemoteDocsClient fan-out with a server that answers with a tRPC error", () => {
-	let healthyRoot: string;
-	let brokenRoot: string;
-	let healthyServer: http.Server;
-	let healthyPort: number;
+describe("RemoteClient against a server answering with a tRPC error", () => {
 	let brokenServer: http.Server;
 	let brokenPort: number;
 
 	beforeAll(async () => {
-		healthyRoot = await fs.realpath(
-			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-fanout-ok-")),
-		);
-		brokenRoot = await fs.realpath(
-			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-fanout-bad-")),
-		);
-		await fs.writeFile(
-			path.join(healthyRoot, "good.md"),
-			"# Good\n\nwidgets everywhere.\n",
-			"utf8",
-		);
-
-		const started = await startTestServer(makeRequestContext(healthyRoot, registry));
-		healthyServer = started.server;
-		healthyPort = Number(new URL(started.base).port);
-
 		// A live server whose index has broken: every procedure call comes back
 		// as a tRPC INTERNAL_SERVER_ERROR envelope (what the real adapter emits
 		// when a resolver throws), so the client sees a TRPCClientError with a
@@ -309,76 +267,57 @@ describe("RemoteDocsClient fan-out with a server that answers with a tRPC error"
 		brokenPort = address && typeof address === "object" ? address.port : 0;
 	});
 
-	afterAll(async () => {
-		healthyServer.close();
+	afterAll(() => {
 		brokenServer.close();
-		await fs.rm(healthyRoot, { recursive: true, force: true });
-		await fs.rm(brokenRoot, { recursive: true, force: true });
 	});
 
-	function fakeListServers(): ServerRecord[] {
-		return [
-			{
-				pid: process.pid,
-				host: "127.0.0.1",
-				port: healthyPort,
-				roots: [healthyRoot],
-				startedAt: 1,
-			},
-			{ pid: process.pid, host: "127.0.0.1", port: brokenPort, roots: [brokenRoot], startedAt: 2 },
-		];
-	}
-
-	function bridgeContext(): McpContext {
-		const docCache = new DocCache();
+	function record(): ServerRecord {
 		return {
-			getRoots: () => computeRootInfos([healthyRoot, brokenRoot]),
-			registry,
-			docCache,
-			search: new SearchService(docCache),
-			remote: new RemoteDocsClient(fakeListServers),
+			pid: process.pid,
+			host: "127.0.0.1",
+			port: brokenPort,
+			roots: [],
+			startedAt: Date.now(),
 		};
 	}
 
-	it("search_docs surfaces the broken server's error instead of a partial result", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const result = await client.callTool({
-				name: "search_docs",
-				arguments: { query: "widgets" },
-			});
-			expect(result.isError).toBe(true);
-			const text = (result.content as Array<{ text: string }>)[0].text;
-			expect(text).toContain("search index exploded");
-		} finally {
-			await client.close();
-			await server.close();
-		}
+	it("searchDocs surfaces the server's error message", async () => {
+		const client = new RemoteClient(record);
+		const outcome = await client.searchDocs("widgets");
+		expect(outcome).toEqual({ kind: "error", message: "search index exploded" });
 	});
 
-	it("list_docs with no path surfaces the broken server's error instead of an incomplete tree", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const result = await client.callTool({ name: "list_docs", arguments: {} });
-			expect(result.isError).toBe(true);
-			const text = (result.content as Array<{ text: string }>)[0].text;
-			expect(text).toContain("search index exploded");
-		} finally {
-			await client.close();
-			await server.close();
-		}
+	it("listRoots surfaces the server's error message", async () => {
+		const client = new RemoteClient(record);
+		const outcome = await client.listRoots();
+		expect(outcome).toEqual({ kind: "error", message: "search index exploded" });
+	});
+});
+
+describe("toOutcome (property)", () => {
+	it("any TRPCClientError with a data.code becomes an error carrying the message", () => {
+		fc.assert(
+			fc.property(fc.string(), fc.string({ minLength: 1 }), (message, code) => {
+				const error = new TRPCClientError(message, {
+					result: {
+						error: { code: -32603, message, data: { code, httpStatus: 500 } },
+					},
+				});
+				expect(toOutcome(error)).toEqual({ kind: "error", message });
+			}),
+		);
 	});
 
-	it("list_docs for a path owned by the healthy server still succeeds", async () => {
-		const { client, server } = await connectedClient(bridgeContext());
-		try {
-			const result = await client.callTool({ name: "list_docs", arguments: { path: healthyRoot } });
-			expect(result.isError).toBeFalsy();
-			const roots = (result.structuredContent as { roots: { dir: string }[] }).roots;
-			expect(roots.map((root) => root.dir)).toEqual([healthyRoot]);
-		} finally {
-			await client.close();
-			await server.close();
-		}
+	it("any other value becomes unavailable", () => {
+		const notReportableArb = fc.oneof(
+			fc.anything(),
+			fc.string().map((message) => new Error(message)),
+			fc.string().map((message) => new TRPCClientError(message)),
+		);
+		fc.assert(
+			fc.property(notReportableArb, (value) => {
+				expect(toOutcome(value)).toEqual({ kind: "unavailable" });
+			}),
+		);
 	});
 });

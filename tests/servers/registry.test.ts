@@ -29,97 +29,209 @@ afterAll(async () => {
 	await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
+/** A pid guaranteed dead by the time the caller uses it. */
+function deadPid(): number {
+	const result = spawnSync(process.execPath, ["-e", ""]);
+	const pid = result.pid;
+	if (!pid || pid <= 0) throw new Error("failed to spawn a throwaway process");
+	return pid;
+}
+
+function rowCount(dbFile: string): number {
+	const db = new sqlite.Database(dbFile);
+	try {
+		const rows = db.all("SELECT COUNT(*) as count FROM server") as unknown as { count: number }[];
+		return rows[0]?.count ?? 0;
+	} finally {
+		db.close();
+	}
+}
+
 describe("ServerRegistry", () => {
-	it("registers a server and finds it via live()", () => {
+	it("registers a server and finds it via current()", () => {
 		registry.register({ port: 5001, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
-		const servers = registry.live();
-		expect(servers).toHaveLength(1);
-		expect(servers[0]).toMatchObject({
+		const current = registry.current();
+		expect(current).toMatchObject({
 			port: 5001,
 			pid: process.pid,
 			host: "127.0.0.1",
 			roots: ["/a"],
 		});
-		expect(typeof servers[0].startedAt).toBe("number");
+		expect(typeof current?.startedAt).toBe("number");
 	});
 
-	it("unregister removes the row", () => {
+	it("registering twice replaces the row: current() is the second, and only one row exists", () => {
 		registry.register({ port: 5002, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
-		expect(registry.live().map((server) => server.port)).toContain(5002);
-		registry.unregister(5002);
-		expect(registry.live().map((server) => server.port)).not.toContain(5002);
-	});
-
-	it("registering the same port twice replaces the row", () => {
-		registry.register({ port: 5003, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
 		registry.register({ port: 5003, pid: process.pid, host: "0.0.0.0", roots: ["/b", "/c"] });
-		const servers = registry.live();
-		const matching = servers.filter((server) => server.port === 5003);
-		expect(matching).toHaveLength(1);
-		expect(matching[0]).toMatchObject({ host: "0.0.0.0", roots: ["/b", "/c"] });
+		expect(registry.current()).toMatchObject({ port: 5003, host: "0.0.0.0", roots: ["/b", "/c"] });
+		expect(rowCount(dbPath)).toBe(1);
 	});
 
-	it("prunes a row whose pid has died, and it stays gone", () => {
-		// A process that starts and exits immediately: its pid is guaranteed
-		// dead by the time we get here.
-		const result = spawnSync(process.execPath, ["-e", ""]);
-		const deadPid = result.pid;
-		expect(deadPid).toBeGreaterThan(0);
+	it("updateRoots with the current owner's pid is visible on current()", () => {
+		registry.register({ port: 5004, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		registry.updateRoots(process.pid, ["/a", "/b"]);
+		expect(registry.current()).toMatchObject({ roots: ["/a", "/b"] });
+	});
 
-		registry.register({ port: 5004, pid: deadPid, host: "127.0.0.1", roots: ["/a"] });
-		expect(registry.live().map((server) => server.port)).not.toContain(5004);
+	it("updateRoots with a foreign pid is ignored", () => {
+		registry.register({ port: 5005, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		registry.updateRoots(process.pid + 1, ["/somewhere-else"]);
+		expect(registry.current()).toMatchObject({ roots: ["/a"] });
+	});
+
+	it("unregister with a foreign pid is ignored", () => {
+		registry.register({ port: 5006, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		registry.unregister(process.pid + 1);
+		expect(registry.current()).toMatchObject({ port: 5006 });
+	});
+
+	it("unregister with the owning pid clears the row", () => {
+		registry.register({ port: 5007, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		registry.unregister(process.pid);
+		expect(registry.current()).toBeUndefined();
+	});
+
+	it("a dead pid's row is pruned: current() is undefined, and it stays gone", () => {
+		const pid = deadPid();
+		registry.register({ port: 5008, pid, host: "127.0.0.1", roots: ["/a"] });
+		expect(registry.current()).toBeUndefined();
 		// The prune is a side effect of the first call; confirm it stuck.
-		expect(registry.live().map((server) => server.port)).not.toContain(5004);
-	});
-});
-
-describe("ServerRegistry#live (property)", () => {
-	const portArb = fc.integer({ min: 1024, max: 65535 });
-	const portsAndSubsetArb = fc
-		.uniqueArray(portArb, { minLength: 0, maxLength: 20 })
-		.chain((ports) => fc.tuple(fc.constant(ports), fc.subarray(ports)));
-
-	it("returns exactly the registered ports, and unregistering a subset leaves exactly the rest", () => {
-		let counter = 0;
-		fc.assert(
-			fc.property(portsAndSubsetArb, ([ports, toUnregister]) => {
-				// Each run gets its own db file so concurrent fast-check runs never
-				// see each other's rows.
-				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-${counter++}.db`));
-
-				for (const port of ports) {
-					propRegistry.register({ port, pid: process.pid, host: "127.0.0.1", roots: [] });
-				}
-
-				const registered = new Set(propRegistry.live().map((server) => server.port));
-				expect(registered).toEqual(new Set(ports));
-
-				for (const port of toUnregister) {
-					propRegistry.unregister(port);
-				}
-
-				const remaining = new Set(propRegistry.live().map((server) => server.port));
-				const expected = new Set(ports.filter((port) => !toUnregister.includes(port)));
-				expect(remaining).toEqual(expected);
-			}),
-			{ numRuns: 25 },
-		);
+		expect(registry.current()).toBeUndefined();
+		expect(rowCount(dbPath)).toBe(0);
 	});
 
-	it("skips a malformed row without hiding the healthy servers", () => {
-		registry.register({ port: 5601, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+	it("malformed roots JSON comes back as roots: [], keeping pid/port/host", () => {
+		registry.register({ port: 5009, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
 		const db = new sqlite.Database(dbPath);
 		try {
+			db.run("UPDATE server SET roots = ? WHERE id = 1", ["not json"]);
+		} finally {
+			db.close();
+		}
+		expect(registry.current()).toMatchObject({ port: 5009, pid: process.pid, roots: [] });
+	});
+
+	it("migrates away from a legacy `servers` table on first open", async () => {
+		const legacyDbPath = path.join(tmpDir, "legacy.db");
+		const db = new sqlite.Database(legacyDbPath);
+		try {
+			db.exec(`
+				CREATE TABLE servers (
+					port INTEGER PRIMARY KEY,
+					pid INTEGER NOT NULL,
+					host TEXT NOT NULL,
+					roots TEXT NOT NULL,
+					started_at INTEGER NOT NULL
+				)
+			`);
 			db.run("INSERT INTO servers (port, pid, host, roots, started_at) VALUES (?, ?, ?, ?, ?)", [
-				5602,
+				4000,
 				process.pid,
 				"127.0.0.1",
-				"not json",
+				"[]",
 				0,
 			]);
 		} finally {
 			db.close();
 		}
-		expect(registry.live().map((server) => server.port)).toEqual([5601]);
+
+		const legacyRegistry = new ServerRegistry(legacyDbPath);
+		expect(legacyRegistry.current()).toBeUndefined();
+
+		const verifyDb = new sqlite.Database(legacyDbPath);
+		try {
+			const tables = verifyDb.all(
+				"SELECT name FROM sqlite_master WHERE type = 'table'",
+			) as unknown as { name: string }[];
+			const names = tables.map((table) => table.name);
+			expect(names).toContain("server");
+			expect(names).not.toContain("servers");
+		} finally {
+			verifyDb.close();
+		}
+
+		await fs.rm(legacyDbPath, { force: true });
+	});
+});
+
+describe("ServerRegistry (property)", () => {
+	const recordShape = {
+		port: fc.integer({ min: 1, max: 65535 }),
+		host: fc.string(),
+		roots: fc.array(fc.string()),
+	};
+	const recordArb = fc.record(recordShape);
+
+	it("register -> current round-trips an arbitrary record", () => {
+		let counter = 0;
+		fc.assert(
+			fc.property(recordArb, (record) => {
+				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-${counter++}.db`));
+				propRegistry.register({ ...record, pid: process.pid });
+				expect(propRegistry.current()).toMatchObject({ ...record, pid: process.pid });
+			}),
+			{ numRuns: 25 },
+		);
+	});
+
+	it("updateRoots is idempotent", () => {
+		let counter = 0;
+		fc.assert(
+			fc.property(recordArb, fc.array(fc.string()), (record, newRoots) => {
+				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-idem-${counter++}.db`));
+				propRegistry.register({ ...record, pid: process.pid });
+				propRegistry.updateRoots(process.pid, newRoots);
+				const once = propRegistry.current();
+				propRegistry.updateRoots(process.pid, newRoots);
+				const twice = propRegistry.current();
+				expect(once).toEqual(twice);
+				expect(once?.roots).toEqual(newRoots);
+			}),
+			{ numRuns: 25 },
+		);
+	});
+
+	type Model = { pid: number; port: number; host: string; roots: string[] } | undefined;
+
+	const opArb = fc.oneof(
+		fc.record({ kind: fc.constant("register" as const), ...recordShape }),
+		fc.record({ kind: fc.constant("updateRoots" as const), roots: fc.array(fc.string()) }),
+		fc.constant({ kind: "unregister" as const }),
+	);
+
+	it("a random sequence of register/updateRoots/unregister matches a tiny in-memory model", () => {
+		let counter = 0;
+		fc.assert(
+			fc.property(fc.array(opArb, { minLength: 0, maxLength: 30 }), (ops) => {
+				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-model-${counter++}.db`));
+				let model: Model;
+
+				for (const op of ops) {
+					if (op.kind === "register") {
+						propRegistry.register({
+							port: op.port,
+							pid: process.pid,
+							host: op.host,
+							roots: op.roots,
+						});
+						model = { pid: process.pid, port: op.port, host: op.host, roots: op.roots };
+					} else if (op.kind === "updateRoots") {
+						propRegistry.updateRoots(process.pid, op.roots);
+						if (model) model = { ...model, roots: op.roots };
+					} else {
+						propRegistry.unregister(process.pid);
+						model = undefined;
+					}
+
+					const current = propRegistry.current();
+					if (model === undefined) {
+						expect(current).toBeUndefined();
+					} else {
+						expect(current).toMatchObject(model);
+					}
+				}
+			}),
+			{ numRuns: 25 },
+		);
 	});
 });

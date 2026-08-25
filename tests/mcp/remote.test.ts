@@ -6,7 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer, type McpContext } from "../../src/mcp/server.js";
 import type { DocTreeRoot } from "../../src/listing/controller.js";
-import type { RemoteDocs, RemoteOutcome } from "../../src/servers/remote.js";
+import type { Remote, RemoteOutcome } from "../../src/servers/remote.js";
 import type { SearchResult } from "../../src/search/service.js";
 import { SearchService } from "../../src/search/service.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
@@ -70,9 +70,11 @@ describe("validate_doc remote wiring", () => {
 			rendered: true,
 		};
 		const remote = {
-			validateDoc: async (): Promise<ValidationResult | null> => canned,
-			searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({ kind: "unavailable" }),
-			listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({ kind: "unavailable" }),
+			...unavailableRemote(),
+			validateDoc: async (): Promise<RemoteOutcome<ValidationResult>> => ({
+				kind: "ok",
+				value: canned,
+			}),
 		};
 		const { client, server } = await connectedClient(undefined, { remote });
 		try {
@@ -88,13 +90,8 @@ describe("validate_doc remote wiring", () => {
 		}
 	});
 
-	it("falls back to local validation when the remote validateDoc returns null", async () => {
-		const remote = {
-			validateDoc: async (): Promise<ValidationResult | null> => null,
-			searchDocs: async (): Promise<RemoteOutcome<SearchResult[]>> => ({ kind: "unavailable" }),
-			listDocs: async (): Promise<RemoteOutcome<DocTreeRoot[]>> => ({ kind: "unavailable" }),
-		};
-		const { client, server } = await connectedClient(undefined, { remote });
+	it("falls back to local validation when the remote is unavailable", async () => {
+		const { client, server } = await connectedClient(undefined, { remote: unavailableRemote() });
 		try {
 			const abs = path.join(fixtureDir, "good.md");
 			const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
@@ -107,15 +104,19 @@ describe("validate_doc remote wiring", () => {
 	});
 });
 
-describe("remote search_docs/list_docs wiring", () => {
-	function unavailableRemote(): RemoteDocs {
-		return {
-			validateDoc: async () => null,
-			searchDocs: async () => ({ kind: "unavailable" }),
-			listDocs: async () => ({ kind: "unavailable" }),
-		};
-	}
+/** Every `Remote` method reporting `unavailable`, for tests that only care about one of them. */
+function unavailableRemote(): Remote {
+	return {
+		validateDoc: async () => ({ kind: "unavailable" }),
+		searchDocs: async () => ({ kind: "unavailable" }),
+		listDocs: async () => ({ kind: "unavailable" }),
+		listRoots: async () => ({ kind: "unavailable" }),
+		addRoots: async () => ({ kind: "unavailable" }),
+		removeRoots: async () => ({ kind: "unavailable" }),
+	};
+}
 
+describe("remote search_docs/list_docs wiring", () => {
 	it("search_docs prefers a remote ok result over the local index", async () => {
 		const canned: SearchResult[] = [
 			{

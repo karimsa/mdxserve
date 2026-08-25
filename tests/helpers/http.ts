@@ -1,4 +1,5 @@
 import http from "node:http";
+import os from "node:os";
 import type { AddressInfo } from "node:net";
 import type { ViteDevServer } from "vite";
 import { handleRequest, type RequestContext } from "../../src/http/server.js";
@@ -6,13 +7,16 @@ import type { Registry } from "../../src/components/registry.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
 import { DocsService } from "../../src/docs/service.js";
+import { RootsService } from "../../src/roots/service.js";
 
 /**
  * Build a `RequestContext` for `handleRequest` in tests, extracted from the
  * old `POST /__mdxserve/api/validate` test block. The fake `vite` has a
  * `middlewares` stub so the generic `/__mdxserve/*` -> `/@fs/` rewrite (which
  * every unmatched `/__mdxserve/*` path falls through to) doesn't throw when
- * called on `{}`.
+ * called on `{}`. Passing a `roots` override replaces the `RootsService`
+ * entirely — `handleRequest` reads `ctx.roots.list()` itself, so there's no
+ * separate `rootInfos` to keep in sync.
  */
 export function makeRequestContext(
 	fixtureDir: string,
@@ -21,9 +25,9 @@ export function makeRequestContext(
 ): RequestContext {
 	const docCache = new DocCache();
 	const search = new SearchService(docCache);
-	const rootInfos = [{ name: "docs", dir: fixtureDir }];
+	const roots = overrides.roots ?? new RootsService(fixtureDir, os.homedir(), [fixtureDir]);
 	return {
-		rootInfos,
+		roots,
 		registry,
 		pkgRoot: "",
 		vite: {
@@ -32,7 +36,7 @@ export function makeRequestContext(
 		cssFile: "",
 		docCache,
 		search,
-		docs: new DocsService(rootInfos, registry),
+		docs: new DocsService(roots, registry),
 		...overrides,
 	};
 }

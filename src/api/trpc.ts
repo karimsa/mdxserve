@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { Registry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
+import type { RootsService } from "../roots/service.js";
 import type { RenderOutcome } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
@@ -13,7 +14,10 @@ import type { DocsService } from "../docs/service.js";
  * so `dist/registry.json` may not exist yet.
  */
 export interface ApiContext {
+	/** The per-request snapshot of `roots.list()` at the time this request arrived. */
 	rootInfos: RootInfo[];
+	/** Per-process state, created once in startServer: owns the mutable set of mounted roots. */
+	roots: RootsService;
 	registry: Registry;
 	/** Whether this request came from the same machine (see src/http/server.ts). */
 	isLoopback: boolean;
@@ -67,6 +71,20 @@ function isCrossOrigin(ctx: ApiContext): boolean {
 const rejectCrossOriginMutations = trpc.middleware(({ ctx, type, next }) => {
 	if (type === "mutation" && isCrossOrigin(ctx)) {
 		throw new TRPCError({ code: "FORBIDDEN", message: "Cross-origin write rejected" });
+	}
+	return next();
+});
+
+// Mutating the mounted root set is a same-machine operation, same reasoning
+// as the render step in src/http/server.ts: a LAN caller (--host 0.0.0.0)
+// must not be able to make this process start reading/watching arbitrary
+// directories the operator didn't choose.
+export const requireLoopback = trpc.middleware(({ ctx, next }) => {
+	if (!ctx.isLoopback) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "This operation requires a same-machine connection",
+		});
 	}
 	return next();
 });

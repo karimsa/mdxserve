@@ -43,6 +43,9 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"saveDocSection",
 	"listComponents",
 	"getComponent",
+	"listRoots",
+	"addRoots",
+	"removeRoots",
 ];
 
 describe("procedure descriptions", () => {

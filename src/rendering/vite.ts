@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import type { Server as HttpServer } from "node:http";
-import { createServer as createViteServer, type PluginOption, type ViteDevServer } from "vite";
+import {
+	createServer as createViteServer,
+	normalizePath,
+	type PluginOption,
+	type ViteDevServer,
+} from "vite";
 import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -343,4 +348,40 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	});
 
 	return vite;
+}
+
+/**
+ * Grant `dir` access under Vite's `fs.allow` on a live dev server, so a
+ * newly-mounted root's files become servable via `/@fs/` without a restart.
+ *
+ * This relies on Vite reading `server.fs.allow` fresh on every request
+ * (`isFileLoadingAllowed` in vite's own `server/middlewares/static.ts`
+ * consults `server.config.server.fs.allow` at request time, not a value
+ * captured once at server creation) — verified against the pinned Vite
+ * version in package.json.
+ */
+export function allowFsDir(vite: ViteDevServer, dir: string): void {
+	const normalized = normalizePath(dir);
+	const allow = vite.config.server.fs.allow;
+	if (!allow.includes(normalized)) allow.push(normalized);
+}
+
+/**
+ * Revoke `dir`'s `fs.allow` entry (every entry that equals it, in case it was
+ * added more than once) and invalidate any module Vite already loaded from
+ * under it, so a removed root's files stop being servable immediately rather
+ * than staying reachable from the module graph's cache.
+ */
+export function disallowFsDir(vite: ViteDevServer, dir: string): void {
+	const normalized = normalizePath(dir);
+	const allow = vite.config.server.fs.allow;
+	for (let index = allow.length - 1; index >= 0; index -= 1) {
+		if (allow[index] === normalized) allow.splice(index, 1);
+	}
+
+	const prefix = normalized.endsWith("/") ? normalized : `${normalized}/`;
+	for (const [file, modules] of vite.moduleGraph.fileToModulesMap) {
+		if (file !== normalized && !file.startsWith(prefix)) continue;
+		for (const dirModule of modules) vite.moduleGraph.invalidateModule(dirModule);
+	}
 }

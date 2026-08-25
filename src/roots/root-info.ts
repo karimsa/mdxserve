@@ -34,15 +34,3 @@ export function isInside(parent: string, child: string): boolean {
 	const rel = path.relative(parent, child);
 	return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
 }
-
-/**
- * Dedupe a list of absolute roots and drop any root that sits inside another
- * one, keeping the outer. A single `serve` refuses nested roots outright; the
- * stdio bridge unions roots from independent servers, so it has to reconcile
- * them here instead — otherwise the shared docs would be listed and indexed
- * twice and `resolveRoot`'s first match would be order-dependent.
- */
-export function pruneNestedRoots(roots: string[]): string[] {
-	const unique = [...new Set(roots)];
-	return unique.filter((root) => !unique.some((other) => other !== root && isInside(other, root)));
-}

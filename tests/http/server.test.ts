@@ -1,13 +1,16 @@
+import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTRPCClient, httpLink, TRPCClientError } from "@trpc/client";
+import type { ViteDevServer } from "vite";
 import type { AppRouter } from "../../src/api/router.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";
 import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
+import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 let fixtureDir: string;
@@ -177,5 +180,154 @@ describe("same-origin guard on mutations", () => {
 		const client = makeClient(base, "http://evil.example");
 		const tree = await client.getDocTree.query({});
 		expect(tree.roots).toHaveLength(1);
+	});
+});
+
+// The default fake `vite` from makeRequestContext only stubs `middlewares`
+// (enough for the trpc/api-focused tests above); the HTML-rendering routes
+// exercised below also call `vite.transformIndexHtml`.
+function htmlVite(): ViteDevServer {
+	return {
+		middlewares: (_req: unknown, res: http.ServerResponse, next: () => void) => next(),
+		transformIndexHtml: async (_url: string, html: string) => html,
+	} as unknown as ViteDevServer;
+}
+
+describe("root count affects / and doc routing", () => {
+	it('GET / is a 200 home page with data-root-count="0" when nothing is mounted', async () => {
+		const roots = new RootsService(fixtureDir, os.homedir(), []);
+		const { base } = await startWith({ roots, vite: htmlVite() });
+		const res = await fetch(`${base}/`);
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		expect(html).toContain('data-root-count="0"');
+	});
+
+	it("GET / is a 200 home page for two mounted roots", async () => {
+		const other = await fs.realpath(
+			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-api-http-other-")),
+		);
+		try {
+			const roots = new RootsService(fixtureDir, os.homedir(), [fixtureDir, other]);
+			const { base } = await startWith({ roots, vite: htmlVite() });
+			const res = await fetch(`${base}/`);
+			expect(res.status).toBe(200);
+			const html = await res.text();
+			expect(html).toContain('data-root-count="2"');
+		} finally {
+			await fs.rm(other, { recursive: true, force: true });
+		}
+	});
+
+	it("GET / redirects (302) into the single mounted root", async () => {
+		const roots = new RootsService(fixtureDir, os.homedir(), [fixtureDir]);
+		const { base } = await startWith({ roots, vite: htmlVite() });
+		const res = await fetch(`${base}/`, { redirect: "manual" });
+		expect(res.status).toBe(302);
+	});
+
+	it("404s a doc path when nothing is mounted", async () => {
+		const roots = new RootsService(fixtureDir, os.homedir(), []);
+		const { base } = await startWith({ roots, vite: htmlVite() });
+		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
+			headers: { Accept: "text/html" },
+		});
+		expect(res.status).toBe(404);
+	});
+
+	it("a root added to the shared RootsService after startup is visible to getDocTree", async () => {
+		const roots = new RootsService(fixtureDir, os.homedir(), []);
+		const { base } = await startWith({ roots });
+		const client = createTRPCClient<AppRouter>({
+			links: [httpLink({ url: `${base}/__mdxserve/trpc` })],
+		});
+		expect((await client.getDocTree.query({})).roots).toHaveLength(0);
+
+		const added = await roots.add([fixtureDir]);
+		expect(added.kind).toBe("ok");
+
+		const tree = await client.getDocTree.query({});
+		expect(tree.roots).toHaveLength(1);
+	});
+});
+
+describe("DNS-rebinding guard on same-machine privileges", () => {
+	function request(
+		base: string,
+		pathname: string,
+		host: string,
+		body: string,
+		accept = "application/json",
+	): Promise<{ status: number; text: string }> {
+		const url = new URL(base);
+		return new Promise((resolve, reject) => {
+			const req = http.request(
+				{
+					hostname: url.hostname,
+					port: url.port,
+					path: pathname,
+					method: "POST",
+					headers: {
+						host,
+						"content-type": "application/json",
+						accept,
+						"content-length": Buffer.byteLength(body),
+					},
+				},
+				(res) => {
+					let text = "";
+					res.setEncoding("utf8");
+					res.on("data", (chunk: string) => {
+						text += chunk;
+					});
+					res.on("end", () => resolve({ status: res.statusCode ?? 0, text }));
+				},
+			);
+			req.on("error", reject);
+			req.end(body);
+		});
+	}
+
+	it("addRoots is FORBIDDEN when a loopback request carries a foreign Host", async () => {
+		const { base } = await startWith();
+		const port = new URL(base).port;
+		const body = JSON.stringify({ dirs: [fixtureDir] });
+		const rebinding = await request(
+			base,
+			"/__mdxserve/trpc/addRoots",
+			`attacker.example:${port}`,
+			body,
+		);
+		expect(rebinding.status).toBe(403);
+		expect(rebinding.text).toContain("FORBIDDEN");
+
+		const genuine = await request(base, "/__mdxserve/trpc/addRoots", `127.0.0.1:${port}`, body);
+		expect(genuine.status).toBe(200);
+	});
+
+	it("the MCP add_root tool refuses the same request", async () => {
+		const { base } = await startWith();
+		const port = new URL(base).port;
+		const call = JSON.stringify({
+			jsonrpc: "2.0",
+			id: 1,
+			method: "tools/call",
+			params: { name: "add_root", arguments: { path: fixtureDir } },
+		});
+		const accept = "application/json, text/event-stream";
+		const rebinding = await request(
+			base,
+			"/__mdxserve/mcp",
+			`attacker.example:${port}`,
+			call,
+			accept,
+		);
+		expect(rebinding.status).toBe(200);
+		expect(rebinding.text).toContain("same-machine");
+
+		const genuine = await request(base, "/__mdxserve/mcp", `localhost:${port}`, call, accept);
+		expect(genuine.status).toBe(200);
+		expect(genuine.text).not.toContain("same-machine");
+		expect(genuine.text).toContain("already mounted");
 	});
 });

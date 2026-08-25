@@ -56,7 +56,7 @@ describe("getFolderListing", () => {
 	it("lists a directory's entries", async () => {
 		const caller = createCaller(makeContext());
 		const result = await caller.getFolderListing({ path: fixtureDir });
-		expect(result.rootName).toBe("docs");
+		expect(result.rootName).toBe(path.basename(fixtureDir));
 		expect(result.rootDir).toBe(fixtureDir);
 		expect(result.entries.map((entry) => entry.name).sort()).toEqual(
 			["escape", "good.md", "sub"].sort(),

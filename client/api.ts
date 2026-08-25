@@ -5,6 +5,7 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 // anything from src/ would 404 at runtime — this import is type-only and is
 // erased entirely by the compiler.
 import type { AppRouter } from "../src/api/router";
+import type { inferRouterOutputs } from "@trpc/server";
 
 /**
  * Singletons guarded on `window`, mirroring `__mdxserveRoot` in entry.tsx:
@@ -61,6 +62,8 @@ export const trpcClient: TRPCClient<AppRouter> = windowWithApi
 
 export const trpc = createTRPCOptionsProxy<AppRouter>({ client: trpcClient, queryClient });
 
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+
 // Files change on disk during a dev session; invalidate the relevant caches
 // whenever Vite applies an HMR update (edits to existing files) or the
 // watcher reports a listing change (deletions/creations, which don't
@@ -93,4 +96,43 @@ if (import.meta.hot && windowWithApi && !windowWithApi.__mdxserveHmrBound) {
 			});
 		}
 	});
+
+	// The set of served roots itself changed (roots were added/removed at
+	// runtime, e.g. via the MCP add_root/remove_root tools or the CLI). The
+	// tree is now stale everywhere it's rendered (home page, sidebar), and any
+	// folder listing currently on screen may live under a root that no longer
+	// exists. This module can't import client/router.ts's `navigate` (that
+	// would be a cycle: router.ts already imports from here), so re-dispatch
+	// as a plain window event and let useRouter — which owns navigation and
+	// knows the current route — decide whether to redirect away from a
+	// removed root.
+	import.meta.hot.on(
+		"mdxserve:roots-changed",
+		(data: { added: string[]; removed: string[]; roots: Array<{ name: string; dir: string }> }) => {
+			// Patch the cached tree synchronously before the refetch: drop the
+			// removed roots and take the event's (possibly re-disambiguated)
+			// names, so every consumer — the home page, the sidebar, the
+			// redirect below — is consistent right now rather than after the
+			// round trip. Added roots arrive with the refetch; there is no tree
+			// for them yet.
+			const removed = new Set(data.removed);
+			const nameByDir = new Map(data.roots.map((info) => [info.dir, info.name]));
+			queryClient.setQueriesData<RouterOutputs["getDocTree"]>(
+				trpc.getDocTree.queryFilter(),
+				(cached) =>
+					cached && {
+						...cached,
+						roots: cached.roots
+							.filter((root) => !removed.has(root.dir))
+							.map((root) => ({ ...root, name: nameByDir.get(root.dir) ?? root.name })),
+					},
+			);
+			void queryClient.invalidateQueries({ ...trpc.getDocTree.queryFilter(), refetchType: "all" });
+			void queryClient.invalidateQueries({
+				...trpc.getFolderListing.queryFilter(),
+				type: "active",
+			});
+			window.dispatchEvent(new CustomEvent("mdxserve:roots-changed", { detail: data }));
+		},
+	);
 }

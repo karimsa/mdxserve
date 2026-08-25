@@ -393,5 +393,56 @@ export function useRouter(initialRoute: Route) {
 	// query, and AppShell renders the listing route from the live query, so
 	// there is nothing route-level to do here.
 
+	// A mounted root can be added or removed at runtime (api.ts re-dispatches
+	// the ws event as a window CustomEvent once it's invalidated the tree/
+	// listing queries). If the *current* route lives under a root that just
+	// got removed, its doc module/listing no longer describe anything real —
+	// navigate home rather than leaving a dead page on screen. Adding a root
+	// or removing an unrelated one needs no action here: HomeView re-renders
+	// itself from the live tree query.
+	useEffect(() => {
+		function onRootsChanged(event: Event) {
+			const detail = (
+				event as CustomEvent<{ added: string[]; removed: string[]; roots: RootInfo[] }>
+			).detail;
+			const removedDirs = detail?.removed ?? [];
+			if (removedDirs.length === 0) return;
+
+			const current = route;
+			if (current.kind === "home") return;
+			const { rootDir } = routeRootFields(current);
+			const removedDir = removedDirs.find(
+				(dir) => dir === rootDir || current.path === dir || current.path.startsWith(`${dir}/`),
+			);
+			if (!removedDir) return;
+
+			for (const key of docModuleCache.keys()) {
+				if (key === removedDir || key.startsWith(`${removedDir}/`)) docModuleCache.delete(key);
+			}
+
+			// Route off the event's own `roots` list rather than calling
+			// navigate("/"): that re-derives the destination from the getDocTree
+			// query cache via loadTree(), which api.ts invalidated moments ago but
+			// may not have finished refetching yet — a stale read there would still
+			// contain the root that was just removed and redirect straight into
+			// its now-404 listing. `detail.roots` is the server's ground truth for
+			// what's mounted *right now*, so use that instead.
+			const remaining = detail.roots;
+			if (remaining.length === 1) {
+				navigate(`${remaining[0].dir}/`);
+				return;
+			}
+			const homeRoute: Route = {
+				kind: "home",
+				roots: remaining.map((info) => ({ name: info.name, dir: info.dir })),
+			};
+			history.pushState({}, "", "/");
+			document.title = titleFor(homeRoute);
+			setRoute(homeRoute);
+		}
+		window.addEventListener("mdxserve:roots-changed", onRootsChanged);
+		return () => window.removeEventListener("mdxserve:roots-changed", onRootsChanged);
+	}, [route, navigate]);
+
 	return { route, navigate };
 }

@@ -3,7 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spliceLines } from "./edit.js";
 import { resolveDocPath } from "../roots/paths.js";
-import type { RootInfo } from "../roots/root-info.js";
+import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
 import type { Diagnostic } from "../validation/validate.js";
@@ -68,7 +68,7 @@ export class DocsService {
 	private readonly saveQueues = new Map<string, Promise<void>>();
 
 	constructor(
-		private readonly rootInfos: RootInfo[],
+		private readonly roots: RootsService,
 		private readonly registry: Registry,
 	) {}
 
@@ -92,7 +92,8 @@ export class DocsService {
 	 * into the on-disk file, not the transformed one.
 	 */
 	async readSource(inputPath: string): Promise<ReadSourceResult> {
-		const rootDirs = this.rootInfos.map((rootInfo) => rootInfo.dir);
+		const rootInfos = this.roots.list();
+		const rootDirs = rootInfos.map((rootInfo) => rootInfo.dir);
 		const resolved = await resolveDocPath(rootDirs, inputPath);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
 
@@ -114,7 +115,8 @@ export class DocsService {
 		const { startLine, endLine, version, markdown } = input;
 		const registry = this.registry;
 
-		const rootDirs = this.rootInfos.map((rootInfo) => rootInfo.dir);
+		const rootInfos = this.roots.list();
+		const rootDirs = rootInfos.map((rootInfo) => rootInfo.dir);
 		const resolved = await resolveDocPath(rootDirs, input.path);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
 
@@ -140,7 +142,7 @@ export class DocsService {
 				return { kind: "invalid-range", message: spliced.error };
 			}
 
-			const validation = await new ValidationService(this.rootInfos, registry).validateText({
+			const validation = await new ValidationService(rootInfos, registry).validateText({
 				source: spliced.text,
 				absPath: abs,
 			});

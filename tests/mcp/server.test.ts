@@ -73,12 +73,21 @@ afterAll(async () => {
 });
 
 describe("createMcpServer", () => {
-	it("lists exactly the five tools", async () => {
+	it("lists exactly the eight tools", async () => {
 		const { client, server } = await connectedClient();
 		try {
 			const { tools } = await client.listTools();
 			expect(tools.map((tool) => tool.name).sort()).toEqual(
-				["list_components", "list_docs", "search_docs", "show_component", "validate_doc"].sort(),
+				[
+					"add_root",
+					"list_components",
+					"list_docs",
+					"list_roots",
+					"remove_root",
+					"search_docs",
+					"show_component",
+					"validate_doc",
+				].sort(),
 			);
 		} finally {
 			await client.close();
@@ -389,7 +398,71 @@ describe("createMcpServer", () => {
 		});
 	});
 
-	describe("with no server running (getRoots returns [])", () => {
+	describe("with no server running (serverRunning: () => false)", () => {
+		it("validate_doc still validates an absolute path", async () => {
+			const { client, server } = await connectedClient(() => [], { serverRunning: () => false });
+			try {
+				const abs = path.join(fixtureDir, "good.md");
+				const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toMatchObject({ ok: true, path: abs });
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("validate_doc rejects a relative path, mentioning an absolute path", async () => {
+			const { client, server } = await connectedClient(() => [], { serverRunning: () => false });
+			try {
+				const result = await client.callTool({
+					name: "validate_doc",
+					arguments: { path: "good.md" },
+				});
+				expect(result.isError).toBe(true);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("mdxserve serve");
+				expect(text).toContain("absolute path");
+				expect(text).not.toContain("add_root");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("search_docs errors, mentioning how to start a server", async () => {
+			const { client, server } = await connectedClient(() => [], { serverRunning: () => false });
+			try {
+				const result = await client.callTool({
+					name: "search_docs",
+					arguments: { query: "widgets" },
+				});
+				expect(result.isError).toBe(true);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("mdxserve serve");
+				expect(text).not.toContain("add_root");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("list_docs errors, mentioning how to start a server", async () => {
+			const { client, server } = await connectedClient(() => [], { serverRunning: () => false });
+			try {
+				const result = await client.callTool({ name: "list_docs", arguments: {} });
+				expect(result.isError).toBe(true);
+				const text = (result.content as Array<{ text: string }>)[0].text;
+				expect(text).toContain("mdxserve serve");
+				expect(text).not.toContain("add_root");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+	});
+
+	describe("with a running server that serves no roots (getRoots returns [])", () => {
 		it("validate_doc still validates an absolute path", async () => {
 			const { client, server } = await connectedClient(() => []);
 			try {
@@ -403,7 +476,7 @@ describe("createMcpServer", () => {
 			}
 		});
 
-		it("validate_doc rejects a relative path, mentioning an absolute path", async () => {
+		it("validate_doc rejects a relative path, mentioning add_root", async () => {
 			const { client, server } = await connectedClient(() => []);
 			try {
 				const result = await client.callTool({
@@ -412,15 +485,14 @@ describe("createMcpServer", () => {
 				});
 				expect(result.isError).toBe(true);
 				const text = (result.content as Array<{ text: string }>)[0].text;
-				expect(text).toContain("mdxserve serve");
-				expect(text).toContain("absolute path");
+				expect(text).toContain("add_root");
 			} finally {
 				await client.close();
 				await server.close();
 			}
 		});
 
-		it("search_docs errors, mentioning how to start a server", async () => {
+		it("search_docs errors, mentioning add_root", async () => {
 			const { client, server } = await connectedClient(() => []);
 			try {
 				const result = await client.callTool({
@@ -429,20 +501,32 @@ describe("createMcpServer", () => {
 				});
 				expect(result.isError).toBe(true);
 				const text = (result.content as Array<{ text: string }>)[0].text;
-				expect(text).toContain("mdxserve serve");
+				expect(text).toContain("add_root");
 			} finally {
 				await client.close();
 				await server.close();
 			}
 		});
 
-		it("list_docs errors, mentioning how to start a server", async () => {
+		it("list_docs errors, mentioning add_root", async () => {
 			const { client, server } = await connectedClient(() => []);
 			try {
 				const result = await client.callTool({ name: "list_docs", arguments: {} });
 				expect(result.isError).toBe(true);
 				const text = (result.content as Array<{ text: string }>)[0].text;
-				expect(text).toContain("mdxserve serve");
+				expect(text).toContain("add_root");
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
+		it("list_roots returns an empty list", async () => {
+			const { client, server } = await connectedClient(() => []);
+			try {
+				const result = await client.callTool({ name: "list_roots", arguments: {} });
+				expect(result.isError).toBeFalsy();
+				expect(result.structuredContent).toEqual({ roots: [] });
 			} finally {
 				await client.close();
 				await server.close();

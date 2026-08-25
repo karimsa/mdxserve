@@ -10,9 +10,6 @@ const PROPERTY_TIMEOUT_MS = 30000;
 
 /** Absolute-looking directory paths, some of which nest inside each other. */
 const segmentArb = fc.constantFrom("alpha", "beta", "gamma");
-const absDirArb = fc
-	.array(segmentArb, { minLength: 1, maxLength: 3 })
-	.map((segments) => `/${segments.join("/")}`);
 
 /** A directory layout under one temp root: names, some nested. */
 const layoutArb = fc.uniqueArray(
@@ -126,38 +123,156 @@ describe("RootsService.admit guarantees", () => {
 	);
 });
 
-describe("RootsService.reconcile guarantees", () => {
-	it("is idempotent, keeps only outermost roots, and never invents one", () => {
-		fc.assert(
-			fc.property(fc.array(absDirArb, { maxLength: 6 }), (roots) => {
-				const service = new RootsService("/");
-				const reconciled = service.reconcile(roots);
-				const dirs = reconciled.map((rootInfo) => rootInfo.dir);
+type Command = { kind: "add" | "remove"; dirs: string[] };
 
-				for (const dir of dirs) expect(roots).toContain(dir);
-				expect(new Set(dirs).size).toBe(dirs.length);
-				for (const outer of dirs) {
-					for (const inner of dirs) {
-						if (outer === inner) continue;
-						expect(isInside(outer, inner)).toBe(false);
-					}
-				}
-				expect(service.reconcile(dirs)).toEqual(reconciled);
-			}),
-		);
-	});
+/** A sequence of add/remove commands, each naming a non-empty subset of the layout's dirs. */
+function commandsArb(absolutes: string[]): fc.Arbitrary<Command[]> {
+	return fc.array(
+		fc.record({
+			kind: fc.constantFrom<"add" | "remove">("add", "remove"),
+			dirs: fc.subarray(absolutes, { minLength: 1 }),
+		}),
+		{ minLength: 1, maxLength: 6 },
+	);
+}
 
-	it("keeps every root that nothing else contains", () => {
-		fc.assert(
-			fc.property(fc.array(absDirArb, { maxLength: 6 }), (roots) => {
-				const dirs = new Set(
-					new RootsService("/").reconcile(roots).map((rootInfo) => rootInfo.dir),
-				);
-				for (const root of roots) {
-					const contained = roots.some((other) => other !== root && isInside(other, root));
-					if (!contained) expect(dirs.has(root)).toBe(true);
-				}
-			}),
-		);
-	});
+/** A plain-Set reference model of the mounted set, applying the same rules RootsService does. */
+function applyToModel(mounted: Set<string>, command: Command): boolean {
+	if (command.kind === "remove") {
+		if (!command.dirs.every((dir) => mounted.has(dir))) return false;
+		for (const dir of command.dirs) mounted.delete(dir);
+		return true;
+	}
+
+	const added = command.dirs.filter((dir) => !mounted.has(dir));
+	const union = [...mounted, ...added];
+	for (const outer of union) {
+		for (const inner of union) {
+			if (outer === inner) continue;
+			if (isInside(outer, inner)) return false;
+		}
+	}
+	for (const dir of added) mounted.add(dir);
+	return true;
+}
+
+function assertInvariants(rootInfos: { name: string; dir: string }[]): void {
+	const dirs = rootInfos.map((info) => info.dir);
+	expect(new Set(dirs).size).toBe(dirs.length);
+	for (const outer of dirs) {
+		for (const inner of dirs) {
+			if (outer === inner) continue;
+			expect(isInside(outer, inner)).toBe(false);
+		}
+	}
+	const names = rootInfos.map((info) => info.name);
+	expect(new Set(names).size).toBe(names.length);
+}
+
+describe("RootsService mounted-set guarantees", () => {
+	it(
+		"after every add/remove step, list() matches a Set<string> reference model and stays invariant-clean",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(layoutArb, async (relatives) => {
+					await withLayout(relatives, async (_base, absolutes) => {
+						await fc.assert(
+							fc.asyncProperty(commandsArb(absolutes), async (commands) => {
+								const service = new RootsService(process.cwd());
+								const model = new Set<string>();
+								for (const command of commands) {
+									const modelOk = applyToModel(model, command);
+									const result =
+										command.kind === "add"
+											? await service.add(command.dirs)
+											: await service.remove(command.dirs);
+									expect(result.kind === "ok").toBe(modelOk);
+
+									const rootInfos = service.list();
+									assertInvariants(rootInfos);
+									expect(new Set(rootInfos.map((info) => info.dir))).toEqual(model);
+								}
+							}),
+							{ numRuns: 10 },
+						);
+					});
+				}),
+				{ numRuns: 5 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+
+	it(
+		"running the same batch of commands concurrently still leaves list() invariant-clean",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(layoutArb, async (relatives) => {
+					await withLayout(relatives, async (_base, absolutes) => {
+						await fc.assert(
+							fc.asyncProperty(commandsArb(absolutes), async (commands) => {
+								const service = new RootsService(process.cwd());
+								// Order between concurrent add/remove calls is not defined, so
+								// this only checks the invariants hold no matter how the
+								// service's internal queue happened to interleave them — not
+								// that the outcome matches any particular reference model.
+								await Promise.all(
+									commands.map((command) =>
+										command.kind === "add"
+											? service.add(command.dirs)
+											: service.remove(command.dirs),
+									),
+								);
+								assertInvariants(service.list());
+							}),
+							{ numRuns: 10 },
+						);
+					});
+				}),
+				{ numRuns: 5 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+
+	it(
+		"the listener fires exactly once per ok result with a non-empty delta",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(layoutArb, async (relatives) => {
+					await withLayout(relatives, async (_base, absolutes) => {
+						await fc.assert(
+							fc.asyncProperty(commandsArb(absolutes), async (commands) => {
+								const service = new RootsService(process.cwd());
+								let notifications = 0;
+								service.onChange(() => {
+									notifications += 1;
+								});
+
+								let expectedNotifications = 0;
+								for (const command of commands) {
+									if (command.kind === "add") {
+										const result = await service.add(command.dirs);
+										if (result.kind === "ok" && result.added.length > 0) {
+											expectedNotifications += 1;
+										}
+									} else {
+										const result = await service.remove(command.dirs);
+										if (result.kind === "ok" && result.removed.length > 0) {
+											expectedNotifications += 1;
+										}
+									}
+								}
+
+								expect(notifications).toBe(expectedNotifications);
+							}),
+							{ numRuns: 10 },
+						);
+					});
+				}),
+				{ numRuns: 5 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
 });

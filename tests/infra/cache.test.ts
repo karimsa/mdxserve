@@ -2,13 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import {
-	cacheKeyFor,
-	cleanCache,
-	getCacheDir,
-	getCacheHome,
-	getViteCacheDir,
-} from "../../src/infra/cache.js";
+import { cleanCache, getCacheHome, getViteCacheDir } from "../../src/infra/cache.js";
 
 let tmpDir: string;
 const savedEnv = {
@@ -51,49 +45,22 @@ describe("getCacheHome", () => {
 	});
 });
 
-describe("getCacheDir", () => {
-	it("lives under the cache home, never inside the served root", () => {
+describe("getViteCacheDir", () => {
+	it("lives directly under the cache home", () => {
 		process.env.MDXSERVE_CACHE_HOME = tmpDir;
-		const root = path.join(tmpDir, "docs");
-		const dir = getCacheDir(root);
-		expect(path.dirname(dir)).toBe(tmpDir);
-		expect(dir.startsWith(root + path.sep)).toBe(false);
-		expect(getViteCacheDir(root)).toBe(path.join(dir, "vite"));
-	});
-
-	it("keys two roots with the same basename to different folders", () => {
-		const first = cacheKeyFor("/a/docs");
-		const second = cacheKeyFor("/b/docs");
-		expect(first).not.toBe(second);
-		expect(first.startsWith("docs-")).toBe(true);
-		expect(second.startsWith("docs-")).toBe(true);
-	});
-});
-
-describe("cacheKeyFor", () => {
-	it("keys a symlinked root the same as its target, so clean finds the served cache", async () => {
-		const target = path.join(tmpDir, "real-docs");
-		await fs.mkdir(target, { recursive: true });
-		const link = path.join(tmpDir, "linked-docs");
-		await fs.symlink(target, link, "dir");
-		expect(cacheKeyFor(link)).toBe(cacheKeyFor(target));
-	});
-
-	it("keeps the key under the filename limit for a very long basename", () => {
-		const key = cacheKeyFor("/" + "x".repeat(240));
-		expect(Buffer.byteLength(key)).toBeLessThanOrEqual(255);
+		expect(getViteCacheDir()).toBe(path.join(tmpDir, "vite"));
+		expect(path.dirname(getViteCacheDir())).toBe(getCacheHome());
 	});
 });
 
 describe("cleanCache", () => {
-	it("removes the root's cache folder and reports whether anything was there", async () => {
-		process.env.MDXSERVE_CACHE_HOME = tmpDir;
-		const root = path.join(tmpDir, "served");
-		await fs.mkdir(path.join(getViteCacheDir(root), "deps"), { recursive: true });
-		await fs.writeFile(path.join(getViteCacheDir(root), "deps", "x.js"), "");
+	it("removes the whole cache home and reports whether anything was there", async () => {
+		process.env.MDXSERVE_CACHE_HOME = path.join(tmpDir, "clean-test");
+		await fs.mkdir(path.join(getViteCacheDir(), "deps"), { recursive: true });
+		await fs.writeFile(path.join(getViteCacheDir(), "deps", "x.js"), "");
 
-		expect(cleanCache(root)).toBe(true);
-		await expect(fs.stat(getCacheDir(root))).rejects.toThrow();
-		expect(cleanCache(root)).toBe(false);
+		expect(cleanCache()).toBe(true);
+		await expect(fs.stat(getCacheHome())).rejects.toThrow();
+		expect(cleanCache()).toBe(false);
 	});
 });

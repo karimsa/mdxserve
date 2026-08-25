@@ -161,6 +161,11 @@ are never caught — those stay browser-only.
 If the MCP server is not connected, tell the user the file was not validated; don't skip this
 silently.
 
+`validate_doc` with an absolute path still works even when no `mdxserve serve` is running, or
+one is running but has no folders mounted. If `list_docs` or `search_docs` instead report that
+no folders are served, call `list_roots` and then `add_root` with the doc's folder (an absolute
+path) — or tell the user to run `mdxserve roots add <dir>`.
+
 ## Before saving
 
 - Every code fence has a language tag; titles and highlights only where they help.
