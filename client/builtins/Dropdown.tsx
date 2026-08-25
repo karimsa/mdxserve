@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
 import { z } from "zod";
 import { CrossFade } from "../CrossFade";
-import { T, V } from "../motion";
+import { TRANSITIONS, VARIANTS } from "../motion";
 import { Icon } from "../ui/Icon";
 
 const dropdownOption = z.union([
@@ -159,14 +159,16 @@ export default function Dropdown({
 	const isSwitcher = switcherEntries.length > 0;
 	const entries: Entry[] = isSwitcher
 		? switcherEntries
-		: (options ?? []).map((o) => (typeof o === "string" ? { value: o, label: o } : o));
+		: (options ?? []).map((option) =>
+				typeof option === "string" ? { value: option, label: option } : option,
+			);
 
 	const controlled = value !== undefined;
 	const [internal, setInternal] = useState<string | undefined>(
 		defaultValue ?? (isSwitcher ? entries[0]?.value : undefined),
 	);
 	const current = controlled ? value : internal;
-	const selected = entries.find((e) => e.value === current);
+	const selected = entries.find((entry) => entry.value === current);
 
 	const [open, setOpen] = useState(false);
 	const [highlighted, setHighlighted] = useState(0);
@@ -188,7 +190,7 @@ export default function Dropdown({
 		if (disabled || entries.length === 0) return;
 		const idx = Math.max(
 			0,
-			entries.findIndex((e) => e.value === current),
+			entries.findIndex((entry) => entry.value === current),
 		);
 		setHighlighted(idx);
 		setOpen(true);
@@ -218,12 +220,12 @@ export default function Dropdown({
 			case "ArrowDown":
 				event.preventDefault();
 				if (!open) openMenu();
-				else setHighlighted((h) => Math.min(last, h + 1));
+				else setHighlighted((index) => Math.min(last, index + 1));
 				break;
 			case "ArrowUp":
 				event.preventDefault();
 				if (!open) openMenu();
-				else setHighlighted((h) => Math.max(0, h - 1));
+				else setHighlighted((index) => Math.max(0, index - 1));
 				break;
 			case "Home":
 				if (open) {
@@ -321,7 +323,7 @@ export default function Dropdown({
 					</span>
 					<motion.span
 						animate={{ rotate: open ? 180 : 0 }}
-						transition={T.snap}
+						transition={TRANSITIONS.snap}
 						className="inline-flex text-text-subtle"
 					>
 						<ChevronDown aria-hidden="true" size={14} strokeWidth={1.75} />
@@ -336,7 +338,7 @@ export default function Dropdown({
 						id={listboxId}
 						role="listbox"
 						aria-activedescendant={entries[highlighted] ? `${id}-opt-${highlighted}` : undefined}
-						{...V.pop}
+						{...VARIANTS.pop}
 						style={{ zIndex: "var(--z-dropdown)" }}
 						className={
 							icon
@@ -344,23 +346,23 @@ export default function Dropdown({
 								: "absolute left-0 top-full mt-1.5 max-h-72 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-border-default bg-surface-raised p-1 shadow-md"
 						}
 					>
-						{entries.map((entry, i) => {
+						{entries.map((entry, index) => {
 							const isSelected = entry.value === current;
-							const isActive = i === highlighted;
+							const isActive = index === highlighted;
 							return (
 								<li
 									key={entry.value}
-									id={`${id}-opt-${i}`}
+									id={`${id}-opt-${index}`}
 									role="option"
 									aria-selected={isSelected}
-									onPointerEnter={() => setHighlighted(i)}
+									onPointerEnter={() => setHighlighted(index)}
 									onClick={() => select(entry.value)}
 									className={`relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${isActive ? "text-text-heading" : ""}`}
 								>
 									{isActive ? (
 										<motion.span
 											layoutId={`${id}-highlight`}
-											transition={T.snap}
+											transition={TRANSITIONS.snap}
 											className="absolute inset-0 rounded-md bg-surface-hover ring-1 ring-inset ring-border-default"
 											aria-hidden="true"
 										/>

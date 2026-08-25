@@ -20,15 +20,19 @@ export default function Sparkline({
 	color = "var(--chart-1)",
 	fill = true,
 }: SparklineProps) {
-	const nums = values.map(Number).filter((n) => !Number.isNaN(n));
+	const nums = values.map(Number).filter((value) => !Number.isNaN(value));
 	if (nums.length < 2) return null;
 
 	const min = Math.min(...nums);
 	const max = Math.max(...nums);
 	const span = max - min || 1;
-	const x = (i: number) => (i / (nums.length - 1)) * (width - 2) + 1;
-	const y = (v: number) => height - 2 - ((v - min) / span) * (height - 4);
-	const d = nums.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+	const xAt = (index: number) => (index / (nums.length - 1)) * (width - 2) + 1;
+	const yAt = (value: number) => height - 2 - ((value - min) / span) * (height - 4);
+	const pathData = nums
+		.map(
+			(value, index) => (index ? "L" : "M") + xAt(index).toFixed(1) + " " + yAt(value).toFixed(1),
+		)
+		.join(" ");
 
 	return (
 		<svg
@@ -39,17 +43,21 @@ export default function Sparkline({
 			role="img"
 		>
 			{fill ? (
-				<path d={`${d} L${width - 1} ${height} L1 ${height} Z`} fill={color} opacity="0.13" />
+				<path
+					d={`${pathData} L${width - 1} ${height} L1 ${height} Z`}
+					fill={color}
+					opacity="0.13"
+				/>
 			) : null}
 			<path
-				d={d}
+				d={pathData}
 				fill="none"
 				stroke={color}
 				strokeWidth="1.5"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			/>
-			<circle cx={x(nums.length - 1)} cy={y(nums[nums.length - 1])} r="2" fill={color} />
+			<circle cx={xAt(nums.length - 1)} cy={yAt(nums[nums.length - 1])} r="2" fill={color} />
 		</svg>
 	);
 }

@@ -7,7 +7,7 @@ import { DocView } from "../DocView";
 import { HomeView } from "../HomeView";
 import { useDebounced } from "../hooks";
 import { ListingView } from "../ListingView";
-import { fadeRise, T } from "../motion";
+import { fadeRise, TRANSITIONS } from "../motion";
 import { useTheme } from "../theme";
 import { shellInfo, useFolderListing, useTree, type Route, type TreeNode } from "../router";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
@@ -84,9 +84,9 @@ function breadcrumbItems(route: Route, rootsCount: number): BreadcrumbItem[] {
 
 	const segments = route.path.slice(rootDir.length).split("/").filter(Boolean);
 	let acc = rootDir;
-	segments.forEach((segment, i) => {
+	segments.forEach((segment, index) => {
 		acc += `/${segment}`;
-		const isLast = i === segments.length - 1;
+		const isLast = index === segments.length - 1;
 		const isDocLast = isLast && route.kind !== "listing";
 		items.push({ label: segment, href: isDocLast ? undefined : `${acc}/` });
 	});
@@ -123,7 +123,7 @@ function useContentWidth(ref: React.RefObject<HTMLElement | null>) {
  */
 function useListingMaxWidth(contentWidth: number, stored: number | null) {
 	// glide, not snap: the width trails the drag slightly so the spring is felt.
-	const spring = useSpring(0, T.glide);
+	const spring = useSpring(0, TRANSITIONS.glide);
 	const initialised = useRef(false);
 
 	// A layout effect so the first listing paint already has a real max-width
@@ -156,7 +156,7 @@ function useListingMaxWidth(contentWidth: number, stored: number | null) {
  */
 function useDocMaxWidth(contentWidth: number, stored: number | null) {
 	// glide, not snap: the width trails the drag slightly so the spring is felt.
-	const spring = useSpring(0, T.glide);
+	const spring = useSpring(0, TRANSITIONS.glide);
 	const active = useRef(false);
 	// Whether the applied target used a real content-area measurement. The first
 	// effect run can see contentWidth === 0 (measurement lands one render later);
@@ -243,7 +243,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	// article is actually on the page, not just when `route.path` changes.
 	const [tocVersion, setTocVersion] = useState(0);
 	const bumpTocVersion = useCallback(() => {
-		setTocVersion((v) => v + 1);
+		setTocVersion((previous) => previous + 1);
 		// The doc module arrives after the browser's own hash jump, so honour a
 		// `#heading` in the URL once the headings exist.
 		const hash = window.location.hash.slice(1);
@@ -275,9 +275,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			// A click here would otherwise silently flip (and persist) the
 			// preference for the next doc.
 			if (sidebarHidden) return;
-			setDesktopOpen((v) => !v);
+			setDesktopOpen((previous) => !previous);
 		} else {
-			setMobileOpen((v) => !v);
+			setMobileOpen((previous) => !previous);
 		}
 	}, [sidebarHidden]);
 
@@ -317,11 +317,13 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		if (route.kind !== "doc") return {};
 		const index = flatDocs.findIndex((doc) => doc.path === route.path);
 		if (index === -1) return {};
-		const p = flatDocs[index - 1];
-		const n = flatDocs[index + 1];
+		const previousDoc = flatDocs[index - 1];
+		const nextDoc = flatDocs[index + 1];
 		return {
-			prev: p ? { label: stripDocExt(p.name), href: p.path } : undefined,
-			next: n ? { label: stripDocExt(n.name), href: n.path } : undefined,
+			prev: previousDoc
+				? { label: stripDocExt(previousDoc.name), href: previousDoc.path }
+				: undefined,
+			next: nextDoc ? { label: stripDocExt(nextDoc.name), href: nextDoc.path } : undefined,
 		};
 	}, [flatDocs, route]);
 

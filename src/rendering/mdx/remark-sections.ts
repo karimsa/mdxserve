@@ -51,12 +51,12 @@ function frontmatterExtent(children: RootContent[]): number {
 	// horizontal rule at the top of a doc is followed by a blank line, so its
 	// next node starts on line 3 or later — leave that doc fully editable.
 	if (children[1]?.position?.start.line !== 2) return 0;
-	for (let i = 1; i < children.length; i++) {
-		const node = children[i];
-		if (node.type === "thematicBreak") return i + 1;
+	for (let index = 1; index < children.length; index++) {
+		const node = children[index];
+		if (node.type === "thematicBreak") return index + 1;
 		// A setext heading directly after the opening rule: its underline is
 		// the closing `---`, so the block ends with it.
-		if (node.type === "heading" && i === 1) return 2;
+		if (node.type === "heading" && index === 1) return 2;
 	}
 	// Never closed, so not front matter: an ordinary rule at the top of an
 	// ordinary doc.
@@ -109,7 +109,7 @@ export function remarkSections() {
 			// slices raw file lines by it); if any node in the run somehow lacks
 			// position info, push the run through unwrapped rather than losing it
 			// or fabricating a range.
-			const hasFullPositions = run.every((n) => n.position !== undefined);
+			const hasFullPositions = run.every((node) => node.position !== undefined);
 			if (!hasFullPositions || !first.position || !last.position) {
 				result.push(...run);
 				run = [];
@@ -132,8 +132,8 @@ export function remarkSections() {
 			run = [];
 		}
 
-		children.forEach((node, i) => {
-			const editable = i >= frontmatterEnd && isEditable(node);
+		children.forEach((node, index) => {
+			const editable = index >= frontmatterEnd && isEditable(node);
 			if (!editable) {
 				flush();
 				result.push(node);

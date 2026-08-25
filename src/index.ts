@@ -1,14 +1,13 @@
 import { Command } from "commander";
-import fs from "node:fs";
 import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { startServer } from "./http/start.js";
-import { loadRegistry, formatComponent } from "./components/registry.js";
+import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
 import { ComponentsService } from "./components/service.js";
 import { cleanCache, getCacheDir } from "./infra/cache.js";
 import { createMcpServer } from "./mcp/server.js";
 import { RemoteDocsClient } from "./servers/remote.js";
-import { computeRootInfos, pruneNestedRoots } from "./roots/root-info.js";
+import { RootsService } from "./roots/service.js";
 import { ServerRegistry } from "./servers/server-registry.js";
 import { DocCache } from "./docs/doc-cache.js";
 import { SearchService } from "./search/service.js";
@@ -27,7 +26,7 @@ program
 	.option(
 		"-w, --watch <dir>",
 		"serve this directory (repeatable)",
-		(v: string, acc: string[]) => acc.concat(v),
+		(value: string, acc: string[]) => acc.concat(value),
 		[] as string[],
 	)
 	.action(
@@ -40,55 +39,16 @@ program
 			},
 		) => {
 			const inputs = [...opts.watch, ...(dir ? [dir] : [])];
-			if (inputs.length === 0) inputs.push(".");
 
-			const resolved = inputs.map((d) => path.resolve(process.cwd(), d));
-
-			for (const dirAbs of resolved) {
-				if (!fs.existsSync(dirAbs)) {
-					console.error(`mdxserve: no such directory: ${dirAbs}`);
-					process.exitCode = 1;
-					return;
-				}
-
-				if (!fs.statSync(dirAbs).isDirectory()) {
-					console.error(`mdxserve: not a directory: ${dirAbs}`);
-					process.exitCode = 1;
-					return;
-				}
-			}
-
-			// Dedupe by realpath, not the resolved string, so a symlinked alias of
-			// an already-mounted root isn't served twice — and keep the realpath'd
-			// value since Vite's fs.allow compares real paths.
-			const seen = new Set<string>();
-			const roots: string[] = [];
-			for (const dirAbs of resolved) {
-				const real = fs.realpathSync(dirAbs);
-				if (seen.has(real)) continue;
-				seen.add(real);
-				roots.push(real);
-			}
-
-			if (roots.includes("/")) {
-				console.error("mdxserve: refusing to serve /");
+			// Which directories may be served together — existence, dedupe by
+			// realpath, no "/", no nesting — is RootsService's call, not the CLI's.
+			const admitted = await new RootsService(process.cwd()).admit(inputs);
+			if (admitted.kind !== "ok") {
+				console.error(`mdxserve: ${admitted.message}`);
 				process.exitCode = 1;
 				return;
 			}
-
-			// Reject nested roots: they'd make resolveRoot's first-match ambiguous
-			// and would list/index the same docs twice.
-			for (const a of roots) {
-				for (const b of roots) {
-					if (a === b) continue;
-					const rel = path.relative(a, b);
-					if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) {
-						console.error(`mdxserve: ${b} is inside ${a}; serve only the outer one`);
-						process.exitCode = 1;
-						return;
-					}
-				}
-			}
+			const { roots } = admitted;
 
 			const port = Number.parseInt(opts.port, 10);
 			if (Number.isNaN(port)) {
@@ -127,14 +87,13 @@ program
 		// its pid check catches up) falls back to local, static-only handling
 		// inside createMcpServer.
 		const serverRegistry = new ServerRegistry();
+		const rootsService = new RootsService(process.cwd());
 		const docCache = new DocCache();
 		const search = new SearchService(docCache);
 		const server = createMcpServer({
 			registry,
 			getRoots: () =>
-				computeRootInfos(
-					pruneNestedRoots(serverRegistry.live().flatMap((serverRecord) => serverRecord.roots)),
-				),
+				rootsService.reconcile(serverRegistry.live().flatMap((serverRecord) => serverRecord.roots)),
 			remote: new RemoteDocsClient(() => serverRegistry.live()),
 			docCache,
 			search,
@@ -174,10 +133,7 @@ components
 			return;
 		}
 
-		const width = Math.max(...matches.map((m) => m.name.length));
-		for (const match of matches) {
-			console.log(`${match.name.padEnd(width)}  ${match.description}`);
-		}
+		console.log(formatComponentTable(matches));
 	});
 
 components

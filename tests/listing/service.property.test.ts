@@ -126,17 +126,17 @@ describe("ListingService.docTree — depth truncation", () => {
 		"docTree({maxDepth: n}) equals docTree({maxDepth: n+1}) with nodes deeper than n pruned",
 		async () => {
 			await fc.assert(
-				fc.asyncProperty(entriesArb(3), fc.integer({ min: 0, max: 3 }), async (entries, n) => {
+				fc.asyncProperty(entriesArb(3), fc.integer({ min: 0, max: 3 }), async (entries, depth) => {
 					const root = await mkTmpRoot("depth-");
 					try {
 						await materialize(root, entries);
 						const service = new ListingService([{ name: "docs", dir: root }], new DocCache());
-						const shallow = await service.docTree({ maxDepth: n });
-						const deep = await service.docTree({ maxDepth: n + 1 });
+						const shallow = await service.docTree({ maxDepth: depth });
+						const deep = await service.docTree({ maxDepth: depth + 1 });
 						expect(shallow.kind).toBe("ok");
 						expect(deep.kind).toBe("ok");
 						if (shallow.kind !== "ok" || deep.kind !== "ok") return;
-						expect(shallow.roots[0].nodes).toEqual(truncate(deep.roots[0].nodes, n));
+						expect(shallow.roots[0].nodes).toEqual(truncate(deep.roots[0].nodes, depth));
 					} finally {
 						await rmTree(root);
 					}

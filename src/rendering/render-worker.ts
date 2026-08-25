@@ -30,8 +30,8 @@ const port = parentPort;
 // thread's Vite dev server to transform/resolve a module; "invoke-response"
 // is the answer.
 
-function toPosix(p: string): string {
-	return p.split(path.sep).join("/");
+function toPosix(filePath: string): string {
+	return filePath.split(path.sep).join("/");
 }
 
 // ---- transport: forward every ModuleRunner "invoke" to the main thread --
@@ -68,7 +68,7 @@ function toPosix(p: string): string {
 let nextInvokeId = 0;
 const pendingInvokes = new Map<
 	number,
-	{ resolve: (v: { result: unknown } | { error: unknown }) => void }
+	{ resolve: (outcome: { result: unknown } | { error: unknown }) => void }
 >();
 
 const transport: ModuleRunnerTransport = {
@@ -113,7 +113,7 @@ const runner = new ModuleRunner(
 // re-emit anything else untouched.
 const USE_LAYOUT_EFFECT_WARNING = "useLayoutEffect does nothing on the server";
 
-function withConsoleErrorFilter<T>(fn: () => T): T {
+function withConsoleErrorFilter<Result>(fn: () => Result): Result {
 	const original = console.error;
 	console.error = (...args: unknown[]) => {
 		const first = args[0];

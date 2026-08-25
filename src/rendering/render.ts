@@ -12,11 +12,11 @@ import type {
 	WorkerOutboundMessage,
 } from "./protocol.js";
 
-function realpathOrSelf(p: string): string {
+function realpathOrSelf(filePath: string): string {
 	try {
-		return fs.realpathSync.native(p);
+		return fs.realpathSync.native(filePath);
 	} catch {
-		return p;
+		return filePath;
 	}
 }
 

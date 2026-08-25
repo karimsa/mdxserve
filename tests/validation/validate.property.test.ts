@@ -24,7 +24,7 @@ function parse(src: string) {
 
 const words = fc
 	.array(fc.stringMatching(/^[a-z]{1,8}$/), { minLength: 1, maxLength: 6 })
-	.map((w) => w.join(" "));
+	.map((chosen) => chosen.join(" "));
 
 const headingArb = fc
 	.tuple(fc.integer({ min: 1, max: 6 }), words)
@@ -34,11 +34,11 @@ const paragraphArb = words;
 
 const listArb = fc
 	.array(words, { minLength: 1, maxLength: 4 })
-	.map((items) => items.map((i) => `- ${i}`).join("\n"));
+	.map((items) => items.map((item) => `- ${item}`).join("\n"));
 
 const taskListArb = fc
 	.array(fc.tuple(fc.boolean(), words), { minLength: 1, maxLength: 4 })
-	.map((items) => items.map(([checked, t]) => `- [${checked ? "x" : " "}] ${t}`).join("\n"));
+	.map((items) => items.map(([checked, text]) => `- [${checked ? "x" : " "}] ${text}`).join("\n"));
 
 const cellArb = fc.stringMatching(/^[a-z]{1,8}$/);
 const tableArb = fc
@@ -46,12 +46,12 @@ const tableArb = fc
 	.map((rows) => {
 		const header = "| a | b |";
 		const sep = "| --- | --- |";
-		const body = rows.map(([a, b]) => `| ${a} | ${b} |`).join("\n");
+		const body = rows.map(([first, second]) => `| ${first} | ${second} |`).join("\n");
 		return [header, sep, body].join("\n");
 	});
 
 const fenceLangArb = fc.stringMatching(/^[A-Za-z0-9_-]*$/, { maxLength: 10 });
-const fenceBodyArb = fc.string({ maxLength: 40 }).filter((s) => !s.includes("```"));
+const fenceBodyArb = fc.string({ maxLength: 40 }).filter((body) => !body.includes("```"));
 const fenceArb = fc
 	.tuple(fenceLangArb, fenceBodyArb)
 	.map(([lang, body]) => ["```" + lang, body, "```"].join("\n"));
@@ -66,7 +66,7 @@ const docArb = fc
 
 const identifierArb = fc
 	.stringMatching(/^[A-Z][a-zA-Z0-9]{0,11}$/)
-	.filter((n) => !fixtureComponentNames.includes(n));
+	.filter((name) => !fixtureComponentNames.includes(name));
 
 describe("analyzeTree / validateSource — GFM invariance", () => {
 	it("GFM-only docs produce no diagnostics from analyzeTree", () => {
@@ -101,7 +101,9 @@ describe("analyzeTree — unknown components", () => {
 				docArb,
 				fc.uniqueArray(identifierArb, { minLength: 1, maxLength: 5 }),
 				(doc, names) => {
-					const parts = doc ? [doc, ...names.map((n) => `<${n} />`)] : names.map((n) => `<${n} />`);
+					const parts = doc
+						? [doc, ...names.map((name) => `<${name} />`)]
+						: names.map((name) => `<${name} />`);
 					const full = parts.join("\n\n");
 					const lines = full.split("\n");
 
@@ -109,13 +111,15 @@ describe("analyzeTree — unknown components", () => {
 					const diagnostics = analyzeTree(tree, fixtureRegistry);
 
 					expect(diagnostics.length).toBe(names.length);
-					const byComponent = new Map(diagnostics.map((d) => [d.component, d]));
-					for (const n of names) {
-						const diag = byComponent.get(n);
+					const byComponent = new Map(
+						diagnostics.map((diagnostic) => [diagnostic.component, diagnostic]),
+					);
+					for (const name of names) {
+						const diag = byComponent.get(name);
 						expect(diag).toBeDefined();
 						expect(diag!.code).toBe("unknown-component");
 						expect(diag!.severity).toBe("error");
-						const expectedLine = lines.findIndex((l) => l === `<${n} />`) + 1;
+						const expectedLine = lines.findIndex((line) => line === `<${name} />`) + 1;
 						expect(diag!.line).toBe(expectedLine);
 					}
 				},
@@ -130,19 +134,19 @@ describe("analyzeTree — unknown components", () => {
 				fc.uniqueArray(fc.tuple(identifierArb, fc.boolean()), {
 					minLength: 1,
 					maxLength: 5,
-					selector: (t) => t[0],
+					selector: (tuple) => tuple[0],
 				}),
 				(doc, namedFlags) => {
 					const imports = namedFlags
 						.filter(([, imported]) => imported)
-						.map(([n]) => `import ${n} from "./x";`)
+						.map(([name]) => `import ${name} from "./x";`)
 						.join("\n");
-					const tags = namedFlags.map(([n]) => `<${n} />`).join("\n\n");
+					const tags = namedFlags.map(([name]) => `<${name} />`).join("\n\n");
 					const full = [imports, doc, tags].filter(Boolean).join("\n\n");
 
 					const tree = parse(full);
 					const diagnostics = analyzeTree(tree, fixtureRegistry);
-					const reported = new Set(diagnostics.map((d) => d.component));
+					const reported = new Set(diagnostics.map((diagnostic) => diagnostic.component));
 
 					for (const [name, imported] of namedFlags) {
 						expect(reported.has(name)).toBe(!imported);
@@ -167,11 +171,13 @@ describe("analyzeTree — props", () => {
 				const propNames = propNamesOf(entry);
 				const stream = coinFlips;
 				const chosen = propNames.filter(() => stream.next().value);
-				const attrs = chosen.map((p) => `${p}="v"`).join(" ");
+				const attrs = chosen.map((prop) => `${prop}="v"`).join(" ");
 				const src = `<${entry.name}${attrs ? " " + attrs : ""} />`;
 				const tree = parse(src);
 				const diagnostics = analyzeTree(tree, fixtureRegistry);
-				expect(diagnostics.filter((d: Diagnostic) => d.code === "unknown-prop")).toEqual([]);
+				expect(
+					diagnostics.filter((diagnostic: Diagnostic) => diagnostic.code === "unknown-prop"),
+				).toEqual([]);
 			}),
 		);
 	});
@@ -184,7 +190,9 @@ describe("analyzeTree — props", () => {
 				const src = `<${entry.name} ${extra}="v" />`;
 				const tree = parse(src);
 				const diagnostics = analyzeTree(tree, fixtureRegistry);
-				const propDiags = diagnostics.filter((d: Diagnostic) => d.code === "unknown-prop");
+				const propDiags = diagnostics.filter(
+					(diagnostic: Diagnostic) => diagnostic.code === "unknown-prop",
+				);
 				expect(propDiags.length).toBe(1);
 				expect(propDiags[0].prop).toBe(extra);
 				expect(propDiags[0].component).toBe(entry.name);
@@ -301,7 +309,7 @@ function fakeRender(outcome: FakeRenderOutcome): (absPath: string) => Promise<Fa
 // below, which needs that guarantee to hold for the whole generated string.
 const plainFenceBodyArb = fc
 	.string({ maxLength: 40 })
-	.filter((s) => !s.includes("```") && !s.includes("{") && !s.includes("<"));
+	.filter((text) => !text.includes("```") && !text.includes("{") && !text.includes("<"));
 const plainFenceArb = fc
 	.tuple(fenceLangArb, plainFenceBodyArb)
 	.map(([lang, body]) => ["```" + lang, body, "```"].join("\n"));
@@ -327,7 +335,9 @@ describe("validateSource — render step", () => {
 		});
 		expect(result.rendered).toBe(true);
 		expect(result.ok).toBe(false);
-		const renderErrors = result.diagnostics.filter((d) => d.code === "render-error");
+		const renderErrors = result.diagnostics.filter(
+			(diagnostic) => diagnostic.code === "render-error",
+		);
 		expect(renderErrors).toHaveLength(1);
 		expect(renderErrors[0]).toMatchObject({
 			severity: "error",
@@ -368,7 +378,9 @@ describe("validateSource — render step", () => {
 				});
 
 				expect(result.rendered).toBe(true);
-				const hasRenderError = result.diagnostics.some((d) => d.code === "render-error");
+				const hasRenderError = result.diagnostics.some(
+					(diagnostic) => diagnostic.code === "render-error",
+				);
 				expect(hasRenderError).toBe(!renderOk);
 				expect(hasRenderError ? true : result.rendered).toBe(true);
 				if (renderOk) expect(result.ok).toBe(true);
@@ -385,7 +397,7 @@ describe("validateSource — render step", () => {
 			registry: fixtureRegistry,
 		});
 		expect(result.rendered).toBe(false);
-		expect(result.diagnostics.some((d) => d.code === "render-error")).toBe(false);
+		expect(result.diagnostics.some((diagnostic) => diagnostic.code === "render-error")).toBe(false);
 	});
 });
 
@@ -397,7 +409,9 @@ describe("unresolved-import positions", () => {
 			registry: fixtureRegistry,
 			resolveImport: () => false,
 		});
-		const warning = result.diagnostics.find((d) => d.code === "unresolved-import");
+		const warning = result.diagnostics.find(
+			(diagnostic) => diagnostic.code === "unresolved-import",
+		);
 		expect(warning).toMatchObject({ line: 3, column: 1 });
 	});
 });

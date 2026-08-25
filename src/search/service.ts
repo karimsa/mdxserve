@@ -30,15 +30,15 @@ interface IndexedDoc {
 const MAX_RESULTS = 30;
 const EXCERPT_LENGTH = 120;
 
-function stripMarkdown(s: string): string {
-	return s
+function stripMarkdown(text: string): string {
+	return text
 		.replace(/[`*_~]/g, "")
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
 		.trim();
 }
 
-function truncate(s: string, length: number): string {
-	const trimmed = s.trim();
+function truncate(text: string, length: number): string {
+	const trimmed = text.trim();
 	if (trimmed.length <= length) return trimmed;
 	return `${trimmed.slice(0, length).trimEnd()}…`;
 }
@@ -84,7 +84,7 @@ function classifyLines(lines: string[]): { headings: string[]; body: string[] } 
 }
 
 function firstExcerpt(body: string[]): string {
-	const line = body.find((l) => l.trim() !== "");
+	const line = body.find((candidate) => candidate.trim() !== "");
 	return line ? truncate(stripMarkdown(line), EXCERPT_LENGTH) : "";
 }
 
@@ -97,10 +97,10 @@ function matchExcerpt(
 	{ headings, body }: { headings: string[]; body: string[] },
 	terms: string[],
 ): string {
-	const lowered = terms.map((t) => t.toLowerCase());
-	const hit = (l: string) => {
-		const lc = l.toLowerCase();
-		return lowered.some((t) => lc.includes(t));
+	const lowered = terms.map((term) => term.toLowerCase());
+	const hit = (line: string) => {
+		const lc = line.toLowerCase();
+		return lowered.some((term) => lc.includes(term));
 	};
 	const line = headings.find(hit) ?? body.find(hit);
 	return line ? truncate(stripMarkdown(line), EXCERPT_LENGTH) : firstExcerpt(body);
@@ -163,15 +163,20 @@ export class SearchService {
 					body: body.join("\n"),
 					mtime,
 				};
-				if (existing) this.mini.replace(entry);
-				else this.mini.add(entry);
+				// `remove` (not `replace`/`discard`): MiniSearch only marks a discarded
+				// doc and keeps counting it toward document count and term frequencies
+				// until an async vacuum, which skews BM25 so an edited doc outranks an
+				// identical unedited one. `remove` needs the exact indexed fields,
+				// which is why the previous entry is kept in `indexed`.
+				if (existing) this.mini.remove(existing);
+				this.mini.add(entry);
 				this.indexed.set(node.path, entry);
 			}
 		}
 
-		for (const [id] of this.indexed) {
+		for (const [id, entry] of this.indexed) {
 			if (seen.has(id)) continue;
-			this.mini.discard(id);
+			this.mini.remove(entry);
 			this.indexed.delete(id);
 		}
 
@@ -180,12 +185,12 @@ export class SearchService {
 
 	/**
 	 * Full-text search of doc titles and bodies across every mounted root for
-	 * `q`, powered by MiniSearch (prefix + light fuzzy matching, titles boosted).
+	 * `rawQuery`, powered by MiniSearch (prefix + light fuzzy matching, titles boosted).
 	 * Purely data — no HTML.
 	 */
-	search(roots: RootInfo[], q: string): { results: SearchResult[] } {
+	search(roots: RootInfo[], rawQuery: string): { results: SearchResult[] } {
 		const nodes = this.sync(roots);
-		const query = q.trim();
+		const query = rawQuery.trim();
 
 		if (query === "") {
 			return {
@@ -203,7 +208,7 @@ export class SearchService {
 			};
 		}
 
-		const byPath = new Map(nodes.map((n) => [n.path, n]));
+		const byPath = new Map(nodes.map((node) => [node.path, node]));
 		const hits: MiniSearchHit[] = this.mini.search(query).slice(0, MAX_RESULTS);
 
 		return {

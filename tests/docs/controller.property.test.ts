@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
+import { versionOf } from "../../src/docs/service.js";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
@@ -38,7 +39,7 @@ function rangeArb(lineCount: number): fc.Arbitrary<{ startLine: number; endLine:
 
 describe("saveDocSection / getDocSource properties", () => {
 	it(
-		"save then read equals the spliceLines oracle, and the returned mtime is the file's",
+		"save then read equals the spliceLines oracle, and the returned version is the new file's",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
@@ -56,15 +57,15 @@ describe("saveDocSection / getDocSource properties", () => {
 								path: abs,
 								startLine: range.startLine,
 								endLine: range.endLine,
-								mtime: before.mtime,
+								version: before.version,
 								markdown: replacement,
 							});
 							const oracle = spliceLines(doc, range.startLine, range.endLine, replacement);
 							expect(oracle.ok).toBe(true);
 							const after = await caller.getDocSource({ path: abs });
 							expect(after.text).toBe(oracle.ok ? oracle.text : "");
-							expect(after.mtime).toBe(saved.mtime);
-							expect(saved.mtime).toBe((await fs.stat(abs)).mtimeMs);
+							expect(after.version).toBe(saved.version);
+							expect(saved.version).toBe(versionOf(after.text));
 						} finally {
 							await fs.rm(root, { recursive: true, force: true });
 						}
@@ -77,7 +78,7 @@ describe("saveDocSection / getDocSource properties", () => {
 	);
 
 	it(
-		"a stale mtime never changes the file (invariance under rejected saves)",
+		"a stale version never changes the file (invariance under rejected saves)",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
@@ -96,7 +97,7 @@ describe("saveDocSection / getDocSource properties", () => {
 									path: abs,
 									startLine: range.startLine,
 									endLine: range.endLine,
-									mtime: before.mtime - 1,
+									version: versionOf(`${doc}-drifted`),
 									markdown: replacement,
 								}),
 							).rejects.toMatchObject({ code: "CONFLICT" });

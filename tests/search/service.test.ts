@@ -20,11 +20,11 @@ describe("search", () => {
 	it("re-labels an unchanged doc when its root's display name changes", () => {
 		const search = new SearchService(new DocCache());
 		const first = search.search([{ name: "docs", dir }], "widgets").results;
-		expect(first.map((r) => r.label)).toEqual(["docs/guide.md"]);
+		expect(first.map((result) => result.label)).toEqual(["docs/guide.md"]);
 
 		// Same file, same mtime, different root name (e.g. a second server with
 		// a colliding basename appeared and the names were disambiguated).
 		const second = search.search([{ name: "docs (a)", dir }], "widgets").results;
-		expect(second.map((r) => r.label)).toEqual(["docs (a)/guide.md"]);
+		expect(second.map((result) => result.label)).toEqual(["docs (a)/guide.md"]);
 	});
 });

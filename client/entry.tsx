@@ -27,8 +27,8 @@ function main() {
 
 	// Reuse the root across HMR re-executions of this module (self-accepting
 	// below) instead of calling createRoot twice on the same container.
-	const w = window as Window & { __mdxserveRoot?: Root };
-	const root = (w.__mdxserveRoot ??= createRoot(rootEl));
+	const globalWindow = window as Window & { __mdxserveRoot?: Root };
+	const root = (globalWindow.__mdxserveRoot ??= createRoot(rootEl));
 	const initialRoute = parseInitialRoute();
 
 	root.render(

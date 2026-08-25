@@ -39,7 +39,7 @@ function Row({ node, depth, activePath }: { node: FileNode; depth: number; activ
 	return (
 		<>
 			<div
-				onClick={isDir ? () => setOpen((v) => !v) : undefined}
+				onClick={isDir ? () => setOpen((isOpen) => !isOpen) : undefined}
 				className={`flex h-[26px] items-center gap-2 rounded-sm pr-2 font-mono font-normal leading-[1.62] text-[length:var(--size-xs)] ${
 					isDir ? "cursor-pointer" : "cursor-default"
 				} ${active ? "bg-surface-accent-soft text-text-accent" : isDir ? "text-text-body" : "text-text-muted"}`}

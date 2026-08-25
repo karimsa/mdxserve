@@ -96,10 +96,10 @@ function printBanner(
 	lines.push(`- MCP:      ${localUrl}/__mdxserve/mcp`);
 	lines.push(`- API:      ${localUrl}/__mdxserve/trpc`);
 	lines.push("");
-	for (const r of rootInfos) lines.push(`- ${r.name}: ${localUrl}${r.dir}/`);
+	for (const rootInfo of rootInfos) lines.push(`- ${rootInfo.name}: ${localUrl}${rootInfo.dir}/`);
 	if (fallbackUsed) lines.push("", "(port was in use; fell back to a free port)");
 
-	const width = Math.max(...lines.map((l) => l.length)) + 2;
+	const width = Math.max(...lines.map((line) => line.length)) + 2;
 	const border = "─".repeat(width);
 	console.log(`\n  ┌${border}┐`);
 	for (const line of lines) {
@@ -110,9 +110,9 @@ function printBanner(
 
 function listenWithFallback(server: http.Server, port: number, host: string): Promise<number> {
 	return new Promise((resolve, reject) => {
-		function tryListen(p: number): void {
+		function tryListen(candidatePort: number): void {
 			const onError = (err: NodeJS.ErrnoException) => {
-				if (err.code === "EADDRINUSE" && p !== 0) {
+				if (err.code === "EADDRINUSE" && candidatePort !== 0) {
 					server.removeListener("error", onError);
 					tryListen(0);
 					return;
@@ -121,10 +121,10 @@ function listenWithFallback(server: http.Server, port: number, host: string): Pr
 				reject(err);
 			};
 			server.once("error", onError);
-			server.listen(p, host, () => {
+			server.listen(candidatePort, host, () => {
 				server.removeListener("error", onError);
 				const address = server.address();
-				resolve(address && typeof address === "object" ? address.port : p);
+				resolve(address && typeof address === "object" ? address.port : candidatePort);
 			});
 		}
 		tryListen(port);
@@ -154,7 +154,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	// Vite's own root is the generated CSS temp dir, not any served root, so
 	// none of them are watched by default — every root needs adding explicitly.
 	// Chokidar applies the configured `ignored` globs to added paths too.
-	for (const r of roots) vite.watcher.add(r);
+	for (const root of roots) vite.watcher.add(root);
 
 	const renderer = new RenderService(vite);
 	const serverRegistry = new ServerRegistry();
@@ -189,9 +189,9 @@ export async function startServer(options: StartServerOptions): Promise<void> {
 	const changedDirs = new Set<string>();
 	let flushTimer: NodeJS.Timeout | null = null;
 
-	function onWatchEvent(p: string): void {
-		if (!isServable(path.basename(p))) return;
-		const hit = resolveRoot(roots, path.dirname(p));
+	function onWatchEvent(changedPath: string): void {
+		if (!isServable(path.basename(changedPath))) return;
+		const hit = resolveRoot(roots, path.dirname(changedPath));
 		if (!hit) return;
 
 		changedDirs.add(hit.abs.endsWith("/") ? hit.abs : `${hit.abs}/`);

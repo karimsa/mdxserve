@@ -7,6 +7,21 @@
 	},
 	"ignorePatterns": ["dist", "node_modules", ".yarn", "example", "skills"],
 	"rules": {
-		"react/react-in-jsx-scope": "off"
+		"react/react-in-jsx-scope": "off",
+		// AGENTS.md: never use single-letter variable names, even for small
+		// things like `.map(e => e)` or try/catch statements.
+		//
+		// "_" stays allowed as the conventional name for a binding that is
+		// deliberately ignored. Property names are not checked: `{ opacity: 0,
+		// y: 4 }` is a framer-motion API key, not a variable a reader has to
+		// keep track of — the rule is about names we choose, not names a
+		// library hands us. `x`/`y` are excepted for the same reason one step
+		// further: they are the DOM's own names for a coordinate pair, and
+		// `properties: "never"` does not reach the members of a TS type
+		// (see the `Point` interface in client/ui/ExpandModal.tsx).
+		"eslint/id-length": [
+			"error",
+			{ "min": 2, "exceptions": ["_", "x", "y"], "properties": "never" }
+		]
 	}
 }

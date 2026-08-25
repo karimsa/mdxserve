@@ -152,5 +152,5 @@ export const builtins: BuiltinDefinition[] = [
 ];
 
 export const builtinComponents: Record<string, ComponentType<any>> = Object.fromEntries(
-	builtins.map((b) => [b.name, b.Component]),
+	builtins.map((builtin) => [builtin.name, builtin.Component]),
 );

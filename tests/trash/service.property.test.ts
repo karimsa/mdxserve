@@ -122,11 +122,11 @@ async function buildTrashFixture(
 }
 
 function isSubsequence(sub: string[], full: string[]): boolean {
-	let i = 0;
+	let index = 0;
 	for (const item of full) {
-		if (i < sub.length && sub[i] === item) i++;
+		if (index < sub.length && sub[index] === item) index++;
 	}
-	return i === sub.length;
+	return index === sub.length;
 }
 
 describe("moveDocsToTrash partition", () => {
@@ -138,9 +138,11 @@ describe("moveDocsToTrash partition", () => {
 					const { root, outside, candidates } = await buildTrashFixture(entries);
 					try {
 						const validFiles = candidates
-							.filter((c) => c.category === "validFile")
-							.map((c) => c.abs);
-						const others = candidates.filter((c) => c.category !== "validFile").map((c) => c.abs);
+							.filter((candidate) => candidate.category === "validFile")
+							.map((candidate) => candidate.abs);
+						const others = candidates
+							.filter((candidate) => candidate.category !== "validFile")
+							.map((candidate) => candidate.abs);
 						// Duplicate the first valid file (if any) so repeats are exercised.
 						const paths = [...validFiles, ...validFiles.slice(0, 1), ...others];
 
@@ -148,13 +150,13 @@ describe("moveDocsToTrash partition", () => {
 						const result = await new TrashService([{ name: "docs", dir: root }], spy).moveToTrash(
 							paths,
 						);
-						const combined = [...result.deleted, ...result.failed.map((f) => f.path)];
+						const combined = [...result.deleted, ...result.failed.map((failure) => failure.path)];
 
 						expect([...combined].sort()).toEqual([...paths].sort());
 						expect(isSubsequence(result.deleted, paths)).toBe(true);
 						expect(
 							isSubsequence(
-								result.failed.map((f) => f.path),
+								result.failed.map((failure) => failure.path),
 								paths,
 							),
 						).toBe(true);
@@ -178,7 +180,7 @@ describe("moveDocsToTrash containment", () => {
 				fc.asyncProperty(entriesArb(2), async (entries) => {
 					const { root, outside, candidates } = await buildTrashFixture(entries);
 					try {
-						const paths = candidates.map((c) => c.abs);
+						const paths = candidates.map((candidate) => candidate.abs);
 						const spy = vi.fn(async (_abs: string) => {});
 						await new TrashService([{ name: "docs", dir: root }], spy).moveToTrash(paths);
 

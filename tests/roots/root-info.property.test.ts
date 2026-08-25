@@ -15,7 +15,8 @@ describe("pruneNestedRoots", () => {
 		fc.assert(
 			fc.property(rootsArb, (roots) => {
 				const kept = pruneNestedRoots(roots);
-				for (const a of kept) for (const b of kept) expect(a !== b && isInside(a, b)).toBe(false);
+				for (const outer of kept)
+					for (const inner of kept) expect(outer !== inner && isInside(outer, inner)).toBe(false);
 			}),
 		);
 	});
@@ -27,7 +28,7 @@ describe("pruneNestedRoots", () => {
 				for (const root of roots) {
 					const isOutermost = !roots.some((other) => other !== root && isInside(other, root));
 					if (isOutermost) expect(kept).toContain(root);
-					else expect(kept.some((k) => isInside(k, root))).toBe(true);
+					else expect(kept.some((keptRoot) => isInside(keptRoot, root))).toBe(true);
 				}
 			}),
 		);
@@ -38,8 +39,8 @@ describe("pruneNestedRoots", () => {
 			fc.property(rootsArb, (roots) => {
 				const kept = pruneNestedRoots(roots);
 				expect(new Set(kept).size).toBe(kept.length);
-				const firstIndex = kept.map((k) => roots.indexOf(k));
-				expect([...firstIndex].sort((x, y) => x - y)).toEqual(firstIndex);
+				const firstIndex = kept.map((keptRoot) => roots.indexOf(keptRoot));
+				expect([...firstIndex].sort((first, second) => first - second)).toEqual(firstIndex);
 			}),
 		);
 	});

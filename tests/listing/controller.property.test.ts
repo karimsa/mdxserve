@@ -90,6 +90,28 @@ function collectDirs(dirAbs: string, entries: EntrySpec[]): string[] {
 	return dirs;
 }
 
+/** Only the directories the API will list: everything outside a `node_modules` subtree. */
+function collectServableDirs(dirAbs: string, entries: EntrySpec[]): string[] {
+	const dirs = [dirAbs];
+	for (const entry of entries) {
+		if (entry.type === "dir") {
+			dirs.push(...collectServableDirs(path.join(dirAbs, entry.name), entry.children));
+		}
+	}
+	return dirs;
+}
+
+/** Every `node_modules` directory in the generated tree. */
+function collectUnservableDirs(dirAbs: string, entries: EntrySpec[]): string[] {
+	const dirs: string[] = [];
+	for (const entry of entries) {
+		const abs = path.join(dirAbs, entry.name);
+		if (entry.type === "node_modules") dirs.push(abs, ...collectDirs(abs, entry.children));
+		else if (entry.type === "dir") dirs.push(...collectUnservableDirs(abs, entry.children));
+	}
+	return dirs;
+}
+
 async function mkTmpRoot(prefix: string): Promise<string> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), `mdxserve-prop-${prefix}`));
 	return fs.realpath(dir);
@@ -147,7 +169,7 @@ describe("getFolderListing normalization", () => {
 						await materialize(root, entries);
 						const caller = createCaller(makeContext(root, registry));
 
-						for (const dirAbs of collectDirs(root, entries)) {
+						for (const dirAbs of collectServableDirs(root, entries)) {
 							const variants = [dirAbs, `${dirAbs}/`, `${dirAbs}/./`, `${dirAbs}/nonexistent-x/..`];
 							const results = await Promise.all(
 								variants.map((variant) => caller.getFolderListing({ path: variant })),
@@ -156,6 +178,40 @@ describe("getFolderListing normalization", () => {
 
 							const refetched = await caller.getFolderListing({ path: results[0].path });
 							expect(refetched).toEqual(results[0]);
+						}
+					} finally {
+						await rmTree(root);
+					}
+				}),
+				{ numRuns: 15 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+});
+
+// --- servability is uniform across entry points ---------------------------
+
+describe("getFolderListing servability", () => {
+	it(
+		"refuses every directory under a node_modules, for each path spelling, exactly as getDocTree does",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(entriesArb(2), async (entries) => {
+					const root = await mkTmpRoot("unservable-");
+					try {
+						await materialize(root, entries);
+						const caller = createCaller(makeContext(root, registry));
+
+						for (const dirAbs of collectUnservableDirs(root, entries)) {
+							for (const variant of [dirAbs, `${dirAbs}/`, `${dirAbs}/./`]) {
+								await expect(caller.getFolderListing({ path: variant })).rejects.toMatchObject({
+									code: "NOT_FOUND",
+								});
+								await expect(caller.getDocTree({ path: variant })).rejects.toMatchObject({
+									code: "NOT_FOUND",
+								});
+							}
 						}
 					} finally {
 						await rmTree(root);

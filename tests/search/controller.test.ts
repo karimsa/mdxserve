@@ -39,6 +39,6 @@ describe("searchDocs", () => {
 		for (const entry of result.results) {
 			expect(entry.score).toBeTypeOf("number");
 		}
-		expect(result.results.map((r) => r.path)).toContain(path.join(fixtureDir, "good.md"));
+		expect(result.results.map((hit) => hit.path)).toContain(path.join(fixtureDir, "good.md"));
 	});
 });

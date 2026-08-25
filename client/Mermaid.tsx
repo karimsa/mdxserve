@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Icon } from "./ui/Icon";
 import { IconButton } from "./ui/IconButton";
 import { ExpandModal } from "./ui/ExpandModal";
-import { T, V } from "./motion";
+import { TRANSITIONS, VARIANTS } from "./motion";
 
 type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
 
@@ -131,7 +131,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 			{state.kind === "loading" ? (
 				<motion.div
 					key="loading"
-					{...V.fade}
+					{...VARIANTS.fade}
 					className="px-4 py-8 text-center text-[13px] leading-normal text-text-subtle"
 				>
 					Rendering diagram…
@@ -139,7 +139,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 			) : state.kind === "error" ? (
 				<motion.div
 					key="error"
-					{...V.fade}
+					{...VARIANTS.fade}
 					className="flex items-start gap-2 px-4 py-4 text-[13px] leading-normal"
 				>
 					<Icon name="octagon-alert" size="sm" className="mt-0.5 shrink-0 text-status-danger-fg" />
@@ -153,7 +153,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 					</div>
 				</motion.div>
 			) : (
-				<motion.div key="ok" {...V.fade}>
+				<motion.div key="ok" {...VARIANTS.fade}>
 					<ExpandableDiagram svg={state.svg} />
 				</motion.div>
 			)}
@@ -262,7 +262,7 @@ function PanZoomSvg({
 			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
-				transition={T.base}
+				transition={TRANSITIONS.base}
 				className="h-full"
 			>
 				<div
@@ -276,7 +276,7 @@ function PanZoomSvg({
 			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
-				transition={{ ...T.base, delay: 0.1 }}
+				transition={{ ...TRANSITIONS.base, delay: 0.1 }}
 				className="absolute right-3 bottom-3 flex flex-col divide-y divide-border-subtle overflow-hidden rounded-md border border-border-default bg-surface-card shadow-xs"
 			>
 				{onExpand ? (

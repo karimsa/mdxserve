@@ -35,7 +35,7 @@ export const stagger: Variants = {
    Springs for anything physical, tweens for colour and opacity only. Nothing
    overshoots past 2%, nothing travels more than 10px. ── */
 
-export const T = {
+export const TRANSITIONS = {
 	/** Controls: press, toggle knobs, segmented pills. 1:1 with --spring-snap. */
 	snap: { type: "spring", stiffness: 620, damping: 34, mass: 0.7 } satisfies Transition,
 	/** Surfaces: dialogs, toasts, disclosure. 1:1 with --spring-glide. */
@@ -54,44 +54,48 @@ type Entrance = {
 };
 
 /** Named entrances, so every surface of the same class enters identically. Spread onto a `motion.*`. */
-export const V = {
+export const VARIANTS = {
 	/** Tooltips, inline swaps: opacity only. */
 	fade: {
 		initial: { opacity: 0 },
 		animate: { opacity: 1 },
 		exit: { opacity: 0 },
-		transition: T.base,
+		transition: TRANSITIONS.base,
 	},
 	/** Dialogs and the search palette. */
 	pop: {
 		initial: { opacity: 0, y: 6, scale: 0.985 },
 		animate: { opacity: 1, y: 0, scale: 1 },
-		exit: { opacity: 0, y: 4, scale: 0.99, transition: T.fast },
-		transition: T.glide,
+		exit: { opacity: 0, y: 4, scale: 0.99, transition: TRANSITIONS.fast },
+		transition: TRANSITIONS.glide,
 	},
 	/** Toasts, from the bottom-right stack. */
 	slideUp: {
 		initial: { opacity: 0, y: 10, scale: 0.98 },
 		animate: { opacity: 1, y: 0, scale: 1 },
-		exit: { opacity: 0, x: 16, transition: T.fast },
-		transition: T.glide,
+		exit: { opacity: 0, x: 16, transition: TRANSITIONS.fast },
+		transition: TRANSITIONS.glide,
 	},
 	/** Scrims behind a modal surface. */
 	scrim: {
 		initial: { opacity: 0 },
 		animate: { opacity: 1 },
 		exit: { opacity: 0 },
-		transition: T.fast,
+		transition: TRANSITIONS.fast,
 	},
 	/** Collapsible nav groups and diagram/code swaps. */
 	collapse: {
 		initial: { opacity: 0, height: 0 },
 		animate: { opacity: 1, height: "auto" },
 		exit: { opacity: 0, height: 0 },
-		transition: T.glide,
+		transition: TRANSITIONS.glide,
 	},
 	/** Page and section content, 6px up. */
-	rise: { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: T.glide },
+	rise: {
+		initial: { opacity: 0, y: 6 },
+		animate: { opacity: 1, y: 0 },
+		transition: TRANSITIONS.glide,
+	},
 } satisfies Record<string, Entrance>;
 
 /** Stagger a list of children by 40ms each (search results cap at 5). */

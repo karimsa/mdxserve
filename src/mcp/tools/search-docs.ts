@@ -1,11 +1,13 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { searchDocsResultSchema } from "../../search/controller.js";
 import type { McpContext } from "../server.js";
 import { errorResult, textResult, formatSearchResults, NO_SERVER_MESSAGE } from "../format.js";
 
 const searchDocsInput = { query: z.string() };
 
-const searchDocsOutput = { results: z.array(z.any()) };
+// Kept in lockstep with the `searchDocs` tRPC procedure's output.
+const searchDocsOutput = searchDocsResultSchema.shape;
 
 export function registerSearchDocs(server: McpServer, ctx: McpContext): void {
 	const { getRoots, remote, search } = ctx;

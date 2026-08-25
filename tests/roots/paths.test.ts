@@ -111,8 +111,12 @@ describe("resolveDirPath", () => {
 	});
 
 	it("rejects files, missing paths, and paths outside every root", async () => {
-		for (const p of [path.join(rootDir, "doc.md"), path.join(rootDir, "nope"), outsideDir]) {
-			expect((await resolveDirPath([rootDir], p)).ok).toBe(false);
+		for (const candidate of [
+			path.join(rootDir, "doc.md"),
+			path.join(rootDir, "nope"),
+			outsideDir,
+		]) {
+			expect((await resolveDirPath([rootDir], candidate)).ok).toBe(false);
 		}
 	});
 });

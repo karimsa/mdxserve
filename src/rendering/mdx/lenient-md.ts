@@ -8,8 +8,8 @@
 export function escapeBareLt(source: string): string {
 	const lines = source.split("\n");
 	let fence: string | null = null;
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
 		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
 			const marker = match[1];
@@ -18,7 +18,7 @@ export function escapeBareLt(source: string): string {
 			continue;
 		}
 		if (fence) continue;
-		lines[i] = escapeOutsideInlineCode(line);
+		lines[index] = escapeOutsideInlineCode(line);
 	}
 	return lines.join("\n");
 }
@@ -29,8 +29,8 @@ function escapeOutsideInlineCode(line: string): string {
 	// Split on backtick runs and `{...}` expressions; odd-indexed segments are
 	// inline code or MDX expressions (where `<` is JavaScript, not JSX).
 	const parts = line.split(/(`+[^`]*`+|\{[^{}]*\})/);
-	for (let i = 0; i < parts.length; i += 2) {
-		parts[i] = parts[i].replace(/(^|[^\\])<(?=[\d\s=])/g, "$1\\<");
+	for (let index = 0; index < parts.length; index += 2) {
+		parts[index] = parts[index].replace(/(^|[^\\])<(?=[\d\s=])/g, "$1\\<");
 	}
 	return parts.join("");
 }

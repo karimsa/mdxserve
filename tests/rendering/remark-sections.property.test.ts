@@ -24,7 +24,9 @@ function isMdSection(node: RootContent): node is MdxJsxFlowElement {
 }
 
 function attrValue(section: MdxJsxFlowElement, name: string): string {
-	const found = section.attributes.find((a) => a.type === "mdxJsxAttribute" && a.name === name);
+	const found = section.attributes.find(
+		(attribute) => attribute.type === "mdxJsxAttribute" && attribute.name === name,
+	);
 	if (!found || found.type !== "mdxJsxAttribute" || typeof found.value !== "string") {
 		throw new Error(`MdSection missing string attribute "${name}"`);
 	}
@@ -33,10 +35,10 @@ function attrValue(section: MdxJsxFlowElement, name: string): string {
 
 function collectDescendants(node: RootContent): RootContent[] {
 	const acc: RootContent[] = [];
-	function visit(n: RootContent): void {
-		acc.push(n);
-		if ("children" in n && Array.isArray(n.children)) {
-			for (const child of n.children as RootContent[]) visit(child);
+	function visit(current: RootContent): void {
+		acc.push(current);
+		if ("children" in current && Array.isArray(current.children)) {
+			for (const child of current.children as RootContent[]) visit(child);
 		}
 	}
 	visit(node);
@@ -61,7 +63,7 @@ const FORBIDDEN_TYPES = new Set([
 
 const words = fc
 	.array(fc.stringMatching(/^[a-z]{1,8}$/), { minLength: 1, maxLength: 6 })
-	.map((w) => w.join(" "));
+	.map((chosen) => chosen.join(" "));
 
 const paragraphArb = words;
 const headingArb = fc
@@ -69,7 +71,7 @@ const headingArb = fc
 	.map(([level, text]) => `${"#".repeat(level)} ${text}`);
 const listArb = fc
 	.array(words, { minLength: 1, maxLength: 4 })
-	.map((items) => items.map((i) => `- ${i}`).join("\n"));
+	.map((items) => items.map((item) => `- ${item}`).join("\n"));
 const fenceArb = fc
 	.tuple(fc.stringMatching(/^[A-Za-z0-9_-]*$/, { maxLength: 8 }), words)
 	.map(([lang, body]) => ["```" + lang, body, "```"].join("\n"));
@@ -79,14 +81,14 @@ const tableArb = fc
 	.map((rows) => {
 		const header = "| a | b |";
 		const sep = "| --- | --- |";
-		const body = rows.map(([a, b]) => `| ${a} | ${b} |`).join("\n");
+		const body = rows.map(([first, second]) => `| ${first} | ${second} |`).join("\n");
 		return [header, sep, body].join("\n");
 	});
 const thematicBreakArb = fc.constant("---");
 const jsxBlockArb = fc.constant('<Callout tone="info">\n\ntext\n\n</Callout>');
 const esmArb = fc.constant('import X from "./x"');
-const inlineJsxParagraphArb = words.map((w) => `${w} <Badge>x</Badge>`);
-const inlineExprParagraphArb = words.map((w) => `${w} {1 + 1}`);
+const inlineJsxParagraphArb = words.map((word) => `${word} <Badge>x</Badge>`);
+const inlineExprParagraphArb = words.map((word) => `${word} {1 + 1}`);
 
 const blockArb = fc.oneof(
 	paragraphArb,
@@ -110,8 +112,8 @@ const blockArb = fc.oneof(
 const docArb = fc
 	.tuple(fc.boolean(), fc.array(blockArb, { minLength: 0, maxLength: 6 }))
 	.map(([withFrontmatter, blocks]) => {
-		const disambiguated = blocks.map((b, i) =>
-			b.startsWith("import ") ? `import X${i} from "./x${i}"` : b,
+		const disambiguated = blocks.map((block, index) =>
+			block.startsWith("import ") ? `import X${index} from "./x${index}"` : block,
 		);
 		const parts = withFrontmatter ? ["---\ntitle: x\n---", ...disambiguated] : disambiguated;
 		return parts.join("\n\n");
@@ -124,8 +126,8 @@ describe("remarkSections — invariance", () => {
 				const tree = parse(src);
 				const original = structuredClone(tree.children);
 				remarkSections()(tree);
-				const flattened = tree.children.flatMap((n): RootContent[] =>
-					isMdSection(n) ? (n.children as RootContent[]) : [n],
+				const flattened = tree.children.flatMap((node): RootContent[] =>
+					isMdSection(node) ? (node.children as RootContent[]) : [node],
 				);
 				expect(flattened).toEqual(original);
 			}),
@@ -153,11 +155,11 @@ describe("remarkSections — invariance", () => {
 		fc.assert(
 			fc.property(docArb, (src) => {
 				const tree = runPlugin(src);
-				for (let i = 0; i + 1 < tree.children.length; i++) {
-					const a = tree.children[i];
-					const b = tree.children[i + 1];
-					if (!isMdSection(a) || !isMdSection(b)) continue;
-					const firstChild = b.children[0] as RootContent | undefined;
+				for (let index = 0; index + 1 < tree.children.length; index++) {
+					const current = tree.children[index];
+					const next = tree.children[index + 1];
+					if (!isMdSection(current) || !isMdSection(next)) continue;
+					const firstChild = next.children[0] as RootContent | undefined;
 					const startsWithSmallHeading = firstChild?.type === "heading" && firstChild.depth <= 2;
 					expect(startsWithSmallHeading).toBe(true);
 				}
@@ -171,13 +173,13 @@ describe("remarkSections — invariance", () => {
 				const tree = runPlugin(src);
 				const sections = tree.children.filter(isMdSection);
 				let prevEnd = -Infinity;
-				sections.forEach((section, i) => {
+				sections.forEach((section, index) => {
 					const start = Number(attrValue(section, "startLine"));
 					const end = Number(attrValue(section, "endLine"));
 					expect(start).toBeLessThanOrEqual(end);
 					expect(start).toBeGreaterThan(prevEnd);
 					prevEnd = end;
-					expect(attrValue(section, "index")).toBe(String(i));
+					expect(attrValue(section, "index")).toBe(String(index));
 				});
 			}),
 		);
@@ -233,13 +235,13 @@ describe("remarkSections — examples", () => {
 	it("property: no section covers any front-matter line, whatever the block's shape", () => {
 		const yamlLine = fc
 			.tuple(fc.stringMatching(/^[a-z]{1,8}$/), fc.stringMatching(/^[a-z0-9 ]{1,12}$/))
-			.map(([k, v]) => `${k}: ${v}`);
+			.map(([key, value]) => `${key}: ${value}`);
 		const yamlList = fc
 			.tuple(
 				fc.stringMatching(/^[a-z]{1,8}$/),
 				fc.array(fc.stringMatching(/^[a-z]{1,8}$/), { minLength: 1, maxLength: 3 }),
 			)
-			.map(([k, items]) => [`${k}:`, ...items.map((i) => `  - ${i}`)].join("\n"));
+			.map(([key, items]) => [`${key}:`, ...items.map((item) => `  - ${item}`)].join("\n"));
 		const frontMatter = fc
 			.array(fc.oneof(yamlLine, yamlList), { minLength: 1, maxLength: 4 })
 			.map((entries) => ["---", ...entries, "---"].join("\n"));

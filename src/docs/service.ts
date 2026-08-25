@@ -1,5 +1,6 @@
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spliceLines } from "./edit.js";
 import { resolveDocPath } from "../roots/paths.js";
 import type { RootInfo } from "../roots/root-info.js";
@@ -14,8 +15,24 @@ export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 export interface DocSource {
 	/** The raw on-disk text — not the compiled module, which has been through escapeBareLt/remarkSections. */
 	text: string;
-	/** mtime (epoch ms) of the file at the moment `text` was read; the save's stale-write guard. */
-	mtime: number;
+	/** Opaque token for the bytes `text` was read from; the save's stale-write guard. */
+	version: string;
+}
+
+/**
+ * A doc's version token: a digest of its exact bytes.
+ *
+ * mtime is deliberately NOT used here. It reads like the obvious choice, but
+ * a filesystem only has to keep timestamps to its own granularity — one
+ * second on HFS+, and coarser than a single save on NFS, SMB, and several
+ * container overlay filesystems. Two saves inside one such tick leave the
+ * mtime bit-identical, so an mtime guard waves the second one through and the
+ * editor splices its line range into a file that has already moved underneath
+ * it. A content digest cannot miss a change (and, as a bonus, treats an edit
+ * that was undone back to the original bytes as no change at all).
+ */
+export function versionOf(text: string): string {
+	return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
 export type ReadSourceResult =
@@ -27,16 +44,16 @@ export interface SaveSectionInput {
 	path: string;
 	startLine: number;
 	endLine: number;
-	/** The mtime the caller read the file at (see `readSource`). */
-	mtime: number;
+	/** The version token the caller read the file at (see `readSource`). */
+	version: string;
 	markdown: string;
 }
 
 export type SaveSectionResult =
-	| { kind: "ok"; mtime: number }
+	| { kind: "ok"; version: string }
 	| { kind: "not-found"; message: string }
-	/** The file changed since the caller read it; `mtime` is the current one. */
-	| { kind: "stale"; mtime: number }
+	/** The file changed since the caller read it; `version` is the current one. */
+	| { kind: "stale"; version: string }
 	/** The file has fewer lines than the caller's range expects. */
 	| { kind: "invalid-range"; message: string }
 	/** The spliced file would not compile; nothing was written. */
@@ -82,19 +99,19 @@ export class DocsService {
 		const stat = await fsp.stat(resolved.abs);
 		if (stat.size > MAX_SOURCE_BYTES) return { kind: "too-large", size: stat.size };
 		const text = await fsp.readFile(resolved.abs, "utf8");
-		return { kind: "ok", source: { text, mtime: stat.mtimeMs } };
+		return { kind: "ok", source: { text, version: versionOf(text) } };
 	}
 
 	/**
-	 * Write back exactly the line range a section editor was seeded from. mtime
-	 * is checked against the file the client actually read (not "now"), so an
-	 * edit made elsewhere between open and save is caught as a conflict instead
-	 * of silently overwritten; the proposed full-file text is then run through
-	 * the same validator as validate_doc before anything touches disk, so a save
-	 * can never leave a doc broken.
+	 * Write back exactly the line range a section editor was seeded from. The
+	 * version token is checked against the file the client actually read (not
+	 * "now"), so an edit made elsewhere between open and save is caught as a
+	 * conflict instead of silently overwritten; the proposed full-file text is
+	 * then run through the same validator as validate_doc before anything
+	 * touches disk, so a save can never leave a doc broken.
 	 */
 	async saveSection(input: SaveSectionInput): Promise<SaveSectionResult> {
-		const { startLine, endLine, mtime, markdown } = input;
+		const { startLine, endLine, version, markdown } = input;
 		const registry = this.registry;
 
 		const rootDirs = this.rootInfos.map((rootInfo) => rootInfo.dir);
@@ -109,14 +126,17 @@ export class DocsService {
 
 		return this.withSaveLock(abs, async () => {
 			const stat = await fsp.stat(abs);
-			if (stat.mtimeMs !== mtime) return { kind: "stale", mtime: stat.mtimeMs };
-
+			// One read serves both the conflict check and the splice, so there is
+			// no window between "the bytes I checked" and "the bytes I edited".
 			const source = await fsp.readFile(abs, "utf8");
+			const current = versionOf(source);
+			if (current !== version) return { kind: "stale", version: current };
+
 			const spliced = spliceLines(source, startLine, endLine, markdown);
 			if (!spliced.ok) {
 				// The file changed shape (fewer lines than the editor expects) even
-				// though mtime matched at the check above — treat it the same as a
-				// stale-mtime conflict rather than writing garbage.
+				// though the version matched at the check above — treat it the same
+				// as a stale-version conflict rather than writing garbage.
 				return { kind: "invalid-range", message: spliced.error };
 			}
 
@@ -146,9 +166,9 @@ export class DocsService {
 				await fsp.chmod(tmp, stat.mode);
 				// Last look before committing: an editor or another process may
 				// have written the file while we were validating. Same conflict as
-				// the check at the top; the client's mtime is still the one it read.
-				const latest = await fsp.stat(abs);
-				if (latest.mtimeMs !== mtime) return { kind: "stale", mtime: latest.mtimeMs };
+				// the check at the top; the client's version is still the one it read.
+				const latest = versionOf(await fsp.readFile(abs, "utf8"));
+				if (latest !== version) return { kind: "stale", version: latest };
 				await fsp.rename(tmp, abs);
 			} finally {
 				await fsp.unlink(tmp).catch(() => {});
@@ -157,8 +177,10 @@ export class DocsService {
 			// No websocket push: every root is already on vite.watcher, so the
 			// rename above fires chokidar's own "change" event, which drives
 			// Vite's HMR and re-renders the doc with fresh MdSection line numbers.
-			const finalStat = await fsp.stat(abs);
-			return { kind: "ok", mtime: finalStat.mtimeMs };
+			//
+			// The new version is the digest of exactly what was written — no
+			// re-read needed, and no chance of picking up someone else's write.
+			return { kind: "ok", version: versionOf(spliced.text) };
 		});
 	}
 }

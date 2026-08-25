@@ -4,6 +4,7 @@ import { searchController } from "../search/controller.js";
 import { trashController } from "../trash/controller.js";
 import { validationController } from "../validation/controller.js";
 import { docsController } from "../docs/controller.js";
+import { componentsController } from "../components/controller.js";
 
 export const appRouter = router({
 	...listingController,
@@ -11,6 +12,7 @@ export const appRouter = router({
 	...trashController,
 	...validationController,
 	...docsController,
+	...componentsController,
 });
 
 export type AppRouter = typeof appRouter;

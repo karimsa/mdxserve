@@ -13,7 +13,7 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
-import { T } from "./motion";
+import { TRANSITIONS } from "./motion";
 import { CrossFade } from "./CrossFade";
 import { Icon } from "./ui/Icon";
 
@@ -94,7 +94,7 @@ function CopyButton({ getText }: { getText: () => string }) {
 			onClick={handleCopy}
 			layout
 			whileTap={{ scale: 0.94 }}
-			transition={T.snap}
+			transition={TRANSITIONS.snap}
 			className={
 				"inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-sm px-2 font-sans text-[length:var(--size-xs)] font-medium leading-none transition-colors " +
 				(copied ? "text-text-accent" : "text-text-subtle hover:text-text-heading")
@@ -106,7 +106,7 @@ function CopyButton({ getText }: { getText: () => string }) {
 					initial={{ opacity: 0, y: -3 }}
 					animate={{ opacity: 1, y: 0 }}
 					exit={{ opacity: 0, y: 3 }}
-					transition={T.fast}
+					transition={TRANSITIONS.fast}
 					className="inline-flex items-center gap-1.5"
 				>
 					<Icon name={copied ? "check" : "copy"} size={13} />
@@ -154,7 +154,7 @@ function ViewToggle({
 					{view === option.value ? (
 						<motion.span
 							layoutId={`${toggleId}-pill`}
-							transition={T.snap}
+							transition={TRANSITIONS.snap}
 							className="absolute inset-0 rounded-sm border border-border-default bg-surface-card shadow-xs"
 						/>
 					) : null}

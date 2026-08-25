@@ -41,21 +41,21 @@ export function loadRegistry(): Registry {
  * prop names. An empty/undefined query matches everything.
  */
 export function searchRegistry(registry: Registry, query: string | undefined): RegistryComponent[] {
-	const q = (query ?? "").trim().toLowerCase();
-	if (!q) return registry.components;
+	const needle = (query ?? "").trim().toLowerCase();
+	if (!needle) return registry.components;
 
 	return registry.components.filter((component) => {
 		const propNames = Object.keys((component.props?.properties as Record<string, unknown>) ?? {});
 		const haystack = [component.name, component.description, component.whenToUse, ...propNames]
 			.join(" ")
 			.toLowerCase();
-		return haystack.includes(q);
+		return haystack.includes(needle);
 	});
 }
 
 function typeOf(schema: Record<string, unknown>): string {
 	if (Array.isArray(schema.enum)) {
-		return (schema.enum as unknown[]).map((v) => JSON.stringify(v)).join(" | ");
+		return (schema.enum as unknown[]).map((value) => JSON.stringify(value)).join(" | ");
 	}
 	if (Array.isArray(schema.anyOf)) {
 		return (schema.anyOf as Record<string, unknown>[]).map(typeOf).join(" | ");
@@ -104,14 +104,14 @@ export function formatComponent(entry: RegistryComponent): string {
 		};
 		const all = [header, ...rows];
 		const widths = {
-			name: Math.max(...all.map((r) => r.name.length)),
-			type: Math.max(...all.map((r) => r.type.length)),
-			isRequired: Math.max(...all.map((r) => r.isRequired.length)),
-			defaultValue: Math.max(...all.map((r) => r.defaultValue.length)),
+			name: Math.max(...all.map((row) => row.name.length)),
+			type: Math.max(...all.map((row) => row.type.length)),
+			isRequired: Math.max(...all.map((row) => row.isRequired.length)),
+			defaultValue: Math.max(...all.map((row) => row.defaultValue.length)),
 		};
 
-		const renderRow = (r: typeof header) =>
-			`  ${r.name.padEnd(widths.name)}  ${r.type.padEnd(widths.type)}  ${r.isRequired.padEnd(widths.isRequired)}  ${r.defaultValue.padEnd(widths.defaultValue)}  ${r.description}`;
+		const renderRow = (row: typeof header) =>
+			`  ${row.name.padEnd(widths.name)}  ${row.type.padEnd(widths.type)}  ${row.isRequired.padEnd(widths.isRequired)}  ${row.defaultValue.padEnd(widths.defaultValue)}  ${row.description}`;
 
 		lines.push(renderRow(header));
 		for (const row of rows) {
@@ -127,19 +127,37 @@ export function formatComponent(entry: RegistryComponent): string {
 	return lines.join("\n");
 }
 
+/**
+ * One line per component, name column padded to the widest name. The CLI's
+ * `components search` and the MCP `list_components` tool both present the
+ * registry this way, so the table lives here rather than being written out
+ * once per adapter.
+ */
+export function formatComponentTable(components: { name: string; description: string }[]): string {
+	if (components.length === 0) return "";
+	const width = Math.max(...components.map((component) => component.name.length));
+	return components
+		.map((component) => `${component.name.padEnd(width)}  ${component.description}`)
+		.join("\n");
+}
+
 /** Levenshtein distance, for catching typos that neither prefix nor substring matching sees. */
-function editDistance(a: string, b: string): number {
-	const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-	for (let i = 1; i <= a.length; i++) {
+function editDistance(left: string, right: string): number {
+	const prev = Array.from({ length: right.length + 1 }, (_, index) => index);
+	for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
 		let diag = prev[0];
-		prev[0] = i;
-		for (let j = 1; j <= b.length; j++) {
-			const tmp = prev[j];
-			prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
-			diag = tmp;
+		prev[0] = leftIndex;
+		for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
+			const above = prev[rightIndex];
+			prev[rightIndex] = Math.min(
+				prev[rightIndex] + 1,
+				prev[rightIndex - 1] + 1,
+				diag + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
+			);
+			diag = above;
 		}
 	}
-	return prev[b.length];
+	return prev[right.length];
 }
 
 /**
@@ -148,16 +166,18 @@ function editDistance(a: string, b: string): number {
  * distance at most 2, e.g. "Calout" → "Callout").
  */
 export function suggestFrom(names: string[], query: string): string[] {
-	const q = query.toLowerCase();
-	const startsWith = names.filter((n) => n.toLowerCase().startsWith(q));
-	const includes = names.filter((n) => !startsWith.includes(n) && n.toLowerCase().includes(q));
+	const needle = query.toLowerCase();
+	const startsWith = names.filter((name) => name.toLowerCase().startsWith(needle));
+	const includes = names.filter(
+		(name) => !startsWith.includes(name) && name.toLowerCase().includes(needle),
+	);
 	const seen = new Set([...startsWith, ...includes]);
 	const close = names
-		.filter((n) => !seen.has(n))
-		.map((n) => ({ n, d: editDistance(n.toLowerCase(), q) }))
-		.filter(({ d }) => d <= 2)
-		.sort((a, b) => a.d - b.d)
-		.map(({ n }) => n);
+		.filter((name) => !seen.has(name))
+		.map((name) => ({ name, distance: editDistance(name.toLowerCase(), needle) }))
+		.filter(({ distance }) => distance <= 2)
+		.sort((first, second) => first.distance - second.distance)
+		.map(({ name }) => name);
 
 	return [...startsWith, ...includes, ...close].slice(0, 3);
 }
@@ -165,7 +185,7 @@ export function suggestFrom(names: string[], query: string): string[] {
 /** `suggestFrom` over the registry's component names. */
 export function suggest(registry: Registry, name: string): string[] {
 	return suggestFrom(
-		registry.components.map((c) => c.name),
+		registry.components.map((component) => component.name),
 		name,
 	);
 }

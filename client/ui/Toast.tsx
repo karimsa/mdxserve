@@ -2,7 +2,7 @@ import { useEffect, useState, type HTMLAttributes, type ReactNode } from "react"
 import { AnimatePresence, motion, type MotionProps } from "framer-motion";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
-import { V } from "../motion";
+import { VARIANTS } from "../motion";
 
 export type ToastTone = "info" | "ok" | "warn" | "danger";
 
@@ -49,7 +49,7 @@ export function Toast({
 		<motion.div
 			role="status"
 			layout
-			{...V.slideUp}
+			{...VARIANTS.slideUp}
 			className={
 				"flex w-[340px] items-start gap-3 rounded-lg border border-border-default bg-surface-raised py-3 pr-3 pl-4 shadow-md" +
 				(className ? " " + className : "")

@@ -43,12 +43,12 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 		}
 
 		const nodes: TreeNode[] = [];
-		for (const d of dirents) {
-			if (!isServable(d.name)) continue;
-			const abs = path.join(dir, d.name);
+		for (const dirent of dirents) {
+			if (!isServable(dirent.name)) continue;
+			const abs = path.join(dir, dirent.name);
 
-			if (d.isDirectory()) {
-				if (TREE_IGNORED_DIRS.has(d.name)) continue;
+			if (dirent.isDirectory()) {
+				if (TREE_IGNORED_DIRS.has(dirent.name)) continue;
 				if (depth >= maxDepth) continue;
 				const children = walk(abs, depth + 1);
 				if (children.length === 0) continue;
@@ -59,7 +59,7 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 					mtime = undefined;
 				}
 				nodes.push({
-					name: d.name,
+					name: dirent.name,
 					path: `${abs}/`,
 					isDir: true,
 					isDoc: false,
@@ -69,7 +69,7 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 				continue;
 			}
 
-			const ext = path.extname(d.name).toLowerCase();
+			const ext = path.extname(dirent.name).toLowerCase();
 			if (ext !== ".md" && ext !== ".mdx") continue;
 
 			let mtime: number | undefined;
@@ -79,7 +79,7 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 				mtime = undefined;
 			}
 			nodes.push({
-				name: d.name,
+				name: dirent.name,
 				path: abs,
 				isDir: false,
 				isDoc: true,
@@ -87,9 +87,9 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 			});
 		}
 
-		nodes.sort((a, b) => {
-			if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-			return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+		nodes.sort((first, second) => {
+			if (first.isDir !== second.isDir) return first.isDir ? -1 : 1;
+			return first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
 		});
 
 		return nodes;

@@ -66,15 +66,11 @@ export function errorResult(text: string): {
 	return { isError: true, content: [{ type: "text", text }] };
 }
 
-export function textResult<T extends object>(
+export function textResult<Structured extends object>(
 	text: string,
-	structuredContent: T,
-): { content: [{ type: "text"; text: string }]; structuredContent: T } {
+	structuredContent: Structured,
+): { content: [{ type: "text"; text: string }]; structuredContent: Structured } {
 	return { content: [{ type: "text", text }], structuredContent };
-}
-
-export function componentPropNames(props: Record<string, unknown>): string[] {
-	return Object.keys((props?.properties as Record<string, unknown>) ?? {});
 }
 
 export function indentTree(nodes: TreeNode[], depth = 0): string[] {

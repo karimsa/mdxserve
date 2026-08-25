@@ -1,7 +1,7 @@
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useRef } from "react";
 import { useAtom } from "jotai";
-import { V } from "../motion";
+import { VARIANTS } from "../motion";
 import { Icon } from "../ui/Icon";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { ListingView } from "../ListingView";
@@ -103,7 +103,7 @@ export function Sidebar({
 					<motion.div
 						key="sidebar-scrim"
 						data-print-hide
-						{...V.scrim}
+						{...VARIANTS.scrim}
 						onClick={onCloseMobile}
 						className="fixed inset-0 z-[var(--z-scrim)] bg-[var(--scrim)] md:hidden"
 					/>
@@ -114,7 +114,7 @@ export function Sidebar({
 					<motion.aside
 						key="sidebar-panel"
 						data-print-hide
-						{...V.pop}
+						{...VARIANTS.pop}
 						// Rows are plain links handled by the router, and tapping the already
 						// active doc never changes the route, so close on any link tap here.
 						onClick={(event) => {

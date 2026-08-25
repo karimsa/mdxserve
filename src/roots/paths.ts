@@ -76,7 +76,7 @@ export async function resolveDocPath(roots: string[], input: string): Promise<Re
 		if (candidates.length > 1) {
 			return {
 				ok: false,
-				error: `${input} exists in more than one served directory; use an absolute path: ${candidates.map((c) => c.abs).join(", ")}`,
+				error: `${input} exists in more than one served directory; use an absolute path: ${candidates.map((candidate) => candidate.abs).join(", ")}`,
 			};
 		}
 		hit = candidates[0];

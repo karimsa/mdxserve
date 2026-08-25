@@ -7,6 +7,7 @@ import { appRouter } from "../../src/api/router.js";
 import type { ApiContext } from "../../src/api/trpc.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext as buildContext } from "../helpers/context.js";
+import { versionOf } from "../../src/docs/service.js";
 
 let fixtureDir: string;
 let outsideDir: string;
@@ -39,12 +40,11 @@ function makeContext(overrides: Partial<ApiContext> = {}): ApiContext {
 const createCaller = createCallerFactory(appRouter);
 
 describe("getDocSource", () => {
-	it("returns the raw text and the file's mtime", async () => {
+	it("returns the raw text and a version token for those exact bytes", async () => {
 		const abs = path.join(fixtureDir, "good.md");
-		const stat = await fs.stat(abs);
 		const source = await createCaller(makeContext()).getDocSource({ path: abs });
 		expect(source.text).toBe(await fs.readFile(abs, "utf8"));
-		expect(source.mtime).toBe(stat.mtimeMs);
+		expect(source.version).toBe(versionOf(source.text));
 	});
 
 	it("rejects a path outside every root with NOT_FOUND", async () => {
@@ -76,28 +76,30 @@ describe("saveDocSection", () => {
 		return abs;
 	}
 
-	it("replaces exactly the requested line range and returns the new mtime", async () => {
+	it("replaces exactly the requested line range and returns the new version", async () => {
 		const abs = await freshDoc();
-		const before = await fs.stat(abs);
-		const result = await createCaller(makeContext()).saveDocSection({
+		const caller = createCaller(makeContext());
+		const before = await caller.getDocSource({ path: abs });
+		const result = await caller.saveDocSection({
 			path: abs,
 			startLine: 3,
 			endLine: 3,
-			mtime: before.mtimeMs,
+			version: before.version,
 			markdown: "changed line\n",
 		});
-		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nchanged line\n\nline five\n");
-		expect(result.mtime).toBe((await fs.stat(abs)).mtimeMs);
+		const written = "# Title\n\nchanged line\n\nline five\n";
+		expect(await fs.readFile(abs, "utf8")).toBe(written);
+		expect(result.version).toBe(versionOf(written));
 	});
 
-	it("rejects a stale mtime with CONFLICT and leaves the file untouched", async () => {
+	it("rejects a stale version with CONFLICT and leaves the file untouched", async () => {
 		const abs = await freshDoc();
 		await expect(
 			createCaller(makeContext()).saveDocSection({
 				path: abs,
 				startLine: 3,
 				endLine: 3,
-				mtime: 1,
+				version: versionOf("something else entirely"),
 				markdown: "changed",
 			}),
 		).rejects.toMatchObject({ code: "CONFLICT" });
@@ -106,13 +108,12 @@ describe("saveDocSection", () => {
 
 	it("rejects a line range past the end of the file with CONFLICT", async () => {
 		const abs = await freshDoc();
-		const before = await fs.stat(abs);
 		await expect(
 			createCaller(makeContext()).saveDocSection({
 				path: abs,
 				startLine: 3,
 				endLine: 99,
-				mtime: before.mtimeMs,
+				version: versionOf(original),
 				markdown: "changed",
 			}),
 		).rejects.toMatchObject({ code: "CONFLICT" });
@@ -121,13 +122,12 @@ describe("saveDocSection", () => {
 
 	it("rejects markdown that would break the doc with UNPROCESSABLE_CONTENT, without writing", async () => {
 		const abs = await freshDoc();
-		const before = await fs.stat(abs);
 		await expect(
 			createCaller(makeContext()).saveDocSection({
 				path: abs,
 				startLine: 3,
 				endLine: 3,
-				mtime: before.mtimeMs,
+				version: versionOf(original),
 				markdown: "<Calout>not a real component</Calout>",
 			}),
 		).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT" });
@@ -140,7 +140,7 @@ describe("saveDocSection", () => {
 				path: path.join(outsideDir, "secret.md"),
 				startLine: 1,
 				endLine: 1,
-				mtime: 0,
+				version: versionOf("some other content"),
 				markdown: "x",
 			}),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });

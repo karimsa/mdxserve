@@ -90,14 +90,14 @@ describe("getDocTree", () => {
 			}),
 		);
 		const result = await caller.getDocTree({});
-		expect(result.roots.map((r) => r.name).sort()).toEqual(["docs", "other"].sort());
+		expect(result.roots.map((root) => root.name).sort()).toEqual(["docs", "other"].sort());
 	});
 
 	it("narrows to the given directory", async () => {
 		const caller = createCaller(makeContext());
 		const result = await caller.getDocTree({ path: path.join(fixtureDir, "sub") });
 		expect(result.roots).toHaveLength(1);
-		expect(result.roots[0].nodes.map((n) => n.name).sort()).toEqual(["nested.md", "subsub"]);
+		expect(result.roots[0].nodes.map((node) => node.name).sort()).toEqual(["nested.md", "subsub"]);
 	});
 
 	it("maxDepth truncates deeper nodes", async () => {
@@ -108,12 +108,12 @@ describe("getDocTree", () => {
 		const shallow = await caller.getDocTree({ maxDepth: 1 });
 		const deep = await caller.getDocTree({ maxDepth: 8 });
 
-		const shallowSub = shallow.roots[0].nodes.find((n) => n.name === "sub");
-		const deepSub = deep.roots[0].nodes.find((n) => n.name === "sub");
+		const shallowSub = shallow.roots[0].nodes.find((node) => node.name === "sub");
+		const deepSub = deep.roots[0].nodes.find((node) => node.name === "sub");
 
-		expect(shallowSub?.children?.map((n) => n.name)).toEqual(["nested.md"]);
-		expect(deepSub?.children?.map((n) => n.name).sort()).toEqual(["nested.md", "subsub"]);
-		const subsub = deepSub?.children?.find((n) => n.name === "subsub");
-		expect(subsub?.children?.map((n) => n.name)).toEqual(["deep.md"]);
+		expect(shallowSub?.children?.map((node) => node.name)).toEqual(["nested.md"]);
+		expect(deepSub?.children?.map((node) => node.name).sort()).toEqual(["nested.md", "subsub"]);
+		const subsub = deepSub?.children?.find((node) => node.name === "subsub");
+		expect(subsub?.children?.map((node) => node.name)).toEqual(["deep.md"]);
 	});
 });

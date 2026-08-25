@@ -8,7 +8,7 @@ export function isServable(name: string): boolean {
 	return true;
 }
 
-export function isDocFile(p: string): boolean {
-	const ext = path.extname(p).toLowerCase();
+export function isDocFile(filePath: string): boolean {
+	const ext = path.extname(filePath).toLowerCase();
 	return ext === ".md" || ext === ".mdx";
 }

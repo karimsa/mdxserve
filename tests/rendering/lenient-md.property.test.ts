@@ -5,8 +5,8 @@ import { escapeBareLt } from "../../src/rendering/mdx/lenient-md.js";
 describe("escapeBareLt", () => {
 	it("is idempotent", () => {
 		fc.assert(
-			fc.property(fc.string(), (s) => {
-				const once = escapeBareLt(s);
+			fc.property(fc.string(), (source) => {
+				const once = escapeBareLt(source);
 				const twice = escapeBareLt(once);
 				expect(twice).toBe(once);
 			}),
@@ -15,8 +15,8 @@ describe("escapeBareLt", () => {
 
 	it("preserves line count", () => {
 		fc.assert(
-			fc.property(fc.string(), (s) => {
-				expect(escapeBareLt(s).split("\n").length).toBe(s.split("\n").length);
+			fc.property(fc.string(), (source) => {
+				expect(escapeBareLt(source).split("\n").length).toBe(source.split("\n").length);
 			}),
 		);
 	});

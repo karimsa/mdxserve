@@ -7,8 +7,13 @@ export const getDocSourceInput = z.object({ path: z.string().min(1).max(4096) })
 export const docSourceSchema = z.object({
 	/** The raw on-disk text, not the compiled module. */
 	text: z.string(),
-	/** mtime (epoch ms) at the moment `text` was read; echoed back to `saveDocSection`. */
-	mtime: z.number(),
+	/**
+	 * Opaque token for the bytes `text` was read from; echoed back to
+	 * `saveDocSection`, which refuses the write unless the file still hashes to
+	 * it. Opaque on purpose — the client must never try to interpret or
+	 * synthesize one.
+	 */
+	version: z.string(),
 });
 
 // markdown is capped well below the adapter's body cap so the 413/400
@@ -19,17 +24,18 @@ export const saveDocSectionInput = z.object({
 	path: z.string().min(1).max(4096),
 	startLine: z.number().int().positive(),
 	endLine: z.number().int().positive(),
-	mtime: z.number(),
+	/** The `version` from the `getDocSource` this edit was seeded from. */
+	version: z.string().min(1).max(128),
 	markdown: z.string().max(256 * 1024),
 });
 
 export const saveDocSectionResultSchema = z.object({
-	/** The file's mtime after the write, for the next save from the same editor. */
-	mtime: z.number(),
+	/** The file's version after the write, for the next save from the same editor. */
+	version: z.string(),
 });
 
 const getDocSource = procedure(
-	"Returns the raw on-disk text of one .md/.mdx doc together with its mtime, so the in-place section editor can seed itself from exactly what is on disk (not the compiled module) and later detect concurrent edits. Used by the section editor when a section is opened.",
+	"Returns the raw on-disk text of one .md/.mdx doc together with a version token for those exact bytes, so the in-place section editor can seed itself from what is on disk (not the compiled module) and later detect concurrent edits. Used by the section editor when a section is opened.",
 )
 	.input(getDocSourceInput)
 	.output(docSourceSchema)
@@ -50,7 +56,7 @@ const getDocSource = procedure(
 	});
 
 const saveDocSection = procedure(
-	"Replaces one line range of a doc with edited markdown: the mtime must still match the one the caller read (otherwise CONFLICT), the resulting file must validate (otherwise UNPROCESSABLE_CONTENT), and the write is atomic. Used by the in-place section editor's Save.",
+	"Replaces one line range of a doc with edited markdown: the file must still hash to the version the caller read (otherwise CONFLICT), the resulting file must validate (otherwise UNPROCESSABLE_CONTENT), and the write is atomic. Used by the in-place section editor's Save.",
 )
 	.input(saveDocSectionInput)
 	.output(saveDocSectionResultSchema)
@@ -59,12 +65,12 @@ const saveDocSection = procedure(
 			path: input.path,
 			startLine: input.startLine,
 			endLine: input.endLine,
-			mtime: input.mtime,
+			version: input.version,
 			markdown: input.markdown,
 		});
 		switch (result.kind) {
 			case "ok":
-				return { mtime: result.mtime };
+				return { version: result.version };
 			case "not-found":
 				throw new TRPCError({ code: "NOT_FOUND", message: result.message });
 			case "stale":

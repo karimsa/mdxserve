@@ -1,21 +1,16 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { formatComponentTable } from "../../components/registry.js";
 import { ComponentsService } from "../../components/service.js";
+import { listComponentsResultSchema } from "../../components/controller.js";
 import type { McpContext } from "../server.js";
-import { textResult, componentPropNames } from "../format.js";
+import { textResult } from "../format.js";
 
 const listComponentsInput = { query: z.string().optional() };
 
-const listComponentsOutput = {
-	components: z.array(
-		z.object({
-			name: z.string(),
-			description: z.string(),
-			whenToUse: z.string(),
-			props: z.array(z.string()),
-		}),
-	),
-};
+// Kept in lockstep with the `listComponents` tRPC procedure's output — this
+// tool and that procedure are the same query behind two transports.
+const listComponentsOutput = listComponentsResultSchema.shape;
 
 export function registerListComponents(server: McpServer, ctx: McpContext): void {
 	const componentsService = new ComponentsService(ctx.registry);
@@ -30,24 +25,11 @@ export function registerListComponents(server: McpServer, ctx: McpContext): void
 			outputSchema: listComponentsOutput,
 		},
 		async ({ query }) => {
-			const matches = componentsService.list(query);
-			const components = matches.map((component) => ({
-				name: component.name,
-				description: component.description,
-				whenToUse: component.whenToUse,
-				props: componentPropNames(component.props),
-			}));
-
+			const components = componentsService.listSummaries(query);
 			const text =
 				components.length === 0
 					? `No components match "${query ?? ""}".`
-					: (() => {
-							const width = Math.max(...components.map((component) => component.name.length));
-							return components
-								.map((component) => `${component.name.padEnd(width)}  ${component.description}`)
-								.join("\n");
-						})();
-
+					: formatComponentTable(components);
 			return textResult(text, { components });
 		},
 	);

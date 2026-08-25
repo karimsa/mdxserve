@@ -2,12 +2,14 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { formatComponent } from "../../components/registry.js";
 import { ComponentsService } from "../../components/service.js";
+import { getComponentResultSchema } from "../../components/controller.js";
 import type { McpContext } from "../server.js";
 import { errorResult, textResult } from "../format.js";
 
 const showComponentInput = { name: z.string().min(1) };
 
-const showComponentOutput = { component: z.any() };
+// Kept in lockstep with the `getComponent` tRPC procedure's output.
+const showComponentOutput = getComponentResultSchema.shape;
 
 export function registerShowComponent(server: McpServer, ctx: McpContext): void {
 	const componentsService = new ComponentsService(ctx.registry);

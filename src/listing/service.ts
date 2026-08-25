@@ -1,6 +1,5 @@
-import fsp from "node:fs/promises";
 import type { DocCache } from "../docs/doc-cache.js";
-import { resolveDirPath, resolveRoot } from "../roots/paths.js";
+import { resolveDirPath } from "../roots/paths.js";
 import { rootInfoFor, type RootInfo } from "../roots/root-info.js";
 import { readListing, type FolderListing } from "./folder.js";
 import { readTree, type TreeNode } from "./tree.js";
@@ -27,32 +26,25 @@ export class ListingService {
 	) {}
 
 	/**
-	 * Reads the folder listing for the absolute directory `inputPath`. Uses the
-	 * same weaker `resolveRoot` + `stat` check the site's directory route has
-	 * always used, rather than `resolveDirPath`'s stricter realpath
-	 * containment check — unifying the two is a follow-up, not part of this
-	 * refactor.
+	 * Reads the folder listing for the absolute directory `inputPath`.
+	 *
+	 * Resolution goes through `resolveDirPath` — per-segment servability plus a
+	 * realpath containment check — so every caller gets the same answer to "is
+	 * this directory servable?". The site's directory route used to do its own
+	 * weaker `resolveRoot` + `stat` check, which meant a symlinked directory
+	 * pointing out of a root was refused by the API and served by a browser
+	 * navigation; both now come through here.
 	 */
 	async folderListing(inputPath: string): Promise<FolderListingResult> {
-		const rootDirs = this.rootInfos.map((rootInfo) => rootInfo.dir);
-		const hit = resolveRoot(rootDirs, inputPath);
-
-		let isDirectory = false;
-		if (hit) {
-			try {
-				isDirectory = (await fsp.stat(hit.abs)).isDirectory();
-			} catch {
-				isDirectory = false;
-			}
-		}
-
-		if (!hit || !isDirectory) {
-			return { kind: "not-found", message: "Not found" };
-		}
+		const resolved = await resolveDirPath(
+			this.rootInfos.map((rootInfo) => rootInfo.dir),
+			inputPath,
+		);
+		if (!resolved.ok) return { kind: "not-found", message: "Not found" };
 
 		return {
 			kind: "ok",
-			listing: readListing(hit.abs, rootInfoFor(this.rootInfos, hit.root), this.docCache),
+			listing: readListing(resolved.abs, rootInfoFor(this.rootInfos, resolved.root), this.docCache),
 		};
 	}
 

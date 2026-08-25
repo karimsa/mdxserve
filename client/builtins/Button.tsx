@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 import { Icon } from "../ui/Icon";
 
 export const buttonProps = z.object({
@@ -86,7 +86,7 @@ export default function Button({
 				href={disabled ? undefined : href}
 				aria-disabled={disabled || undefined}
 				whileTap={press}
-				transition={T.snap}
+				transition={TRANSITIONS.snap}
 				onClick={onClick}
 				className={className}
 			>
@@ -101,7 +101,7 @@ export default function Button({
 			disabled={disabled}
 			autoFocus={autoFocus}
 			whileTap={press}
-			transition={T.snap}
+			transition={TRANSITIONS.snap}
 			onClick={onClick}
 			className={className}
 		>

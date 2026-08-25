@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { resolveDirPath } from "../../roots/paths.js";
 import { ListingService } from "../../listing/service.js";
+import { docTreeSchema } from "../../listing/controller.js";
 import type { McpContext } from "../server.js";
 import { errorResult, textResult, formatDocTree, NO_SERVER_MESSAGE } from "../format.js";
 
@@ -10,9 +11,9 @@ const listDocsInput = {
 	maxDepth: z.number().int().min(1).max(8).default(8),
 };
 
-const listDocsOutput = {
-	roots: z.array(z.object({ name: z.string(), dir: z.string(), nodes: z.array(z.any()) })),
-};
+// Kept in lockstep with the `getDocTree` tRPC procedure's output — importing
+// its zod shape (rather than a hand-copied one) means the two can't drift.
+const listDocsOutput = docTreeSchema.shape;
 
 export function registerListDocs(server: McpServer, ctx: McpContext): void {
 	const { getRoots, remote, docCache } = ctx;

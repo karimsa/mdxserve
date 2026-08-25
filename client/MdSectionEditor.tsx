@@ -10,7 +10,7 @@ import { Markdown } from "@tiptap/markdown";
 import { motion } from "framer-motion";
 import { isTRPCClientError } from "@trpc/client";
 import { trpcClient } from "./api";
-import { T } from "./motion";
+import { TRANSITIONS } from "./motion";
 import { isApplePlatform } from "./platform";
 import { Kbd } from "./ui/Kbd";
 import { pushToast } from "./ui/Toast";
@@ -20,14 +20,14 @@ import { pushToast } from "./ui/Toast";
 const hintStack = { animate: { transition: { staggerChildren: 0.05 } } };
 const hint = {
 	initial: { opacity: 0, x: -10 },
-	animate: { opacity: 1, x: 0, transition: T.glide },
+	animate: { opacity: 1, x: 0, transition: TRANSITIONS.glide },
 };
 
 export interface MdSectionEditorProps {
 	/** Raw markdown for exactly [startLine, endLine], sliced by MdSection.tsx. */
 	source: string;
-	/** mtime of the whole file at the moment `source` was fetched — the save's stale-write guard. */
-	mtime: number;
+	/** Version token for the whole file at the moment `source` was fetched — the save's stale-write guard. */
+	version: string;
 	path: string;
 	startLine: number;
 	endLine: number;
@@ -81,7 +81,7 @@ function unwrapSoftBreaks(editor: Editor): void {
  */
 export default function MdSectionEditor({
 	source,
-	mtime,
+	version,
 	path,
 	startLine,
 	endLine,
@@ -138,7 +138,7 @@ export default function MdSectionEditor({
 				path,
 				startLine,
 				endLine,
-				mtime,
+				version,
 				markdown: editor.getMarkdown(),
 			});
 			// The write lands on disk, chokidar → Vite HMR re-executes the doc

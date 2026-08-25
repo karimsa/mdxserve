@@ -68,7 +68,7 @@ function collectFromProgram(program: Program, names: Set<string>): void {
 		} else if (stmt.type === "ExportNamedDeclaration" && stmt.declaration) {
 			const decl = stmt.declaration;
 			if (decl.type === "VariableDeclaration") {
-				for (const d of decl.declarations) collectPatternNames(d.id, names);
+				for (const declaration of decl.declarations) collectPatternNames(declaration.id, names);
 			} else if (
 				(decl.type === "FunctionDeclaration" || decl.type === "ClassDeclaration") &&
 				decl.id
@@ -114,16 +114,16 @@ function collectPatternNames(pattern: Pattern, names: Set<string>): void {
 /** Regex fallback for when an `mdxjsEsm` node has no `data.estree` attached. */
 function collectFromSource(value: string): string[] {
 	const names: string[] = [];
-	for (const m of value.matchAll(/import\s+([^;]+?)\s+from\s+["'][^"']*["']/g)) {
-		names.push(...parseImportClause(m[1]));
+	for (const match of value.matchAll(/import\s+([^;]+?)\s+from\s+["'][^"']*["']/g)) {
+		names.push(...parseImportClause(match[1]));
 	}
-	for (const m of value.matchAll(/export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) {
-		names.push(m[1]);
+	for (const match of value.matchAll(/export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) {
+		names.push(match[1]);
 	}
-	for (const m of value.matchAll(
+	for (const match of value.matchAll(
 		/export\s+(?:default\s+)?(?:async\s+)?(?:function|class)\s*\*?\s*([A-Za-z_$][\w$]*)/g,
 	)) {
-		names.push(m[1]);
+		names.push(match[1]);
 	}
 	return names;
 }
@@ -140,10 +140,10 @@ function parseImportClause(clause: string): string[] {
 	let rest = trimmed;
 	if (braceMatch) {
 		for (const part of braceMatch[1].split(",")) {
-			const p = part.trim();
-			if (!p) continue;
-			const asMatch = p.match(/as\s+([A-Za-z_$][\w$]*)\s*$/);
-			names.push(asMatch ? asMatch[1] : p.split(/\s+/)[0]);
+			const piece = part.trim();
+			if (!piece) continue;
+			const asMatch = piece.match(/as\s+([A-Za-z_$][\w$]*)\s*$/);
+			names.push(asMatch ? asMatch[1] : piece.split(/\s+/)[0]);
 		}
 		rest = trimmed.slice(0, braceMatch.index).replace(/,\s*$/, "").trim();
 	}
@@ -164,7 +164,9 @@ function didYouMean(suggestions: string[]): string {
  */
 export function analyzeTree(tree: Root, registry: Registry): Diagnostic[] {
 	const localNames = collectLocalNames(tree);
-	const byName = new Map(registry.components.map((c) => [c.name, c] as const));
+	const byName = new Map(
+		registry.components.map((component) => [component.name, component] as const),
+	);
 	const diagnostics: Diagnostic[] = [];
 	const seenUnknown = new Set<string>();
 
@@ -282,8 +284,8 @@ function collectRelativeImports(tree: Root): RelativeImport[] {
 					}
 				}
 			} else {
-				for (const m of node.value.matchAll(/from\s+["'](\.\.?\/[^"']*)["']/g)) {
-					imports.push({ specifier: m[1], ...block });
+				for (const match of node.value.matchAll(/from\s+["'](\.\.?\/[^"']*)["']/g)) {
+					imports.push({ specifier: match[1], ...block });
 				}
 			}
 		}
@@ -395,7 +397,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 	}
 
 	let rendered = false;
-	if (render && !diagnostics.some((d) => d.severity === "error")) {
+	if (render && !diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
 		rendered = true;
 		const outcome = await render(filePath);
 		if (!outcome.ok) {
@@ -409,6 +411,6 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 		}
 	}
 
-	const ok = !diagnostics.some((d) => d.severity === "error");
+	const ok = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
 	return { ok, path: filePath, diagnostics, rendered };
 }

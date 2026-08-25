@@ -60,4 +60,4 @@ export const fixtureRegistry: Registry = {
 };
 
 /** Every registered component name. */
-export const fixtureComponentNames = fixtureRegistry.components.map((c) => c.name);
+export const fixtureComponentNames = fixtureRegistry.components.map((component) => component.name);

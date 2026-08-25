@@ -9,8 +9,8 @@ import type { SearchResult } from "../search/service.js";
 
 const MAX_SEARCH_RESULTS = 30;
 
-export type RemoteOutcome<T> =
-	{ kind: "ok"; value: T } | { kind: "error"; message: string } | { kind: "unavailable" };
+export type RemoteOutcome<Value> =
+	{ kind: "ok"; value: Value } | { kind: "error"; message: string } | { kind: "unavailable" };
 
 /**
  * Stdio mode only: proxies `validate_doc`/`search_docs`/`list_docs` to
@@ -53,15 +53,17 @@ function serverKey(record: Pick<ServerRecord, "host" | "port">): string {
  * back to the local static-only behavior instead of surfacing a confusing
  * network error.
  */
-function toOutcome<T>(error: unknown): RemoteOutcome<T> {
+function toOutcome<Value>(error: unknown): RemoteOutcome<Value> {
 	if (isTRPCClientError(error) && error.data?.code !== undefined) {
 		return { kind: "error", message: error.message };
 	}
 	return { kind: "unavailable" };
 }
 
-type FanOut<T> =
-	{ kind: "answers"; values: T[] } | { kind: "error"; message: string } | { kind: "unavailable" };
+type FanOut<Value> =
+	| { kind: "answers"; values: Value[] }
+	| { kind: "error"; message: string }
+	| { kind: "unavailable" };
 
 /**
  * Sort a fan-out's settled calls into the answers that came back. An
@@ -72,14 +74,14 @@ type FanOut<T> =
  * is missing — so that error is surfaced instead of silently returning a
  * partial result as if it were whole. No answers at all → `unavailable`.
  */
-function collectFanOut<T>(settled: PromiseSettledResult<T>[]): FanOut<T> {
-	const values: T[] = [];
+function collectFanOut<Value>(settled: PromiseSettledResult<Value>[]): FanOut<Value> {
+	const values: Value[] = [];
 	for (const outcome of settled) {
 		if (outcome.status === "fulfilled") {
 			values.push(outcome.value);
 			continue;
 		}
-		const failure = toOutcome<T>(outcome.reason);
+		const failure = toOutcome<Value>(outcome.reason);
 		if (failure.kind === "error") return failure;
 	}
 	if (values.length === 0) return { kind: "unavailable" };

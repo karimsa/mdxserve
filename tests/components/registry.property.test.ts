@@ -24,7 +24,7 @@ describe("suggest", () => {
 	it("only returns names that exist in the registry", () => {
 		fc.assert(
 			fc.property(registryArb, nameArb, (registry, query) => {
-				const known = new Set(registry.components.map((c) => c.name));
+				const known = new Set(registry.components.map((component) => component.name));
 				for (const name of suggest(registry, query)) {
 					expect(known.has(name)).toBe(true);
 				}
@@ -36,12 +36,12 @@ describe("suggest", () => {
 		fc.assert(
 			fc.property(registryArb, nameArb, (registry, query) => {
 				const result = suggest(registry, query);
-				const q = query.toLowerCase();
-				const isPrefix = (n: string) => n.toLowerCase().startsWith(q);
-				for (let i = 0; i < result.length; i++) {
-					for (let j = i + 1; j < result.length; j++) {
+				const normalized = query.toLowerCase();
+				const isPrefix = (name: string) => name.toLowerCase().startsWith(normalized);
+				for (let index = 0; index < result.length; index++) {
+					for (let otherIndex = index + 1; otherIndex < result.length; otherIndex++) {
 						// No includes-only match (index i) may come before a prefix match (index j).
-						expect(isPrefix(result[i]) || !isPrefix(result[j])).toBe(true);
+						expect(isPrefix(result[index]) || !isPrefix(result[otherIndex])).toBe(true);
 					}
 				}
 			}),
@@ -61,8 +61,8 @@ describe("suggest", () => {
 						components: names.map((name) => ({ name, description: "", whenToUse: "", props: {} })),
 					};
 					const target = names[pick % names.length];
-					const i = 1 + (drop % (target.length - 1));
-					const typo = target.slice(0, i) + target.slice(i + 1);
+					const index = 1 + (drop % (target.length - 1));
+					const typo = target.slice(0, index) + target.slice(index + 1);
 					const result = suggest(registry, typo);
 					expect(result.includes(target) || result.length === 3).toBe(true);
 				},

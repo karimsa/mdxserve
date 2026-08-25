@@ -146,7 +146,7 @@ describe("searchDocs well-formedness + oracle", () => {
 						const searchService = new SearchService(new DocCache());
 						const results = searchService.search([rootInfo], nonce).results;
 						expect(results.length).toBeLessThanOrEqual(30);
-						expect(results.some((r) => r.path === noncePath)).toBe(true);
+						expect(results.some((result) => result.path === noncePath)).toBe(true);
 
 						for (const result of results) {
 							expect(result.path.startsWith(`${root}${path.sep}`) || result.path === root).toBe(

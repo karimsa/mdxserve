@@ -10,7 +10,7 @@ import {
 } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 import { CrossFade } from "../CrossFade";
 
 export const tabProps = z.object({
@@ -142,7 +142,7 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 							{isActive ? (
 								<motion.span
 									layoutId={`${scopeId}-tab-underline`}
-									transition={T.snap}
+									transition={TRANSITIONS.snap}
 									className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-teal-500"
 								/>
 							) : null}

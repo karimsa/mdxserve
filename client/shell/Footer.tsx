@@ -6,8 +6,8 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 const WEEK = 7 * DAY;
 
-function pluralize(n: number, unit: string): string {
-	return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+function pluralize(count: number, unit: string): string {
+	return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
 }
 
 /** "edited just now / N minutes ago / N hours ago / N days ago / a date". */

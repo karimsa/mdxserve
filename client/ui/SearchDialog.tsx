@@ -8,7 +8,7 @@ import {
 import { AnimatePresence, motion, type MotionProps } from "framer-motion";
 import { Icon } from "./Icon";
 import { Kbd } from "./Kbd";
-import { T, V } from "../motion";
+import { TRANSITIONS, VARIANTS } from "../motion";
 
 export interface SearchResult {
 	title: ReactNode;
@@ -20,23 +20,23 @@ export interface SearchResult {
 	terms?: string[];
 }
 
-function escapeRegExp(s: string): string {
-	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegExp(input: string): string {
+	return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Wrap every case-insensitive occurrence of `terms` in `text` with `<mark>`. */
 function highlight(text: ReactNode, terms: string[] | undefined): ReactNode {
 	if (typeof text !== "string" || !terms || terms.length === 0) return text;
 	const pattern = terms
-		.filter((t) => t.length > 0)
-		.sort((a, b) => b.length - a.length)
+		.filter((term) => term.length > 0)
+		.sort((first, second) => second.length - first.length)
 		.map(escapeRegExp)
 		.join("|");
 	if (pattern === "") return text;
 	const parts = text.split(new RegExp(`(${pattern})`, "gi"));
-	return parts.map((part, i) =>
-		i % 2 === 1 ? (
-			<mark key={i} className="rounded-sm bg-surface-accent-soft text-text-accent">
+	return parts.map((part, index) =>
+		index % 2 === 1 ? (
+			<mark key={index} className="rounded-sm bg-surface-accent-soft text-text-accent">
 				{part}
 			</mark>
 		) : (
@@ -104,13 +104,13 @@ export function SearchDialog({
 				<motion.div
 					key="scrim"
 					onClick={onClose}
-					{...V.scrim}
+					{...VARIANTS.scrim}
 					className="fixed inset-0 z-[var(--z-modal)] flex justify-center bg-[var(--scrim)] pt-[10vh] backdrop-blur-sm"
 				>
 					<motion.div
 						onClick={(event) => event.stopPropagation()}
 						onKeyDown={handleKeyDown}
-						{...V.pop}
+						{...VARIANTS.pop}
 						className={
 							"w-[560px] max-w-[92vw] self-start overflow-hidden rounded-xl border border-border-default bg-surface-raised shadow-lg" +
 							(className ? " " + className : "")
@@ -129,22 +129,29 @@ export function SearchDialog({
 							/>
 							<Kbd>esc</Kbd>
 						</div>
-						<motion.div layout transition={T.glide} className="max-h-80 overflow-y-auto p-2">
+						<motion.div
+							layout
+							transition={TRANSITIONS.glide}
+							className="max-h-80 overflow-y-auto p-2"
+						>
 							{results.length === 0 ? (
 								<div className="p-6 text-center text-[13px] leading-normal font-medium text-text-subtle">
 									No matches
 								</div>
 							) : (
-								results.map((result, i) => {
-									const active = i === highlighted;
+								results.map((result, index) => {
+									const active = index === highlighted;
 									return (
 										<motion.div
-											key={(result.path ?? "") + i}
+											key={(result.path ?? "") + index}
 											layout
 											initial={{ opacity: 0, y: 4 }}
 											animate={{ opacity: 1, y: 0 }}
-											transition={{ ...T.glide, delay: Math.min(i, STAGGER_CAP - 1) * 0.02 }}
-											onMouseEnter={() => setHighlighted(i)}
+											transition={{
+												...TRANSITIONS.glide,
+												delay: Math.min(index, STAGGER_CAP - 1) * 0.02,
+											}}
+											onMouseEnter={() => setHighlighted(index)}
 											onClick={() => onSelect?.(result)}
 											className={
 												"flex cursor-pointer items-start gap-3 rounded-md p-2.5 " +

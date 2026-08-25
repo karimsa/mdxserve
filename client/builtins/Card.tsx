@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 import { Icon } from "../ui/Icon";
 
 export const cardProps = z.object({
@@ -71,7 +71,7 @@ export default function Card({
 				href={href}
 				whileHover={{ y: -2 }}
 				whileTap={{ y: 0, scale: 0.995 }}
-				transition={T.snap}
+				transition={TRANSITIONS.snap}
 				className={className}
 			>
 				{inner}
@@ -83,7 +83,7 @@ export default function Card({
 		<motion.div
 			whileHover={clickable ? { y: -2 } : undefined}
 			whileTap={clickable ? { y: 0, scale: 0.995 } : undefined}
-			transition={T.snap}
+			transition={TRANSITIONS.snap}
 			className={className}
 		>
 			{inner}

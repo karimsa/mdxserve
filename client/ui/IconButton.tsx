@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { motion, type MotionProps } from "framer-motion";
 import { Icon } from "./Icon";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 const BOX: Record<"sm" | "md" | "lg", string> = {
 	sm: "h-[26px] w-[26px]",
@@ -40,7 +40,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
 			title={label}
 			disabled={disabled}
 			whileTap={disabled ? undefined : { scale: 0.92 }}
-			transition={T.snap}
+			transition={TRANSITIONS.snap}
 			className={
 				"inline-flex items-center justify-center rounded-md cursor-pointer transition-colors " +
 				"disabled:cursor-not-allowed disabled:opacity-45 " +

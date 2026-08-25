@@ -20,8 +20,8 @@ export function Breadcrumb({ items = [], className, ...rest }: BreadcrumbProps) 
 			}
 			{...rest}
 		>
-			{items.map((item, i) => {
-				const last = i === items.length - 1;
+			{items.map((item, index) => {
+				const last = index === items.length - 1;
 				const label =
 					last || !item.href ? (
 						<span
@@ -38,8 +38,8 @@ export function Breadcrumb({ items = [], className, ...rest }: BreadcrumbProps) 
 						</a>
 					);
 				return (
-					<Fragment key={i}>
-						{i > 0 ? <Icon name="chevron-right" size={12} className="text-n-300" /> : null}
+					<Fragment key={index}>
+						{index > 0 ? <Icon name="chevron-right" size={12} className="text-n-300" /> : null}
 						{label}
 					</Fragment>
 				);

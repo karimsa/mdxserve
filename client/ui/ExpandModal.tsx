@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
 import { Kbd } from "./Kbd";
-import { T, V } from "../motion";
+import { TRANSITIONS, VARIANTS } from "../motion";
 
 export interface ExpandModalProps {
 	open: boolean;
@@ -74,6 +74,12 @@ function clampSize(size: PanelSize, viewport: { width: number; height: number })
 	return { width: Math.round(width), height: Math.round(height) };
 }
 
+/** A viewport coordinate, in CSS pixels — the same x/y the DOM's own rects use. */
+interface Point {
+	x: number;
+	y: number;
+}
+
 /**
  * The panel stays centred while it resizes, so moving one edge by `d` changes
  * that dimension by `2d`. Each dimension is solved from the pointer's distance
@@ -82,9 +88,9 @@ function clampSize(size: PanelSize, viewport: { width: number; height: number })
  */
 function resizeFromCentre(
 	edge: Edge,
-	pointer: { x: number; y: number },
-	centre: { x: number; y: number },
-	grab: { x: number; y: number },
+	pointer: Point,
+	centre: Point,
+	grab: Point,
 	current: PanelSize,
 	viewport: { width: number; height: number },
 ): PanelSize {
@@ -110,15 +116,15 @@ export function ExpandModal({ open, onClose, icon, title, hint, children }: Expa
 	const [dragging, setDragging] = useState<Edge | null>(null);
 	// glide, not snap (as for the sidebar/toc widths): the panel trails the
 	// cursor slightly so the spring is felt as it settles into shape.
-	const widthSpring = useSpring(0, T.glide);
-	const heightSpring = useSpring(0, T.glide);
+	const widthSpring = useSpring(0, TRANSITIONS.glide);
+	const heightSpring = useSpring(0, TRANSITIONS.glide);
 	/** Latest un-animated target, so clamping on window resize starts from the real size. */
 	const target = useRef<PanelSize | null>(null);
 	const drag = useRef<{
 		edge: Edge;
-		centre: { x: number; y: number };
+		centre: Point;
 		/** Pointer distance past the grabbed edge at press time, so the edge doesn't snap under the cursor. */
-		grab: { x: number; y: number };
+		grab: Point;
 	} | null>(null);
 
 	// Document-level so Escape works wherever focus landed (a pan surface or
@@ -254,13 +260,13 @@ export function ExpandModal({ open, onClose, icon, title, hint, children }: Expa
 				<motion.div
 					key="scrim"
 					onClick={onClose}
-					{...V.scrim}
+					{...VARIANTS.scrim}
 					className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-[var(--scrim)] p-4 backdrop-blur-sm sm:p-8"
 				>
 					<motion.div
 						ref={panelRef}
 						onClick={(event) => event.stopPropagation()}
-						{...V.pop}
+						{...VARIANTS.pop}
 						role="dialog"
 						aria-modal="true"
 						aria-label={`Expanded ${title.toLowerCase()}`}

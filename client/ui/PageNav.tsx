@@ -1,7 +1,7 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Icon } from "./Icon";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 export interface PageNavLink {
 	label: ReactNode;
@@ -25,7 +25,7 @@ function Side({ item, dir }: { item: PageNavLink; dir: "prev" | "next" }) {
 			onMouseLeave={() => setHover(false)}
 			animate={{ y: hover ? -2 : 0 }}
 			whileTap={{ y: 0, scale: 0.995 }}
-			transition={T.snap}
+			transition={TRANSITIONS.snap}
 			className={
 				"flex min-w-0 flex-1 flex-col gap-1 rounded-lg border bg-surface-card px-4 py-3 no-underline transition-shadow " +
 				(prev ? "items-start text-left" : "items-end text-right") +
@@ -35,13 +35,21 @@ function Side({ item, dir }: { item: PageNavLink; dir: "prev" | "next" }) {
 		>
 			<span className="flex items-center gap-1 font-mono text-[length:var(--size-2xs)] font-semibold uppercase tracking-[var(--tracking-caps)] text-text-subtle">
 				{prev ? (
-					<motion.span animate={{ x: hover ? -2 : 0 }} transition={T.snap} className="inline-flex">
+					<motion.span
+						animate={{ x: hover ? -2 : 0 }}
+						transition={TRANSITIONS.snap}
+						className="inline-flex"
+					>
 						<Icon name="arrow-left" size={12} />
 					</motion.span>
 				) : null}
 				{item.eyebrow ?? (prev ? "Previous" : "Next")}
 				{prev ? null : (
-					<motion.span animate={{ x: hover ? 2 : 0 }} transition={T.snap} className="inline-flex">
+					<motion.span
+						animate={{ x: hover ? 2 : 0 }}
+						transition={TRANSITIONS.snap}
+						className="inline-flex"
+					>
 						<Icon name="arrow-right" size={12} />
 					</motion.span>
 				)}

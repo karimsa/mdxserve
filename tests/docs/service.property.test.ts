@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
-import { DocsService } from "../../src/docs/service.js";
+import { DocsService, versionOf } from "../../src/docs/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
@@ -63,14 +63,13 @@ describe("DocsService — save-then-read round trip", () => {
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const stat = await fs.stat(abs);
 							const service = new DocsService([{ name: "docs", dir: root }], registry);
 
 							const saved = await service.saveSection({
 								path: abs,
 								startLine: range.startLine,
 								endLine: range.endLine,
-								mtime: stat.mtimeMs,
+								version: versionOf(doc.text),
 								markdown: replacement,
 							});
 							expect(saved.kind).toBe("ok");
@@ -83,7 +82,7 @@ describe("DocsService — save-then-read round trip", () => {
 							expect(read.kind).toBe("ok");
 							if (read.kind !== "ok") return;
 							expect(read.source.text).toBe(oracle.text);
-							expect(read.source.mtime).toBe((await fs.stat(abs)).mtimeMs);
+							expect(read.source.version).toBe(versionOf(read.source.text));
 						} finally {
 							await fs.rm(root, { recursive: true, force: true });
 						}
@@ -98,7 +97,7 @@ describe("DocsService — save-then-read round trip", () => {
 
 describe("DocsService — rejected saves leave the file untouched", () => {
 	it(
-		"a stale mtime, an out-of-range line range, and invalid markdown all leave the file byte-identical, with no leftover .*.mdxserve-tmp file",
+		"a stale version, an out-of-range line range, and invalid markdown all leave the file byte-identical, with no leftover .*.mdxserve-tmp file",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
@@ -109,7 +108,6 @@ describe("DocsService — rejected saves leave the file untouched", () => {
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const stat = await fs.stat(abs);
 							const service = new DocsService([{ name: "docs", dir: root }], registry);
 
 							const input =
@@ -118,7 +116,7 @@ describe("DocsService — rejected saves leave the file untouched", () => {
 											path: abs,
 											startLine: 1,
 											endLine: 1,
-											mtime: stat.mtimeMs - 1,
+											version: versionOf(`${doc.text}-drifted`),
 											markdown: "changed",
 										}
 									: mode === "out-of-range"
@@ -126,14 +124,14 @@ describe("DocsService — rejected saves leave the file untouched", () => {
 												path: abs,
 												startLine: 1,
 												endLine: doc.lines.length + 50,
-												mtime: stat.mtimeMs,
+												version: versionOf(doc.text),
 												markdown: "changed",
 											}
 										: {
 												path: abs,
 												startLine: 1,
 												endLine: 1,
-												mtime: stat.mtimeMs,
+												version: versionOf(doc.text),
 												markdown: "<UnknownComponent />",
 											};
 
@@ -161,7 +159,7 @@ describe("DocsService — rejected saves leave the file untouched", () => {
 
 describe("DocsService — concurrent saves", () => {
 	it(
-		"two concurrent saves on one instance with the same original mtime: exactly one ok, the other stale",
+		"two concurrent saves on one instance with the same original version: exactly one ok, the other stale",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
@@ -169,11 +167,15 @@ describe("DocsService — concurrent saves", () => {
 					replacementArb,
 					replacementArb,
 					async (doc, replacementA, replacementB) => {
+						// A replacement identical to line 1 leaves the bytes — and so the
+						// version — unchanged, and the second save is then correctly `ok`
+						// too. That no-op case is covered in service.test.ts; here we want
+						// the write that lands first to actually move the version.
+						fc.pre(replacementA !== doc.lines[0] && replacementB !== doc.lines[0]);
 						const root = await mkTmpRoot("concurrent-");
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const stat = await fs.stat(abs);
 							const service = new DocsService([{ name: "docs", dir: root }], registry);
 
 							const [resultA, resultB] = await Promise.all([
@@ -181,14 +183,14 @@ describe("DocsService — concurrent saves", () => {
 									path: abs,
 									startLine: 1,
 									endLine: 1,
-									mtime: stat.mtimeMs,
+									version: versionOf(doc.text),
 									markdown: replacementA,
 								}),
 								service.saveSection({
 									path: abs,
 									startLine: 1,
 									endLine: 1,
-									mtime: stat.mtimeMs,
+									version: versionOf(doc.text),
 									markdown: replacementB,
 								}),
 							]);

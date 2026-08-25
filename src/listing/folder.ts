@@ -32,12 +32,12 @@ export function readListing(dirAbs: string, rootInfo: RootInfo, docCache: DocCac
 	const dirents = fs.readdirSync(dirAbs, { withFileTypes: true });
 
 	const entries: ListingEntry[] = dirents
-		.filter((d) => isServable(d.name))
-		.map((d) => {
-			const isDir = d.isDirectory();
-			const ext = path.extname(d.name).toLowerCase();
+		.filter((dirent) => isServable(dirent.name))
+		.map((dirent) => {
+			const isDir = dirent.isDirectory();
+			const ext = path.extname(dirent.name).toLowerCase();
 			const isDoc = !isDir && (ext === ".md" || ext === ".mdx");
-			const absPath = path.join(dirAbs, d.name);
+			const absPath = path.join(dirAbs, dirent.name);
 			let size: number | undefined;
 			let mtime: number | undefined;
 			try {
@@ -50,7 +50,7 @@ export function readListing(dirAbs: string, rootInfo: RootInfo, docCache: DocCac
 			}
 			const doc = isDoc ? docCache.read(absPath, mtime ?? 0) : undefined;
 			return {
-				name: d.name,
+				name: dirent.name,
 				isDir,
 				isDoc,
 				title: doc?.h1,
@@ -59,9 +59,9 @@ export function readListing(dirAbs: string, rootInfo: RootInfo, docCache: DocCac
 				mtime,
 			};
 		})
-		.sort((a, b) => {
-			if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-			return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+		.sort((first, second) => {
+			if (first.isDir !== second.isDir) return first.isDir ? -1 : 1;
+			return first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
 		});
 
 	return {

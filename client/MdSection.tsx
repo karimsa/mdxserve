@@ -96,7 +96,7 @@ function Section({
 }) {
 	const [mode, setMode] = useState<"read" | "loading" | "edit">("read");
 	const [source, setSource] = useState("");
-	const [mtime, setMtime] = useState(0);
+	const [version, setVersion] = useState("");
 	const [openSection, setOpenSection] = useAtom(openSectionAtom);
 	const key = `${path}:${startLine}:${endLine}`;
 
@@ -137,7 +137,7 @@ function Section({
 			setMode((current) => {
 				if (current !== "loading") return current;
 				setSource(sliced);
-				setMtime(data.mtime);
+				setVersion(data.version);
 				return current;
 			});
 			// A transition, so React keeps the read-mode DOM on screen until the
@@ -186,7 +186,7 @@ function Section({
 			>
 				<MdSectionEditor
 					source={source}
-					mtime={mtime}
+					version={version}
 					path={path}
 					startLine={startLine}
 					endLine={endLine}

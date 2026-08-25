@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { diffLines, diffWordsWithSpace } from "diff";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 import { CrossFade } from "../CrossFade";
 import { Icon } from "../ui/Icon";
 
@@ -119,9 +119,9 @@ function pairLine(
 }
 
 /** 0..1 similarity of two lines: Dice ratio of shared word-token length (whitespace ignored). */
-function lineSimilarity(a: string, b: string): number {
-	const ta = a.trim();
-	const tb = b.trim();
+function lineSimilarity(left: string, right: string): number {
+	const ta = left.trim();
+	const tb = right.trim();
 	if (ta === tb) return 1;
 	if (!ta || !tb) return 0;
 	const nonWs = (text: string) => text.replace(/\s+/g, "").length;
@@ -140,34 +140,48 @@ function lineSimilarity(a: string, b: string): number {
  */
 function alignLines(dels: string[], adds: string[]): Array<[number, number]> {
 	const MIN = 0.65;
-	const n = dels.length;
-	const m = adds.length;
-	if (n === 0 || m === 0) return [];
+	const delCount = dels.length;
+	const addCount = adds.length;
+	if (delCount === 0 || addCount === 0) return [];
 	// Cap the quadratic work for very large blocks: fall back to positional pairing.
-	if (n * m > 40_000)
-		return Array.from({ length: Math.min(n, m) }, (_, k) => [k, k] as [number, number]);
-	const sim: number[][] = dels.map((d) => adds.map((a) => lineSimilarity(d, a)));
-	const score: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-	for (let i = 1; i <= n; i++) {
-		for (let j = 1; j <= m; j++) {
-			const s = sim[i - 1][j - 1];
-			const diag = score[i - 1][j - 1] + (s >= MIN ? s : 0);
-			score[i][j] = Math.max(diag, score[i - 1][j], score[i][j - 1]);
+	if (delCount * addCount > 40_000)
+		return Array.from(
+			{ length: Math.min(delCount, addCount) },
+			(_, index) => [index, index] as [number, number],
+		);
+	const sim: number[][] = dels.map((delLine) =>
+		adds.map((addLine) => lineSimilarity(delLine, addLine)),
+	);
+	const score: number[][] = Array.from({ length: delCount + 1 }, () =>
+		new Array<number>(addCount + 1).fill(0),
+	);
+	for (let delIndex = 1; delIndex <= delCount; delIndex++) {
+		for (let addIndex = 1; addIndex <= addCount; addIndex++) {
+			const similarity = sim[delIndex - 1][addIndex - 1];
+			const diag = score[delIndex - 1][addIndex - 1] + (similarity >= MIN ? similarity : 0);
+			score[delIndex][addIndex] = Math.max(
+				diag,
+				score[delIndex - 1][addIndex],
+				score[delIndex][addIndex - 1],
+			);
 		}
 	}
 	const pairs: Array<[number, number]> = [];
-	let i = n;
-	let j = m;
-	while (i > 0 && j > 0) {
-		const s = sim[i - 1][j - 1];
-		if (s >= MIN && score[i][j] === score[i - 1][j - 1] + s) {
-			pairs.push([i - 1, j - 1]);
-			i--;
-			j--;
-		} else if (score[i - 1][j] >= score[i][j - 1]) {
-			i--;
+	let delIndex = delCount;
+	let addIndex = addCount;
+	while (delIndex > 0 && addIndex > 0) {
+		const similarity = sim[delIndex - 1][addIndex - 1];
+		if (
+			similarity >= MIN &&
+			score[delIndex][addIndex] === score[delIndex - 1][addIndex - 1] + similarity
+		) {
+			pairs.push([delIndex - 1, addIndex - 1]);
+			delIndex--;
+			addIndex--;
+		} else if (score[delIndex - 1][addIndex] >= score[delIndex][addIndex - 1]) {
+			delIndex--;
 		} else {
-			j--;
+			addIndex--;
 		}
 	}
 	return pairs.reverse();
@@ -189,11 +203,11 @@ function flattenChanges(
 	let newNo = 1;
 	let additions = 0;
 	let deletions = 0;
-	let i = 0;
+	let index = 0;
 
-	while (i < changes.length) {
-		const change = changes[i];
-		const next = changes[i + 1];
+	while (index < changes.length) {
+		const change = changes[index];
+		const next = changes[index + 1];
 
 		if (change.removed && next?.added) {
 			// A removed block directly followed by an added block: emit all removed
@@ -206,37 +220,38 @@ function flattenChanges(
 			const delRows: DiffRow[] = [];
 			const addRows: DiffRow[] = [];
 			const pairedDel = new Map<number, number>();
-			for (const [d, a] of matches) pairedDel.set(d, a);
-			const pairedAdd = new Set(matches.map(([, a]) => a));
+			for (const [delIndex, addIndex] of matches) pairedDel.set(delIndex, addIndex);
+			const pairedAdd = new Set(matches.map(([, addIndex]) => addIndex));
 			const segmentsFor = new Map<number, ReturnType<typeof pairLine>>();
-			for (const [d, a] of matches) segmentsFor.set(d, pairLine(delLines[d], addLines[a]));
-			for (let d = 0; d < delLines.length; d++) {
-				const seg = segmentsFor.get(d);
+			for (const [delIndex, addIndex] of matches)
+				segmentsFor.set(delIndex, pairLine(delLines[delIndex], addLines[addIndex]));
+			for (let delIndex = 0; delIndex < delLines.length; delIndex++) {
+				const seg = segmentsFor.get(delIndex);
 				delRows.push({
 					kind: "del",
 					oldNo: oldNo++,
-					text: delLines[d],
+					text: delLines[delIndex],
 					segments: seg?.delSegments,
-					paired: pairedDel.has(d),
-					pairId: pairedDel.get(d),
+					paired: pairedDel.has(delIndex),
+					pairId: pairedDel.get(delIndex),
 				});
 			}
-			for (let a = 0; a < addLines.length; a++) {
-				const d = [...pairedDel.entries()].find(([, pa]) => pa === a)?.[0];
-				const seg = d === undefined ? undefined : segmentsFor.get(d);
+			for (let addIndex = 0; addIndex < addLines.length; addIndex++) {
+				const delIndex = [...pairedDel.entries()].find(([, pa]) => pa === addIndex)?.[0];
+				const seg = delIndex === undefined ? undefined : segmentsFor.get(delIndex);
 				addRows.push({
 					kind: "add",
 					newNo: newNo++,
-					text: addLines[a],
+					text: addLines[addIndex],
 					segments: seg?.addSegments,
-					paired: pairedAdd.has(a),
-					pairId: a,
+					paired: pairedAdd.has(addIndex),
+					pairId: addIndex,
 				});
 			}
 			rows.push(...delRows, ...addRows);
 			deletions += delLines.length;
 			additions += addLines.length;
-			i += 2;
+			index += 2;
 			continue;
 		}
 
@@ -245,7 +260,7 @@ function flattenChanges(
 				rows.push({ kind: "del", oldNo: oldNo++, text: line });
 				deletions++;
 			}
-			i++;
+			index++;
 			continue;
 		}
 
@@ -254,14 +269,14 @@ function flattenChanges(
 				rows.push({ kind: "add", newNo: newNo++, text: line });
 				additions++;
 			}
-			i++;
+			index++;
 			continue;
 		}
 
 		for (const line of splitLines(change.value)) {
 			rows.push({ kind: "context", oldNo: oldNo++, newNo: newNo++, text: line });
 		}
-		i++;
+		index++;
 	}
 
 	return { rows, additions, deletions };
@@ -276,21 +291,21 @@ function flattenChanges(
  */
 function groupHunks(rows: DiffRow[], context: number): DiffHunkRow[] {
 	const result: DiffHunkRow[] = [];
-	let i = 0;
+	let index = 0;
 
-	while (i < rows.length) {
-		const row = rows[i];
+	while (index < rows.length) {
+		const row = rows[index];
 		if (row.kind !== "context") {
 			result.push(row);
-			i++;
+			index++;
 			continue;
 		}
 
-		let j = i;
-		while (j < rows.length && rows[j].kind === "context") j++;
-		const run = rows.slice(i, j);
-		const isLeading = i === 0;
-		const isTrailing = j === rows.length;
+		let runEnd = index;
+		while (runEnd < rows.length && rows[runEnd].kind === "context") runEnd++;
+		const run = rows.slice(index, runEnd);
+		const isLeading = index === 0;
+		const isTrailing = runEnd === rows.length;
 
 		if (isLeading && isTrailing) {
 			if (run.length > 2 * context) {
@@ -329,7 +344,7 @@ function groupHunks(rows: DiffRow[], context: number): DiffHunkRow[] {
 			}
 		}
 
-		i = j;
+		index = runEnd;
 	}
 
 	return result;
@@ -498,12 +513,12 @@ interface SplitRow {
 
 function toSplitRows(rows: DiffRow[]): SplitRow[] {
 	const out: SplitRow[] = [];
-	let i = 0;
-	while (i < rows.length) {
-		const row = rows[i];
+	let index = 0;
+	while (index < rows.length) {
+		const row = rows[index];
 		if (row.kind === "context") {
 			out.push({ left: row, right: row });
-			i++;
+			index++;
 			continue;
 		}
 		// Collect the run of removed lines and the run of added lines that
@@ -512,18 +527,18 @@ function toSplitRows(rows: DiffRow[]): SplitRow[] {
 		// order on both sides.
 		const dels: DiffRow[] = [];
 		const adds: DiffRow[] = [];
-		while (i < rows.length && rows[i].kind === "del") dels.push(rows[i++]);
-		while (i < rows.length && rows[i].kind === "add") adds.push(rows[i++]);
-		let a = 0;
+		while (index < rows.length && rows[index].kind === "del") dels.push(rows[index++]);
+		while (index < rows.length && rows[index].kind === "add") adds.push(rows[index++]);
+		let addIndex = 0;
 		for (const del of dels) {
 			if (del.paired && del.pairId !== undefined) {
-				while (a < del.pairId) out.push({ right: adds[a++] });
-				out.push({ left: del, right: adds[a++] });
+				while (addIndex < del.pairId) out.push({ right: adds[addIndex++] });
+				out.push({ left: del, right: adds[addIndex++] });
 			} else {
 				out.push({ left: del });
 			}
 		}
-		while (a < adds.length) out.push({ right: adds[a++] });
+		while (addIndex < adds.length) out.push({ right: adds[addIndex++] });
 	}
 	return out;
 }
@@ -663,7 +678,7 @@ export default function Diff({
 						{activeView === option ? (
 							<motion.span
 								layoutId={`${toggleId}-pill`}
-								transition={T.snap}
+								transition={TRANSITIONS.snap}
 								className="absolute inset-0 rounded bg-surface-hover"
 							/>
 						) : null}
@@ -686,7 +701,7 @@ export default function Diff({
 		<motion.div
 			initial={{ opacity: 0, y: 6 }}
 			animate={{ opacity: 1, y: 0 }}
-			transition={T.base}
+			transition={TRANSITIONS.base}
 			className="not-prose overflow-hidden rounded-lg border border-code-border bg-code-bg"
 		>
 			<CodeFrameHeader label={header} actions={actions} />

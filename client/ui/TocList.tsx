@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { motion } from "framer-motion";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 export interface TocItem {
 	id: string;
@@ -57,7 +57,7 @@ export function TocList({
 							{active ? (
 								<motion.span
 									layoutId="toc-active"
-									transition={T.glide}
+									transition={TRANSITIONS.glide}
 									className="absolute -left-0.5 top-0 bottom-0 w-0.5 bg-teal-500"
 								/>
 							) : null}

@@ -75,19 +75,21 @@ function resolveTone({ tone, type }: Pick<CalloutProps, "tone" | "type">): Tone 
 
 export default function Callout({ tone, type, title, children }: CalloutProps) {
 	const resolved = resolveTone({ tone, type });
-	const t = TONES[resolved];
+	const style = TONES[resolved];
 
 	return (
 		<motion.div
 			variants={fadeRise}
 			initial="initial"
 			animate="enter"
-			className={`not-prose flex items-start gap-3 rounded-lg p-4 border border-transparent font-sans font-medium leading-normal text-[length:var(--size-md)] ${t.bg}`}
-			style={{ borderColor: `color-mix(in oklab, ${t.fgVar} 22%, transparent)` }}
+			className={`not-prose flex items-start gap-3 rounded-lg p-4 border border-transparent font-sans font-medium leading-normal text-[length:var(--size-md)] ${style.bg}`}
+			style={{ borderColor: `color-mix(in oklab, ${style.fgVar} 22%, transparent)` }}
 		>
-			<Icon name={t.icon} size="md" className={`mt-0.5 shrink-0 ${t.fg}`} />
+			<Icon name={style.icon} size="md" className={`mt-0.5 shrink-0 ${style.fg}`} />
 			<div className="min-w-0 flex-1">
-				<p className={`font-bold tracking-[var(--tracking-snug)] ${t.fg}`}>{title || t.label}</p>
+				<p className={`font-bold tracking-[var(--tracking-snug)] ${style.fg}`}>
+					{title || style.label}
+				</p>
 				<div className="mt-1 leading-6 text-text-body">{children}</div>
 			</div>
 		</motion.div>

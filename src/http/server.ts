@@ -5,7 +5,7 @@ import fsp from "node:fs/promises";
 import type { ViteDevServer } from "vite";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
-import { readListing } from "../listing/folder.js";
+import { ListingService } from "../listing/service.js";
 import { renderShell, type Route } from "./shell.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { resolveRoot } from "../roots/paths.js";
@@ -32,8 +32,8 @@ function wantsHtml(req: http.IncomingMessage): boolean {
 }
 
 /** Exported for `src/http/start.ts`'s generated Tailwind entry CSS, which needs the same rewrite. */
-export function toPosix(p: string): string {
-	return p.split(path.sep).join("/");
+export function toPosix(filePath: string): string {
+	return filePath.split(path.sep).join("/");
 }
 
 export interface RequestContext {
@@ -264,9 +264,25 @@ export async function handleRequest(
 			res.end();
 			return;
 		}
-		const listing = readListing(abs, rootInfo, docCache);
-		const route: Route = { kind: "listing", ...listing };
-		res.statusCode = 200;
+		// The listing itself comes from ListingService, the same way
+		// getFolderListing gets it — the stat above only decides which
+		// representation to serve, and the service still has the final say on
+		// whether this directory may be listed at all.
+		const result = await new ListingService(rootInfos, docCache).folderListing(decodedPathname);
+		if (result.kind === "ok") {
+			const route: Route = { kind: "listing", ...result.listing };
+			res.statusCode = 200;
+			res.setHeader("Content-Type", "text/html; charset=utf-8");
+			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			return;
+		}
+		const route: Route = {
+			kind: "notfound",
+			path: decodedPathname,
+			rootName: rootInfo.name,
+			rootDir: rootInfo.dir,
+		};
+		res.statusCode = 404;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
 		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
 		return;

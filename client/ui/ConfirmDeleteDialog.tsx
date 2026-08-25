@@ -5,7 +5,7 @@ import { formatModified, formatSize } from "../format";
 import Button from "../builtins/Button";
 import type { ListingEntry } from "../router";
 import { Icon } from "./Icon";
-import { V } from "../motion";
+import { VARIANTS } from "../motion";
 
 export function ConfirmDeleteDialog({
 	open,
@@ -46,12 +46,12 @@ export function ConfirmDeleteDialog({
 				<motion.div
 					key="scrim"
 					onClick={pending ? undefined : onCancel}
-					{...V.scrim}
+					{...VARIANTS.scrim}
 					className="fixed inset-0 z-[var(--z-modal)] flex justify-center bg-[var(--scrim)] pt-[10vh] backdrop-blur-sm"
 				>
 					<motion.div
 						onClick={(event) => event.stopPropagation()}
-						{...V.pop}
+						{...VARIANTS.pop}
 						role="alertdialog"
 						aria-modal="true"
 						aria-labelledby="confirm-delete-title"

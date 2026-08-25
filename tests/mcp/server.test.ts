@@ -77,7 +77,7 @@ describe("createMcpServer", () => {
 		const { client, server } = await connectedClient();
 		try {
 			const { tools } = await client.listTools();
-			expect(tools.map((t) => t.name).sort()).toEqual(
+			expect(tools.map((tool) => tool.name).sort()).toEqual(
 				["list_components", "list_docs", "search_docs", "show_component", "validate_doc"].sort(),
 			);
 		} finally {
@@ -170,11 +170,15 @@ describe("createMcpServer", () => {
 			};
 			expect(structured.ok).toBe(false);
 
-			const unknownComponent = structured.diagnostics.find((d) => d.code === "unknown-component");
+			const unknownComponent = structured.diagnostics.find(
+				(diagnostic) => diagnostic.code === "unknown-component",
+			);
 			expect(unknownComponent?.component).toBe("Calout");
 			expect(unknownComponent?.suggestions).toContain("Callout");
 
-			const unknownProp = structured.diagnostics.find((d) => d.code === "unknown-prop");
+			const unknownProp = structured.diagnostics.find(
+				(diagnostic) => diagnostic.code === "unknown-prop",
+			);
 			expect(unknownProp?.prop).toBe("tonee");
 		} finally {
 			await client.close();
@@ -185,8 +189,11 @@ describe("createMcpServer", () => {
 	it("validate_doc rejects paths outside every root", async () => {
 		const { client, server } = await connectedClient();
 		try {
-			for (const p of ["../etc/passwd", "/etc/passwd", path.join(fixtureDir, "..", "x.md")]) {
-				const result = await client.callTool({ name: "validate_doc", arguments: { path: p } });
+			for (const badPath of ["../etc/passwd", "/etc/passwd", path.join(fixtureDir, "..", "x.md")]) {
+				const result = await client.callTool({
+					name: "validate_doc",
+					arguments: { path: badPath },
+				});
 				expect(result.isError).toBe(true);
 			}
 		} finally {
@@ -242,7 +249,7 @@ describe("createMcpServer", () => {
 			});
 			expect(result.isError).toBeFalsy();
 			const structured = result.structuredContent as { components: Array<{ name: string }> };
-			const names = structured.components.map((c) => c.name);
+			const names = structured.components.map((component) => component.name);
 			expect(names).toContain("Callout");
 			expect(names).toContain("Badge");
 		} finally {
@@ -259,7 +266,7 @@ describe("createMcpServer", () => {
 			const allRoots = (
 				all.structuredContent as { roots: Array<{ name: string; nodes: unknown[] }> }
 			).roots;
-			expect(allRoots.map((r) => r.name)).toEqual(["docs", "other"]);
+			expect(allRoots.map((root) => root.name)).toEqual(["docs", "other"]);
 			expect(JSON.stringify(allRoots[0].nodes)).toContain(
 				path.join(fixtureDir, "sub", "nested.md"),
 			);
@@ -271,7 +278,7 @@ describe("createMcpServer", () => {
 			const oneRoots = (
 				one.structuredContent as { roots: Array<{ name: string; nodes: unknown[] }> }
 			).roots;
-			expect(oneRoots.map((r) => r.name)).toEqual(["docs"]);
+			expect(oneRoots.map((root) => root.name)).toEqual(["docs"]);
 			expect(JSON.stringify(oneRoots[0].nodes)).toContain("nested.md");
 
 			const bad = await client.callTool({ name: "list_docs", arguments: { path: "/nope" } });
@@ -299,7 +306,7 @@ describe("createMcpServer", () => {
 			});
 			expect(result.isError).toBeFalsy();
 			const structured = result.structuredContent as { results: Array<{ path: string }> };
-			expect(structured.results.some((r) => r.path.endsWith("good.md"))).toBe(true);
+			expect(structured.results.some((hit) => hit.path.endsWith("good.md"))).toBe(true);
 		} finally {
 			await client.close();
 			await server.close();

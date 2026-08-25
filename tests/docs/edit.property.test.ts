@@ -68,13 +68,13 @@ const caseArb = fc
 		const text = lines.join(eol) + (trailingEol ? eol : "");
 		return fc
 			.tuple(fc.integer({ min: 1, max: lines.length }), fc.integer({ min: 1, max: lines.length }))
-			.map(([x, y]) => ({
+			.map(([oneLine, otherLine]) => ({
 				lines,
 				eol,
 				trailingEol,
 				text,
-				start: Math.min(x, y),
-				end: Math.max(x, y),
+				start: Math.min(oneLine, otherLine),
+				end: Math.max(oneLine, otherLine),
 			}));
 	});
 
@@ -103,8 +103,8 @@ describe("spliceLines — identity", () => {
 describe("spliceLines — outside-range invariance and EOL preservation", () => {
 	it("lines before start and after end are unchanged; EOL and trailing-newline state are preserved", () => {
 		fc.assert(
-			fc.property(caseWithReplacementArb, (c) => {
-				const { text, start, end, lines, eol, trailingEol, replacement } = c;
+			fc.property(caseWithReplacementArb, (testCase) => {
+				const { text, start, end, lines, eol, trailingEol, replacement } = testCase;
 				fc.pre(!(end === lines.length && replacementEndsBlank(replacement)));
 				const result = spliceLines(text, start, end, replacement);
 				expect(result.ok).toBe(true);
@@ -143,19 +143,22 @@ describe("spliceLines — counting", () => {
 });
 
 describe("spliceLines — commutation of disjoint splices", () => {
-	// Four distinct 1-indexed line numbers, sorted into a < b < c < d, so
-	// [a, b] and [c, d] are disjoint with a gap (b < c) and offsets from
-	// editing the first range are stable when applied to the second.
+	// Four distinct 1-indexed line numbers, sorted ascending, so the ranges
+	// [firstStart, firstEnd] and [secondStart, secondEnd] are disjoint with a
+	// gap between them, and offsets from editing the first range are stable
+	// when applied to the second.
 	const disjointCaseArb = linesArb(4, 10)
 		.chain((lines) =>
 			fc
 				.uniqueArray(fc.integer({ min: 1, max: lines.length }), { minLength: 4, maxLength: 4 })
 				.map((nums) => {
-					const [a, b, c, d] = [...nums].sort((p, q) => p - q);
-					return { lines, a, b, c, d };
+					const [firstStart, firstEnd, secondStart, secondEnd] = [...nums].sort(
+						(left, right) => left - right,
+					);
+					return { lines, firstStart, firstEnd, secondStart, secondEnd };
 				}),
 		)
-		.chain(({ lines, a, b, c, d }) =>
+		.chain(({ lines, firstStart, firstEnd, secondStart, secondEnd }) =>
 			fc
 				.tuple(
 					fc.array(lineArb, { minLength: 0, maxLength: 4 }),
@@ -163,35 +166,38 @@ describe("spliceLines — commutation of disjoint splices", () => {
 				)
 				.map(([repl1, repl2]) => ({
 					lines,
-					a,
-					b,
-					c,
-					d,
+					firstStart,
+					firstEnd,
+					secondStart,
+					secondEnd,
 					repl1: repl1.join("\n"),
 					repl2: repl2.join("\n"),
 				})),
 		);
 
-	it("splicing [c,d] then [a,b] equals splicing [a,b] then [c+delta, d+delta]", () => {
+	it("splicing the later range first equals splicing the earlier one first, with the later range shifted", () => {
 		fc.assert(
-			fc.property(disjointCaseArb, ({ lines, a, b, c, d, repl1, repl2 }) => {
-				const text = lines.join("\n");
+			fc.property(
+				disjointCaseArb,
+				({ lines, firstStart, firstEnd, secondStart, secondEnd, repl1, repl2 }) => {
+					const text = lines.join("\n");
 
-				const step1 = spliceLines(text, c, d, repl2);
-				expect(step1.ok).toBe(true);
-				if (!step1.ok) return;
-				const orderA = spliceLines(step1.text, a, b, repl1);
-				expect(orderA.ok).toBe(true);
+					const step1 = spliceLines(text, secondStart, secondEnd, repl2);
+					expect(step1.ok).toBe(true);
+					if (!step1.ok) return;
+					const orderA = spliceLines(step1.text, firstStart, firstEnd, repl1);
+					expect(orderA.ok).toBe(true);
 
-				const step2 = spliceLines(text, a, b, repl1);
-				expect(step2.ok).toBe(true);
-				if (!step2.ok) return;
-				const delta = replacementLineCount(repl1) - (b - a + 1);
-				const orderB = spliceLines(step2.text, c + delta, d + delta, repl2);
-				expect(orderB.ok).toBe(true);
+					const step2 = spliceLines(text, firstStart, firstEnd, repl1);
+					expect(step2.ok).toBe(true);
+					if (!step2.ok) return;
+					const delta = replacementLineCount(repl1) - (firstEnd - firstStart + 1);
+					const orderB = spliceLines(step2.text, secondStart + delta, secondEnd + delta, repl2);
+					expect(orderB.ok).toBe(true);
 
-				if (orderA.ok && orderB.ok) expect(orderA.text).toBe(orderB.text);
-			}),
+					if (orderA.ok && orderB.ok) expect(orderA.text).toBe(orderB.text);
+				},
+			),
 		);
 	});
 });

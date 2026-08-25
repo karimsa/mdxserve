@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { T } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 /** Gap between the content's edge and the resize handle's resting line. */
 const HANDLE_INSET = 12;
@@ -188,7 +188,11 @@ export function ResizeHandle({
 			<motion.div
 				initial={false}
 				animate={handleBar[state]}
-				transition={{ ...T.snap, opacity: T.fast, backgroundColor: T.fast }}
+				transition={{
+					...TRANSITIONS.snap,
+					opacity: TRANSITIONS.fast,
+					backgroundColor: TRANSITIONS.fast,
+				}}
 				className={"shrink-0 rounded-full" + (anchored ? "" : " sticky")}
 				style={anchored ? undefined : { top: `calc(50vh - ${PILL_HEIGHT / 2}px)` }}
 			/>

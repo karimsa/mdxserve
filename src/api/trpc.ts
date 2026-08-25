@@ -36,10 +36,10 @@ export interface ProcedureMeta {
 	description: string;
 }
 
-const t = initTRPC.context<ApiContext>().meta<ProcedureMeta>().create();
+const trpc = initTRPC.context<ApiContext>().meta<ProcedureMeta>().create();
 
-export const router = t.router;
-export const createCallerFactory = t.createCallerFactory;
+export const router = trpc.router;
+export const createCallerFactory = trpc.createCallerFactory;
 
 /**
  * A same-origin request either omits `Origin` (a plain navigation, or a
@@ -64,7 +64,7 @@ function isCrossOrigin(ctx: ApiContext): boolean {
 // server never answers), so this is belt-and-braces for callers that skip
 // preflight rules; queries stay reachable since nothing they return can be
 // read cross-origin without CORS headers either.
-const rejectCrossOriginMutations = t.middleware(({ ctx, type, next }) => {
+const rejectCrossOriginMutations = trpc.middleware(({ ctx, type, next }) => {
 	if (type === "mutation" && isCrossOrigin(ctx)) {
 		throw new TRPCError({ code: "FORBIDDEN", message: "Cross-origin write rejected" });
 	}
@@ -75,5 +75,5 @@ const rejectCrossOriginMutations = t.middleware(({ ctx, type, next }) => {
 // `t.procedure` itself is deliberately not exported, so a description-less
 // procedure doesn't compile.
 export function procedure(description: string) {
-	return t.procedure.meta({ description }).use(rejectCrossOriginMutations);
+	return trpc.procedure.meta({ description }).use(rejectCrossOriginMutations);
 }

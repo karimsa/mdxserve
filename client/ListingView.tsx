@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { queryClient, trpc } from "./api";
 import { formatModified, formatSize } from "./format";
-import { stagger, T, V } from "./motion";
+import { stagger, TRANSITIONS, VARIANTS } from "./motion";
 import { Icon } from "./ui/Icon";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { ConfirmDeleteDialog } from "./ui/ConfirmDeleteDialog";
@@ -21,15 +21,15 @@ import {
 } from "./state";
 
 function sortEntries(entries: ListingEntry[], sort: SortKey): ListingEntry[] {
-	const byName = (a: ListingEntry, b: ListingEntry) =>
-		a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-	return [...entries].sort((a, b) => {
-		if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+	const byName = (first: ListingEntry, second: ListingEntry) =>
+		first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
+	return [...entries].sort((first, second) => {
+		if (first.isDir !== second.isDir) return first.isDir ? -1 : 1;
 		if (sort === "modified") {
-			const diff = (b.mtime ?? 0) - (a.mtime ?? 0);
+			const diff = (second.mtime ?? 0) - (first.mtime ?? 0);
 			if (diff !== 0) return diff;
 		}
-		return byName(a, b);
+		return byName(first, second);
 	});
 }
 
@@ -143,7 +143,7 @@ function Row({
 			{active ? (
 				<motion.span
 					layoutId="sidebar-active"
-					transition={T.glide}
+					transition={TRANSITIONS.glide}
 					className="absolute inset-0 z-0 rounded-md bg-surface-accent-soft"
 					aria-hidden="true"
 				/>
@@ -223,7 +223,9 @@ function SelectMenu({
 	}
 
 	function olderThan(days: number): ListingEntry[] {
-		return fileEntries.filter((e) => typeof e.mtime === "number" && now - e.mtime > days * DAY_MS);
+		return fileEntries.filter(
+			(entry) => typeof entry.mtime === "number" && now - entry.mtime > days * DAY_MS,
+		);
 	}
 
 	function select(names: Set<string>) {
@@ -265,7 +267,7 @@ function SelectMenu({
 			<AnimatePresence>
 				{open ? (
 					<motion.div
-						{...V.pop}
+						{...VARIANTS.pop}
 						className="absolute left-0 top-full z-[var(--z-dropdown)] mt-1 min-w-56 rounded-lg border border-border-default bg-surface-raised p-1 shadow-md"
 					>
 						<button
@@ -273,7 +275,7 @@ function SelectMenu({
 							disabled={fileEntries.length === 0}
 							onClick={
 								fileEntries.length > 0
-									? () => select(new Set(fileEntries.map((e) => e.name)))
+									? () => select(new Set(fileEntries.map((entry) => entry.name)))
 									: undefined
 							}
 							className={menuItemClass(fileEntries.length > 0)}
@@ -292,7 +294,7 @@ function SelectMenu({
 									disabled={matches.length === 0}
 									onClick={
 										matches.length > 0
-											? () => select(new Set(matches.map((e) => e.name)))
+											? () => select(new Set(matches.map((entry) => entry.name)))
 											: undefined
 									}
 									className={menuItemClass(matches.length > 0)}
@@ -319,7 +321,7 @@ function SelectMenu({
 								onKeyDown={(event) => {
 									if (event.key === "Enter" && customMatches.length > 0) {
 										event.preventDefault();
-										select(new Set(customMatches.map((e) => e.name)));
+										select(new Set(customMatches.map((entry) => entry.name)));
 									}
 								}}
 								className="w-12 rounded border border-border-default bg-surface-card px-1 py-0.5 text-center font-mono text-[length:var(--size-xs)] tabular-nums"
@@ -383,7 +385,7 @@ export function ListingView({
 	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
 	// Non-doc files aren't navigable in the sidebar rail and just cost space there.
 	const visible = useMemo(
-		() => (sidebar ? sorted.filter((e) => e.isDir || e.isDoc) : sorted),
+		() => (sidebar ? sorted.filter((entry) => entry.isDir || entry.isDoc) : sorted),
 		[sorted, sidebar],
 	);
 	const setWidth = useSetAtom(listingWidthAtom);
@@ -397,20 +399,20 @@ export function ListingView({
 		setConfirmOpen(false);
 	}, [path]);
 
-	const fileEntries = useMemo(() => entries.filter((e) => !e.isDir), [entries]);
+	const fileEntries = useMemo(() => entries.filter((entry) => !entry.isDir), [entries]);
 	// Drop names that left the listing (watcher push, external deletes) from the
 	// set itself — otherwise a file recreated with the same name would come back
 	// already checked.
 	useEffect(() => {
 		setSelectedNames((current) => {
-			const live = new Set(fileEntries.map((e) => e.name));
+			const live = new Set(fileEntries.map((entry) => entry.name));
 			const next = new Set([...current].filter((name) => live.has(name)));
 			return next.size === current.size ? current : next;
 		});
 	}, [fileEntries]);
 	// Derived pruning as well, so mid-render staleness can't reach the UI or the POST.
 	const selected = useMemo(
-		() => fileEntries.filter((e) => selectedNames.has(e.name)),
+		() => fileEntries.filter((entry) => selectedNames.has(entry.name)),
 		[fileEntries, selectedNames],
 	);
 	const selectionActive = selected.length > 0;
@@ -456,7 +458,7 @@ export function ListingView({
 		if (pendingRef.current) return;
 		pendingRef.current = true;
 		setPending(true);
-		const byPath = new Map(selected.map((e) => [`${path}${e.name}`, e.name]));
+		const byPath = new Map(selected.map((entry) => [`${path}${entry.name}`, entry.name]));
 		try {
 			const data = await trashMutation.mutateAsync({ paths: [...byPath.keys()] });
 			setConfirmOpen(false);
@@ -471,7 +473,9 @@ export function ListingView({
 				// Keep only the failures selected so the user can see and retry them.
 				setSelectedNames(
 					new Set(
-						data.failed.map((f) => byPath.get(f.path)).filter((n): n is string => n !== undefined),
+						data.failed
+							.map((failure) => byPath.get(failure.path))
+							.filter((name): name is string => name !== undefined),
 					),
 				);
 				pushToast({

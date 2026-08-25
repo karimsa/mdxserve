@@ -67,7 +67,10 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 - Every service should be cognizant of its service boundaries, revalidating assumptions across boundaries
 - All HTTP API methods made available should be strongly typed on both input parameters and result, using zod, ensuring we have both compile-time and runtime type safety
 - All HTTP API methods should be GET or POST methods, written as RPC methods (i.e. `getEntityById` vs. `/entity/:id`)
-- Never use single-letter variable names, even for small things like `.map(e => e)` or try/catch statements
+- Never use single-letter variable names, even for small things like `.map(e => e)` or try/catch
+  statements. `yarn lint` enforces this (`eslint/id-length`); the only exceptions are `_` for a
+  binding you deliberately ignore, and `x`/`y` for a coordinate pair. Property names are not
+  checked — `{ opacity: 0, y: 4 }` is a framer-motion key, not a name we chose
 
 ## Writing tests
 
