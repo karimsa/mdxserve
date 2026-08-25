@@ -228,14 +228,17 @@ and `~/.agents/skills`; re-run it after editing anything under `skills/`.
 ## Cache
 
 Vite pre-bundles the browser dependencies (React, mermaid, framer-motion, …)
-on first start and keeps that cache in a hidden `.mdxserve/` folder under the
-first root you pass (the first `-w`, or `[dir]` if you didn't pass `-w`), so
-later starts are fast and nothing is written outside your docs folders. It is
-safe to delete at any time, and worth adding to that folder's `.gitignore`.
+on first start and keeps that cache under `~/.cache/mdxserve/` (or
+`$XDG_CACHE_HOME/mdxserve/`), in a folder named after the first root you pass
+(the first `-w`, or `[dir]` if you didn't pass `-w`) plus a hash of its
+absolute path, e.g. `~/.cache/mdxserve/docs-3f9a1c2b7d4e5f60/`. Later starts
+are fast and nothing is written inside your docs folders. It is safe to
+delete at any time. Set `MDXSERVE_CACHE_HOME` to move the whole cache
+elsewhere.
 
 ```bash
-npx mdxserve cache clean          # remove ./.mdxserve
-npx mdxserve cache clean docs/    # remove docs/.mdxserve
+npx mdxserve cache clean          # remove the cache for ./
+npx mdxserve cache clean docs/    # remove the cache for docs/
 ```
 
 ## Development

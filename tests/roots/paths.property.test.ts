@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { resolveDirPath, resolveDocPath, resolveRoot } from "../../src/roots/paths.js";
+import { expandHome, resolveDirPath, resolveDocPath, resolveRoot } from "../../src/roots/paths.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
 
@@ -130,6 +130,52 @@ describe("resolveRoot — idempotence", () => {
 					expect(second).toEqual(first);
 				},
 			),
+		);
+	});
+});
+
+describe("expandHome properties", () => {
+	// "." / ".." are collapsed by path.join, so they'd test normalisation, not expansion.
+	const segmentArb = fc
+		.stringMatching(/^[A-Za-z0-9._-]{1,10}$/)
+		.filter((part) => part !== "." && part !== "..");
+	const homeArb = fc
+		.array(segmentArb, { minLength: 1, maxLength: 4 })
+		.map((parts) => "/" + parts.join("/"));
+	const relArb = fc
+		.array(segmentArb, { minLength: 1, maxLength: 4 })
+		.map((parts) => parts.join("/"));
+
+	it("~/<rel> lands inside home at exactly <rel>", () => {
+		fc.assert(
+			fc.property(homeArb, relArb, (home, rel) => {
+				const expanded = expandHome("~/" + rel, home);
+				expect(path.relative(home, expanded)).toBe(path.normalize(rel));
+				expect(expanded.startsWith(home + path.sep)).toBe(true);
+			}),
+		);
+	});
+
+	it("is the identity on anything that does not start with ~ or ~/", () => {
+		fc.assert(
+			fc.property(
+				homeArb,
+				fc
+					.string({ minLength: 0, maxLength: 20 })
+					.filter((input) => input !== "~" && !input.startsWith("~/")),
+				(home, input) => {
+					expect(expandHome(input, home)).toBe(input);
+				},
+			),
+		);
+	});
+
+	it("is idempotent once the result no longer starts with ~", () => {
+		fc.assert(
+			fc.property(homeArb, relArb, (home, rel) => {
+				const once = expandHome("~/" + rel, home);
+				expect(expandHome(once, home)).toBe(once);
+			}),
 		);
 	});
 });

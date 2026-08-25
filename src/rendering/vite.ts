@@ -189,6 +189,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 				ignored: [
 					"**/.git/**",
 					"**/node_modules/**",
+					// Older releases kept the dep cache in-root; skip any leftovers.
 					"**/.mdxserve/**",
 					"**/.venv/**",
 					"**/venv/**",

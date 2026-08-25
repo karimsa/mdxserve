@@ -22,6 +22,21 @@ afterEach(async () => {
 });
 
 describe("RootsService.admit", () => {
+	it("expands a leading ~/ against the home it was given", async () => {
+		const home = await mkTmpDir("home-");
+		await fs.mkdir(path.join(home, "docs"));
+		const result = await new RootsService("/nowhere", home).admit(["~/docs"]);
+		expect(result.kind).toBe("ok");
+		if (result.kind !== "ok") return;
+		expect(result.roots).toEqual([path.join(home, "docs")]);
+	});
+
+	it("does not treat ~user as a home shortcut", async () => {
+		const home = await mkTmpDir("home-");
+		const result = await new RootsService(home, home).admit(["~nobody"]);
+		expect(result.kind).toBe("not-found");
+	});
+
 	it("admits a directory and names it by its basename", async () => {
 		const dir = await mkTmpDir("ok-");
 		const result = await new RootsService(process.cwd()).admit([dir]);

@@ -1,5 +1,7 @@
 import fsp from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import { expandHome } from "./paths.js";
 import { computeRootInfos, isInside, pruneNestedRoots, type RootInfo } from "./root-info.js";
 
 export type AdmitRootsResult =
@@ -20,11 +22,15 @@ export type AdmitRootsResult =
  * messages are plain sentences, and the adapter decides how to print them.
  */
 export class RootsService {
-	constructor(private readonly cwd: string) {}
+	constructor(
+		private readonly cwd: string,
+		private readonly home: string = os.homedir(),
+	) {}
 
 	/**
-	 * Resolve `inputs` against the cwd and decide whether they can be served
-	 * together. An empty list means the current directory.
+	 * Resolve `inputs` against the cwd (expanding a leading `~` first) and decide
+	 * whether they can be served together. An empty list means the current
+	 * directory.
 	 *
 	 * The returned roots are realpaths, deduped: a symlinked alias of an
 	 * already-named directory is dropped rather than served twice, and Vite's
@@ -36,7 +42,7 @@ export class RootsService {
 	 */
 	async admit(inputs: string[]): Promise<AdmitRootsResult> {
 		const named = inputs.length > 0 ? inputs : ["."];
-		const resolved = named.map((input) => path.resolve(this.cwd, input));
+		const resolved = named.map((input) => path.resolve(this.cwd, expandHome(input, this.home)));
 
 		const roots: string[] = [];
 		const seen = new Set<string>();

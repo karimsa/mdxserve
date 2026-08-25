@@ -2,7 +2,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { importResolves, resolveDirPath, resolveDocPath } from "../../src/roots/paths.js";
+import {
+	expandHome,
+	importResolves,
+	resolveDirPath,
+	resolveDocPath,
+} from "../../src/roots/paths.js";
 
 let rootDir: string;
 let outsideDir: string;
@@ -129,5 +134,23 @@ describe("importResolves", () => {
 		expect(importResolves(from, "./parts")).toBe(true);
 		expect(importResolves(from, "./Missing")).toBe(false);
 		expect(importResolves(from, "./sub")).toBe(false);
+	});
+});
+
+describe("expandHome", () => {
+	const home = "/Users/someone";
+
+	it("expands a bare ~ and a leading ~/", () => {
+		expect(expandHome("~", home)).toBe(home);
+		expect(expandHome("~/docs", home)).toBe(path.join(home, "docs"));
+		expect(expandHome("~/", home)).toBe(home);
+	});
+
+	it("leaves ~user, a mid-path ~, and ordinary paths alone", () => {
+		expect(expandHome("~bob/docs", home)).toBe("~bob/docs");
+		expect(expandHome("./~/docs", home)).toBe("./~/docs");
+		expect(expandHome("docs/~", home)).toBe("docs/~");
+		expect(expandHome("/abs/docs", home)).toBe("/abs/docs");
+		expect(expandHome("", home)).toBe("");
 	});
 });

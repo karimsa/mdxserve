@@ -3,6 +3,18 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import { isServable } from "./servable.js";
 
+/**
+ * Expand a leading `~` (`~` alone or `~/…`) to `home`. Shells normally do this
+ * before we see the argument, but not when the value is quoted, glued to the
+ * flag (`-w~/docs`), or comes from a config file or an MCP client. `~user`
+ * forms and a `~` anywhere else are left alone.
+ */
+export function expandHome(input: string, home: string): string {
+	if (input === "~") return home;
+	if (input.startsWith("~/")) return path.join(home, input.slice(2));
+	return input;
+}
+
 /** The mounted root that contains `absPath`, or null if it lies outside all of them. */
 export function resolveRoot(
 	roots: string[],

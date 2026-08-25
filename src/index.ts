@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import os from "node:os";
 import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { startServer } from "./http/start.js";
@@ -7,6 +8,7 @@ import { ComponentsService } from "./components/service.js";
 import { cleanCache, getCacheDir } from "./infra/cache.js";
 import { createMcpServer } from "./mcp/server.js";
 import { RemoteDocsClient } from "./servers/remote.js";
+import { expandHome } from "./roots/paths.js";
 import { RootsService } from "./roots/service.js";
 import { ServerRegistry } from "./servers/server-registry.js";
 import { DocCache } from "./docs/doc-cache.js";
@@ -171,13 +173,15 @@ components
 		console.log(formatComponent(entry));
 	});
 
-const cache = program.command("cache").description("Manage the per-directory cache (.mdxserve/)");
+const cache = program
+	.command("cache")
+	.description("Manage the per-directory cache (~/.cache/mdxserve/<dir>-<hash>/)");
 
 cache
 	.command("clean [dir]")
 	.description("Delete the cache for a served directory (defaults to the current directory)")
 	.action((dir: string | undefined) => {
-		const root = path.resolve(process.cwd(), dir ?? ".");
+		const root = path.resolve(process.cwd(), expandHome(dir ?? ".", os.homedir()));
 		const removed = cleanCache(root);
 		console.log(
 			removed ? `Removed ${getCacheDir(root)}` : `Nothing to clean at ${getCacheDir(root)}`,
