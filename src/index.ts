@@ -14,7 +14,12 @@ import { expandHome } from "./roots/paths.js";
 import { ServerRegistry, type ServerRecord } from "./servers/server-registry.js";
 import { DocCache } from "./docs/doc-cache.js";
 import { SearchService } from "./search/service.js";
-import { ExportService, EXPORT_FORMATS, type ExportFormat } from "./export/service.js";
+import {
+	ExportService,
+	EXPORT_FORMATS,
+	MERMAID_MODES,
+	type ExportFormat,
+} from "./export/service.js";
 import { bundleStandalone } from "./rendering/bundle.js";
 import type { MermaidMode } from "./rendering/protocol.js";
 
@@ -113,8 +118,6 @@ program
 			].join("\n"),
 		);
 	});
-
-const MERMAID_MODES: readonly MermaidMode[] = ["cdn", "bundle", "none"];
 
 program
 	.command("export <file>")

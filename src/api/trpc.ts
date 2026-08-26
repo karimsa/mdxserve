@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import type { Registry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import type { RootsService } from "../roots/service.js";
-import type { RenderOutcome } from "../rendering/protocol.js";
+import type { BundlePort, RenderOutcome } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
@@ -23,6 +23,14 @@ export interface ApiContext {
 	isLoopback: boolean;
 	/** Renders a doc server-side; only defined when a Vite dev server is live. */
 	render?: (absPath: string) => Promise<RenderOutcome>;
+	/**
+	 * Builds one doc into a self-contained standalone bundle. Per-process state,
+	 * created once in startServer: unlike `render`, it does not depend on a live
+	 * Vite dev server, so it is always defined. startServer serializes calls to
+	 * it so concurrent `exportDoc` requests queue rather than run overlapping
+	 * builds.
+	 */
+	bundle: BundlePort;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	/** Per-process state, created once in startServer. */

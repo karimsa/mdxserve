@@ -40,6 +40,7 @@ export interface RootTree extends RootInfo {
 // file can use it without this module's tRPC graph); re-exported here for the
 // live viewer's callers.
 import { docModuleCache, type DocModuleState } from "./doc-module-cache";
+import { decodeRoutePath } from "./route-path";
 export { docModuleCache, type DocModuleState };
 const docModulePromises = new Map<string, Promise<void>>();
 
@@ -74,7 +75,10 @@ function ensureDocModule(path: string): Promise<void> {
  * entry.tsx before React mounts so multi-root navigation (home crumb, `..`
  * row) doesn't flash in or out while the tree query is still loading.
  */
-export const shellInfo: { rootCount: number | null } = { rootCount: null };
+export const shellInfo: { rootCount: number | null; sameMachine: boolean } = {
+	rootCount: null,
+	sameMachine: false,
+};
 
 function mapRoots(data: DocTreeOutput): RootTree[] {
 	return data.roots.map((root) => ({ name: root.name, dir: root.dir, tree: root.nodes }));
@@ -238,7 +242,12 @@ export function useRouter(initialRoute: Route) {
 	const routeRef = useRef(route);
 	routeRef.current = route;
 
-	const loadRoute = useCallback(async (path: string): Promise<Route | null> => {
+	const loadRoute = useCallback(async (rawPath: string): Promise<Route | null> => {
+		// Link clicks and popstate hand over `URL.pathname`, which is
+		// percent-encoded; the server-rendered initial route is not. Decode
+		// once here so `route.path` (the doc module cache key, the footer
+		// label, and every API call's `path`) has one form.
+		const path = decodeRoutePath(rawPath);
 		if (path === "/") {
 			// Mirrors the server's own "/" handling: a single root redirects
 			// straight to its listing; otherwise show the roots home page.

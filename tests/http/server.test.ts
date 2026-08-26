@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { createTRPCClient, httpLink, TRPCClientError } from "@trpc/client";
 import type { ViteDevServer } from "vite";
 import type { AppRouter } from "../../src/api/router.js";
+import { renderShell } from "../../src/http/shell.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";
 import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
@@ -248,6 +249,23 @@ describe("root count affects / and doc routing", () => {
 
 		const tree = await client.getDocTree.query({});
 		expect(tree.roots).toHaveLength(1);
+	});
+});
+
+describe("data-same-machine on the shell", () => {
+	it('renderShell(route) defaults to data-same-machine="0"', () => {
+		const html = renderShell({ kind: "notfound", path: "/x" });
+		expect(html).toContain('data-same-machine="0"');
+	});
+
+	it('a loopback request for a doc URL gets a shell with data-same-machine="1"', async () => {
+		const { base } = await startWith({ vite: htmlVite() });
+		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
+			headers: { Accept: "text/html" },
+		});
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		expect(html).toContain('data-same-machine="1"');
 	});
 });
 

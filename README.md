@@ -104,6 +104,10 @@ What the built page does not have: the sidebar, search, previous/next links, edi
 reload — everything that needs a server. Links to other `.md` files stay plain links, and an
 icon name assembled at runtime (rather than written literally in the document) renders nothing.
 
+The viewer's top bar also has an Export menu on any doc page (same-machine browsers only): pick a
+format and the browser's save dialog opens with the same output the CLI produces. HTML exports
+from the viewer always load mermaid from the CDN.
+
 ## Writing docs
 
 - `.md` and `.mdx` are treated identically: GitHub-flavored Markdown (tables, task lists, etc.)

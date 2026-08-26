@@ -19,7 +19,9 @@ const registryArb: fc.Arbitrary<Registry> = fc
 	.uniqueArray(fc.tuple(nameArb, proseArb, proseArb, fc.uniqueArray(nameArb, { maxLength: 4 })), {
 		minLength: 0,
 		maxLength: 10,
-		selector: ([name]) => name,
+		// Names resolve case-insensitively (getComponent "tAbS" → Tabs), so two
+		// entries that differ only by case would shadow each other.
+		selector: ([name]) => name.toLowerCase(),
 	})
 	.map((entries) => ({
 		version: 1,

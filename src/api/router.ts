@@ -6,6 +6,7 @@ import { validationController } from "../validation/controller.js";
 import { docsController } from "../docs/controller.js";
 import { componentsController } from "../components/controller.js";
 import { rootsController } from "../roots/controller.js";
+import { exportController } from "../export/controller.js";
 
 export const appRouter = router({
 	...listingController,
@@ -15,6 +16,7 @@ export const appRouter = router({
 	...docsController,
 	...componentsController,
 	...rootsController,
+	...exportController,
 });
 
 export type AppRouter = typeof appRouter;

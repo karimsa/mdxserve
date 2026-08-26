@@ -14,6 +14,7 @@ function parseInitialRoute(): Route {
 	if (!el?.textContent) return fallback;
 	const rootCount = Number.parseInt(el.dataset.rootCount ?? "", 10);
 	if (Number.isFinite(rootCount)) shellInfo.rootCount = rootCount;
+	shellInfo.sameMachine = el.dataset.sameMachine === "1";
 	try {
 		return JSON.parse(el.textContent) as Route;
 	} catch {

@@ -13,7 +13,7 @@ import { isDocFile } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
 import { createMcpServer } from "../mcp/server.js";
 import { rootInfoFor } from "../roots/root-info.js";
-import type { RenderPort } from "../rendering/protocol.js";
+import type { BundlePort, RenderPort } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
@@ -42,6 +42,8 @@ export interface RequestContext {
 	cssFile: string;
 	/** Renders a doc server-side; only defined when a Vite dev server is live. */
 	render?: RenderPort;
+	/** Builds one doc into a self-contained standalone bundle; per-process state, created once in startServer, serialized there. */
+	bundle: BundlePort;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	search: SearchService;
@@ -54,7 +56,7 @@ export async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render } = ctx;
+	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render, bundle } = ctx;
 	const rootInfos = ctx.roots.list();
 	const roots = rootInfos.map((rootInfo) => rootInfo.dir);
 	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
@@ -156,6 +158,7 @@ export async function handleRequest(
 				registry,
 				isLoopback,
 				render,
+				bundle,
 				docCache,
 				search: searchService,
 				docs,
@@ -237,7 +240,12 @@ export async function handleRequest(
 		const route: Route = { kind: "home", roots: rootInfos };
 		res.statusCode = 200;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+		res.end(
+			await vite.transformIndexHtml(
+				pathname,
+				renderShell(route, entrySrc, roots.length, isLoopback),
+			),
+		);
 		return;
 	}
 
@@ -249,7 +257,12 @@ export async function handleRequest(
 			const route: Route = { kind: "notfound", path: decodedPathname };
 			res.statusCode = 404;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			res.end(
+				await vite.transformIndexHtml(
+					pathname,
+					renderShell(route, entrySrc, roots.length, isLoopback),
+				),
+			);
 			return;
 		}
 		res.statusCode = 404;
@@ -283,7 +296,12 @@ export async function handleRequest(
 			const route: Route = { kind: "listing", ...result.listing };
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			res.end(
+				await vite.transformIndexHtml(
+					pathname,
+					renderShell(route, entrySrc, roots.length, isLoopback),
+				),
+			);
 			return;
 		}
 		const route: Route = {
@@ -294,7 +312,12 @@ export async function handleRequest(
 		};
 		res.statusCode = 404;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+		res.end(
+			await vite.transformIndexHtml(
+				pathname,
+				renderShell(route, entrySrc, roots.length, isLoopback),
+			),
+		);
 		return;
 	}
 
@@ -309,7 +332,12 @@ export async function handleRequest(
 			};
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			res.end(
+				await vite.transformIndexHtml(
+					pathname,
+					renderShell(route, entrySrc, roots.length, isLoopback),
+				),
+			);
 			return;
 		}
 
@@ -344,7 +372,12 @@ export async function handleRequest(
 			};
 			res.statusCode = 404;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(await vite.transformIndexHtml(pathname, renderShell(route, entrySrc, roots.length)));
+			res.end(
+				await vite.transformIndexHtml(
+					pathname,
+					renderShell(route, entrySrc, roots.length, isLoopback),
+				),
+			);
 			return;
 		}
 	} else if (stat.isFile()) {

@@ -239,7 +239,19 @@ export async function bundleStandalone(input: BundleInput): Promise<BundleOutput
 	const docDir = path.dirname(input.docPath);
 	const warnings: string[] = [];
 
+	// Vite resolves `process.env.NODE_ENV` once per process and never replaces
+	// a value that is already set — and creating a dev server sets it to
+	// "development". Inside `mdxserve serve` (the viewer's Export menu) this
+	// build would then ship development React: jsxDEV, runtime warnings, and
+	// ~230 KB more. Pin production for the build's duration; `mode` alone
+	// cannot do it. The dev server captured its own value at startup, and the
+	// server runs exports one at a time (src/http/start.ts), so nothing else
+	// observes the swap.
 	const cssDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-build-"));
+	// Only after the one await that sits outside the try: a failed mkdtemp
+	// must not leave the pin in place.
+	const previousNodeEnv = process.env.NODE_ENV;
+	process.env.NODE_ENV = "production";
 	try {
 		const cssFile = path.join(cssDir, "app.css");
 
@@ -335,6 +347,8 @@ export async function bundleStandalone(input: BundleInput): Promise<BundleOutput
 
 		return { js, css, warnings };
 	} finally {
+		if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+		else process.env.NODE_ENV = previousNodeEnv;
 		await fsp.rm(cssDir, { recursive: true, force: true });
 	}
 }

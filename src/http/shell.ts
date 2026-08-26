@@ -41,13 +41,16 @@ export function renderShell(
 	route: Route,
 	entrySrc = "/__mdxserve/entry.tsx",
 	rootCount = 1,
+	sameMachine = false,
 ): string {
 	const routeJson = escapeForInlineScript(JSON.stringify(route));
 
 	// The root count rides along so the client knows whether to show
-	// multi-root navigation before the tree API has answered.
+	// multi-root navigation before the tree API has answered; same-machine
+	// rides along so the client can show same-machine-only affordances (the
+	// Export button) without waiting on a round trip.
 	const body = `    <div id="root"></div>
-    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}">${routeJson}</script>
+    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}">${routeJson}</script>
     <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
 	return renderDocument({ title: titleFor(route), body });

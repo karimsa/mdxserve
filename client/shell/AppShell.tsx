@@ -18,6 +18,8 @@ import {
 	type Route,
 	type TreeNode,
 } from "../router";
+import type { ExportFormat } from "../../src/export/service";
+import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -166,6 +168,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const [mobileOpen, setMobileOpen] = useState(false);
 
 	const [searchOpen, setSearchOpen] = useState(false);
+	const [exporting, setExporting] = useState(false);
 	const listingWidth = useAtomValue(listingWidthAtom);
 	const docWidth = useAtomValue(docWidthAtom);
 	const contentRef = useRef<HTMLDivElement>(null);
@@ -214,6 +217,21 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	useEffect(() => {
 		setMobileOpen(false);
 	}, [activePath]);
+
+	// One export at a time: the trigger is disabled while a build runs, and the
+	// server queues builds anyway (see startServer).
+	const handleExport = useCallback(
+		async (format: ExportFormat) => {
+			if (route.kind !== "doc" || exporting) return;
+			setExporting(true);
+			try {
+				await exportDocFromViewer({ path: route.path, format });
+			} finally {
+				setExporting(false);
+			}
+		},
+		[route, exporting],
+	);
 
 	const handleToggleSidebar = useCallback(() => {
 		if (window.matchMedia(DESKTOP_MEDIA).matches) {
@@ -288,6 +306,11 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				hostLabel={location.host}
 				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
 				search={{ onOpen: () => setSearchOpen(true) }}
+				exportDoc={
+					route.kind === "doc" && shellInfo.sameMachine
+						? { pending: exporting, onExport: handleExport }
+						: undefined
+				}
 				theme={theme}
 				onToggleTheme={toggle}
 			/>

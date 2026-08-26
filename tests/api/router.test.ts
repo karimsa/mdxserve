@@ -46,6 +46,7 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"listRoots",
 	"addRoots",
 	"removeRoots",
+	"exportDoc",
 ];
 
 describe("procedure descriptions", () => {

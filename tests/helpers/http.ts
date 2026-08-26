@@ -34,6 +34,7 @@ export function makeRequestContext(
 			middlewares: (_req: unknown, res: http.ServerResponse, next: () => void) => next(),
 		} as unknown as ViteDevServer,
 		cssFile: "",
+		bundle: async () => ({ js: "", css: "", warnings: [] }),
 		docCache,
 		search,
 		docs: new DocsService(roots, registry),
