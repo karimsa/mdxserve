@@ -149,19 +149,13 @@ export default function MdSectionEditor({
 		} catch (error) {
 			const code = isTRPCClientError(error) ? error.data?.code : undefined;
 			if (code === "CONFLICT") {
-				pushToast({
-					tone: "warn",
-					title: "File changed on disk",
-					message: "Reopen the section to edit the newer version.",
-				});
+				pushToast({ tone: "warn", text: "File changed on disk — reopen the section" });
 			} else if (code === "UNPROCESSABLE_CONTENT") {
-				pushToast({
-					tone: "danger",
-					title: "Couldn't save section",
-					message: error instanceof Error ? error.message : "The edited markdown doesn't compile.",
-				});
+				console.error(error);
+				pushToast({ tone: "danger", text: "Couldn't save — the markdown doesn't compile" });
 			} else {
-				pushToast({ tone: "danger", title: "Couldn't save section" });
+				console.error(error);
+				pushToast({ tone: "danger", text: "Couldn't save section" });
 			}
 		} finally {
 			setSaving(false);

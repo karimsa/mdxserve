@@ -1,4 +1,3 @@
-import { isTRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 // Type-only: client/ may only import types from src/ (see client/api.ts).
 import type { AppRouter } from "../src/api/router";
@@ -16,11 +15,6 @@ import {
 } from "./export-save";
 
 type ExportDocResult = inferRouterOutputs<AppRouter>["exportDoc"];
-
-function messageOf(error: unknown): string {
-	if (isTRPCClientError(error)) return error.message;
-	return error instanceof Error ? error.message : "The server couldn't be reached.";
-}
 
 type Picked = { kind: "picked"; handle: FileSystemFileHandle | null } | { kind: "expired" };
 
@@ -41,7 +35,8 @@ export async function exportDocFromViewer(input: {
 	try {
 		result = await trpcClient.exportDoc.mutate({ path: input.path, format: input.format });
 	} catch (error) {
-		pushToast({ tone: "danger", title: "Export failed", message: messageOf(error) });
+		console.error(error);
+		pushToast({ tone: "danger", text: "Export failed" });
 		return;
 	}
 
@@ -65,21 +60,21 @@ export async function exportDocFromViewer(input: {
 			downloadViaAnchor(result.fileName, blob);
 		}
 	} catch (error) {
-		pushToast({ tone: "danger", title: "Couldn't save the file", message: messageOf(error) });
+		console.error(error);
+		pushToast({ tone: "danger", text: "Couldn't save the file" });
 		return;
 	}
 
 	pushToast({
 		tone: "ok",
 		icon: "download",
-		title: `Exported ${result.fileName}`,
-		message: formatSize(result.bytes),
+		text: `Exported ${result.fileName} · ${formatSize(result.bytes)}`,
 	});
 	if (result.warnings.length > 0) {
+		console.warn(result.warnings.join("\n"));
 		pushToast({
 			tone: "warn",
-			title: `${result.warnings.length} export warning${result.warnings.length === 1 ? "" : "s"}`,
-			message: result.warnings.join("\n"),
+			text: `${result.warnings.length} export warning${result.warnings.length === 1 ? "" : "s"}`,
 		});
 	}
 }

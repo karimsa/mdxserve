@@ -320,6 +320,46 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	margin-bottom: 0;
 }
 
+/* client/ui/Toast.tsx's attention bounce for a repeat push. Two keyframe sets
+   with identical frames: CSS only restarts an animation when its
+   animation-name changes, so a repeat push flips the wrapper between the two
+   names to replay the bounce. */
+@keyframes toast-bump-a {
+	0% {
+		transform: none;
+	}
+	40% {
+		transform: translateY(-6px) scale(1.03);
+	}
+	100% {
+		transform: none;
+	}
+}
+@keyframes toast-bump-b {
+	0% {
+		transform: none;
+	}
+	40% {
+		transform: translateY(-6px) scale(1.03);
+	}
+	100% {
+		transform: none;
+	}
+}
+.toast-bump-a {
+	animation: toast-bump-a 380ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+.toast-bump-b {
+	animation: toast-bump-b 380ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+/* The ×N chip already says a repeat landed; the bounce is decoration. */
+@media (prefers-reduced-motion: reduce) {
+	.toast-bump-a,
+	.toast-bump-b {
+		animation: none;
+	}
+}
+
 /* Print: the reader gets the prose, nothing else. */
 @media print {
 	[data-print-hide] {

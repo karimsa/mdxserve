@@ -115,6 +115,11 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 	// package dir (like svg-pan-zoom) so Vite picks the module/exports (ESM)
 	// entry instead.
 	const framerMotionEntry = path.dirname(resolveFromPkg("framer-motion/package.json"));
+	// react-hot-toast ships an "exports" map with an ESM branch; alias the
+	// package dir (like date-fns) so the optimizer's include entry resolves from
+	// the neutral Vite root at all — without an alias it logs "Failed to resolve
+	// dependency" and only works by accident of discovery from client/.
+	const reactHotToastEntry = path.dirname(resolveFromPkg("react-hot-toast/package.json"));
 	// tippy.js must be aliased to its package dir (not just resolved to its CJS
 	// `main`) so subpath imports like "tippy.js/dist/tippy.css" resolve too.
 	const tippyEntry = path.dirname(resolveFromPkg("tippy.js/package.json"));
@@ -187,6 +192,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		{ find: "zod", replacement: zodEntry },
 		{ find: "diff", replacement: diffEntry },
 		{ find: "framer-motion", replacement: framerMotionEntry },
+		{ find: "react-hot-toast", replacement: reactHotToastEntry },
 		{ find: "@tippyjs/react", replacement: tippyReactEntry },
 		{ find: "tippy.js", replacement: tippyEntry },
 		{ find: "lucide-react", replacement: lucideEntry },
@@ -250,6 +256,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		"svg-pan-zoom",
 		"zod",
 		"framer-motion",
+		"react-hot-toast",
 		"@tippyjs/react",
 		"tippy.js",
 		"diff",
@@ -389,6 +396,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					"@mdx-js/react",
 					"zod",
 					"framer-motion",
+					// MdSection imports pushToast at module scope, and Toast.tsx imports
+					// react-hot-toast at module scope — so it too is on every SSR render.
+					"react-hot-toast",
 					"@tippyjs/react",
 					"tippy.js",
 					"diff",

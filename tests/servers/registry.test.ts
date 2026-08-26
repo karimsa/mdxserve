@@ -7,6 +7,9 @@ import fc from "fast-check";
 import { ServerRegistry } from "../../src/servers/server-registry.js";
 import sqlite from "node-sqlite3-wasm";
 
+// 25 fresh sqlite files per property; the CI runner has taken >5 s.
+const PROPERTY_TIMEOUT_MS = 30000;
+
 let tmpDir: string;
 let dbPath: string;
 let registry: ServerRegistry;
@@ -162,34 +165,42 @@ describe("ServerRegistry (property)", () => {
 	};
 	const recordArb = fc.record(recordShape);
 
-	it("register -> current round-trips an arbitrary record", () => {
-		let counter = 0;
-		fc.assert(
-			fc.property(recordArb, (record) => {
-				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-${counter++}.db`));
-				propRegistry.register({ ...record, pid: process.pid });
-				expect(propRegistry.current()).toMatchObject({ ...record, pid: process.pid });
-			}),
-			{ numRuns: 25 },
-		);
-	});
+	it(
+		"register -> current round-trips an arbitrary record",
+		() => {
+			let counter = 0;
+			fc.assert(
+				fc.property(recordArb, (record) => {
+					const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-${counter++}.db`));
+					propRegistry.register({ ...record, pid: process.pid });
+					expect(propRegistry.current()).toMatchObject({ ...record, pid: process.pid });
+				}),
+				{ numRuns: 25 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
 
-	it("updateRoots is idempotent", () => {
-		let counter = 0;
-		fc.assert(
-			fc.property(recordArb, fc.array(fc.string()), (record, newRoots) => {
-				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-idem-${counter++}.db`));
-				propRegistry.register({ ...record, pid: process.pid });
-				propRegistry.updateRoots(process.pid, newRoots);
-				const once = propRegistry.current();
-				propRegistry.updateRoots(process.pid, newRoots);
-				const twice = propRegistry.current();
-				expect(once).toEqual(twice);
-				expect(once?.roots).toEqual(newRoots);
-			}),
-			{ numRuns: 25 },
-		);
-	});
+	it(
+		"updateRoots is idempotent",
+		() => {
+			let counter = 0;
+			fc.assert(
+				fc.property(recordArb, fc.array(fc.string()), (record, newRoots) => {
+					const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-idem-${counter++}.db`));
+					propRegistry.register({ ...record, pid: process.pid });
+					propRegistry.updateRoots(process.pid, newRoots);
+					const once = propRegistry.current();
+					propRegistry.updateRoots(process.pid, newRoots);
+					const twice = propRegistry.current();
+					expect(once).toEqual(twice);
+					expect(once?.roots).toEqual(newRoots);
+				}),
+				{ numRuns: 25 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
 
 	type Model = { pid: number; port: number; host: string; roots: string[] } | undefined;
 

@@ -467,7 +467,7 @@ export function ListingView({
 				pushToast({
 					tone: "ok",
 					icon: "trash-2",
-					title: `Moved ${data.deleted.length} ${data.deleted.length === 1 ? "file" : "files"} to Trash`,
+					text: `Moved ${data.deleted.length} ${data.deleted.length === 1 ? "file" : "files"} to Trash`,
 				});
 			} else {
 				// Keep only the failures selected so the user can see and retry them.
@@ -478,17 +478,16 @@ export function ListingView({
 							.filter((name): name is string => name !== undefined),
 					),
 				);
+				console.error(data.failed);
 				pushToast({
 					tone: "danger",
-					title: `Couldn't delete ${data.failed.length} of ${byPath.size} files`,
-					message: data.failed[0].error,
+					text: `Couldn't delete ${data.failed.length} of ${byPath.size} files`,
 				});
 			}
 		} catch {
 			pushToast({
 				tone: "danger",
-				title: "Delete failed",
-				message: "The server couldn't be reached.",
+				text: "Couldn't reach the server",
 			});
 		} finally {
 			pendingRef.current = false;

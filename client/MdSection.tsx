@@ -148,7 +148,7 @@ function Section({
 				setMode((current) => (current === "loading" ? "edit" : current));
 			});
 		} catch {
-			pushToast({ tone: "danger", title: "Couldn't open section for editing" });
+			pushToast({ tone: "danger", text: "Couldn't open section for editing" });
 			setMode((current) => (current === "loading" ? "read" : current));
 			setOpenSection((current) => (current === key ? null : current));
 		}

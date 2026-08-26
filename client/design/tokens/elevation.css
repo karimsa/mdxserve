@@ -19,6 +19,10 @@
 	--shadow-lg: 0 4px 8px rgba(26, 25, 24, 0.06), 0 18px 44px rgba(26, 25, 24, 0.11);
 	--shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 	--shadow-focus: 0 0 0 3px var(--focus-ring);
+	/* The one deliberate coloured ring/glow in the system — toasts only. */
+	--shadow-toast:
+		0 0 0 1px rgba(43, 165, 162, 0.18), 0 8px 24px rgba(43, 165, 162, 0.12),
+		0 2px 4px rgba(26, 25, 24, 0.05), 0 8px 20px rgba(26, 25, 24, 0.07);
 
 	/* glass — used only for the sticky topbar and the command palette scrim */
 	--blur-chrome: saturate(1.4) blur(12px); /* @kind other */
@@ -31,5 +35,8 @@
 	--shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.45);
 	--shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
 	--shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+	--shadow-toast:
+		0 0 0 1px rgba(43, 165, 162, 0.28), 0 8px 24px rgba(43, 165, 162, 0.22),
+		0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.45);
 	--scrim: rgba(0, 0, 0, 0.6);
 }

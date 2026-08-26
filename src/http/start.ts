@@ -8,6 +8,7 @@ import { getPackageRoot } from "../infra/pkg.js";
 import { getViteCacheDir } from "../infra/cache.js";
 import { resolveRoot } from "../roots/paths.js";
 import { isServable } from "../roots/servable.js";
+import { describeDocChange, type DocChange } from "./doc-change.js";
 import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
@@ -229,6 +230,29 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	vite.watcher.on("unlink", onWatchEvent);
 	vite.watcher.on("addDir", onWatchEvent);
 	vite.watcher.on("unlinkDir", onWatchEvent);
+
+	// Tell the viewer which doc was edited. Vite's own HMR payload can't: a
+	// doc module has no HMR boundary of its own, so its update is attributed
+	// to whichever importer accepted it (App.tsx), and the Tailwind rebuild
+	// the edit triggers arrives as a separate app.css update. Debounced the
+	// same way, keyed by path so an editor's double-write is one event.
+	const changedDocs = new Map<string, DocChange>();
+	let docFlushTimer: NodeJS.Timeout | null = null;
+
+	function onDocChange(changedPath: string): void {
+		const change = describeDocChange(rootsService.list(), changedPath);
+		if (!change) return;
+		changedDocs.set(change.path, change);
+		if (docFlushTimer) return;
+		docFlushTimer = setTimeout(() => {
+			docFlushTimer = null;
+			const files = [...changedDocs.values()];
+			changedDocs.clear();
+			vite.ws.send({ type: "custom", event: "mdxserve:doc-changed", data: { files } });
+		}, 100);
+	}
+
+	vite.watcher.on("change", onDocChange);
 
 	// Apply a live root change to the running Vite server: its fs.allow list,
 	// its watcher, and the generated app.css (Tailwind's @source scan) all
