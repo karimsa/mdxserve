@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Mark } from "@tiptap/pm/model";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -12,6 +12,7 @@ import { isTRPCClientError } from "@trpc/client";
 import { trpcClient } from "./api";
 import { TRANSITIONS } from "./motion";
 import { isApplePlatform } from "./platform";
+import { modifiedLinkHref } from "./editor-link";
 import { Kbd } from "./ui/Kbd";
 import { pushToast } from "./ui/Toast";
 
@@ -162,6 +163,29 @@ export default function MdSectionEditor({
 		}
 	}
 
+	// Cmd/ctrl+click follows a link (client/editor-link.ts says why the
+	// browser's own new-tab gesture is inert inside a contenteditable). A DOM
+	// `click` listener rather than ProseMirror's `handleClick` prop: that one
+	// only fires when ProseMirror's own mousedown→mouseup tracking survives,
+	// and it bails on a few pixels of pointer drift. The opener is a detached
+	// `target=_blank` anchor rather than `window.open`, which Chrome turns into
+	// a popup window as soon as a feature string (even `noopener`) is passed;
+	// `noopener` because the target may be any site the doc links to.
+	function onClick(event: MouseEvent<HTMLDivElement>) {
+		const anchor = (event.target as Element | null)?.closest("a");
+		if (!anchor) return;
+		// The raw attribute, not `anchor.href`: an empty target (`[label]()`)
+		// resolves to the current page and would open a duplicate tab.
+		const href = modifiedLinkHref(event, anchor.getAttribute("href"));
+		if (!href) return;
+		event.preventDefault();
+		const opener = document.createElement("a");
+		opener.href = href;
+		opener.target = "_blank";
+		opener.rel = "noopener noreferrer";
+		opener.click();
+	}
+
 	function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if ((event.metaKey || event.ctrlKey) && event.key === "s") {
 			event.preventDefault();
@@ -181,7 +205,7 @@ export default function MdSectionEditor({
 	if (!editor) return null;
 
 	return (
-		<div className="mdx-section" data-editing onKeyDown={onKeyDown}>
+		<div className="mdx-section" data-editing onClick={onClick} onKeyDown={onKeyDown}>
 			<EditorContent editor={editor} />
 			{/* Keyboard is the only way out of edit mode (no buttons), so the hints
 			    float in the right gutter beside the frame, out of the text flow —
@@ -199,6 +223,9 @@ export default function MdSectionEditor({
 				</motion.span>
 				<motion.span variants={hint} className="flex items-center gap-1.5">
 					<Kbd>Esc</Kbd> to cancel
+				</motion.span>
+				<motion.span variants={hint} className="flex items-center gap-1.5">
+					<Kbd>{isApplePlatform() ? "⌘" : "Ctrl"}</Kbd> click to follow a link
 				</motion.span>
 			</motion.div>
 		</div>

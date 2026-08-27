@@ -45,6 +45,11 @@ function themeVariables() {
 		edgeLabelBackground: cssVar("--diagram-label-bg", "#ffffff"),
 		clusterBkg: cssVar("--surface-sunken", "#f6f6f3"),
 		clusterBorder: cssVar("--border-default", "#e3e2dd"),
+		// ER diagrams: attribute rows default to mermaid's hard-coded white / #f2f2f2,
+		// unreadable under the light `textColor` in dark mode. Alternate the card and
+		// sunken surfaces instead so rows follow the theme like every other node.
+		attributeBackgroundColorOdd: cssVar("--diagram-bg", "#ffffff"),
+		attributeBackgroundColorEven: cssVar("--diagram-alt-node-bg", "#f6f6f3"),
 		// Sequence diagrams.
 		actorBkg: cssVar("--diagram-node-bg", "#e8f6f5"),
 		actorBorder: cssVar("--diagram-node-border", "#2ba5a2"),
@@ -131,6 +136,14 @@ export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: 
 				if (!cancelled) setState({ kind: "ok", svg });
 			})
 			.catch((error: unknown) => {
+				// mermaid.render() draws into a temporary `<div id="d<renderId>">` it
+				// appends to <body>, and on success removes it — but on a parse
+				// error it rethrows *before* that cleanup (mermaid 10.9: the
+				// `parseEncounteredException` check precedes the `remove()`), so
+				// every failed render would leave a "Syntax error in text" SVG at
+				// the bottom of the page. Each HMR pass on a broken diagram adds
+				// another; take ours down here.
+				document.getElementById(`d${renderId}`)?.remove();
 				if (cancelled) return;
 				const message = error instanceof Error ? error.message : String(error);
 				setState({ kind: "error", message });

@@ -271,15 +271,24 @@ function CodeFrame({
 		) : null;
 
 	// Pull the raw diagram text out of the (always-mounted) <pre> so the diagram
-	// view and the copy button share one source of truth.
+	// view and the copy button share one source of truth. Select the code
+	// block's own <pre> (tagged by `Pre` below), not the first <pre> in the
+	// card: when a diagram fails, MermaidDiagram's error card puts the message
+	// in a <pre> that sits *before* the code pane, and a bare "pre" lookup
+	// would feed that message back into mermaid on the next re-render — each
+	// pass wrapping the last error, never recovering until a reload.
+	function codePre() {
+		return containerRef.current?.querySelector("pre[data-code-source]") ?? null;
+	}
+
 	useEffect(() => {
 		if (!isMermaid) return;
-		const pre = containerRef.current?.querySelector("pre");
-		setSource(pre?.textContent ?? "");
+		setSource(codePre()?.textContent ?? "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isMermaid, children]);
 
 	function getCopyText() {
-		return containerRef.current?.querySelector("pre")?.textContent ?? "";
+		return codePre()?.textContent ?? "";
 	}
 
 	return (
@@ -333,13 +342,15 @@ type PreProps = ComponentPropsWithoutRef<"pre"> & { "data-language"?: string };
  */
 export function Pre(props: PreProps) {
 	const insideFrame = useContext(InsideCodeFrame);
+	// `data-code-source` is what CodeFrame's source/copy lookups select on; both
+	// the in-figure and the standalone <pre> carry it.
 	if (insideFrame) {
-		return <pre {...props} className={PRE_CLASS} />;
+		return <pre {...props} data-code-source className={PRE_CLASS} />;
 	}
 	const { "data-language": language, ...rest } = props;
 	return (
 		<CodeFrame language={language}>
-			<pre {...rest} data-language={language} className={PRE_CLASS} />
+			<pre {...rest} data-language={language} data-code-source className={PRE_CLASS} />
 		</CodeFrame>
 	);
 }
