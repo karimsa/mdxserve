@@ -5,6 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ValidationService } from "../../src/validation/service.js";
 import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
+import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
+
+const CHART_FENCE_BODY: Record<ChartDiagramKeyword, string> = {
+	pie: 'pie title Pets\n  "Dogs" : 40\n  "Cats" : 60',
+	"xychart-beta": 'xychart-beta\n  title "Sales"\n  x-axis [jan, feb]\n  bar [10, 20]',
+	quadrantChart: "quadrantChart\n  title Reach vs Engagement",
+	"sankey-beta": "sankey-beta\n\nA,B,10",
+};
 
 let root: string;
 let outside: string;
@@ -157,6 +165,103 @@ describe("ValidationService.validateDoc", () => {
 		const abs = await writeDoc("no-port.md", "# Doc\n\nProse.\n");
 		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: true });
 		expect(outcome.kind === "ok" && outcome.result.rendered).toBe(false);
+	});
+});
+
+describe("ValidationService.validateDoc — mermaid-chart", () => {
+	it.each(CHART_DIAGRAM_KEYWORDS)(
+		"reports a mermaid-chart error for a %s fence, at the fence's opening line",
+		async (keyword) => {
+			const abs = await writeDoc(
+				`${keyword}.md`,
+				`# Doc\n\n\`\`\`mermaid\n${CHART_FENCE_BODY[keyword]}\n\`\`\`\n`,
+			);
+			const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+			expect(outcome.kind).toBe("ok");
+			if (outcome.kind !== "ok") return;
+			expect(outcome.result.ok).toBe(false);
+			const chartDiagnostics = outcome.result.diagnostics.filter(
+				(entry) => entry.code === "mermaid-chart",
+			);
+			expect(chartDiagnostics).toHaveLength(1);
+			expect(chartDiagnostics[0]?.severity).toBe("error");
+			expect(chartDiagnostics[0]?.line).toBe(3);
+		},
+	);
+
+	it("a flowchart and a sequence diagram produce no diagnostics", async () => {
+		const abs = await writeDoc(
+			"flow-and-sequence.md",
+			[
+				"# Doc",
+				"",
+				"```mermaid",
+				"flowchart TD",
+				"  A --> B",
+				"```",
+				"",
+				"```mermaid",
+				"sequenceDiagram",
+				"  A->>B: hi",
+				"```",
+				"",
+			].join("\n"),
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.diagnostics).toEqual([]);
+	});
+
+	it("a fence starting with pie but tagged as text is not flagged", async () => {
+		const abs = await writeDoc(
+			"not-mermaid.md",
+			'# Doc\n\n```text\npie title Pets\n  "Dogs" : 40\n```\n',
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.diagnostics.some((entry) => entry.code === "mermaid-chart")).toBe(false);
+	});
+
+	it("two pie fences report two diagnostics at distinct lines", async () => {
+		const abs = await writeDoc(
+			"two-pies.md",
+			[
+				"# Doc",
+				"",
+				"```mermaid",
+				"pie",
+				'  "A" : 1',
+				"```",
+				"",
+				"```mermaid",
+				"pie",
+				'  "B" : 2',
+				"```",
+				"",
+			].join("\n"),
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		const chartDiagnostics = outcome.result.diagnostics.filter(
+			(entry) => entry.code === "mermaid-chart",
+		);
+		expect(chartDiagnostics).toHaveLength(2);
+		expect(chartDiagnostics[0]?.line).not.toBe(chartDiagnostics[1]?.line);
+	});
+
+	it("a .md doc with `a < b` above the fence still reports the true line", async () => {
+		const abs = await writeDoc(
+			"escaped.md",
+			["# Doc", "", "a < b", "", "```mermaid", "pie", '  "A" : 1', "```", ""].join("\n"),
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "mermaid-chart");
+		expect(diagnostic?.line).toBe(5);
 	});
 });
 

@@ -223,8 +223,10 @@ it has to be JSON-serializable. `activePath` highlights the matching row.
   xLabel="This week"
 />
 
-`type` is `bar`, `line`, or `area`; `series` picks which keys of each `data` entry to plot
-(up to four before a table reads better). `unit` suffixes the axis and tooltip values.
+`type` is `bar`, `line`, `area`, or `histogram`; `series` picks which keys of each `data`
+entry to plot (up to four before a table reads better). `unit` suffixes the axis and
+tooltip values. Bar charts also take `orientation="horizontal"` for long labels; see
+`07-charts.mdx` for both, plus a histogram over raw `values`.
 
 ## Sparkline
 

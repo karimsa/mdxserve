@@ -17,6 +17,7 @@ export const diagnosticSchema = z.object({
 		"unknown-prop",
 		"unresolved-import",
 		"render-error",
+		"mermaid-chart",
 	]),
 	message: z.string(),
 	line: z.number().optional(),
@@ -37,7 +38,7 @@ export const validationResultSchema = z.object({
 });
 
 const validateDoc = procedure(
-	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, and — for same-machine callers only — a server-side render to catch render-time throws. Used by the MCP validate_doc tool.",
+	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Used by the MCP validate_doc tool.",
 )
 	.input(validateDocInput)
 	.output(validationResultSchema)

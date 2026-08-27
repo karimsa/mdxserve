@@ -131,16 +131,16 @@ With `--host 0.0.0.0` this is reachable from the LAN, subject to the loopback ru
 
 ### Tools
 
-| Tool              | Input                  | What it does                                                                                                           |
-| ----------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `validate_doc`    | `{ path }`             | Compiles a `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, and render-time errors |
-| `list_components` | `{ query? }`           | Same as `mdxserve components search`                                                                                   |
-| `show_component`  | `{ name }`             | Same as `mdxserve components show`                                                                                     |
-| `search_docs`     | `{ query }`            | The `⌘K` search                                                                                                        |
-| `list_docs`       | `{ path?, maxDepth? }` | The doc tree of every served root, or of one directory                                                                 |
-| `list_roots`      | `{}`                   | Every currently served root                                                                                            |
-| `add_root`        | `{ path }`             | Serves an absolute directory on the running server                                                                     |
-| `remove_root`     | `{ path }`             | Stops serving a directory                                                                                              |
+| Tool              | Input                  | What it does                                                                                                                                                                                                              |
+| ----------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate_doc`    | `{ path }`             | Compiles a `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), and render-time errors |
+| `list_components` | `{ query? }`           | Same as `mdxserve components search`                                                                                                                                                                                      |
+| `show_component`  | `{ name }`             | Same as `mdxserve components show`                                                                                                                                                                                        |
+| `search_docs`     | `{ query }`            | The `⌘K` search                                                                                                                                                                                                           |
+| `list_docs`       | `{ path?, maxDepth? }` | The doc tree of every served root, or of one directory                                                                                                                                                                    |
+| `list_roots`      | `{}`                   | Every currently served root                                                                                                                                                                                               |
+| `add_root`        | `{ path }`             | Serves an absolute directory on the running server                                                                                                                                                                        |
+| `remove_root`     | `{ path }`             | Stops serving a directory                                                                                                                                                                                                 |
 
 Paths are absolute, in the same form as the site's URLs. `validate_doc` also accepts a
 root-relative path when exactly one served root contains it.
@@ -158,8 +158,14 @@ The result carries `rendered` next to `ok`. When a live server owns the path and
 is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
 back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
 the page. `rendered: false` means only the static checks ran (compile, unknown component,
-unknown prop). Even with `rendered: true`, errors thrown inside `useEffect` /
+unknown prop, mermaid chart fence). Even with `rendered: true`, errors thrown inside `useEffect` /
 `useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
+
+A `pie`, `xychart-beta`, `quadrantChart`, or `sankey-beta` mermaid fence is always an `error`
+diagnostic with code `mermaid-chart` — mdxserve doesn't render these, so the doc should use the
+builtin `<Chart>` component (bar, line, area, histogram) or a table instead. Every other mermaid
+diagram (flow, sequence, class, state, ER, gantt, timeline, gitGraph, mindmap, journey, …) is
+unaffected.
 
 ## The agent skill
 

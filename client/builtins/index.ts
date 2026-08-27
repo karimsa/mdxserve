@@ -118,9 +118,10 @@ export const builtins: BuiltinDefinition[] = [
 	},
 	{
 		name: "Chart",
-		description: "A bar, line, or area chart rendered as inline SVG, framed like a code block.",
+		description:
+			"A bar, line, area or histogram chart rendered as inline SVG, framed like a code block.",
 		whenToUse:
-			'Use for small, self-contained datasets (four series or fewer) that are clearer as a shape than a table — trends, comparisons, distributions. `data` is `[{ label, <series>: number }, ...]`; `series` lists which keys to plot (defaults to `["value"]`). Prefer a table once there\'s more data than a chart can read at a glance.',
+			'For bar, line and area: `data` is `[{ label, <series>: number }, ...]`; `series` lists which keys to plot (defaults to `["value"]`), for small, self-contained datasets (four series or fewer) that are clearer as a shape than a table. Set `orientation="horizontal"` on a bar chart when labels are long or there are more than ~6 categories. For a histogram, set `type="histogram"` and pass raw numbers as `values`; leave `data`/`series` off and optionally cap the bin count with `bins`. Prefer a table once there\'s more data than a chart can read at a glance.',
 		props: chartProps,
 		Component: Chart,
 	},

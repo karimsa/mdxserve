@@ -170,6 +170,20 @@ describe("DocsService.saveSection", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
 	});
 
+	it("rejects a section save that introduces a mermaid pie fence, without writing", async () => {
+		const result = await service.saveSection({
+			path: abs,
+			startLine: 3,
+			endLine: 3,
+			version: versionOf(ORIGINAL),
+			markdown: '```mermaid\npie title Pets\n  "Dogs" : 40\n```',
+		});
+		expect(result.kind).toBe("invalid-doc");
+		if (result.kind !== "invalid-doc") return;
+		expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mermaid-chart")).toBe(true);
+		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
+	});
+
 	it("reports a path outside every root as not-found", async () => {
 		const secret = path.join(outside, "secret.md");
 		await fs.writeFile(secret, "# Secret\n", "utf8");

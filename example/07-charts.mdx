@@ -1,0 +1,245 @@
+# Charts and data visualization
+
+Everything on this page is drawn with builtins — `Chart` and `Sparkline` — so there is
+nothing to import. The numbers describe a fictional week of `mdxserve` serving this very
+folder.
+
+Pick the shape by what the reader has to do with the numbers:
+
+| The reader needs to…                         | Reach for                              |
+| --------------------------------------------- | --------------------------------------- |
+| Glance at one number and its recent trend     | `Sparkline` next to the number          |
+| Compare magnitudes across a few categories    | `Chart type="bar"`                      |
+| Compare magnitudes with long or many labels   | `Chart type="bar" orientation="horizontal"` |
+| Tell two to four series apart                 | `Chart` with several `series`           |
+| Follow a trend over time                      | `Chart type="line"`, `area` for one     |
+| See how measurements are spread               | `Chart type="histogram"`                |
+| Read more than ~7 categories or exact values  | A table                                 |
+
+export const renders = [
+  { label: "Mon", cold: 118, warm: 34 },
+  { label: "Tue", cold: 104, warm: 31 },
+  { label: "Wed", cold: 131, warm: 38 },
+  { label: "Thu", cold: 97, warm: 29 },
+  { label: "Fri", cold: 88, warm: 27 },
+];
+
+## Sparkline — a trend beside a number
+
+`Sparkline` is inline, has no axes, and needs at least two `values`. It belongs in a
+sentence or a table cell, where the number is the point and the line only shows its shape.
+
+| Metric            | Last 12 hours                                                                   |   Now | Status                          |
+| ----------------- | ------------------------------------------------------------------------------- | ----: | ------------------------------- |
+| Requests / min    | <Sparkline values={[42, 48, 51, 47, 60, 66, 71, 69, 80, 92, 88, 97]} />           |    97 | <Badge tone="ok" dot>Healthy</Badge>     |
+| Render p99        | <Sparkline values={[180, 175, 190, 210, 205, 188, 170, 162, 158, 151, 149, 144]} color="var(--chart-2)" /> | 144ms | <Badge tone="ok" dot>Improving</Badge>   |
+| Cache hit rate    | <Sparkline values={[71, 74, 78, 80, 79, 83, 85, 84, 88, 90, 91, 93]} color="var(--chart-5)" /> |   93% | <Badge tone="ok" dot>Warm</Badge>        |
+| Open file handles | <Sparkline values={[12, 14, 13, 19, 24, 31, 38, 44, 51, 58, 66, 73]} color="var(--chart-6)" /> |    73 | <Badge tone="warn" dot>Climbing</Badge>  |
+
+Inline it reads naturally: memory over the last hour <Sparkline values={[210, 214, 211, 220, 236, 241, 238, 252, 260, 258]} />
+is drifting up, while the error rate <Sparkline values={[4, 3, 3, 2, 2, 1, 1, 0, 0, 0]} color="var(--chart-6)" fill={false} width={60} />
+has gone to zero.
+
+`color` takes any CSS color, but stick to the `--chart-1` … `--chart-6` tokens so it matches
+`Chart` in both themes. `fill={false}` drops the tint under the line; `width` and `height`
+size the SVG.
+
+## Bar — compare magnitudes
+
+One series, one hue. `unit` suffixes the ticks and the hover value, `caption` sits below the
+plot on a hairline rule, and `filename` replaces the chart type in the header.
+
+<Chart
+  type="bar"
+  filename="render-time-by-doc.json"
+  unit="ms"
+  caption="Server-side render time for each doc in this folder, warm cache, median of 20 runs."
+  data={[
+    { label: "01-markdown", value: 38 },
+    { label: "02-mdx-basics", value: 52 },
+    { label: "03-custom", value: 71 },
+    { label: "04-tailwind", value: 46 },
+    { label: "06-builtins", value: 118 },
+    { label: "07-charts", value: 94 },
+  ]}
+  yLabel="Render time"
+  xLabel="Document"
+/>
+
+When `series` is omitted the chart plots the `value` key of each entry. Hover a column for
+the exact value; the expand button in the header opens the chart full-screen.
+
+## Grouped bar — tell series apart
+
+Two to four series get their own hue each, in a fixed order, with a legend in the header.
+The `series` array names the keys of each entry to plot, and the key becomes the legend label.
+
+<Chart
+  type="bar"
+  filename="cold-vs-warm.json"
+  unit="ms"
+  data={renders}
+  series={["cold", "warm"]}
+  yLabel="Render time"
+  xLabel="Day"
+  caption="Cold renders compile the MDX; warm renders are served from the doc cache."
+/>
+
+That `data` is an `export const renders` at the top of this file — MDX lets you declare a
+dataset once and pass it to as many charts as you like.
+
+## Horizontal bar — room for long labels
+
+Set `orientation="horizontal"` and the category axis moves to the left, with the label
+column sized to the longest entry. Reach for it once labels are full paths, or once there
+are more than about six categories and a vertical chart would crowd them.
+
+<Chart
+  type="bar"
+  orientation="horizontal"
+  filename="doc-size-by-path.json"
+  unit="KB"
+  caption="Rendered HTML size for the largest docs in this folder."
+  data={[
+    { label: "nested/deep/05-nested-page.md", value: 14 },
+    { label: "03-custom-components.mdx", value: 22 },
+    { label: "02-mdx-basics.mdx", value: 27 },
+    { label: "04-tailwind.mdx", value: 31 },
+    { label: "06-builtins.mdx", value: 58 },
+    { label: "07-charts.mdx", value: 64 },
+  ]}
+  xLabel="Size"
+/>
+
+Axis captions stay physical: `xLabel` names the bottom axis, which on a horizontal chart is
+the values, and `yLabel` the left one.
+
+The header's orientation menu flips any bar chart between vertical and horizontal for the
+reader's own view — the doc's `orientation` prop, and anything copied from the code pane, is
+untouched. The choice carries into the expanded view, which has its own copy of the menu.
+
+## Line — follow a trend
+
+`line` draws one path per series with a point at each x position. Hover a column and the
+header shows every series' value for it, separated by dots.
+
+<Chart
+  type="line"
+  filename="page-views.json"
+  data={[
+    { label: "Wk 1", "01-markdown": 120, "06-builtins": 80, "README": 210 },
+    { label: "Wk 2", "01-markdown": 135, "06-builtins": 112, "README": 198 },
+    { label: "Wk 3", "01-markdown": 128, "06-builtins": 164, "README": 205 },
+    { label: "Wk 4", "01-markdown": 141, "06-builtins": 231, "README": 190 },
+    { label: "Wk 5", "01-markdown": 150, "06-builtins": 287, "README": 202 },
+    { label: "Wk 6", "01-markdown": 146, "06-builtins": 340, "README": 197 },
+  ]}
+  series={["README", "01-markdown", "06-builtins"]}
+  yLabel="Views"
+  xLabel="Week"
+  caption="Weekly views per doc. Series keys can be any string — quote them when they aren't identifiers."
+/>
+
+## Area — one series, filled
+
+Use `area` for a single series where the volume under the line is the story. Passing
+`legend={false}` hides the header legend even when there are several series; `height`
+changes the plot height in pixels (the default is 220).
+
+<Chart
+  type="area"
+  filename="cache-hit-rate.json"
+  unit="%"
+  height={160}
+  data={[
+    { label: "v0.1", value: 42 },
+    { label: "v0.2", value: 55 },
+    { label: "v0.3", value: 61 },
+    { label: "v0.4", value: 74 },
+    { label: "v0.5", value: 83 },
+    { label: "v0.6", value: 91 },
+    { label: "v0.7", value: 93 },
+  ]}
+  yLabel="Hit rate"
+  xLabel="Release"
+/>
+
+Stacked areas hide the lower series, so `area` with several series overlays them at low
+opacity instead. Once you have more than one, prefer `line`.
+
+## Histogram — how values are spread
+
+`type="histogram"` bins raw numbers passed as `values`, on the client — `data` and `series`
+are ignored. `unit` labels the value axis (x); the y axis is always a count. Ticks sit at
+the bin edges rather than the bin centers, and hovering a bar reads out its range and count.
+
+<Chart
+  type="histogram"
+  filename="render-time-ms.json"
+  unit="ms"
+  bins={12}
+  caption="Server-side render time, one point per request, over a busy hour."
+  values={[
+    22, 24, 19, 31, 27, 18, 35, 29, 26, 33, 21, 28, 40, 24, 30, 25, 37, 23, 29, 32,
+    20, 26, 34, 27, 22, 38, 25, 31, 28, 24, 42, 29, 33, 26, 30, 21, 36, 27, 23, 32,
+    28, 25, 39, 24, 31, 27, 22, 34, 29, 26, 44, 28, 33, 25, 30, 23, 37, 27, 21, 35,
+  ]}
+  xLabel="Render time"
+/>
+
+Leaving `bins` off falls back to a Sturges estimate (`⌈log2(n) + 1⌉`, capped at 20), which
+keeps a small sample from splitting into bins with one point apiece:
+
+<Chart
+  type="histogram"
+  filename="requests-per-doc.json"
+  values={[3, 7, 4, 9, 12, 5, 8, 6, 11, 4, 7, 9, 3, 15, 6, 8, 10, 5, 7, 9]}
+  xLabel="Requests"
+/>
+
+## One dataset, three shapes
+
+The `renders` dataset again, in each `type`. The bars make the per-day comparison easiest;
+the line makes the downward trend in cold renders easiest; the area exaggerates the gap
+between the two series, which is why it works best with one.
+
+<Tabs>
+  <Tab label="Bar">
+    <Chart type="bar" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+  </Tab>
+  <Tab label="Line">
+    <Chart type="line" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+  </Tab>
+  <Tab label="Area">
+    <Chart type="area" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+  </Tab>
+</Tabs>
+
+<Callout tone="tip" title="Keep it readable">
+  `Chart` is built for small datasets: four series or fewer, and few enough x positions that
+  the labels don't collide. If the reader needs exact numbers, or there are more than about
+  seven categories, a table is the better shape.
+</Callout>
+
+## Cheat sheet
+
+```mdx
+<Chart
+  type="line"                      // "bar" | "line" | "area" | "histogram"
+  orientation="horizontal"         // bar only; flips category/value axes
+  data={[{ label: "Mon", p50: 42, p99: 180 }]}
+  series={["p50", "p99"]}          // keys to plot; defaults to ["value"]
+  values={[42, 38, 51, 44, 36]}    // histogram only; raw numbers to bin
+  bins={12}                        // histogram only; default is a Sturges estimate
+  unit="ms"                        // tick + tooltip suffix
+  filename="latency.json"          // header label
+  caption="…"                      // below the plot
+  xLabel="Day" yLabel="Latency"
+  height={220}
+  legend={true}
+/>
+
+<Sparkline values={[1, 3, 2, 5]} color="var(--chart-2)" fill={false} width={84} height={20} />
+```
+
+Run `mdxserve components show Chart` (or `Sparkline`) for the full props table.

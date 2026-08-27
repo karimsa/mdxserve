@@ -60,6 +60,11 @@ beforeAll(async () => {
 		"# Nested\n\nNested content.\n",
 		"utf8",
 	);
+	await fs.writeFile(
+		path.join(fixtureDir, "chart.md"),
+		'# Chart\n\n```mermaid\npie title Pets\n  "Dogs" : 40\n```\n',
+		"utf8",
+	);
 	// A second root that shares a filename with the first, so a bare
 	// "good.md" is ambiguous while "sub/nested.md" is not.
 	otherDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-mcp-other-"));
@@ -189,6 +194,29 @@ describe("createMcpServer", () => {
 				(diagnostic) => diagnostic.code === "unknown-prop",
 			);
 			expect(unknownProp?.prop).toBe("tonee");
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("validate_doc reports a mermaid-chart error for a pie fence", async () => {
+		const { client, server } = await connectedClient();
+		try {
+			const abs = path.join(fixtureDir, "chart.md");
+			const result = await client.callTool({ name: "validate_doc", arguments: { path: abs } });
+			expect(result.isError).toBeFalsy();
+			expect(result.structuredContent).toMatchObject({ ok: false });
+			const structured = result.structuredContent as {
+				diagnostics: Array<{ code: string; message: string }>;
+			};
+			const chartDiagnostic = structured.diagnostics.find(
+				(diagnostic) => diagnostic.code === "mermaid-chart",
+			);
+			expect(chartDiagnostic).toBeDefined();
+			const text = (result.content as Array<{ text: string }>)[0].text;
+			expect(text).toContain("mermaid-chart");
+			expect(text).toContain("<Chart>");
 		} finally {
 			await client.close();
 			await server.close();

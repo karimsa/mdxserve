@@ -114,7 +114,7 @@ describe("RenderService#render", () => {
 		expect(outcome).toEqual({ ok: true });
 	});
 
-	it("renders every builtin, a fence, a GFM table, and a task list", async () => {
+	it("renders every builtin (including every Chart form), a fence, a GFM table, and a task list", async () => {
 		const abs = await writeDoc(
 			"kitchen-sink.mdx",
 			[
@@ -141,6 +141,23 @@ describe("RenderService#render", () => {
 				"",
 				"- [x] done",
 				"- [ ] not done",
+				"",
+				'<Chart type="bar" data={[{ label: "Mon", value: 12 }, { label: "Tue", value: 18 }]} />',
+				"",
+				"<Chart",
+				'  type="bar"',
+				'  orientation="horizontal"',
+				"  data={[",
+				'    { label: "example/nested/deep/05-nested-page.md", value: 42 },',
+				'    { label: "example/06-builtins.mdx", value: 118 },',
+				"  ]}",
+				"/>",
+				"",
+				'<Chart type="histogram" values={[4, 8, 15, 16, 23, 42, 8, 15, 4]} bins={4} unit="ms" />',
+				"",
+				'<Chart type="histogram" values={[4, 4, 4]} />',
+				"",
+				'<Chart type="line" data={[{ label: "Wk 1", value: 10 }, { label: "Wk 2", value: 20 }]} />',
 				"",
 			].join("\n"),
 		);

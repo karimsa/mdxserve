@@ -4,8 +4,37 @@ import { Icon } from "./ui/Icon";
 import { IconButton } from "./ui/IconButton";
 import { ExpandModal } from "./ui/ExpandModal";
 import { TRANSITIONS, VARIANTS } from "./motion";
+import {
+	chartDiagramKeyword,
+	chartDiagramMessage,
+	type ChartDiagramKeyword,
+} from "./mermaid-chart.js";
 
-type State = { kind: "loading" } | { kind: "ok"; svg: string } | { kind: "error"; message: string };
+type State =
+	| { kind: "loading" }
+	| { kind: "ok"; svg: string }
+	| { kind: "error"; message: string }
+	| { kind: "unsupported"; keyword: ChartDiagramKeyword };
+
+/**
+ * Shared inner content (icon + heading + body) for the two notice cards this
+ * component can show in place of a diagram: a real mermaid parse/render
+ * error, and a chart-diagram fence that is rejected on purpose. The caller
+ * supplies the outer `motion.div` (so it stays a direct child of
+ * `AnimatePresence`) and this only fills it in, keeping the two branches
+ * visually identical and in sync.
+ */
+function DiagramNoticeBody({ heading, children }: { heading: string; children: ReactNode }) {
+	return (
+		<>
+			<Icon name="octagon-alert" size="sm" className="mt-0.5 shrink-0 text-status-danger-fg" />
+			<div>
+				<p className="mb-2 font-semibold text-status-danger-fg">{heading}</p>
+				{children}
+			</div>
+		</>
+	);
+}
 
 let mermaidPromise: Promise<(typeof import("mermaid"))["default"]> | undefined;
 
@@ -103,12 +132,27 @@ function useThemeTick(): number {
  * code frame (the flow-direction toggle) stay reachable at full size.
  */
 export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: ReactNode }) {
-	const [state, setState] = useState<State>({ kind: "loading" });
+	// Seeded from the source so a chart-diagram fence never shows the
+	// "Rendering diagram…" placeholder — there is nothing to load for it.
+	const [state, setState] = useState<State>(() => {
+		const keyword = chartDiagramKeyword(source);
+		return keyword === null ? { kind: "loading" } : { kind: "unsupported", keyword };
+	});
 	const id = useId().replace(/[^a-zA-Z0-9]/g, "");
 	const themeTick = useThemeTick();
 	const renderCount = useRef(0);
 
 	useEffect(() => {
+		// pie / xychart-beta / quadrantChart / sankey-beta draw data charts,
+		// which mdxserve's <Chart> builtin already covers, and covers better
+		// (design tokens, hover, expand). Reject on purpose, before mermaid is
+		// ever downloaded.
+		const keyword = chartDiagramKeyword(source);
+		if (keyword !== null) {
+			setState({ kind: "unsupported", keyword });
+			return;
+		}
+
 		let cancelled = false;
 		// A fresh id for every render. mermaid.render() first removes any element
 		// already carrying that id from the document, so reusing one would yank
@@ -169,15 +213,21 @@ export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: 
 					{...VARIANTS.fade}
 					className="flex items-start gap-2 px-4 py-4 text-[13px] leading-normal"
 				>
-					<Icon name="octagon-alert" size="sm" className="mt-0.5 shrink-0 text-status-danger-fg" />
-					<div>
-						<p className="mb-2 font-semibold text-status-danger-fg">
-							Mermaid could not render this diagram
-						</p>
+					<DiagramNoticeBody heading="Mermaid could not render this diagram">
 						<pre className="whitespace-pre-wrap font-mono text-[length:var(--size-xs)] text-text-muted">
 							{state.message}
 						</pre>
-					</div>
+					</DiagramNoticeBody>
+				</motion.div>
+			) : state.kind === "unsupported" ? (
+				<motion.div
+					key="unsupported"
+					{...VARIANTS.fade}
+					className="flex items-start gap-2 px-4 py-4 text-[13px] leading-normal"
+				>
+					<DiagramNoticeBody heading={`Mermaid ${state.keyword} charts don't render here`}>
+						<p className="text-text-muted">{chartDiagramMessage(state.keyword)}</p>
+					</DiagramNoticeBody>
 				</motion.div>
 			) : (
 				<motion.div key="ok" {...VARIANTS.fade}>

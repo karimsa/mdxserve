@@ -61,7 +61,8 @@ Browsing to a folder shows:
 | [`04-tailwind.mdx`](./04-tailwind.mdx) | Tailwind utility classes inside MDX, dark mode variants, and opting out of `prose` |
 | [`components/Counter.tsx`](./components/Counter.tsx) | Example stateful React component used by `03-custom-components.mdx` |
 | [`nested/deep/05-nested-page.md`](./nested/deep/05-nested-page.md) | A page two folders deep, to show breadcrumb/folder navigation |
-| [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Button`, `Tooltip`, `Tabs`/`Tab`, `Badge`) and the `mdxserve components` CLI |
+| [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Button`, `Tooltip`, `Tabs`, `Badge`, `Diff`, `Card`, `Kbd`, `FileTree`, `Dropdown`) and the `mdxserve components` CLI |
+| [`07-charts.mdx`](./07-charts.mdx) | Data visualization with builtins: `Sparkline` in tables and prose, `Chart` as bar / horizontal bar / grouped bar / line / area / histogram, and one dataset in `Tabs` |
 | [`assets/logo.png`](./assets/logo.png) | A small PNG used by `01-markdown.md` to show image rendering |
 | [`notes.txt`](./notes.txt) | A plain text file, to show how non-Markdown files appear in listings |
 

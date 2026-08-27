@@ -9,8 +9,12 @@
  * optionally with a trailing `;`, and treats `TD` as an alias of `TB`. It may be
  * preceded by a `---` front-matter block, `%%` comments, and `%%{init: …}%%`
  * directives, which is why the header is located line by line instead of with
- * a single anchored regex.
+ * a single anchored regex — `mermaidHeaderLineIndex` (`./mermaid-chart.js`)
+ * does that scan; this file only checks whether the line it finds is a
+ * flowchart header.
  */
+
+import { mermaidHeaderLineIndex } from "./mermaid-chart.js";
 
 export const FLOW_DIRECTIONS = ["TB", "BT", "LR", "RL"] as const;
 
@@ -28,34 +32,13 @@ function normalize(direction: string): FlowDirection {
 
 /**
  * Index of the line holding the `flowchart`/`graph` header, or -1 when the
- * source is not a flowchart. Skips a leading front-matter block and any
- * comment or directive lines (including a directive spanning several lines);
- * the first line that is none of those must be the header.
+ * source is not a flowchart. `mermaidHeaderLineIndex` does the scan past a
+ * leading front-matter block and any comment or directive lines; this only
+ * adds the flowchart-specific check on the line it finds.
  */
 function headerLineIndex(lines: string[]): number {
-	let index = 0;
-	while (index < lines.length && lines[index]!.trim() === "") index++;
-	if (lines[index]?.trim() === "---") {
-		const close = lines.findIndex((line, at) => at > index && line.trim() === "---");
-		if (close === -1) return -1;
-		index = close + 1;
-	}
-	let inDirective = false;
-	for (; index < lines.length; index++) {
-		const line = lines[index]!;
-		if (inDirective) {
-			if (line.includes("}%%")) inDirective = false;
-			continue;
-		}
-		const trimmed = line.trim();
-		if (trimmed === "") continue;
-		if (trimmed.startsWith("%%")) {
-			if (trimmed.startsWith("%%{") && !trimmed.includes("}%%")) inDirective = true;
-			continue;
-		}
-		return HEADER.test(line) ? index : -1;
-	}
-	return -1;
+	const index = mermaidHeaderLineIndex(lines);
+	return index !== -1 && HEADER.test(lines[index]!) ? index : -1;
 }
 
 /**

@@ -2,6 +2,7 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
 import type { Nodes } from "mdast";
+import { chartDiagramKeyword, mermaidHeaderLine } from "../../../client/mermaid-chart.js";
 
 export interface MermaidNeeds {
 	mermaid: boolean;
@@ -9,35 +10,18 @@ export interface MermaidNeeds {
 	math: boolean;
 }
 
-/**
- * The first line of a mermaid fence that names the diagram type: blank lines,
- * `%%` comments/directives, and a leading YAML frontmatter block (`---` …
- * `---`, which mermaid accepts for `title:`/`config:`) are all skipped.
- */
-function firstContentLine(text: string): string | undefined {
-	const lines = text.split(/\r?\n/).map((rawLine) => rawLine.trim());
-	let index = 0;
-	while (index < lines.length && lines[index]!.length === 0) index += 1;
-	if (lines[index] === "---") {
-		const closing = lines.indexOf("---", index + 1);
-		if (closing === -1) return undefined;
-		index = closing + 1;
-	}
-	for (; index < lines.length; index += 1) {
-		const line = lines[index]!;
-		if (line.length === 0 || line.startsWith("%%")) continue;
-		return line;
-	}
-	return undefined;
-}
-
 function walkMermaidFences(node: Nodes, needs: MermaidNeeds): void {
 	if (node.type === "code" && node.lang === "mermaid") {
-		needs.mermaid = true;
-		// No header at all (e.g. an unclosed frontmatter block) fails open too.
-		const header = firstContentLine(node.value);
-		if (header === undefined || header.startsWith("mindmap")) needs.mindmap = true;
-		if (node.value.includes("$$")) needs.math = true;
+		// A chart-diagram fence (pie, xychart-beta, quadrantChart, sankey-beta)
+		// never reaches mermaid.render (client/Mermaid.tsx short-circuits it), so
+		// a doc whose only fences are charts needs no mermaid plugin at all.
+		if (chartDiagramKeyword(node.value) === null) {
+			needs.mermaid = true;
+			// No header at all (e.g. an unclosed frontmatter block) fails open too.
+			const header = mermaidHeaderLine(node.value);
+			if (header === undefined || header.startsWith("mindmap")) needs.mindmap = true;
+			if (node.value.includes("$$")) needs.math = true;
+		}
 	}
 	if ("children" in node && Array.isArray(node.children)) {
 		for (const child of node.children as Nodes[]) walkMermaidFences(child, needs);

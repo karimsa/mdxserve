@@ -41,6 +41,16 @@ beforeAll(async () => {
 		"utf8",
 	);
 	await fs.writeFile(path.join(rootA, "plain.md"), "# Plain\n\nNo diagrams here.\n", "utf8");
+	await fs.writeFile(
+		path.join(rootA, "pie.md"),
+		'# Pie\n\n```mermaid\npie title Pets\n  "Dogs" : 40\n```\n',
+		"utf8",
+	);
+	await fs.writeFile(
+		path.join(rootA, "pie-and-flow.md"),
+		'# Mixed\n\n```mermaid\npie title Pets\n  "Dogs" : 40\n```\n\n```mermaid\nflowchart TD\n  A --> B\n```\n',
+		"utf8",
+	);
 	await fs.writeFile(path.join(rootA, "notes.txt"), "not a doc\n", "utf8");
 	await fs.writeFile(path.join(rootB, "other.md"), "# Other root\n", "utf8");
 	// A symlink inside rootA that escapes to rootB.
@@ -186,6 +196,34 @@ describe("ExportService.build", () => {
 		if (result.kind !== "ok") return;
 		expect(result.mermaid).toBe("none");
 		expect(calls[0]?.mermaid).toBe("none");
+	});
+
+	it("forces mermaid to none for a pie-only doc, even when bundle is requested", async () => {
+		const { port, calls } = fakeBundle();
+		const service = new ExportService(port, [rootA]);
+		const result = await service.build({
+			docPath: path.join(rootA, "pie.md"),
+			format: "html",
+			mermaid: "bundle",
+		});
+		expect(result.kind).toBe("ok");
+		if (result.kind !== "ok") return;
+		expect(result.mermaid).toBe("none");
+		expect(calls[0]?.mermaid).toBe("none");
+	});
+
+	it("still bundles mermaid for a doc mixing a chart fence with a real diagram", async () => {
+		const { port, calls } = fakeBundle();
+		const service = new ExportService(port, [rootA]);
+		const result = await service.build({
+			docPath: path.join(rootA, "pie-and-flow.md"),
+			format: "html",
+			mermaid: "bundle",
+		});
+		expect(result.kind).toBe("ok");
+		if (result.kind !== "ok") return;
+		expect(result.mermaid).toBe("bundle");
+		expect(calls[0]?.mermaid).toBe("bundle");
 	});
 
 	it("passes the requested mermaid mode through for a doc with a fence, defaulting to cdn", async () => {

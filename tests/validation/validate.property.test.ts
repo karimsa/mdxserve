@@ -11,6 +11,7 @@ import {
 	type Diagnostic,
 } from "../../src/validation/validate.js";
 import { fixtureComponentNames, fixtureRegistry } from "../fixtures/registry.js";
+import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
 
 // Same parse helper as src/docs/doc-cache.ts.
 function parse(src: string) {
@@ -50,7 +51,13 @@ const tableArb = fc
 		return [header, sep, body].join("\n");
 	});
 
-const fenceLangArb = fc.stringMatching(/^[A-Za-z0-9_-]*$/, { maxLength: 10 });
+// "GFM-only" excludes mermaid: a `mermaid` fence whose body happens to start
+// with a chart keyword (pie, xychart-beta, quadrantChart, sankey-beta) would
+// otherwise produce a mermaid-chart diagnostic, breaking the invariance
+// properties below by construction.
+const fenceLangArb = fc
+	.stringMatching(/^[A-Za-z0-9_-]*$/, { maxLength: 10 })
+	.filter((lang) => lang !== "mermaid");
 const fenceBodyArb = fc.string({ maxLength: 40 }).filter((body) => !body.includes("```"));
 const fenceArb = fc
 	.tuple(fenceLangArb, fenceBodyArb)
@@ -413,5 +420,74 @@ describe("unresolved-import positions", () => {
 			(diagnostic) => diagnostic.code === "unresolved-import",
 		);
 		expect(warning).toMatchObject({ line: 3, column: 1 });
+	});
+});
+
+// ---- mermaid-chart -------------------------------------------------------
+
+const chartFenceArb = fc
+	.constantFrom<ChartDiagramKeyword>(...CHART_DIAGRAM_KEYWORDS)
+	.map((keyword) => ({
+		keyword,
+		text: ["```mermaid", keyword, "```"].join("\n"),
+	}));
+
+const nonChartMermaidFenceArb = fc
+	.constantFrom(
+		"flowchart TD\n  A --> B",
+		"sequenceDiagram\n  A->>B: hi",
+		"classDiagram\n  class A",
+	)
+	.map((body) => ["```mermaid", body, "```"].join("\n"));
+
+describe("analyzeTree — mermaid-chart", () => {
+	it("injecting k chart fences yields exactly k mermaid-chart diagnostics at the right lines", () => {
+		fc.assert(
+			fc.property(
+				docArb,
+				fc.array(chartFenceArb, { minLength: 1, maxLength: 4 }),
+				(doc, fences) => {
+					const parts = doc
+						? [doc, ...fences.map((fence) => fence.text)]
+						: fences.map((fence) => fence.text);
+					const full = parts.join("\n\n");
+					const lines = full.split("\n");
+
+					const tree = parse(full);
+					const diagnostics = analyzeTree(tree, fixtureRegistry);
+					const chartDiagnostics = diagnostics.filter(
+						(diagnostic) => diagnostic.code === "mermaid-chart",
+					);
+
+					expect(chartDiagnostics.length).toBe(fences.length);
+					const openingLines = lines
+						.map((line, index) => (line === "```mermaid" ? index + 1 : -1))
+						.filter((lineNumber) => lineNumber !== -1)
+						.sort((first, second) => first - second);
+					const reportedLines = chartDiagnostics
+						.map((diagnostic) => diagnostic.line)
+						.sort((first, second) => (first ?? 0) - (second ?? 0));
+					expect(reportedLines).toEqual(openingLines);
+				},
+			),
+		);
+	});
+
+	it("injecting non-chart mermaid fences adds no mermaid-chart diagnostics", () => {
+		fc.assert(
+			fc.property(
+				docArb,
+				fc.array(nonChartMermaidFenceArb, { minLength: 1, maxLength: 4 }),
+				(doc, fences) => {
+					const parts = doc ? [doc, ...fences] : fences;
+					const full = parts.join("\n\n");
+					const tree = parse(full);
+					const diagnostics = analyzeTree(tree, fixtureRegistry);
+					expect(diagnostics.filter((diagnostic) => diagnostic.code === "mermaid-chart")).toEqual(
+						[],
+					);
+				},
+			),
+		);
 	});
 });

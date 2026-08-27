@@ -103,7 +103,7 @@ A small set of components is available in every file, `.md` included, with no im
 | `Card` / `CardGrid` | Linked cards laid out in a grid                          |
 | `Kbd`               | A keyboard shortcut                                      |
 | `FileTree`          | The shape of a directory                                 |
-| `Chart`             | A bar, line, or area chart from a small dataset          |
+| `Chart`             | A bar (vertical or horizontal), line, area, or histogram |
 | `Sparkline`         | A tiny inline trend line                                 |
 | `Dropdown`          | A picker, or a switcher between longer panels of content |
 

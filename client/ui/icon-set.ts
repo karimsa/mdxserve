@@ -30,6 +30,7 @@ import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.mjs";
 import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.mjs";
+import ChartBar from "lucide-react/dist/esm/icons/chart-bar.mjs";
 import ChartColumn from "lucide-react/dist/esm/icons/chart-column.mjs";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
@@ -67,6 +68,7 @@ export const staticIcons: Record<string, LucideIcon> = {
 	"arrow-right": ArrowRight,
 	"arrow-up": ArrowUp,
 	"arrow-up-down": ArrowUpDown,
+	"chart-bar": ChartBar,
 	"chart-column": ChartColumn,
 	check: Check,
 	"chevron-down": ChevronDown,

@@ -25,12 +25,15 @@ add clarity, and prefer features that degrade gracefully everywhere else.
 3. **Mermaid diagrams** for flows, sequences, states, and architecture. mdxserve renders them as
    pan/zoomable diagrams (with a toggle to the source); GitHub renders them too; everywhere else
    they are still readable text. Prefer `flowchart` and `sequenceDiagram`; keep a diagram to
-   roughly 15 nodes or fewer — split larger ones.
+   roughly 15 nodes or fewer — split larger ones. Never use mermaid's `pie`, `xychart-beta`,
+   `quadrantChart`, or `sankey-beta` — mdxserve doesn't render them, `validate_doc` reports an
+   error on them, and they draw data, which is `<Chart>`'s job (or a table). Mermaid is for a
+   flow or a shape, not a dataset.
 4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
-   `<Kbd>`, `<FileTree>`, `<Chart>`, `<Sparkline>`) only when they make the content clearer: a warning
-   the reader must not miss, per-OS or per-language variants of the same instructions, a status label,
-   a small dataset that's clearer as a shape than a table. Outside mdxserve these show as raw tags, so
-   use them sparingly and never for decoration.
+   `<Kbd>`, `<FileTree>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`) only when they make
+   the content clearer: a warning the reader must not miss, per-OS or per-language variants of the
+   same instructions, a status label, a small dataset that's clearer as a shape than a table.
+   Outside mdxserve these show as raw tags, so use them sparingly and never for decoration.
 
 Don't: write raw HTML or inline styles; import or create custom components; use emoji as
 icons where a `Badge` or `Callout` would do; nest components for layout; put a component in a
@@ -136,7 +139,7 @@ parsed as Markdown.
 
 Plans are read in mdxserve and in plain text. Use headings for phases, a task list per phase,
 a table for files-to-change, and at most one mermaid diagram (the architecture or the main
-flow). Skip components in plans unless the user views plans only in mdxserve.
+flow, never a chart). Skip components in plans unless the user views plans only in mdxserve.
 
 ## After writing
 
@@ -169,7 +172,8 @@ path) — or tell the user to run `mdxserve roots add <dir>`.
 ## Before saving
 
 - Every code fence has a language tag; titles and highlights only where they help.
-- Any diagram is a mermaid fence, small enough to read at a glance.
+- Any diagram is a mermaid fence, small enough to read at a glance, and none of them draws a
+  chart (no `pie`, `xychart-beta`, `quadrantChart`, `sankey-beta` — use `<Chart>` or a table).
 - No raw HTML, styles, imports, or custom components.
 - Any builtin component used was checked with `components show` and genuinely clarifies.
 - The file still reads well as plain text.

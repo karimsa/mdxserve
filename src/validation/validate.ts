@@ -10,9 +10,15 @@ import { mdxCompileOptions } from "../rendering/mdx/mdx-options.js";
 import { escapeBareLt } from "../rendering/mdx/lenient-md.js";
 import { suggest, suggestFrom, type Registry } from "../components/registry.js";
 import type { RenderOutcome } from "../rendering/protocol.js";
+import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
 
 export type DiagnosticCode =
-	"mdx-compile" | "unknown-component" | "unknown-prop" | "unresolved-import" | "render-error";
+	| "mdx-compile"
+	| "unknown-component"
+	| "unknown-prop"
+	| "unresolved-import"
+	| "render-error"
+	| "mermaid-chart";
 
 export interface Diagnostic {
 	severity: "error" | "warning";
@@ -232,6 +238,20 @@ export function analyzeTree(tree: Root, registry: Registry): Diagnostic[] {
 	function visit(node: RootContent | Root) {
 		if (node.type === "mdxJsxFlowElement" || node.type === "mdxJsxTextElement") {
 			checkElement(node);
+		}
+		if (node.type === "code" && node.lang === "mermaid") {
+			const keyword = chartDiagramKeyword(node.value);
+			if (keyword !== null) {
+				diagnostics.push({
+					severity: "error",
+					code: "mermaid-chart",
+					message: chartDiagramMessage(keyword),
+					line: node.position?.start.line,
+					column: node.position?.start.column,
+					endLine: node.position?.end.line,
+					endColumn: node.position?.end.column,
+				});
+			}
 		}
 		if ("children" in node && Array.isArray(node.children)) {
 			for (const child of node.children as RootContent[]) visit(child);
