@@ -56,6 +56,21 @@ export const fixtureRegistry: Registry = {
 			},
 			children: "The panel's content.",
 		},
+		{
+			name: "Screenshot",
+			description: "An image framed as a macOS window.",
+			whenToUse: "Use for app or UI screenshots.",
+			props: {
+				type: "object",
+				properties: {
+					src: { type: "string" },
+					alt: { type: "string" },
+					title: { type: "string" },
+					caption: { type: "string" },
+				},
+				required: ["src"],
+			},
+		},
 	],
 };
 

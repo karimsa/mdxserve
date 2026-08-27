@@ -38,7 +38,13 @@ export function renderStatusLine(result: ValidationResult): string {
 export function formatValidationResult(result: ValidationResult): string {
 	const lines = result.diagnostics.map((diagnostic) => formatDiagnostic(result.path, diagnostic));
 	const renderLine = renderStatusLine(result);
-	if (result.diagnostics.length === 0) return [`OK: ${result.path}`, renderLine].join("\n");
+	// Hints are advisory and sit after the verdict, so an agent that reads the
+	// text rather than the structured output still sees them without mistaking
+	// them for a failure.
+	const hintLines = result.hints.map((hint) => `hint: ${hint}`);
+	if (result.diagnostics.length === 0) {
+		return [`OK: ${result.path}`, renderLine, ...hintLines].join("\n");
+	}
 	// `ok` only means "no errors" — warnings still need to reach an agent that
 	// reads the text rather than the structured output.
 	if (result.ok) {
@@ -47,9 +53,10 @@ export function formatValidationResult(result: ValidationResult): string {
 			`OK with ${warningCount} warning${warningCount === 1 ? "" : "s"}: ${result.path}`,
 			...lines,
 			renderLine,
+			...hintLines,
 		].join("\n");
 	}
-	return [...lines, renderLine].join("\n");
+	return [...lines, renderLine, ...hintLines].join("\n");
 }
 
 export function formatSearchResults(query: string, results: SearchResult[]): string {

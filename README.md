@@ -106,6 +106,7 @@ A small set of components is available in every file, `.md` included, with no im
 | `Chart`             | A bar (vertical or horizontal), line, area, or histogram |
 | `Sparkline`         | A tiny inline trend line                                 |
 | `Dropdown`          | A picker, or a switcher between longer panels of content |
+| `Screenshot`        | An app or UI screenshot framed as a macOS window         |
 
 ```mdx
 <Callout tone="warn" title="Before you deploy">

@@ -266,6 +266,23 @@ option's content renders below, cross-faded:
 Prefer `Tabs` when there are only 2-4 visible alternatives; reach for `Dropdown` once the list
 of options gets longer than fits comfortably as tabs.
 
+## Screenshot
+
+`Screenshot` frames an image as a macOS window, so a picture of an app or web page reads as a
+window rather than a bare bitmap. `src` resolves relative to the document like a Markdown
+image; `title` names the window and `caption` adds a note underneath. The expand control in the
+title bar opens the image full-screen, where you can drag to pan and scroll to zoom.
+
+<Screenshot
+  src="./assets/reader-light.jpg"
+  alt="mdxserve rendering a Markdown document in the light theme"
+  title="mdxserve — 01-markdown.md"
+  caption="The reader view, with the table of contents pinned to the right."
+/>
+
+Keep plain `![alt](src)` for diagrams, logos, and photos — the window chrome only makes sense
+around something that was on a screen.
+
 ## Discovering builtins from the CLI
 
 The same metadata that describes each builtin — its props, defaults, and when to use it — is

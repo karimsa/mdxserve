@@ -39,6 +39,11 @@ export interface ValidationResult {
 	diagnostics: Diagnostic[];
 	/** Whether the render step actually ran (a `render` was given and no static error existed). */
 	rendered: boolean;
+	/**
+	 * Advisory guidance for the agent that wrote the doc — things that are not
+	 * wrong, but that a builtin would present better. Never affects `ok`.
+	 */
+	hints: string[];
 }
 
 /**
@@ -262,6 +267,43 @@ export function analyzeTree(tree: Root, registry: Registry): Diagnostic[] {
 	return diagnostics;
 }
 
+/** Alt text or path mentioning "screen" (screenshot, screen-recording, login-screen, …). */
+const SCREEN_WORD = /screen/i;
+
+/**
+ * Collect advisory hints from the mdast tree. Today there is one: Markdown
+ * images whose alt text or path mention "screen" are probably screenshots,
+ * which the `<Screenshot>` builtin frames better than a bare `<img>`. Pure
+ * and synchronous, like `analyzeTree`.
+ */
+export function collectHints(tree: Root): string[] {
+	const screenshotLines: number[] = [];
+
+	function visit(node: RootContent | Root) {
+		if (node.type === "image" && (SCREEN_WORD.test(node.alt ?? "") || SCREEN_WORD.test(node.url))) {
+			const line = node.position?.start.line;
+			if (line !== undefined) screenshotLines.push(line);
+		}
+		if ("children" in node && Array.isArray(node.children)) {
+			for (const child of node.children as RootContent[]) visit(child);
+		}
+	}
+
+	visit(tree);
+
+	const hints: string[] = [];
+	if (screenshotLines.length > 0) {
+		const where =
+			screenshotLines.length === 1
+				? `Line ${screenshotLines[0]} has a Markdown image that looks`
+				: `Lines ${screenshotLines.join(", ")} have Markdown images that look`;
+		hints.push(
+			`${where} like a screenshot (the alt text or path mentions "screen"). Consider the <Screenshot src alt title caption> builtin for screenshots: it frames the image as a macOS window with an expand view that pans and zooms. Run \`mdxserve components show Screenshot\` for the props.`,
+		);
+	}
+	return hints;
+}
+
 interface RelativeImport {
 	specifier: string;
 	line?: number;
@@ -432,5 +474,8 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 	}
 
 	const ok = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
-	return { ok, path: filePath, diagnostics, rendered };
+	// A doc that failed to compile has no tree to draw hints from; the compile
+	// error is the only thing worth the agent's attention anyway.
+	const hints = captured ? collectHints(captured) : [];
+	return { ok, path: filePath, diagnostics, rendered, hints };
 }

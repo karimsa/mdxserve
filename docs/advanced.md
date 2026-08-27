@@ -167,6 +167,12 @@ builtin `<Chart>` component (bar, line, area, histogram) or a table instead. Eve
 diagram (flow, sequence, class, state, ER, gantt, timeline, gitGraph, mindmap, journey, …) is
 unaffected.
 
+The result also carries `hints`: an array of advisory strings that never affect `ok`. Today
+there is one — a Markdown image whose alt text or path mentions "screen" is probably a
+screenshot, and the hint points the agent at the builtin `<Screenshot>` component, which frames
+it as a macOS window with an expand view. The text output prints each as a `hint:` line after
+the render status.
+
 ## The agent skill
 
 `skills/mdxserve/SKILL.md` teaches an agent how to write Markdown that renders well here while

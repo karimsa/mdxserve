@@ -5,6 +5,7 @@ import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
 import {
 	analyzeTree,
+	collectHints,
 	collectLocalNames,
 	fromCompileError,
 	validateSource,
@@ -486,6 +487,100 @@ describe("analyzeTree — mermaid-chart", () => {
 					expect(diagnostics.filter((diagnostic) => diagnostic.code === "mermaid-chart")).toEqual(
 						[],
 					);
+				},
+			),
+		);
+	});
+});
+
+// ---- hints ----------------------------------------------------------------
+// A Markdown image is a screenshot candidate when its alt text or its path
+// mentions "screen"; every other image is left alone.
+
+const plainWordArb = fc.stringMatching(/^[a-z]{1,8}$/).filter((word) => !word.includes("screen"));
+
+const screenshotImageArb = fc.oneof(
+	fc
+		.tuple(plainWordArb, fc.nat({ max: 99 }))
+		.map(([word, num]) => `![${word} screen](./${word}-${num}.png)`),
+	fc
+		.tuple(plainWordArb, fc.nat({ max: 99 }))
+		.map(([word, num]) => `![${word}](./Screenshot-${num}.png)`),
+	fc
+		.tuple(plainWordArb, fc.nat({ max: 99 }))
+		.map(([word, num]) => `![${word}](../SCREENS/${word}-${num}.jpg)`),
+);
+
+const plainImageArb = fc
+	.tuple(plainWordArb, fc.nat({ max: 99 }))
+	.map(([word, num]) => `![${word}](./${word}-${num}.png)`);
+
+function imageLines(full: string): number[] {
+	return full
+		.split("\n")
+		.map((line, index) => (line.startsWith("![") ? index + 1 : -1))
+		.filter((lineNumber) => lineNumber !== -1);
+}
+
+describe("collectHints — screenshot images", () => {
+	it("GFM-only docs (no images) produce no hints", () => {
+		fc.assert(
+			fc.property(docArb, (doc) => {
+				expect(collectHints(parse(doc))).toEqual([]);
+			}),
+		);
+	});
+
+	it("images whose alt and path avoid 'screen' produce no hints", () => {
+		fc.assert(
+			fc.property(
+				docArb,
+				fc.array(plainImageArb, { minLength: 1, maxLength: 4 }),
+				(doc, images) => {
+					const full = (doc ? [doc, ...images] : images).join("\n\n");
+					expect(collectHints(parse(full))).toEqual([]);
+				},
+			),
+		);
+	});
+
+	it("injecting k screenshot-looking images yields exactly one hint that names every line and <Screenshot>", () => {
+		fc.assert(
+			fc.property(
+				docArb,
+				fc.array(screenshotImageArb, { minLength: 1, maxLength: 4 }),
+				fc.array(plainImageArb, { maxLength: 2 }),
+				(doc, screenshots, plain) => {
+					const parts = [...(doc ? [doc] : []), ...screenshots, ...plain];
+					const full = parts.join("\n\n");
+					const hints = collectHints(parse(full));
+					expect(hints).toHaveLength(1);
+					expect(hints[0]).toContain("<Screenshot");
+					// The image lines of the screenshot ones only: the plain ones
+					// follow them in the doc, and must not be listed.
+					const expectedLines = imageLines(full).slice(0, screenshots.length);
+					const listed = (hints[0].match(/\d+/g) ?? []).map(Number);
+					expect(listed.slice(0, expectedLines.length)).toEqual(expectedLines);
+				},
+			),
+		);
+	});
+
+	it("validateSource carries the same hints, and they never affect ok", async () => {
+		await fc.assert(
+			fc.asyncProperty(
+				docArb,
+				fc.array(screenshotImageArb, { minLength: 1, maxLength: 3 }),
+				async (doc, screenshots) => {
+					const full = (doc ? [doc, ...screenshots] : screenshots).join("\n\n");
+					const result = await validateSource({
+						source: full,
+						path: "/tmp/hints.mdx",
+						registry: fixtureRegistry,
+					});
+					expect(result.ok).toBe(true);
+					expect(result.diagnostics).toEqual([]);
+					expect(result.hints).toEqual(collectHints(parse(full)));
 				},
 			),
 		);

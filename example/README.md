@@ -64,6 +64,7 @@ Browsing to a folder shows:
 | [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Button`, `Tooltip`, `Tabs`, `Badge`, `Diff`, `Card`, `Kbd`, `FileTree`, `Dropdown`) and the `mdxserve components` CLI |
 | [`07-charts.mdx`](./07-charts.mdx) | Data visualization with builtins: `Sparkline` in tables and prose, `Chart` as bar / horizontal bar / grouped bar / line / area / histogram, and one dataset in `Tabs` |
 | [`assets/logo.png`](./assets/logo.png) | A small PNG used by `01-markdown.md` to show image rendering |
+| [`assets/reader-light.jpg`](./assets/reader-light.jpg) | A screenshot of the reader, framed by `Screenshot` in `06-builtins.mdx` |
 | [`notes.txt`](./notes.txt) | A plain text file, to show how non-Markdown files appear in listings |
 
 ## Using this as a template for your own docs

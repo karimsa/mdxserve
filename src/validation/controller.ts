@@ -35,10 +35,12 @@ export const validationResultSchema = z.object({
 	diagnostics: z.array(diagnosticSchema),
 	/** Whether the render step actually ran (a `render` was given and no static error existed). */
 	rendered: z.boolean(),
+	/** Advisory guidance for the agent — not errors, never affects `ok`. */
+	hints: z.array(z.string()),
 });
 
 const validateDoc = procedure(
-	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Used by the MCP validate_doc tool.",
+	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by the MCP validate_doc tool.",
 )
 	.input(validateDocInput)
 	.output(validationResultSchema)

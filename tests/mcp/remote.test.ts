@@ -68,6 +68,7 @@ describe("validate_doc remote wiring", () => {
 			path: "/somewhere/entirely/else.md",
 			diagnostics: [{ severity: "error", code: "render-error", message: "from the remote server" }],
 			rendered: true,
+			hints: [],
 		};
 		const remote = {
 			...unavailableRemote(),

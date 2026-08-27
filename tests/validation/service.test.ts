@@ -296,3 +296,66 @@ describe("ValidationService.validateText", () => {
 		expect(result.diagnostics.some((entry) => entry.code === "unresolved-import")).toBe(false);
 	});
 });
+
+describe("ValidationService.validateDoc — hints", () => {
+	it("a plain doc has an empty hints array", async () => {
+		const abs = await writeDoc("plain.md", "# Hi\n\n![Logo](./logo.png)\n");
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.hints).toEqual([]);
+	});
+
+	it("an image whose alt text mentions 'screen' gets a <Screenshot> hint with its line", async () => {
+		const abs = await writeDoc("alt.md", "# Hi\n\nintro\n\n![Login screen](./login.png)\n");
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.ok).toBe(true);
+		expect(outcome.result.hints).toHaveLength(1);
+		expect(outcome.result.hints[0]).toContain("Line 5");
+		expect(outcome.result.hints[0]).toContain("<Screenshot");
+	});
+
+	it("an image whose path mentions 'screen' gets the hint too, case-insensitively", async () => {
+		const abs = await writeDoc("path.mdx", "![Dashboard](./assets/ScreenShot-1.png)\n");
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.hints).toHaveLength(1);
+		expect(outcome.result.hints[0]).toContain("Line 1");
+	});
+
+	it("several screenshot images collapse into one hint listing every line", async () => {
+		const abs = await writeDoc(
+			"many.md",
+			"![Home screen](./a.png)\n\ntext\n\n![Settings](./screens/b.png)\n\n![Logo](./logo.png)\n",
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.hints).toHaveLength(1);
+		expect(outcome.result.hints[0]).toContain("Lines 1, 5");
+		expect(outcome.result.hints[0]).not.toContain("7");
+	});
+
+	it("an already-framed <Screenshot> is not hinted about", async () => {
+		const abs = await writeDoc(
+			"framed.mdx",
+			'<Screenshot src="./screenshot.png" alt="Login screen" />\n',
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.hints).toEqual([]);
+	});
+
+	it("a doc that fails to compile has no hints", async () => {
+		const abs = await writeDoc("broken.mdx", "![Login screen](./login.png)\n\n<Callout>\n");
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.ok).toBe(false);
+		expect(outcome.result.hints).toEqual([]);
+	});
+});

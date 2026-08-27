@@ -12,6 +12,7 @@ import FileTree, { fileTreeProps } from "./FileTree";
 import Chart, { chartProps } from "./Chart";
 import Sparkline, { sparklineProps } from "./Sparkline";
 import Dropdown, { Option, dropdownProps, optionProps } from "./Dropdown";
+import Screenshot, { screenshotProps } from "./Screenshot";
 
 export interface BuiltinDefinition {
 	name: string;
@@ -149,6 +150,15 @@ export const builtins: BuiltinDefinition[] = [
 			"Only as a direct child of `<Dropdown>`. `label` is required; `value` defaults to a slug of `label`.",
 		props: optionProps,
 		Component: Option,
+	},
+	{
+		name: "Screenshot",
+		description:
+			"An image framed as a macOS window — traffic-light buttons, an optional title, a raised border — for app and UI screenshots.",
+		whenToUse:
+			"Use instead of a plain Markdown image when the picture is a screenshot of an app, web page, or terminal, so it reads as a window rather than a bare bitmap. `src` resolves like a Markdown image; add `title` for the window name and `caption` for a note below. The title bar's expand control opens the image full-screen with pan and zoom, so a dense screenshot can stay small inline. Keep plain `![alt](src)` for diagrams, logos, and photos.",
+		props: screenshotProps,
+		Component: Screenshot,
 	},
 ];
 

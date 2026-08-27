@@ -30,7 +30,7 @@ add clarity, and prefer features that degrade gracefully everywhere else.
    error on them, and they draw data, which is `<Chart>`'s job (or a table). Mermaid is for a
    flow or a shape, not a dataset.
 4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
-   `<Kbd>`, `<FileTree>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`) only when they make
+   `<Kbd>`, `<FileTree>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`, `<Screenshot>`) only when they make
    the content clearer: a warning the reader must not miss, per-OS or per-language variants of the
    same instructions, a status label, a small dataset that's clearer as a shape than a table.
    Outside mdxserve these show as raw tags, so use them sparingly and never for decoration.

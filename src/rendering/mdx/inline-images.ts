@@ -4,7 +4,8 @@ import path from "node:path";
 // A build-only rehype plugin: `![](./assets/logo.png)` compiles to a literal
 // relative `src`, which is broken once the compiled JS lives inside an
 // arbitrary out.html far from the doc's own directory. Base64 it in place
-// instead, for both a plain hast `img` element and an MDX JSX `<img>`
+// instead, for a plain hast `img` element, an MDX JSX `<img>`, and the
+// `<Screenshot>` builtin, whose `src` is a bare `<img>` inside window chrome
 // (`mdxJsxFlowElement`/`mdxJsxTextElement`).
 //
 // The MDX JSX node shapes below aren't part of `@types/hast` (they only
@@ -69,6 +70,9 @@ function walk(node: InlineImageNode, visit: (node: InlineImageNode) => void): vo
 	for (const child of node.children ?? []) walk(child, visit);
 }
 
+/** JSX elements whose `src` attribute is an image path relative to the doc. */
+const IMAGE_JSX_NAMES = new Set(["img", "Screenshot"]);
+
 function inlineNode(node: InlineImageNode, options: RehypeInlineImagesOptions): void {
 	if (
 		node.type === "element" &&
@@ -81,7 +85,8 @@ function inlineNode(node: InlineImageNode, options: RehypeInlineImagesOptions): 
 	}
 	if (
 		(node.type === "mdxJsxFlowElement" || node.type === "mdxJsxTextElement") &&
-		node.name === "img"
+		typeof node.name === "string" &&
+		IMAGE_JSX_NAMES.has(node.name)
 	) {
 		for (const attribute of node.attributes ?? []) {
 			if (
