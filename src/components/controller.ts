@@ -34,7 +34,7 @@ export const getComponentInput = z.object({ name: z.string().min(1).max(128) });
 export const getComponentResultSchema = z.object({ component: registryComponentSchema });
 
 const listComponents = procedure(
-	"Lists the builtin MDX components available to authors, each with its description, when to use it, and its prop names, optionally filtered by a case-insensitive substring match against all four. Used by the MCP list_components tool and the `mdxserve components search` CLI command.",
+	"Lists the builtin MDX components available to authors, each with its description, when to use it, and its prop names, optionally filtered by a case-insensitive substring match against all four. Used by `mdxserve components search`.",
 )
 	.input(listComponentsInput)
 	.output(listComponentsResultSchema)
@@ -43,7 +43,7 @@ const listComponents = procedure(
 	}));
 
 const getComponent = procedure(
-	"Returns one builtin MDX component in full — description, when to use it, and the JSON Schema of its props — looked up case-insensitively by name. Used by the MCP show_component tool; an unknown name is a NOT_FOUND carrying up to three did-you-mean suggestions.",
+	"Returns one builtin MDX component in full — description, when to use it, and the JSON Schema of its props — looked up case-insensitively by name. Used by `mdxserve components show`; an unknown name is a NOT_FOUND carrying up to three did-you-mean suggestions.",
 )
 	.input(getComponentInput)
 	.output(getComponentResultSchema)

@@ -129,7 +129,7 @@ export function formatComponent(entry: RegistryComponent): string {
 
 /**
  * One line per component, name column padded to the widest name. The CLI's
- * `components search` and the MCP `list_components` tool both present the
+ * `components search` presents the
  * registry this way, so the table lives here rather than being written out
  * once per adapter.
  */

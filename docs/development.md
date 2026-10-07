@@ -15,8 +15,7 @@ cd mdxserve
 
 `setup.sh` runs `yarn install` and `yarn build`, symlinks `bin/mdxserve` into `~/.local/bin`
 (or `/usr/local/bin`) with the current `node` pinned in `.node-path` so the launcher survives
-switching Node versions, installs `skills/` with `npx skills add`, and registers `mdxserve mcp`
-with Claude Code and Codex when they are present (`--no-mcp` skips that). Re-run it after
+switching Node versions, installs `skills/` with `npx skills add`, and re-run it after
 editing anything under `skills/`.
 
 The project has no native modules and is installed with `enableScripts: false`, so a
@@ -40,14 +39,13 @@ CI (`.github/workflows/verify-pr.yml`) runs, in order: `yarn constraints`, `form
 `lint`, `typecheck`, `test`, `build`. Run the same set before opening a PR.
 
 The `mdxserve` on your `PATH` is the built `dist/cli.js`, so a change under `src/` or
-`client/` is not visible to it — or to an MCP client already connected to `mdxserve mcp` —
-until you `yarn build` and reconnect. `yarn dev` sees source changes immediately.
+`client/` is not visible to it until you `yarn build`. `yarn dev` sees source changes immediately.
 
 ## Where things live
 
 | Path               | Contents                                                                                                                                                                                                                   |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`) and adapters (`api/`, `mcp/`, `http/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
+| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`) and adapters (`api/`, `cli/`, `http/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
 | `client/`          | The browser app: the shell, the doc view, the section editor, mermaid, and `builtins/`                                                                                                                                     |
 | `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                                      |
 | `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                                      |
@@ -57,11 +55,11 @@ until you `yarn build` and reconnect. `yarn dev` sees source changes immediately
 | `scripts/`         | `build-registry.ts`, which turns the builtins' zod schemas into `dist/registry.json`                                                                                                                                       |
 | `docs/`            | These pages and the README screenshots                                                                                                                                                                                     |
 
-The shape in one line: an adapter (`src/api/`, `src/mcp/`, `src/http/`, the CLI) constructs
+The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
 the service it needs inline with concrete values, calls one method, and maps the result union
 to its transport's error. There is no container, factory, or dependency bag; per-process state
 (the doc cache, the search index, the render worker, the roots set, the server lock) is created
-once in `startServer` or the `mcp` command and carried in the request context. `AGENTS.md`
+once in `startServer` or a CLI command and carried in the request context. `AGENTS.md`
 has the full rules.
 
 ## Adding a builtin component
@@ -71,8 +69,8 @@ has the full rules.
    `mdxserve components show` can explain them.
 2. Register it in `client/builtins/index.ts` with a `description` and a `whenToUse` — the
    latter is what an agent reads to decide whether to reach for it.
-3. `yarn registry` (or `yarn build`) regenerates `dist/registry.json`; `validate_doc`'s
-   unknown-component and unknown-prop checks, the CLI, and the MCP tools all read from it.
+3. `yarn registry` (or `yarn build`) regenerates `dist/registry.json`; `mdxserve validate`'s
+   unknown-component and unknown-prop checks and the CLI all read from it.
 4. If the component pulls in a new browser dependency, add it to the `optimizeDepsInclude`
    list in `src/rendering/vite.ts`, or its hooks throw on first load.
 5. Show it in `example/06-builtins.mdx` (or `07-charts.mdx` for anything that draws data),
@@ -81,7 +79,7 @@ has the full rules.
 ## Tests
 
 Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`,
-`controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/mcp/`,
+`controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`,
 `tests/http/`, `tests/servers/`, `tests/rendering/`. Every service has functional tests for its
 behaviour and property tests for the guarantees its interface makes. The one exception is a
 service that owns an external process (`RenderService`): functional tests plus a single cheap

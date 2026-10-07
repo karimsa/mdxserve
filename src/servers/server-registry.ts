@@ -32,8 +32,8 @@ export function defaultRegistryPath(): string {
 
 function warn(action: string, dbPath: string, error: unknown): void {
 	const message = error instanceof Error ? error.message : String(error);
-	// stderr only: this must never crash `serve`, and in `mdxserve mcp` (stdio
-	// transport) stdout is reserved for the protocol.
+	// stderr only: this must never crash `serve`, and in the CLI stdout is
+	// reserved for output such as `--json`.
 	console.error(`mdxserve: failed to ${action} ${dbPath}: ${message}`);
 }
 
@@ -82,7 +82,7 @@ interface ServerRow {
 /**
  * The single `mdxserve serve` instance currently running on this machine,
  * backed by a sqlite db at `dbPath` holding exactly one row (id = 1). The CLI
- * and the stdio MCP bridge read this row to find the running server; the
+ * and the CLI read this row to find the running server; the
  * server itself keeps it current as its roots change.
  */
 export class ServerRegistry {

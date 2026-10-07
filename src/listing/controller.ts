@@ -73,7 +73,7 @@ const getFolderListing = procedure(
 	});
 
 const getDocTree = procedure(
-	"Returns the full doc tree of every served root, or of one directory, up to maxDepth levels. Used by the sidebar, ⌘K search, prev/next navigation, and the MCP list_docs tool.",
+	"Returns the full doc tree of every served root, or of one directory, up to maxDepth levels. Used by the sidebar, ⌘K search, prev/next navigation, and `mdxserve docs`.",
 )
 	.input(getDocTreeInput)
 	.output(docTreeSchema)

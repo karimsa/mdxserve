@@ -1,8 +1,0 @@
-{
-	"mcpServers": {
-		"mdxserve": {
-			"command": "mdxserve",
-			"args": ["mcp"]
-		}
-	}
-}

@@ -27,7 +27,7 @@ Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`
   `src/api/trpc.ts`, so it must say what it is for. A procedure constructs the service it
   needs, calls one method, and maps the result `kind` to a `TRPCError`; this is the only file
   allowed to throw one. It exports a `<module>Controller` object that `src/api/router.ts`
-  spreads into the aggregate router, and exports its schemas so `src/mcp/` can reuse them
+  spreads into the aggregate router, and exports its schemas so `src/cli/` can reuse them
   instead of keeping a second copy.
 - Pure helpers stay plain exported functions in their own files (`roots/paths.ts`,
   `docs/edit.ts`, `listing/tree.ts`, …). Write a class only when there is a dependency to hold
@@ -39,7 +39,7 @@ There is no service registry, factory, or dependency-injection bag. An adapter `
 service it needs, inline, with the values it already has; a stateless service may be
 constructed per request, and two adapters constructing the same service is fine. Only
 genuinely per-process state is created once — in `startServer` (`src/http/start.ts`) or the
-`mcp` CLI command — and carried through the request context: `DocCache`, `SearchService`,
+a CLI command — and carried through the request context: `DocCache`, `SearchService`,
 `DocsService` (it owns the per-file save lock), `RenderService` (it owns the render worker),
 `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
@@ -53,7 +53,7 @@ Adapters contain no business logic:
 | Folder           | Role                                                                                                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
-| `src/mcp/`       | MCP tools (`tools/*.ts`), one per file; they call the same services the tRPC procedures do, so a tool and a procedure cannot drift                                 |
+| `src/cli/`       | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                 |
 | `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
 | `src/rendering/` | Vite dev server, the SSR render worker, the MDX compile pipeline, and the standalone bundle (`bundle.ts`, a one-shot `vite build()` behind `ExportService`'s port) |
 | `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
@@ -75,7 +75,7 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## Writing tests
 
-- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/mcp/`, `tests/http/`, `tests/servers/`, `tests/rendering/`
+- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/rendering/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
 - A service that owns an external process (`RenderService`) may lean on functional tests plus one cheap property; a full property run against a live Vite server is not worth the wall clock

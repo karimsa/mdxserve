@@ -8,7 +8,7 @@ export const NO_SERVER_MESSAGE =
 	"No mdxserve server is running; start one with `mdxserve serve -w <dir>`";
 
 export const NO_ROOTS_MESSAGE =
-	"The mdxserve server is running but serves no folders yet; add one with the add_root tool or `mdxserve roots add <dir>`";
+	"The mdxserve server is running but serves no folders yet; add one with `mdxserve roots add <dir>`";
 
 export function formatRoots(roots: RootInfo[]): string {
 	if (roots.length === 0) return "(no folders served)";
@@ -32,7 +32,7 @@ export function renderStatusLine(result: ValidationResult): string {
 	if (result.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
 		return "Not rendered (fix the errors above first)";
 	}
-	return "Not rendered (no mdxserve server is running, or the caller is not on loopback)";
+	return "Not rendered (no mdxserve server is reachable; start one with `mdxserve serve -w <dir>`)";
 }
 
 export function formatValidationResult(result: ValidationResult): string {
@@ -73,20 +73,6 @@ export function formatDocTree(roots: DocTreeRoot[], dirAbs: string | null): stri
 			return `${rootEntry.name} (${dirAbs ?? rootEntry.dir})\n${body}`;
 		})
 		.join("\n\n");
-}
-
-export function errorResult(text: string): {
-	isError: true;
-	content: [{ type: "text"; text: string }];
-} {
-	return { isError: true, content: [{ type: "text", text }] };
-}
-
-export function textResult<Structured extends object>(
-	text: string,
-	structuredContent: Structured,
-): { content: [{ type: "text"; text: string }]; structuredContent: Structured } {
-	return { content: [{ type: "text", text }], structuredContent };
 }
 
 export function indentTree(nodes: TreeNode[], depth = 0): string[] {

@@ -6,7 +6,7 @@ import { isServable } from "./servable.js";
 /**
  * Expand a leading `~` (`~` alone or `~/…`) to `home`. Shells normally do this
  * before we see the argument, but not when the value is quoted, glued to the
- * flag (`-w~/docs`), or comes from a config file or an MCP client. `~user`
+ * flag (`-w~/docs`), or comes from a config file. `~user`
  * forms and a `~` anywhere else are left alone.
  */
 export function expandHome(input: string, home: string): string {

@@ -275,7 +275,6 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 		pathname: string,
 		host: string,
 		body: string,
-		accept = "application/json",
 	): Promise<{ status: number; text: string }> {
 		const url = new URL(base);
 		return new Promise((resolve, reject) => {
@@ -288,7 +287,6 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 					headers: {
 						host,
 						"content-type": "application/json",
-						accept,
 						"content-length": Buffer.byteLength(body),
 					},
 				},
@@ -321,31 +319,5 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 
 		const genuine = await request(base, "/__mdxserve/trpc/addRoots", `127.0.0.1:${port}`, body);
 		expect(genuine.status).toBe(200);
-	});
-
-	it("the MCP add_root tool refuses the same request", async () => {
-		const { base } = await startWith();
-		const port = new URL(base).port;
-		const call = JSON.stringify({
-			jsonrpc: "2.0",
-			id: 1,
-			method: "tools/call",
-			params: { name: "add_root", arguments: { path: fixtureDir } },
-		});
-		const accept = "application/json, text/event-stream";
-		const rebinding = await request(
-			base,
-			"/__mdxserve/mcp",
-			`attacker.example:${port}`,
-			call,
-			accept,
-		);
-		expect(rebinding.status).toBe(200);
-		expect(rebinding.text).toContain("same-machine");
-
-		const genuine = await request(base, "/__mdxserve/mcp", `localhost:${port}`, call, accept);
-		expect(genuine.status).toBe(200);
-		expect(genuine.text).not.toContain("same-machine");
-		expect(genuine.text).toContain("already mounted");
 	});
 });

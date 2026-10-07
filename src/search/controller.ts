@@ -19,7 +19,7 @@ export const searchResultSchema = z.object({
 export const searchDocsResultSchema = z.object({ results: z.array(searchResultSchema) });
 
 const searchDocs = procedure(
-	"Full-text search across the titles, headings, and bodies of every served doc, ranked, capped at 30 results. Used by the ⌘K search dialog and the MCP search_docs tool; an empty query returns docs in tree order.",
+	"Full-text search across the titles, headings, and bodies of every served doc, ranked, capped at 30 results. Used by the ⌘K search dialog and `mdxserve search`; an empty query returns docs in tree order.",
 )
 	.input(searchDocsInput)
 	.output(searchDocsResultSchema)

@@ -69,7 +69,6 @@ function printBanner(
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
 	if (networkUrl) lines.push(`- Network:  ${networkUrl}`);
-	lines.push(`- MCP:      ${localUrl}/__mdxserve/mcp`);
 	lines.push(`- API:      ${localUrl}/__mdxserve/trpc`);
 	lines.push("");
 	if (rootInfos.length === 0) {
@@ -138,11 +137,11 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 
 	// Per-process state: the one mutable set of directories this server
 	// serves. Seeded from the roots `serve` was started with; `add`/`remove`
-	// (the roots tRPC procedures / MCP tools) change it live from here on.
+	// (the roots tRPC procedures) change it live from here on.
 	const rootsService = new RootsService(process.cwd(), os.homedir(), roots);
 
 	// Let a missing dist/registry.json (i.e. "run yarn build" first) propagate
-	// and fail startup fast, rather than only failing the first MCP call.
+	// and fail startup fast, rather than only failing the first CLI call.
 	const registry = loadRegistry();
 
 	const cssDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));

@@ -26,9 +26,8 @@ cd mdxserve
 ```
 
 `setup.sh` installs dependencies, builds, and links an `mdxserve` command onto your `PATH`
-(`~/.local/bin`, or `/usr/local/bin`). It also registers the mdxserve MCP server and writing
-skill with Claude Code and Codex if either is installed — pass `--no-mcp` to skip the MCP
-part. It is safe to re-run.
+(`~/.local/bin`, or `/usr/local/bin`). It also installs the writing skill for Claude Code and
+Codex if either is present. It is safe to re-run.
 
 ## Quick start
 
@@ -193,20 +192,12 @@ and it gives the agent tools to write for it well:
 - **A writing skill.** `skills/mdxserve/SKILL.md` teaches an agent to write Markdown that
   renders richly here while staying plain and portable, and to check the builtin components
   before using them.
-- **An MCP server.** `mdxserve mcp` exposes `validate_doc` (compile errors, unknown components
-  and props, and render-time throws for a file), `list_components` / `show_component`,
-  `search_docs` / `list_docs`, and `list_roots` / `add_root` / `remove_root`.
+- **CLI verbs.** `mdxserve validate`, `search`, `docs`, `roots`, and `components` all take
+  `--json`, so an agent can check a file, find docs, and manage served folders from a shell.
 
-`setup.sh` registers both with Claude Code and Codex when it finds them. For any other MCP
-client, use the repo's [`mcp.json`](./mcp.json):
-
-```json
-{ "mcpServers": { "mdxserve": { "command": "mdxserve", "args": ["mcp"] } } }
-```
-
-The MCP server talks to your running `mdxserve serve`, so start that first (or let the agent
-call `add_root`). [`docs/advanced.md`](./docs/advanced.md#the-mcp-server) covers the tools in
-detail and the HTTP transport.
+`validate` works without a server (compile errors, unknown components and props) but only
+renders the doc when an `mdxserve serve` is running.
+[`docs/advanced.md`](./docs/advanced.md#the-agent-cli) covers the verbs in detail.
 
 ## Keeping it running
 
@@ -223,9 +214,9 @@ oxmgr stop mdxserve      # stop it
 
 ## Going further
 
-| Read                                           | If you want to                                                                                                                           |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [`docs/advanced.md`](./docs/advanced.md)       | Understand the one-server-per-user model, URL and root rules, LAN exposure, the cache, exports in depth, and the MCP server's transports |
-| [`docs/http-api.md`](./docs/http-api.md)       | Call the server's typed HTTP API directly                                                                                                |
-| [`docs/development.md`](./docs/development.md) | Work on mdxserve itself: build, test, add a builtin, and where things live                                                               |
-| [`AGENTS.md`](./AGENTS.md)                     | The architecture rules the codebase follows (also what coding agents read)                                                               |
+| Read                                           | If you want to                                                                                                             |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [`docs/advanced.md`](./docs/advanced.md)       | Understand the one-server-per-user model, URL and root rules, LAN exposure, the cache, exports in depth, and the agent CLI |
+| [`docs/http-api.md`](./docs/http-api.md)       | Call the server's typed HTTP API directly                                                                                  |
+| [`docs/development.md`](./docs/development.md) | Work on mdxserve itself: build, test, add a builtin, and where things live                                                 |
+| [`AGENTS.md`](./AGENTS.md)                     | The architecture rules the codebase follows (also what coding agents read)                                                 |

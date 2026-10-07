@@ -1,19 +1,15 @@
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { startServer } from "./http/start.js";
 import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
 import { ComponentsService } from "./components/service.js";
 import { cleanCache, getCacheHome } from "./infra/cache.js";
-import { createMcpServer } from "./mcp/server.js";
-import { RemoteClient, serverBaseUrl } from "./servers/remote.js";
+import { serverBaseUrl } from "./servers/remote.js";
 import { RootsService } from "./roots/service.js";
-import { computeRootInfos, type RootInfo } from "./roots/root-info.js";
 import { expandHome } from "./roots/paths.js";
-import { ServerRegistry, type ServerRecord } from "./servers/server-registry.js";
-import { DocCache } from "./docs/doc-cache.js";
-import { SearchService } from "./search/service.js";
+import { ServerRegistry } from "./servers/server-registry.js";
+import { liveServerFrom } from "./servers/mounted-roots.js";
 import {
 	ExportService,
 	EXPORT_FORMATS,
@@ -22,41 +18,16 @@ import {
 } from "./export/service.js";
 import { bundleStandalone } from "./rendering/bundle.js";
 import type { MermaidMode } from "./rendering/protocol.js";
+import { NO_SERVER_MESSAGE } from "./cli/format.js";
+import { printOutcome } from "./cli/outcome.js";
+import { runValidate } from "./cli/validate.js";
+import { runSearch } from "./cli/search.js";
+import { runDocs } from "./cli/docs.js";
+import { runRootsAdd, runRootsList, runRootsRemove } from "./cli/roots.js";
 
 const program = new Command();
 
-const NOT_RUNNING = "mdxserve: no server is running; start one with `mdxserve serve -w <dir>`";
-
-/** Connects to the currently running `mdxserve serve` instance, or `undefined` if none is registered. */
-function connectToRunningServer(): { record: ServerRecord; remote: RemoteClient } | undefined {
-	const serverRegistry = new ServerRegistry();
-	const record = serverRegistry.current();
-	if (!record) return undefined;
-	return { record, remote: new RemoteClient(() => serverRegistry.current()) };
-}
-
-/** Resolve a CLI-supplied directory the same way the roots tRPC schema expects: absolute, against this process's cwd (not the server's). */
-function resolveRootArg(dir: string): string {
-	return path.resolve(process.cwd(), expandHome(dir, os.homedir()));
-}
-
-function printDirList(dirs: string[]): void {
-	if (dirs.length === 0) {
-		console.log("(none)");
-		return;
-	}
-	for (const dir of dirs) console.log(dir);
-}
-
-function printRootsMutation(
-	verb: "Added" | "Removed",
-	changed: string[],
-	mountedRoots: RootInfo[],
-): void {
-	for (const dir of changed) console.log(`${verb} ${dir}`);
-	console.log("Now serving:");
-	printDirList(mountedRoots.map((rootInfo) => rootInfo.dir));
-}
+const NOT_RUNNING = `mdxserve: ${NO_SERVER_MESSAGE}`;
 
 program
 	.name("mdxserve")
@@ -171,10 +142,49 @@ program
 		process.exitCode = 1;
 	});
 
+const roots = program.command("roots").description("Manage the folders the running server serves");
+
+roots
+	.command("add <dirs...>")
+	.description("Mount one or more directories on the running server")
+	.option("--json", "print the result as JSON")
+	.action(async (dirs: string[], opts: { json?: boolean }) => {
+		printOutcome(
+			await runRootsAdd(dirs, opts, {
+				server: liveServerFrom(new ServerRegistry()),
+				cwd: process.cwd(),
+				home: os.homedir(),
+			}),
+		);
+	});
+
+roots
+	.command("remove <dirs...>")
+	.description("Unmount one or more directories from the running server")
+	.option("--json", "print the result as JSON")
+	.action(async (dirs: string[], opts: { json?: boolean }) => {
+		printOutcome(
+			await runRootsRemove(dirs, opts, {
+				server: liveServerFrom(new ServerRegistry()),
+				cwd: process.cwd(),
+				home: os.homedir(),
+			}),
+		);
+	});
+
+roots
+	.command("list")
+	.description("List the folders the running server serves")
+	.option("--json", "print the result as JSON")
+	.action(async (opts: { json?: boolean }) => {
+		printOutcome(await runRootsList(opts, { server: liveServerFrom(new ServerRegistry()) }));
+	});
+
 program
-	.command("mcp")
-	.description("Run the MCP server over stdio (for Claude Code, Codex, …)")
-	.action(async () => {
+	.command("validate <paths...>")
+	.description("Check .md/.mdx files for compile errors, unknown components and props")
+	.option("--json", "print one result per file as JSON")
+	.action(async (paths: string[], opts: { json?: boolean }) => {
 		let registry;
 		try {
 			registry = loadRegistry();
@@ -183,105 +193,37 @@ program
 			process.exitCode = 1;
 			return;
 		}
-
-		// The one running `mdxserve serve` keeps its pid/port/roots current in
-		// the server registry; this bridge reads that row fresh per tool call
-		// (a tiny sqlite open, nowhere near a hot path) and proxies
-		// `validate_doc`, `search_docs`, `list_docs`, and the root mutations to
-		// it over a tRPC client (src/servers/remote.ts) so the server's warm
-		// search index and render worker are the single source of truth — the
-		// stdio bridge has neither. An `unavailable` outcome (no server, or the
-		// request itself fails — e.g. a registry row surviving a crash before
-		// its pid check catches up) falls back to local, static-only handling
-		// inside createMcpServer. The bridge never starts a server itself.
-		const serverRegistry = new ServerRegistry();
-		const docCache = new DocCache();
-		const search = new SearchService(docCache);
-		const server = createMcpServer({
-			registry,
-			serverRunning: () => serverRegistry.current() !== undefined,
-			getRoots: () => computeRootInfos(serverRegistry.current()?.roots ?? []),
-			remote: new RemoteClient(() => serverRegistry.current()),
-			docCache,
-			search,
-		});
-
-		const transport = new StdioServerTransport();
-		await server.connect(transport); // keeps the process alive until stdin closes
+		printOutcome(
+			await runValidate(paths, opts, {
+				registry,
+				server: liveServerFrom(new ServerRegistry()),
+				cwd: process.cwd(),
+				home: os.homedir(),
+			}),
+		);
 	});
 
-const roots = program.command("roots").description("Manage the folders the running server serves");
-
-roots
-	.command("add <dirs...>")
-	.description("Mount one or more directories on the running server")
-	.action(async (dirs: string[]) => {
-		const connection = connectToRunningServer();
-		if (!connection) {
-			console.error(NOT_RUNNING);
-			process.exitCode = 1;
-			return;
-		}
-
-		const outcome = await connection.remote.addRoots(dirs.map(resolveRootArg));
-		if (outcome.kind === "ok") {
-			printRootsMutation("Added", outcome.value.added, outcome.value.roots);
-			return;
-		}
-		process.exitCode = 1;
-		if (outcome.kind === "error") {
-			console.error(`mdxserve: ${outcome.message}`);
-			return;
-		}
-		console.error(NOT_RUNNING);
+program
+	.command("search <query>")
+	.description("Full-text search the docs under the served folders")
+	.option("--json", "print the results as JSON")
+	.action(async (query: string, opts: { json?: boolean }) => {
+		printOutcome(await runSearch(query, opts, { server: liveServerFrom(new ServerRegistry()) }));
 	});
 
-roots
-	.command("remove <dirs...>")
-	.description("Unmount one or more directories from the running server")
-	.action(async (dirs: string[]) => {
-		const connection = connectToRunningServer();
-		if (!connection) {
-			console.error(NOT_RUNNING);
-			process.exitCode = 1;
-			return;
-		}
-
-		const outcome = await connection.remote.removeRoots(dirs.map(resolveRootArg));
-		if (outcome.kind === "ok") {
-			printRootsMutation("Removed", outcome.value.removed, outcome.value.roots);
-			return;
-		}
-		process.exitCode = 1;
-		if (outcome.kind === "error") {
-			console.error(`mdxserve: ${outcome.message}`);
-			return;
-		}
-		console.error(NOT_RUNNING);
-	});
-
-roots
-	.command("list")
-	.description("List the folders the running server serves")
-	.action(async () => {
-		const connection = connectToRunningServer();
-		if (!connection) {
-			console.error(NOT_RUNNING);
-			process.exitCode = 1;
-			return;
-		}
-
-		const outcome = await connection.remote.listRoots();
-		if (outcome.kind === "ok") {
-			printDirList(outcome.value.roots.map((rootInfo) => rootInfo.dir));
-			return;
-		}
-		process.exitCode = 1;
-		if (outcome.kind === "error") {
-			console.error(`mdxserve: ${outcome.message}`);
-			return;
-		}
-		console.error(NOT_RUNNING);
+program
+	.command("docs [dir]")
+	.description("List the tree of docs under the served folders, or under one directory")
+	.option("--depth <n>", "how many levels deep to list (1 to 8)", "8")
+	.option("--json", "print the tree as JSON")
+	.action(async (dir: string | undefined, opts: { depth: string; json?: boolean }) => {
+		printOutcome(
+			await runDocs(dir, opts, {
+				server: liveServerFrom(new ServerRegistry()),
+				cwd: process.cwd(),
+				home: os.homedir(),
+			}),
+		);
 	});
 
 program

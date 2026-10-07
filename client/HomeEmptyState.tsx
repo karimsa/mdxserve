@@ -10,7 +10,7 @@ const COMMAND_PREFIX = "mdxserve roots add ";
  * The home page when nothing is mounted. The server is up and this page
  * already re-renders itself on `mdxserve:roots-changed`, so the whole view
  * is framed as a server waiting for a folder rather than as an error: one
- * command to run, a quieter MCP alternative, and a live status line that
+ * command to run, a quieter agent alternative, and a live status line that
  * says where the server is listening.
  */
 export function HomeEmptyState() {
@@ -83,7 +83,7 @@ export function HomeEmptyState() {
 					</motion.button>
 				</div>
 				<p className="font-sans text-[length:var(--size-xs)] leading-relaxed text-text-subtle">
-					If you have the MCP server set up with your agent, you can ask it to add a folder for you.
+					An agent with the mdxserve skill can run this for you.
 				</p>
 			</div>
 

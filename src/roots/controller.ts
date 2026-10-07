@@ -30,7 +30,7 @@ export const removeRootsResultSchema = z.object({
 });
 
 const listRoots = procedure(
-	"Returns every currently mounted root, in mount order, with its display name. Used by the CLI's `roots list` command and the MCP `list_roots` tool.",
+	"Returns every currently mounted root, in mount order, with its display name. Used by `mdxserve roots list`.",
 )
 	.output(listRootsResultSchema)
 	.query(({ ctx }) => {

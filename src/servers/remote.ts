@@ -10,12 +10,12 @@ export type RemoteOutcome<Value> =
 	{ kind: "ok"; value: Value } | { kind: "error"; message: string } | { kind: "unavailable" };
 
 /**
- * Stdio mode only: proxies `validate_doc`/`search_docs`/`list_docs` and the
+ * The CLI's view of the server: proxies `validate`, `search`, `docs` and the
  * roots procedures to the single running `mdxserve serve` instance, over a
  * tRPC client (see `getServer` below), so the server's warm search index,
  * render worker, and mounted roots are the single source of truth.
  * `{ kind: "unavailable" }` means no server is running, or the request
- * itself failed to reach it; `validate_doc`'s caller falls back to local,
+ * itself failed to reach it; `validate`'s caller falls back to local,
  * static-only handling in that case.
  */
 export interface Remote {
@@ -58,10 +58,10 @@ export function toOutcome<Value>(error: unknown): RemoteOutcome<Value> {
 
 /**
  * A tRPC client (over `fetch`) of the single running `mdxserve serve`
- * instance, used by the stdio MCP bridge to back `validate_doc`,
- * `search_docs`, `list_docs`, and the roots tools with the server's live
+ * instance, used by the CLI to back `validate`,
+ * `search`, `docs`, and the `roots` commands with the server's live
  * state instead of re-walking the filesystem locally. `getServer` is
- * injected by the caller — `mdxserve mcp` passes `() => serverRegistry.current()`;
+ * injected by the caller — `liveServerFrom` passes `() => serverRegistry.current()`;
  * tests pass a fake. The underlying tRPC client is cached and only rebuilt
  * when `getServer()` reports a different host:port than the one currently
  * cached (e.g. the server restarted on a new port).

@@ -3,7 +3,6 @@ import path from "node:path";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import type { ViteDevServer } from "vite";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import { ListingService } from "../listing/service.js";
 import { renderShell, type Route } from "./shell.js";
@@ -11,7 +10,6 @@ import type { RootsService } from "../roots/service.js";
 import { resolveRoot } from "../roots/paths.js";
 import { isDocFile } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
-import { createMcpServer } from "../mcp/server.js";
 import { rootInfoFor } from "../roots/root-info.js";
 import type { BundlePort, RenderPort } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
@@ -69,12 +67,12 @@ export async function handleRequest(
 	// The validate_doc render step executes a served doc's top-level JS in a
 	// Node worker. Serving pages to the LAN (--host 0.0.0.0) is deliberate
 	// sharing, but remote peers shouldn't be able to run served files with
-	// Node's privileges — so rendering (via /__mdxserve/mcp and
-	// /__mdxserve/trpc) is reserved for same-machine callers;
+	// Node's privileges — so rendering (via /__mdxserve/trpc) is
+	// reserved for same-machine callers;
 	// everyone else gets the static-only validation (`rendered: false`).
 	// "Same machine" is loopback, or a connection whose remote address is
-	// this socket's own local address: the stdio bridge connects to the
-	// host a server registered (e.g. --host 192.168.1.10), which arrives
+	// this socket's own local address: the CLI connects to the host a
+	// server registered (e.g. --host 192.168.1.10), which arrives
 	// with the LAN address on both ends — something no other machine's
 	// packet can present.
 	// The Host header must name this machine too (see isTrustedHost): a
@@ -93,48 +91,6 @@ export async function handleRequest(
 		res.setHeader("Content-Type", "image/svg+xml");
 		res.setHeader("Cache-Control", "public, max-age=86400");
 		res.end(await fsp.readFile(path.join(pkgRoot, "client", "favicon.svg")));
-		return;
-	}
-
-	// Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
-	// since this path also starts with MDXSERVE_PREFIX.
-	if (pathname === "/__mdxserve/mcp") {
-		if (req.method !== "POST" && req.method !== "GET" && req.method !== "DELETE") {
-			res.statusCode = 405;
-			res.setHeader("Allow", "GET, POST, DELETE");
-			res.end();
-			return;
-		}
-		// Stateless: a fresh transport+server per request; the SDK answers
-		// GET/DELETE itself in this mode. The SDK's own DNS-rebinding option is
-		// left off because `isLoopback` above already folds the Host check in,
-		// and it gates the only tools here with side effects (add_root /
-		// remove_root, plus the render step) — same posture as /__mdxserve/trpc.
-		const transport = new StreamableHTTPServerTransport({
-			sessionIdGenerator: undefined,
-			enableJsonResponse: true,
-		});
-		// isLoopback is computed above; a LAN caller (--host 0.0.0.0) still gets
-		// every tool, just without the render step — see the comment above.
-		const mcpServer = createMcpServer({
-			getRoots: () => rootInfos,
-			registry,
-			render,
-			docCache,
-			search: searchService,
-			allowRender: isLoopback,
-			// HTTP mount only: a same-machine caller may also mutate the mounted
-			// root set (see requireLoopback in src/api/trpc.ts) — the roots MCP
-			// tools reuse this exact allow/deny decision.
-			allowMutation: isLoopback,
-			roots: ctx.roots,
-		});
-		res.on("close", () => {
-			void transport.close();
-			void mcpServer.close();
-		});
-		await mcpServer.connect(transport);
-		await transport.handleRequest(req, res); // SDK reads the body itself
 		return;
 	}
 

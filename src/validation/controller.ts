@@ -7,8 +7,8 @@ import { ValidationService } from "./service.js";
 // since validation is a per-doc, agent-in-the-loop check.
 export const validateDocInput = z.object({ path: z.string().min(1).max(4096) });
 
-// src/mcp/tools/validate-doc.ts reuses this shape as its validate_doc output
-// so they can't drift.
+// src/cli/validate.ts reuses this shape for its `--json` output so they can't
+// drift.
 export const diagnosticSchema = z.object({
 	severity: z.enum(["error", "warning"]),
 	code: z.enum([
@@ -40,7 +40,7 @@ export const validationResultSchema = z.object({
 });
 
 const validateDoc = procedure(
-	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by the MCP validate_doc tool.",
+	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by `mdxserve validate`.",
 )
 	.input(validateDocInput)
 	.output(validationResultSchema)

@@ -15,7 +15,7 @@ export interface ComponentSummary {
 
 /**
  * Thin lookup surface over the builtin component registry, shared by the CLI
- * (`mdxserve components`), the MCP tools, and the tRPC controller, so "find by
+ * (`mdxserve components`) and the tRPC controller, so "find by
  * name", "reduce to a list row", and "suggest a typo fix" only live in one
  * place.
  */

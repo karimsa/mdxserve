@@ -98,7 +98,7 @@ if (import.meta.hot && windowWithApi && !windowWithApi.__mdxserveHmrBound) {
 	});
 
 	// The set of served roots itself changed (roots were added/removed at
-	// runtime, e.g. via the MCP add_root/remove_root tools or the CLI). The
+	// runtime, e.g. via `mdxserve roots add` / `remove`). The
 	// tree is now stale everywhere it's rendered (home page, sidebar), and any
 	// folder listing currently on screen may live under a root that no longer
 	// exists. This module can't import client/router.ts's `navigate` (that

@@ -26,7 +26,7 @@ add clarity, and prefer features that degrade gracefully everywhere else.
    pan/zoomable diagrams (with a toggle to the source); GitHub renders them too; everywhere else
    they are still readable text. Prefer `flowchart` and `sequenceDiagram`; keep a diagram to
    roughly 15 nodes or fewer — split larger ones. Never use mermaid's `pie`, `xychart-beta`,
-   `quadrantChart`, or `sankey-beta` — mdxserve doesn't render them, `validate_doc` reports an
+   `quadrantChart`, or `sankey-beta` — mdxserve doesn't render them, `mdxserve validate` reports an
    error on them, and they draw data, which is `<Chart>`'s job (or a table). Mermaid is for a
    flow or a shape, not a dataset.
 4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
@@ -96,17 +96,16 @@ Task lists for progress; keep them flat:
 
 Available in any `.md` or `.mdx` with no import. The registry — not this file — is the
 authoritative list of components and props. Before using a component for the first time in a
-session, check it. If the `mdxserve` MCP server is connected, use its tools instead (named
-like `list_components` / `show_component` — the exact prefix depends on how the user
-registered the server; `./setup.sh` registers it as `mdxserve`); the commands below are the
-fallback:
+session, check it:
 
 ```bash
-npx mdxserve components search           # list every builtin with a one-line description
-npx mdxserve components search tab       # search by name, description, or prop name
-npx mdxserve components show Callout     # props table (types, defaults) + when to use
-npx mdxserve components show Callout --json
+mdxserve components search           # list every builtin with a one-line description
+mdxserve components search tab       # search by name, description, or prop name
+mdxserve components show Callout     # props table (types, defaults) + when to use
+mdxserve components show Callout --json
 ```
+
+If `mdxserve` is not on your PATH, run `./setup.sh` in the mdxserve clone.
 
 Minimal usage:
 
@@ -143,31 +142,30 @@ flow, never a chart). Skip components in plans unless the user views plans only 
 
 ## After writing
 
-If the `mdxserve` MCP server is connected: after saving any `.md`/`.mdx` file, call
-`validate_doc` with its absolute path — this works even when no `mdxserve serve` is running (a
-path relative to a served root also works, but only when a server is running and exactly one
-root contains it). Read every diagnostic. Fix every `error` (MDX compile errors, unknown
-components, `render-error`) and any `unknown-prop` warning where a real prop was intended, then
-re-run `validate_doc` until it returns `ok: true`. Compile errors and unknown components blank
-the page or throw at render time — invisible until a human opens it — so this is not optional
-when the tool is available.
+After saving any `.md`/`.mdx` file, run `mdxserve validate <absolute path>`. It works even when
+no `mdxserve serve` is running. Read the first line and every diagnostic under it: it is
+`OK: <path>`, `OK with N warnings: <path>`, or a list of problems. Fix every `error` (MDX
+compile errors, unknown components, `render-error`) and any `unknown-prop` warning where a real
+prop was intended, then re-run until the first line is `OK` with only intended warnings. The
+exit code is 1 when any error was reported. Compile errors and unknown components blank the
+page or throw at render time — invisible until a human opens it — so this is not optional.
 
-`validate_doc` also renders the doc server-side and reports any throw as a `render-error` —
-this is what catches a component that compiles fine but blanks the page (e.g. a stray
-identifier that only breaks at render time). Check the result's `rendered` field: it's `false`
-when no `mdxserve serve` is running, meaning only the static checks (compile, unknown
-component/prop) ran — treat that as a weaker pass than `rendered: true`, and mention it to the
-user rather than treating `ok: true` alone as a full clean bill of health. Even with
-`rendered: true`, errors thrown inside a `useEffect`/`useLayoutEffect` and hydration mismatches
-are never caught — those stay browser-only.
+`validate` also renders the doc server-side and reports any throw as a `render-error` — this is
+what catches a component that compiles fine but blanks the page (e.g. a stray identifier that
+only breaks at render time). Read the line after the diagnostics: `Rendered OK`, or
+`Not rendered (…)` when no `mdxserve serve` is reachable, meaning only the static checks
+(compile, unknown component/prop) ran. Treat that as a weaker pass and mention it to the user
+rather than treating `OK` alone as a full clean bill of health. Even with `Rendered OK`, errors
+thrown inside a `useEffect`/`useLayoutEffect` and hydration mismatches are never caught — those
+stay browser-only. `hint:` lines are advisory and never affect the result. When scripting, use
+`--json` and check the `rendered` field.
 
-If the MCP server is not connected, tell the user the file was not validated; don't skip this
+If `validate` says the file is outside every served directory, or `mdxserve search` /
+`mdxserve docs` report that no folders are served, run `mdxserve roots list`, then
+`mdxserve roots add <absolute dir>` with the doc's folder.
+
+If `mdxserve` is not installed, tell the user the file was not validated; don't skip this
 silently.
-
-`validate_doc` with an absolute path still works even when no `mdxserve serve` is running, or
-one is running but has no folders mounted. If `list_docs` or `search_docs` instead report that
-no folders are served, call `list_roots` and then `add_root` with the doc's folder (an absolute
-path) — or tell the user to run `mdxserve roots add <dir>`.
 
 ## Before saving
 
@@ -177,5 +175,4 @@ path) — or tell the user to run `mdxserve roots add <dir>`.
 - No raw HTML, styles, imports, or custom components.
 - Any builtin component used was checked with `components show` and genuinely clarifies.
 - The file still reads well as plain text.
-- `validate_doc` returned `ok: true` (when the mdxserve MCP server is connected), ideally with
-  `rendered: true`.
+- `mdxserve validate` printed `OK`, ideally `Rendered OK`.

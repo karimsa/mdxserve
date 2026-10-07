@@ -17,7 +17,7 @@ export interface ValidateTextInput {
 }
 
 /**
- * The same static + render validation the `validate_doc` MCP tool runs,
+ * The same static + render validation `mdxserve validate` runs,
  * shared with the `validateDoc` tRPC procedure so the two paths can never
  * drift.
  */

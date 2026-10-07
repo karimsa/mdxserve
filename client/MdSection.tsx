@@ -62,7 +62,7 @@ export interface MdSectionProps {
 export function MdSection({ index, startLine, endLine, children }: MdSectionProps) {
 	const ctxPath = useContext(DocContext)?.path;
 	// MdSection also renders inside the SSR worker (client/ssr-entry.tsx, used
-	// by the MCP `validate_doc` render check via renderToString), which has no
+	// by the `mdxserve validate` render check via renderToString), which has no
 	// router and so no DocContext provider — and no `location` global at all.
 	// Read mode never needs `path`, so falling back to "" there is fine.
 	const path =
