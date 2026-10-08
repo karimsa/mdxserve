@@ -542,3 +542,44 @@
 	font-size: 12px;
 	cursor: pointer;
 }
+
+/* Alternate names restart the nudge on repeated outside clicks. */
+.diagram-workspace[data-shake="left"] {
+	animation: diagram-nudge-left 280ms ease-out;
+}
+.diagram-workspace[data-shake="right"] {
+	animation: diagram-nudge-right 280ms ease-out;
+}
+@keyframes diagram-nudge-left {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25%,
+	65% {
+		transform: translateX(-5px);
+	}
+	45%,
+	85% {
+		transform: translateX(5px);
+	}
+}
+@keyframes diagram-nudge-right {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25%,
+	65% {
+		transform: translateX(5px);
+	}
+	45%,
+	85% {
+		transform: translateX(-5px);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.diagram-workspace[data-shake] {
+		animation: none;
+	}
+}

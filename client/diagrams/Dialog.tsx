@@ -31,6 +31,8 @@ export function MermaidDialog({
 	onInsert: (source: string) => void;
 }) {
 	const dialog = useRef<HTMLDialogElement>(null);
+	const backdropPress = useRef(false);
+	const [shake, setShake] = useState(0);
 	const session = useRef(crypto.randomUUID());
 	const revision = useRef(0);
 	const [text, setText] = useState(initialSource ?? "");
@@ -254,10 +256,40 @@ export function MermaidDialog({
 			if (mounted.current && ticket === uploadRevision.current) setUploading(false);
 		}
 	}
+	const dirty =
+		text !== (initialSource ?? "") ||
+		!!image ||
+		uploading ||
+		(draft !== null && draft.mermaid !== (initialSource ?? ""));
+	function outsideDialog(clientX: number, clientY: number) {
+		const bounds = dialog.current?.getBoundingClientRect();
+		return (
+			!!bounds &&
+			(clientX < bounds.left ||
+				clientX > bounds.right ||
+				clientY < bounds.top ||
+				clientY > bounds.bottom)
+		);
+	}
 	return createPortal(
 		<dialog
 			ref={dialog}
 			className="diagram-dialog diagram-workspace"
+			data-shake={shake ? (shake % 2 ? "left" : "right") : undefined}
+			onPointerDown={(event) => {
+				backdropPress.current =
+					event.target === event.currentTarget && outsideDialog(event.clientX, event.clientY);
+			}}
+			onClick={(event) => {
+				const backdropClick =
+					backdropPress.current &&
+					event.target === event.currentTarget &&
+					outsideDialog(event.clientX, event.clientY);
+				backdropPress.current = false;
+				if (!backdropClick || saving) return;
+				if (dirty) setShake((count) => count + 1);
+				else onClose();
+			}}
 			aria-label={initialSource === undefined ? "Create Mermaid diagram" : "Edit Mermaid diagram"}
 			onCancel={(event) => {
 				event.preventDefault();
@@ -532,7 +564,11 @@ export function MermaidDialog({
 			</div>
 			<footer className="diagram-statusbar" data-error={!!(saveError || error)}>
 				<span role="status" aria-live="polite">
-					{saveError || error || status}
+					{saveError ||
+						error ||
+						(shake && dirty
+							? "Unsaved changes — save your diagram or use Close to discard them."
+							: status)}
 				</span>
 				<span>{manual ? "Editing locally" : "1s pause · ⌘/Ctrl + Enter · leave editor"}</span>
 			</footer>

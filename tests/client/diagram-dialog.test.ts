@@ -214,3 +214,58 @@ it("opens an existing diagram with its source and only converts after it is edit
 	await act(async () => update.click());
 	expect(onInsert).toHaveBeenCalledWith(result.mermaid);
 });
+
+async function backdropClick(startOutside = true) {
+	const dialog = document.querySelector("dialog")!;
+	vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue(new DOMRect(20, 20, 400, 300));
+	await act(async () => {
+		dialog.dispatchEvent(
+			new MouseEvent("pointerdown", { bubbles: true, clientX: startOutside ? 0 : 30, clientY: 30 }),
+		);
+		dialog.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 0, clientY: 30 }));
+	});
+}
+it("closes an unchanged existing diagram on an outside click", async () => {
+	const onClose = vi.fn();
+	await act(async () =>
+		root.render(
+			createElement(MermaidDialog, {
+				key: "clean",
+				initialSource: result.mermaid,
+				onClose,
+				onInsert: vi.fn(),
+			}),
+		),
+	);
+	await backdropClick();
+	expect(onClose).toHaveBeenCalledOnce();
+});
+it("keeps unsaved input open and nudges again on repeated outside clicks", async () => {
+	const onClose = vi.fn();
+	await act(async () => root.render(createElement(MermaidDialog, { onClose, onInsert: vi.fn() })));
+	await enter("customers have orders");
+	await backdropClick();
+	expect(onClose).not.toHaveBeenCalled();
+	const firstNudge = document.querySelector("dialog")!.dataset.shake;
+	expect(firstNudge).toBeTruthy();
+	expect(document.querySelector('[role="status"]')!.textContent).toContain("Unsaved changes");
+	await backdropClick();
+	expect(document.querySelector("dialog")!.dataset.shake).not.toBe(firstNudge);
+	expect(document.querySelector<HTMLTextAreaElement>("#diagram-input")!.value).toBe(
+		"customers have orders",
+	);
+});
+it("ignores a drag that starts inside and ends outside the dialog", async () => {
+	const onClose = vi.fn();
+	await act(async () => root.render(createElement(MermaidDialog, { onClose, onInsert: vi.fn() })));
+	await backdropClick(false);
+	expect(onClose).not.toHaveBeenCalled();
+});
+it("allows outside dismissal after input is reverted before conversion", async () => {
+	const onClose = vi.fn();
+	await act(async () => root.render(createElement(MermaidDialog, { onClose, onInsert: vi.fn() })));
+	await enter("temporary change");
+	await enter("");
+	await backdropClick();
+	expect(onClose).toHaveBeenCalledOnce();
+});
