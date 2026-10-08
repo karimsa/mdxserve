@@ -6,6 +6,10 @@ const common = {
 	key: z.string().min(1),
 	label: z.string().min(1),
 	group: z.string().optional(),
+	align: z
+		.enum(["left", "center", "right"])
+		.optional()
+		.describe("Explicit alignment overrides the column type default."),
 	bars: z
 		.boolean()
 		.optional()

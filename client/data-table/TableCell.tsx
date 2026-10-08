@@ -44,6 +44,7 @@ export function TableCell({
 			data-row={index}
 			data-column={columnIndex}
 			data-numeric={column.type !== "text"}
+			data-align={column.align ?? (column.type === "text" ? "left" : "right")}
 			data-active={selected}
 			data-bars={Boolean(limits)}
 			tabIndex={selected ? 0 : -1}

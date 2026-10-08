@@ -102,6 +102,48 @@ async function renderMarkdown(source: string, extension = "md") {
 	);
 }
 describe("Markdown integration", () => {
+	it("preserves alignment from native cell attributes", () => {
+		const html = renderToStaticMarkup(
+			createElement(
+				MarkdownTable,
+				{ id: "alignment" },
+				createElement(
+					"thead",
+					null,
+					createElement("tr", null, createElement("th", { align: "right" }, "Name")),
+				),
+				createElement(
+					"tbody",
+					null,
+					createElement("tr", null, createElement("td", { align: "right" }, "East")),
+				),
+			),
+		);
+
+		expect(html).toMatch(/<th\b[^>]*data-align="right"/);
+		expect(html).toMatch(/<td\b[^>]*data-align="right"/);
+	});
+	it.each(["md", "mdx"])(
+		"preserves explicit GFM alignment independently of inferred types in %s",
+		async (extension) => {
+			const html = await renderMarkdown(
+				[
+					"| Text | Count | Percent | Duration | Rich duration | Default text | Default number |",
+					"| ---: | :--- | :---: | :--- | ---: | --- | --- |",
+					"| East | 12 | 99% | 2s | **2s** | West | 42 |",
+				].join("\n"),
+				extension,
+			);
+			const expected = ["right", "left", "center", "left", "right", "left", "right"];
+
+			for (const tag of ["th", "td"]) {
+				const cells = [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>`, "g"))];
+				expect(cells.map(([cell]) => /data-align="([^"]+)"/.exec(cell)?.[1])).toEqual(expected);
+			}
+
+			expect(html).toContain("<strong>2s</strong>");
+		},
+	);
 	it("normalizes native duration and byte columns into one display unit", async () => {
 		const html = await renderMarkdown(
 			"| Duration | Size |\n| --- | --- |\n| 2s | 1MB |\n| 500ms | 512KB |",

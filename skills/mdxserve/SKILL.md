@@ -180,6 +180,7 @@ unit preferences are saved locally under the document and ID. Give columns stabl
 - `currency` keeps numeric data and **requires `format: (value) => string`**. Include the
   intended currency in that formatter or label. Filters expand `10K`, `2M`, `1B`, and `1T`.
 - Adjacent columns with the same `group` get a shared top-level heading.
+- Optional `align: "left" | "center" | "right"` overrides type-based alignment. Native Markdown tables preserve explicit GFM delimiter alignment.
 - Set `bars: true` only when comparing magnitudes is meaningful. Omit it for IDs, years,
   ranks, or ambiguous measurements. Each column has its own zero-inclusive scale, fixed
   across sorting/filtering; negative values extend left of zero. Equal bar lengths across

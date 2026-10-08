@@ -1,9 +1,18 @@
-import { Children, isValidElement, useId, type ReactNode, type TableHTMLAttributes } from "react";
+import {
+	Children,
+	isValidElement,
+	useId,
+	type CSSProperties,
+	type ReactNode,
+	type TableHTMLAttributes,
+} from "react";
 import DataTable from "./builtins/DataTable";
 import { inferColumn, parseBound, type Column, type Row } from "./data-table/model";
 
 function elements(children: ReactNode) {
-	return Children.toArray(children).filter(isValidElement<{ children?: ReactNode }>);
+	return Children.toArray(children).filter(
+		isValidElement<{ children?: ReactNode; align?: string; style?: CSSProperties }>,
+	);
 }
 
 function text(children: ReactNode): string {
@@ -25,6 +34,9 @@ function prepareMarkdownTable(children: ReactNode) {
 	const headers = elements(elements(header?.props.children)[0]?.props.children);
 	const cells = elements(body?.props.children).map((row) => elements(row.props.children));
 	const columns: Column[] = headers.map((cell, index) => {
+		const align = cell.props.style?.textAlign ?? cell.props.align;
+		const alignment =
+			align === "left" || align === "center" || align === "right" ? align : undefined;
 		const column = inferColumn(
 			`column-${index}`,
 			text(cell.props.children) || `Column ${index + 1}`,
@@ -35,8 +47,8 @@ function prepareMarkdownTable(children: ReactNode) {
 			(column.type === "time" || column.type === "bytes") &&
 			cells.some((row) => elements(row[index]?.props.children).length > 0)
 		)
-			return { key: column.key, label: column.label, type: "text" };
-		return column;
+			return { key: column.key, label: column.label, type: "text", align: alignment };
+		return { ...column, align: alignment };
 	});
 	const data: Row[] = cells.map((row) =>
 		Object.fromEntries(

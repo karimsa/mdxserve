@@ -54,6 +54,7 @@ export function TableHeaderCell({
 			data-column={columnIndex}
 			data-active={selected}
 			data-numeric={column.type !== "text"}
+			data-align={column.align ?? (column.type === "text" ? "left" : "right")}
 			aria-sort={sorted ? (state.sort?.descending ? "descending" : "ascending") : "none"}
 		>
 			<ColumnMenu

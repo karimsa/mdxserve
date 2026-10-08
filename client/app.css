@@ -428,13 +428,25 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	padding-bottom: 0.6rem;
 }
 .data-table td[data-numeric="true"] {
-	text-align: right;
 	white-space: nowrap;
 }
-.data-table th[data-numeric="true"] .data-table-heading {
-	padding: 8px 0 8px 16px;
-	box-sizing: border-box;
+.data-table th[data-align="right"] .data-table-heading {
 	justify-content: flex-end;
+}
+.data-table [data-align="left"] {
+	text-align: left;
+}
+.data-table [data-align="center"] {
+	text-align: center;
+}
+.data-table [data-align="right"] {
+	text-align: right;
+}
+.data-table th[data-align="left"] .data-table-heading {
+	justify-content: flex-start;
+}
+.data-table th[data-align="center"] .data-table-heading {
+	justify-content: center;
 }
 .data-table td[data-bars="true"] {
 	padding-bottom: 0.9rem;
