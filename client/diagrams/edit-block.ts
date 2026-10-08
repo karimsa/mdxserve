@@ -1,16 +1,10 @@
+import { comparableSource } from "./source";
 import { Extension, type Editor, type Range } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { closeHistory } from "@tiptap/pm/history";
 import type { ExistingDiagram } from "./edit-context";
 export type DiagramEditTarget = { range: Range; source: string };
-// Syntax highlighting pads empty lines for display; those spaces aren't edits.
-function comparableSource(source: string): string {
-	return source
-		.replace(/\r\n/g, "\n")
-		.replace(/^[\t ]+$/gm, "")
-		.trim();
-}
 export function findDiagram(editor: Editor, target: ExistingDiagram): DiagramEditTarget | null {
 	let index = 0;
 	let found: DiagramEditTarget | null = null;

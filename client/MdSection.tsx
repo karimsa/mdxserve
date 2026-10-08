@@ -24,6 +24,9 @@ import { pushToast } from "./ui/Toast";
 // when React commits the "edit" branch below, which SSR never reaches.
 const loadEditor = () => import("./MdSectionEditor");
 const MdSectionEditor = lazy(loadEditor);
+const DiagramEditDialog = lazy(() =>
+	import("./diagrams/EditDialog").then((module) => ({ default: module.DiagramEditDialog })),
+);
 
 // Warm the editor chunk as soon as a pointer lands on any section, so by the
 // time the user has double-clicked or reached the pencil the lazy import is
@@ -95,7 +98,7 @@ function Section({
 	endLine: number;
 	children: ReactNode;
 }) {
-	const [mode, setMode] = useState<"read" | "loading" | "edit">("read");
+	const [mode, setMode] = useState<"read" | "loading" | "edit" | "diagram">("read");
 	const [initialDiagram, setInitialDiagram] = useState<ExistingDiagram | undefined>();
 	const [source, setSource] = useState("");
 	const [version, setVersion] = useState("");
@@ -157,7 +160,7 @@ function Section({
 			// one go — instead of swapping in the Suspense fallback first and
 			// then the editor, which read as a flash.
 			startTransition(() => {
-				setMode((current) => (current === "loading" ? "edit" : current));
+				setMode((current) => (current === "loading" ? (target ? "diagram" : "edit") : current));
 			});
 		} catch {
 			pushToast({ tone: "danger", text: "Couldn't open section for editing" });
@@ -198,7 +201,6 @@ function Section({
 			>
 				<MdSectionEditor
 					source={source}
-					initialDiagram={initialDiagram}
 					version={version}
 					path={path}
 					startLine={startLine}
@@ -225,6 +227,19 @@ function Section({
 		<DiagramEditContext.Provider
 			value={mode === "read" ? (target) => void startEdit(target) : null}
 		>
+			{mode === "diagram" && initialDiagram && (
+				<Suspense fallback={null}>
+					<DiagramEditDialog
+						source={source}
+						target={initialDiagram}
+						path={path}
+						version={version}
+						startLine={startLine}
+						endLine={endLine}
+						onClose={finishEdit}
+					/>
+				</Suspense>
+			)}
 			<div
 				className="mdx-section group"
 				data-md-section={index}

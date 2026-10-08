@@ -15,10 +15,18 @@ function policy(source: string) {
 }
 export function MermaidDialog({
 	initialSource,
+	directSave = false,
+	saving = false,
+	saveError = "",
+	saveDisabled = false,
 	onClose,
 	onInsert,
 }: {
 	initialSource?: string;
+	directSave?: boolean;
+	saving?: boolean;
+	saveError?: string;
+	saveDisabled?: boolean;
 	onClose: () => void;
 	onInsert: (source: string) => void;
 }) {
@@ -114,7 +122,11 @@ export function MermaidDialog({
 		if (initialSource !== undefined && text === initialSource && !image) {
 			setDraft({ mermaid: initialSource, assumptions: [], changes: [] });
 			setCurrent(policy(initialSource));
-			setStatus("Edit the source or describe changes. Update the draft, then save the section.");
+			setStatus(
+				directSave
+					? "Edit the source or describe changes, then save the diagram."
+					: "Edit the source or describe changes. Update the draft, then save the section.",
+			);
 			return cancel;
 		}
 		if (uploading || composing || (!text.trim() && !image)) {
@@ -162,7 +174,7 @@ export function MermaidDialog({
 				setDraft(result);
 				setCurrent(true);
 				setStatus(
-					`Converted with ${result.provider === "codex" ? "Codex" : "Claude Code"} · review before ${initialSource === undefined ? "inserting" : "updating"}`,
+					`Converted with ${result.provider === "codex" ? "Codex" : "Claude Code"} · review before ${directSave ? "saving" : initialSource === undefined ? "inserting" : "updating"}`,
 				);
 			} catch (failure) {
 				if (obsolete) return;
@@ -179,7 +191,17 @@ export function MermaidDialog({
 			clearTimeout(timer);
 			cancel();
 		};
-	}, [text, image, uploading, composing, manual, preferenceVersion, settingsReady, initialSource]);
+	}, [
+		text,
+		image,
+		uploading,
+		composing,
+		manual,
+		preferenceVersion,
+		settingsReady,
+		initialSource,
+		directSave,
+	]);
 	const onRender = useCallback(
 		(source: string, valid: boolean) => setRendered(valid ? source : ""),
 		[],
@@ -288,22 +310,36 @@ export function MermaidDialog({
 					<button
 						type="button"
 						className="diagram-primary"
-						disabled={!draft || !current || rendered !== draft.mermaid || !policy(draft.mermaid)}
+						disabled={
+							saving ||
+							saveDisabled ||
+							!draft ||
+							!current ||
+							rendered !== draft.mermaid ||
+							!policy(draft.mermaid)
+						}
 						onClick={() => draft && onInsert(draft.mermaid)}
 					>
-						{initialSource === undefined ? "Insert into draft" : "Update in draft"}
+						{saving
+							? "Saving…"
+							: directSave
+								? "Save diagram"
+								: initialSource === undefined
+									? "Insert into draft"
+									: "Update in draft"}
 					</button>
 					<button
 						type="button"
 						className="diagram-icon-button"
 						aria-label="Close diagram dialog"
+						disabled={saving}
 						onClick={onClose}
 					>
 						<X size={18} />
 					</button>
 				</div>
 			</header>
-			<div className="diagram-workbench">
+			<div className="diagram-workbench" inert={saving}>
 				<section className="diagram-editor-pane" aria-label="Diagram source">
 					<div className="diagram-pane-toolbar">
 						<div className="diagram-tabs" role="tablist" aria-label="Editor content">
@@ -494,9 +530,9 @@ export function MermaidDialog({
 					</div>
 				</section>
 			</div>
-			<footer className="diagram-statusbar" data-error={!!error}>
+			<footer className="diagram-statusbar" data-error={!!(saveError || error)}>
 				<span role="status" aria-live="polite">
-					{error || status}
+					{saveError || error || status}
 				</span>
 				<span>{manual ? "Editing locally" : "1s pause · ⌘/Ctrl + Enter · leave editor"}</span>
 			</footer>
