@@ -56,7 +56,7 @@ The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` 
 | `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                                |
 | `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                                |
 | `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                                          |
-| `scripts/`         | `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`) and `smoke-pack.sh` (`yarn smoke`)                                                                                                                  |
+| `scripts/`         | `build.ts` (the build sequence), `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`), and `smoke-pack.sh` (`yarn smoke`)                                                                                |
 | `docs/`            | These pages and the README screenshots                                                                                                                                                                                     |
 
 The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
