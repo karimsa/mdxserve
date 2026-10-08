@@ -1,4 +1,6 @@
 import path from "node:path";
+import type { PreferencesService } from "../preferences/service.js";
+import type { AgentPort, AgentStatus } from "../diagrams/types.js";
 import { discoverSkills, MCP_CLEANUPS, planSetup } from "./plan.js";
 import type { CommandRunner } from "./runner.js";
 
@@ -21,6 +23,22 @@ export class SetupService {
 	constructor(options: { pkgRoot: string; runner: CommandRunner }) {
 		this.pkgRoot = options.pkgRoot;
 		this.runner = options.runner;
+	}
+
+	async prepareDiagrams(preferences: PreferencesService, agents: AgentPort) {
+		const existing = preferences.read();
+		if (existing.kind !== "ok") return existing;
+		let statuses: AgentStatus[] = [];
+		{
+			try {
+				statuses = await agents.probe();
+			} catch {
+				return { kind: "error" as const, message: "Could not check local agents" };
+			}
+		}
+		const detected = statuses.find((status) => status.state === "ready")?.provider ?? "disabled";
+		const fallback = existing.configured ? existing.agent : detected;
+		return { ...existing, statuses, fallback, detected };
 	}
 
 	async run(): Promise<SetupResult> {

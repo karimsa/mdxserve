@@ -44,6 +44,7 @@ export function TopBar({
 	exportDoc,
 	theme,
 	onToggleTheme,
+	onDiagramPreferences,
 }: {
 	/** Wordmark's link target; undefined renders it as a plain (non-link) span. */
 	homeHref?: string;
@@ -57,6 +58,7 @@ export function TopBar({
 	exportDoc?: { pending: boolean; onExport: (format: ExportFormat) => void };
 	theme: Theme;
 	onToggleTheme: () => void;
+	onDiagramPreferences?: () => void;
 }) {
 	const mac = isApplePlatform();
 
@@ -106,6 +108,9 @@ export function TopBar({
 					onChange={(format) => exportDoc.onExport(format as ExportFormat)}
 				/>
 			) : null}
+			{onDiagramPreferences && (
+				<IconButton icon="settings" label="Settings" size="sm" onClick={onDiagramPreferences} />
+			)}
 			<IconButton
 				icon={theme === "dark" ? "sun" : "moon"}
 				label={theme === "dark" ? "Light mode" : "Dark mode"}

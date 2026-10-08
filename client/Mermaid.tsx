@@ -131,7 +131,17 @@ function useThemeTick(): number {
  * mirrored into the expanded modal's header so view controls that live in the
  * code frame (the flow-direction toggle) stay reachable at full size.
  */
-export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: ReactNode }) {
+export function MermaidDiagram({
+	source,
+	toolbar,
+	onRender,
+	fill = false,
+}: {
+	source: string;
+	toolbar?: ReactNode;
+	onRender?: (source: string, valid: boolean) => void;
+	fill?: boolean;
+}) {
 	// Seeded from the source so a chart-diagram fence never shows the
 	// "Rendering diagram…" placeholder — there is nothing to load for it.
 	const [state, setState] = useState<State>(() => {
@@ -177,7 +187,10 @@ export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: 
 				return mermaid.render(renderId, source);
 			})
 			.then(({ svg }) => {
-				if (!cancelled) setState({ kind: "ok", svg });
+				if (!cancelled) {
+					setState({ kind: "ok", svg });
+					onRender?.(source, true);
+				}
 			})
 			.catch((error: unknown) => {
 				// mermaid.render() draws into a temporary `<div id="d<renderId>">` it
@@ -191,11 +204,12 @@ export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: 
 				if (cancelled) return;
 				const message = error instanceof Error ? error.message : String(error);
 				setState({ kind: "error", message });
+				onRender?.(source, false);
 			});
 		return () => {
 			cancelled = true;
 		};
-	}, [source, id, themeTick]);
+	}, [source, id, themeTick, onRender]);
 
 	return (
 		<AnimatePresence mode="wait" initial={false}>
@@ -230,8 +244,12 @@ export function MermaidDiagram({ source, toolbar }: { source: string; toolbar?: 
 					</DiagramNoticeBody>
 				</motion.div>
 			) : (
-				<motion.div key="ok" {...VARIANTS.fade}>
-					<ExpandableDiagram svg={state.svg} toolbar={toolbar} />
+				<motion.div key="ok" {...VARIANTS.fade} className={fill ? "h-full w-full" : undefined}>
+					{fill ? (
+						<PanZoomSvg svg={state.svg} viewportClassName="h-full" />
+					) : (
+						<ExpandableDiagram svg={state.svg} toolbar={toolbar} />
+					)}
 				</motion.div>
 			)}
 		</AnimatePresence>

@@ -8,8 +8,11 @@ import { componentsController } from "../components/controller.js";
 import { rootsController } from "../roots/controller.js";
 import { exportController } from "../export/controller.js";
 
+import { diagramsController } from "../diagrams/controller.js";
+
 export const appRouter = router({
 	...listingController,
+	...diagramsController,
 	...searchController,
 	...trashController,
 	...validationController,

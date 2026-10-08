@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>mdxserve · Diagram concepts</title>
+		<style>
+			:root {
+				font-family: Arial, sans-serif;
+				color: #2b2a27;
+				background: #fbfbf9;
+				font-size: 14px;
+				--teal: #0a7472;
+				--border: #e3e2dd;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+			}
+			button,
+			select,
+			textarea,
+			input {
+				font: inherit;
+			}
+			button,
+			select {
+				cursor: pointer;
+			}
+			button {
+				border: 1px solid var(--border);
+				background: white;
+				border-radius: 7px;
+				padding: 10px 14px;
+				color: inherit;
+			}
+			button:hover {
+				background: #eeeeea;
+			}
+			:focus-visible {
+				outline: 3px solid #63c1be;
+				outline-offset: 3px;
+			}
+			.primary {
+				background: var(--teal);
+				color: white;
+				border-color: var(--teal);
+			}
+			.primary:hover {
+				background: #085b59;
+			}
+			button:disabled {
+				opacity: 0.5;
+				cursor: default;
+			}
+			.bar {
+				padding: 17px 26px;
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				border-bottom: 1px solid var(--border);
+				background: white;
+			}
+			.brand {
+				font-weight: 750;
+				font-size: 20px;
+				letter-spacing: -0.6px;
+			}
+			small,
+			.muted {
+				color: #615f5a;
+			}
+			.badge {
+				border-radius: 20px;
+				padding: 5px 10px;
+				background: #e8f6f5;
+				color: #085b59;
+				font-size: 12px;
+			}
+			.spacer {
+				flex: 1;
+			}
+			.concepts,
+			.tabs {
+				display: flex;
+				gap: 6px;
+			}
+			button[aria-pressed="true"] {
+				background: #e8f6f5;
+				border-color: #9bd8d5;
+				color: #085b59;
+			}
+			.explainer {
+				display: flex;
+				align-items: center;
+				gap: 14px;
+				padding: 17px 26px;
+				background: #f6f6f3;
+				border-bottom: 1px solid var(--border);
+			}
+			.explainer p {
+				margin: 0;
+				line-height: 1.5;
+			}
+			.workspace {
+				display: grid;
+				grid-template-columns: 210px 1fr;
+				min-height: calc(100vh - 145px);
+			}
+			nav {
+				padding: 30px 18px;
+				border-right: 1px solid var(--border);
+				color: #615f5a;
+			}
+			nav div {
+				padding: 11px;
+				border-radius: 6px;
+			}
+			nav .selected {
+				background: #eeeeea;
+				color: #111110;
+			}
+			nav small {
+				padding: 11px;
+				display: block;
+				text-transform: uppercase;
+				letter-spacing: 1px;
+			}
+			.page {
+				padding: 52px 6%;
+				max-width: 1100px;
+				margin: 0 auto;
+				width: 100%;
+				align-self: start;
+			}
+			.eyebrow {
+				font-size: 11px;
+				letter-spacing: 1.8px;
+				text-transform: uppercase;
+				color: #615f5a;
+			}
+			h1 {
+				font-size: 34px;
+				letter-spacing: -1.2px;
+				margin: 12px 0 18px;
+			}
+			h2 {
+				font-size: 22px;
+				letter-spacing: -0.5px;
+				margin: 0 0 9px;
+			}
+			h3 {
+				font-size: 15px;
+				margin: 30px 0 12px;
+			}
+			p {
+				line-height: 1.7;
+			}
+			.copy {
+				max-width: 650px;
+				color: #615f5a;
+			}
+			.launch {
+				margin: 26px 0;
+				border: 1px dashed #a9a8a0;
+				width: 100%;
+				padding: 25px;
+				background: transparent;
+				color: var(--teal);
+			}
+			.composer {
+				border: 1px solid var(--border);
+				background: white;
+				border-radius: 12px;
+				overflow: hidden;
+				box-shadow: 0 12px 32px #1a191809;
+			}
+			.composer header {
+				padding: 22px 24px 16px;
+				display: flex;
+				align-items: start;
+				gap: 10px;
+			}
+			.composer header p {
+				margin: 0;
+				color: #615f5a;
+				font-size: 13px;
+			}
+			.tabs {
+				margin: 0 24px 18px;
+			}
+			.tabs button {
+				padding: 8px 12px;
+			}
+			.body {
+				padding: 0 24px 24px;
+			}
+			.split {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 24px;
+			}
+			.label {
+				display: block;
+				font-weight: 600;
+				font-size: 12px;
+				margin-bottom: 10px;
+			}
+			textarea {
+				width: 100%;
+				height: 172px;
+				resize: vertical;
+				border: 1px solid #cfcec7;
+				border-radius: 8px;
+				padding: 14px;
+				line-height: 1.7;
+				background: #fbfbf9;
+				color: #2b2a27;
+			}
+			.drop {
+				border: 1px dashed #9bd8d5;
+				background: #f2faf9;
+				border-radius: 8px;
+				padding: 30px 16px;
+				text-align: center;
+				min-height: 172px;
+			}
+			.drop p {
+				margin: 10px 0;
+			}
+			.drop.drag {
+				outline: 3px solid #0a7472;
+			}
+			.drop img {
+				max-height: 130px;
+				max-width: 100%;
+				display: block;
+				margin: 12px auto;
+			}
+			.helper {
+				font-size: 12px;
+				line-height: 1.6;
+				margin: 10px 0 16px;
+			}
+			.preview {
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				min-height: 280px;
+				background: radial-gradient(#e3e2dd 0.7px, transparent 0.7px);
+				background-size: 14px 14px;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				padding: 18px;
+			}
+			.preview.empty {
+				color: #82817a;
+				text-align: center;
+			}
+			.preview svg {
+				width: 100%;
+				max-width: 400px;
+				height: auto;
+			}
+			.preview-top {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-bottom: 10px;
+			}
+			.preview-top button {
+				font-size: 12px;
+				padding: 4px 8px;
+			}
+			.warning {
+				padding: 12px;
+				background: #fff6df;
+				color: #795000;
+				border-radius: 7px;
+				font-size: 12px;
+				line-height: 1.6;
+				margin-top: 12px;
+			}
+			.footer {
+				display: flex;
+				gap: 10px;
+				align-items: center;
+				padding: 16px 24px;
+				border-top: 1px solid var(--border);
+				background: #fbfbf9;
+				font-size: 12px;
+			}
+			.footer select {
+				max-width: 190px;
+				background: white;
+				border: 1px solid var(--border);
+				padding: 8px;
+				border-radius: 6px;
+			}
+			.footer .primary {
+				margin-left: auto;
+			}
+			.status {
+				font-size: 12px;
+				color: var(--teal);
+				margin: 12px 0 0;
+				min-height: 18px;
+			}
+			dialog {
+				border: 1px solid var(--border);
+				border-radius: 13px;
+				padding: 0;
+				width: min(920px, 94vw);
+				box-shadow: 0 30px 100px #0003;
+			}
+			dialog::backdrop {
+				background: #19191866;
+				backdrop-filter: blur(2px);
+			}
+			dialog .composer {
+				border: 0;
+				box-shadow: none;
+			}
+			.close {
+				border: 0;
+				padding: 4px 9px;
+				font-size: 22px;
+			}
+			.side-layout {
+				display: grid;
+				grid-template-columns: minmax(280px, 1fr) 450px;
+				gap: 28px;
+				align-items: start;
+			}
+			.side-layout .split {
+				grid-template-columns: 1fr;
+			}
+			.side-layout .page {
+				padding: 40px 25px;
+			}
+			.side-layout .composer {
+				margin: 25px 24px 25px 0;
+			}
+			.side-layout .preview {
+				min-height: 200px;
+			}
+			.side-layout .footer {
+				flex-wrap: wrap;
+			}
+			.side-layout .footer .primary {
+				margin-left: 0;
+			}
+			.settings-body {
+				padding: 28px;
+			}
+			.settings-body label {
+				display: flex;
+				gap: 12px;
+				padding: 18px;
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				margin: 12px 0;
+			}
+			.settings-body label span {
+				flex: 1;
+			}
+			.settings-body label small {
+				display: block;
+				margin-top: 7px;
+				line-height: 1.6;
+			}
+			.settings-actions {
+				display: flex;
+				justify-content: space-between;
+				margin-top: 20px;
+			}
+			.inserted {
+				border: 1px solid #9bd8d5;
+				border-radius: 10px;
+				padding: 22px;
+				margin-top: 20px;
+				background: white;
+			}
+			.inserted svg {
+				max-width: 480px;
+				display: block;
+				margin: auto;
+			}
+			pre {
+				white-space: pre-wrap;
+				font-size: 12px;
+				line-height: 1.7;
+				margin: 0;
+				align-self: stretch;
+				overflow: auto;
+			}
+			.toast {
+				position: fixed;
+				bottom: 24px;
+				left: 50%;
+				transform: translateX(-50%);
+				padding: 14px 22px;
+				background: #1a1918;
+				color: white;
+				border-radius: 8px;
+				z-index: 9;
+			}
+			.hidden {
+				display: none !important;
+			}
+			.sample {
+				font-size: 12px;
+				padding: 6px 10px;
+			}
+			.simulation {
+				font-size: 11px;
+				color: #615f5a;
+				padding: 8px 24px;
+				text-align: center;
+				background: #f6f6f3;
+			}
+			.busy {
+				animation: pulse 1s infinite alternate;
+			}
+			@keyframes pulse {
+				to {
+					opacity: 0.35;
+				}
+			}
+			@media (max-width: 1000px) {
+				.bar {
+					flex-wrap: wrap;
+				}
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+				nav {
+					display: none;
+				}
+				.side-layout {
+					grid-template-columns: 1fr;
+				}
+				.side-layout .composer {
+					margin: 0 24px 24px;
+				}
+				.page {
+					padding: 32px 24px;
+				}
+			}
+			@media (max-width: 650px) {
+				.split {
+					grid-template-columns: 1fr;
+				}
+				.concepts {
+					flex-wrap: wrap;
+				}
+				.footer {
+					flex-wrap: wrap;
+				}
+				.bar {
+					padding: 15px;
+				}
+				.preview {
+					min-height: 200px;
+				}
+			}
+			.editor-state {
+				display: flex;
+				gap: 12px;
+				align-items: center;
+				margin: 24px 0 14px;
+			}
+			.slash-entry {
+				position: relative;
+				margin: 20px 0;
+			}
+			#slash-input {
+				width: 100%;
+				padding: 14px;
+				border: 1px solid #9bd8d5;
+				border-radius: 7px;
+				background: white;
+				color: #2b2a27;
+			}
+			#slash-menu {
+				position: absolute;
+				top: 76px;
+				left: 0;
+				z-index: 3;
+				background: white;
+				padding: 6px;
+				border: 1px solid #e3e2dd;
+				border-radius: 8px;
+				box-shadow: 0 8px 25px #0002;
+				width: 340px;
+				max-width: 100%;
+			}
+			#choose-mermaid {
+				width: 100%;
+				text-align: left;
+				background: #e8f6f5;
+				border: 0;
+			}
+			#choose-mermaid small {
+				display: block;
+				margin-top: 6px;
+			}
+			.live-control {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin: 14px 0;
+				font-size: 12px;
+			}
+			.outdated {
+				opacity: 0.5;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="bar">
+			<div class="brand">mdxserve<span style="color: #0a7472">.</span></div>
+			<span class="badge">Design playground</span>
+			<div class="spacer"></div>
+			<div class="concepts" aria-label="UX concept">
+				<button data-concept="dialog" aria-pressed="true">01 · Focused dialog</button
+				><button data-concept="inline" aria-pressed="false">02 · Inline block</button
+				><button data-concept="panel" aria-pressed="false">03 · Side panel</button>
+			</div>
+			<button id="preferences">Preferences</button>
+		</div>
+		<div class="explainer">
+			<span class="badge" id="recommendation">Recommended</span>
+			<p id="description"></p>
+			<div class="spacer"></div>
+			<button id="reset" class="sample">Reset demo</button>
+		</div>
+		<div class="workspace">
+			<nav>
+				<small>Workspace</small>
+				<div>⌂ Overview</div>
+				<div>▤ Getting started</div>
+				<small>Architecture</small>
+				<div class="selected">◈ Commerce model</div>
+				<div>▤ API conventions</div>
+				<div>▤ Event processing</div>
+			</nav>
+			<div id="canvas">
+				<article class="page">
+					<div class="eyebrow">Architecture / Data</div>
+					<h1>Commerce model</h1>
+					<p class="copy">
+						The core entities behind checkout. Customers place orders, and each order contains one
+						or more line items.
+					</p>
+					<h3>Entity relationships</h3>
+					<p class="copy">
+						Keep the diagram alongside the implementation notes so changes to the data model are
+						easy to follow.
+					</p>
+					<div class="editor-state">
+						<span class="badge">Editing section · unsaved</span
+						><button id="toggle-edit" class="sample">Finish editing</button>
+					</div>
+					<div id="launch" class="slash-entry">
+						<label class="label" for="slash-input">New block</label>
+						<input
+							id="slash-input"
+							placeholder="Type /mermaid to add a diagram"
+							autocomplete="off"
+							aria-controls="slash-menu"
+							aria-expanded="false"
+						/>
+						<div id="slash-menu" class="hidden" role="listbox" aria-label="Insert block">
+							<button id="choose-mermaid" role="option" aria-selected="true">
+								<strong>◈ Mermaid diagram</strong
+								><small>Convert an image or rough text into a diagram</small>
+							</button>
+						</div>
+						<p class="helper">Type /mermaid, then press Enter. This is a simulated editor.</p>
+					</div>
+					<div id="inline-host"></div>
+					<div id="inserted-host"></div>
+					<p class="copy" style="margin-top: 30px">
+						Orders retain their original prices, even when the product catalog changes.
+					</p>
+				</article>
+				<div id="panel-host"></div>
+			</div>
+		</div>
+		<dialog id="studio" aria-label="Create diagram"><div id="dialog-host"></div></dialog>
+		<template id="composer-template"
+			><section class="composer">
+				<header>
+					<div>
+						<h2>Create diagram</h2>
+						<p>Start with a sketch, a sentence, or almost-Mermaid.</p>
+					</div>
+					<div class="spacer"></div>
+					<button class="close" aria-label="Close diagram composer">×</button>
+				</header>
+				<div class="tabs">
+					<button data-mode="text" aria-pressed="true">Describe or paste</button
+					><button data-mode="image" aria-pressed="false">From image</button>
+				</div>
+				<div class="body">
+					<div class="split">
+						<div>
+							<div class="text-input">
+								<label class="label" for="rough-text">Your starting point</label
+								><textarea id="rough-text" spellcheck="false">
+erDiagram
+  Customer has many Orders
+  Order has one or more LineItems
+  Customer: id, email
+  Order: id, customer_id, total</textarea>
+								<p class="helper">
+									Plain language and rough Mermaid both work. Keep your entity names; we’ll handle
+									the syntax.
+								</p>
+							</div>
+							<div class="image-input hidden">
+								<div
+									class="drop"
+									tabindex="0"
+									role="button"
+									aria-label="Choose or drop diagram image"
+								>
+									<strong>↓ Drop your diagram here</strong>
+									<p>or paste an image with ⌘V / Ctrl V</p>
+									<button class="browse">Choose image</button>
+									<p><small>PNG, JPEG or WebP · up to 10 MB</small></p>
+									<input
+										type="file"
+										accept="image/png,image/jpeg,image/webp"
+										class="hidden file"
+									/><img class="source-image hidden" alt="Your source diagram" /><small
+										class="filename"
+									></small>
+								</div>
+								<p class="helper">
+									From Excalidraw: copy as PNG or export an image. Dropping canvas shapes may not
+									include an image.
+								</p>
+								<button class="sample load-sample">Use sample sketch</button>
+							</div>
+							<label class="live-control"
+								><input class="live" type="checkbox" checked />Live conversion · after a 1-second
+								pause</label
+							><button class="generate sample">Convert now</button>
+							<p class="status" role="status" aria-live="polite"></p>
+						</div>
+						<div>
+							<div class="preview-top">
+								<span class="label" style="margin: 0">Diagram preview</span
+								><button class="view-code hidden">View Mermaid</button>
+							</div>
+							<div class="preview empty">
+								Your editable diagram will appear here.<br /><small
+									>Nothing is added until you insert it.</small
+								>
+							</div>
+							<div class="warning hidden">
+								Review assumptions: customer → order is optional-many; IDs are strings and total is
+								a float. Field types were inferred.
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="footer">
+					<label
+						>Agent
+						<select class="agent" aria-label="Agent for this conversion">
+							<option value="auto">Auto → Codex</option>
+							<option value="codex">Codex</option>
+							<option value="claude">Claude Code</option>
+						</select></label
+					><button class="settings-link sample">Change default</button
+					><button class="primary insert" disabled>Insert into draft</button>
+				</div>
+				<div class="simulation">Prototype · fixed sample results · no AI calls or file writes</div>
+			</section></template
+		>
+		<dialog id="settings" aria-label="Diagram preferences">
+			<div class="settings-body">
+				<div style="display: flex; justify-content: space-between">
+					<h2>Diagram preferences</h2>
+					<button class="close" aria-label="Close preferences">×</button>
+				</div>
+				<p>Choose the agent used for diagram conversions. You can override it for any diagram.</p>
+				<label
+					><input type="radio" name="default-agent" value="auto" checked /><span
+						><strong>Choose automatically</strong
+						><small
+							>Use an installed, signed-in agent. Keep the last working choice.<br />Currently
+							selects Codex in this demo.</small
+						></span
+					></label
+				><label
+					><input type="radio" name="default-agent" value="codex" /><span
+						><strong>Codex</strong><small>Signed in · simulated</small></span
+					></label
+				><label
+					><input type="radio" name="default-agent" value="claude" /><span
+						><strong>Claude Code</strong><small>Signed in · simulated</small></span
+					></label
+				>
+				<label
+					><input type="radio" name="default-agent" value="disabled" /><span
+						><strong>Disabled</strong
+						><small
+							>Hide /mermaid and stop diagram conversion. Existing diagrams still render.</small
+						></span
+					></label
+				>
+				<p class="helper">
+					Conversion sends your input to the selected agent’s provider and uses your existing
+					account. Only the diagram input is included.
+				</p>
+				<div class="settings-actions">
+					<button id="recheck">Recheck availability</button
+					><button class="primary" id="save-settings">Save preference</button>
+				</div>
+				<p class="status" id="settings-status" aria-live="polite"></p>
+			</div>
+		</dialog>
+		<div class="toast hidden" role="status" id="toast"></div>
+		<script>
+			const query = (selector, root = document) => root.querySelector(selector);
+			const diagram = `<svg viewBox="0 0 400 280" role="img" aria-label="Sample ER diagram: Customer places Orders; Orders contain LineItems"><g fill="none" stroke="#0a7472" stroke-width="1.5"><path d="M110 98V125H290V151"/><path d="M290 208V244H110V221"/></g><g font-family="Arial,sans-serif" font-size="12"><rect x="30" y="20" width="160" height="78" rx="6" fill="#e8f6f5" stroke="#63c1be"/><text x="45" y="43" fill="#085b59" font-weight="bold">CUSTOMER</text><path d="M30 53H190" stroke="#9bd8d5"/><text x="45" y="72">id · email</text><rect x="210" y="151" width="160" height="57" rx="6" fill="#e8f6f5" stroke="#63c1be"/><text x="225" y="174" fill="#085b59" font-weight="bold">ORDER</text><text x="225" y="195">id · customer_id · total</text><rect x="30" y="166" width="160" height="55" rx="6" fill="#f6f6f3" stroke="#cfcec7"/><text x="45" y="190" font-weight="bold">LINE_ITEM</text><text x="45" y="209">order_id</text><text x="158" y="118" fill="#615f5a">1 places 0..*</text><text x="148" y="265" fill="#615f5a">1 contains 1..*</text></g></svg>`;
+			const mermaid =
+				"erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  CUSTOMER {\n    string id PK\n    string email\n  }\n  ORDER {\n    string id PK\n    string customer_id FK\n    float total\n  }\n  LINE_ITEM {\n    string order_id FK\n  }";
+			const descriptions = {
+				dialog:
+					"Editing → /mermaid → dialog. Drop an image or type rough Mermaid; the preview updates after a pause.",
+				inline:
+					"Create at the insertion point. Fast for rough text; the surrounding document stays in view.",
+				panel: "Earlier alternative: open a refinement panel from the editor’s slash menu.",
+			};
+			let concept = "dialog",
+				defaultAgent = "auto",
+				composer,
+				mode = "text",
+				ready = false,
+				showingCode = false,
+				timer,
+				imageUrl,
+				debounceTimer,
+				editing = true;
+			function toast(message) {
+				query("#toast").textContent = message;
+				query("#toast").classList.remove("hidden");
+				setTimeout(() => query("#toast").classList.add("hidden"), 3500);
+			}
+			function clearResult() {
+				clearTimeout(timer);
+				clearTimeout(debounceTimer);
+				ready = false;
+				query(".insert", composer).disabled = true;
+				query(".view-code", composer).classList.add("hidden");
+				query(".warning", composer).classList.add("hidden");
+				query(".preview", composer).className = "preview empty";
+				query(".preview", composer).textContent = "Your editable diagram will appear here.";
+				query(".generate", composer).disabled = false;
+				query(".status", composer).textContent = "";
+			}
+			function switchMode(next) {
+				mode = next;
+				clearResult();
+				composer
+					.querySelectorAll("[data-mode]")
+					.forEach((button) => button.setAttribute("aria-pressed", button.dataset.mode === mode));
+				query(".text-input", composer).classList.toggle("hidden", mode !== "text");
+				query(".image-input", composer).classList.toggle("hidden", mode !== "image");
+			}
+			function loadImage(file) {
+				if (
+					!file ||
+					!["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+					file.size > 10 * 1024 * 1024
+				) {
+					toast("Choose a PNG, JPEG or WebP image under 10 MB.");
+					return;
+				}
+				switchMode("image");
+				if (imageUrl) URL.revokeObjectURL(imageUrl);
+				imageUrl = URL.createObjectURL(file);
+				((query(".source-image", composer).src = imageUrl), debounceTimer, (editing = true));
+				query(".source-image", composer).classList.remove("hidden");
+				query(".filename", composer).textContent = file.name;
+				query(".status", composer).textContent =
+					"Image stays in this browser. Preview uses the fixed demo result.";
+				scheduleConversion();
+			}
+			function closeComposer() {
+				clearResult();
+				if (query("#studio").open) query("#studio").close();
+				composer.classList.add("hidden");
+				query("#launch").classList.toggle("hidden", !editing);
+				if (editing) query("#slash-input").focus();
+			}
+			function scheduleConversion() {
+				clearTimeout(timer);
+				clearTimeout(debounceTimer);
+				ready = false;
+				query(".insert", composer).disabled = true;
+				query(".preview", composer).classList.add("outdated");
+				query(".generate", composer).disabled = false;
+				if (!query(".live", composer).checked) {
+					query(".status", composer).textContent = "Live conversion paused · choose Convert now";
+					return;
+				}
+				if (mode === "text" && !query("#rough-text", composer).value.trim()) {
+					clearResult();
+					return;
+				}
+				if (mode === "image" && !query(".filename", composer).textContent) return;
+				query(".status", composer).textContent = "Waiting for you to pause…";
+				debounceTimer = setTimeout(
+					() => query(".generate", composer).click(),
+					mode === "image" ? 0 : 1000,
+				);
+			}
+			function chooseMermaid() {
+				if (!editing || defaultAgent === "disabled") return;
+				query("#slash-input").value = "";
+				query("#slash-menu").classList.add("hidden");
+				query("#slash-input").setAttribute("aria-expanded", "false");
+				showComposer();
+				query("#rough-text", composer).focus();
+				scheduleConversion();
+			}
+			function showComposer() {
+				composer.classList.remove("hidden");
+				if (concept === "dialog") query("#studio").showModal();
+				else query("#launch").classList.add("hidden");
+			}
+			function mount(next) {
+				clearTimeout(timer);
+				clearTimeout(debounceTimer);
+				if (query("#studio").open) query("#studio").close();
+				if (composer) composer.remove();
+				concept = next;
+				ready = false;
+				showingCode = false;
+				query("#canvas").className = concept === "panel" ? "side-layout" : "";
+				document
+					.querySelectorAll("[data-concept]")
+					.forEach((button) =>
+						button.setAttribute("aria-pressed", button.dataset.concept === concept),
+					);
+				query("#description").textContent = descriptions[concept];
+				query("#recommendation").textContent = concept === "dialog" ? "Recommended" : "Alternative";
+				composer = query("#composer-template").content.firstElementChild.cloneNode(true);
+				query(
+					"#" +
+						(concept === "dialog" ? "dialog" : concept === "inline" ? "inline" : "panel") +
+						"-host",
+				).append(composer);
+				query(".agent", composer).value = defaultAgent;
+				query("#launch").classList.toggle("hidden", !editing);
+				composer.classList.add("hidden");
+				query(".close", composer).onclick = closeComposer;
+				composer
+					.querySelectorAll("[data-mode]")
+					.forEach((button) => (button.onclick = () => switchMode(button.dataset.mode)));
+				query(".settings-link", composer).onclick = () => query("#settings").showModal();
+				query("#rough-text", composer).oninput = scheduleConversion;
+				query(".live", composer).onchange = scheduleConversion;
+				query(".agent", composer).onchange = scheduleConversion;
+				query(".generate", composer).onclick = () => {
+					if (mode === "text" && !query("#rough-text", composer).value.trim()) {
+						toast("Add a description first.");
+						return;
+					}
+					if (mode === "image" && !query(".filename", composer).textContent) {
+						toast("Choose an image or load the sample sketch.");
+						return;
+					}
+					clearTimeout(timer);
+					clearTimeout(debounceTimer);
+					ready = false;
+					query(".insert", composer).disabled = true;
+					query(".preview", composer).classList.add("outdated");
+					query(".generate", composer).disabled = true;
+					query(".status", composer).textContent = "Simulating conversion · close to cancel";
+					timer = setTimeout(() => {
+						ready = true;
+						showingCode = false;
+						query(".preview", composer).className = "preview";
+						query(".preview", composer).innerHTML = diagram;
+						query(".insert", composer).disabled = false;
+						query(".generate", composer).disabled = false;
+						query(".generate", composer).textContent = "Convert now";
+						query(".view-code", composer).classList.remove("hidden");
+						query(".view-code", composer).textContent = "View Mermaid";
+						query(".warning", composer).classList.remove("hidden");
+						query(".status", composer).textContent =
+							"Sample ready · review relationships and inferred field types";
+					}, 900);
+				};
+				query(".view-code", composer).onclick = () => {
+					showingCode = !showingCode;
+					query(".view-code", composer).textContent = showingCode ? "View diagram" : "View Mermaid";
+					if (showingCode) {
+						const code = document.createElement("pre");
+						code.textContent = mermaid;
+						query(".preview", composer).replaceChildren(code);
+					} else query(".preview", composer).innerHTML = diagram;
+				};
+				query(".insert", composer).onclick = () => {
+					if (!ready) return;
+					query("#inserted-host").innerHTML =
+						'<div class="inserted"><span class="badge">Unsaved draft</span>' +
+						diagram +
+						'<p class="helper">Diagram inserted at your cursor. Save the section to write it to the document.</p><button id="undo-insert">Undo insertion</button></div>';
+					query("#undo-insert").onclick = () => {
+						query("#inserted-host").replaceChildren();
+						toast("Insertion undone");
+					};
+					closeComposer();
+					toast("Added to demo draft · no file was changed");
+				};
+				const drop = query(".drop", composer);
+				query(".browse", composer).onclick = () => query(".file", composer).click();
+				drop.onkeydown = (event) => {
+					if (event.target === drop && ["Enter", " "].includes(event.key)) {
+						event.preventDefault();
+						query(".file", composer).click();
+					}
+				};
+				query(".file", composer).onchange = (event) => loadImage(event.target.files[0]);
+				drop.ondragover = (event) => {
+					event.preventDefault();
+					drop.classList.add("drag");
+				};
+				drop.ondragleave = () => drop.classList.remove("drag");
+				drop.ondrop = (event) => {
+					event.preventDefault();
+					drop.classList.remove("drag");
+					const file = event.dataTransfer.files[0];
+					if (file) loadImage(file);
+					else toast("No image received. Copy as PNG or export an image from Excalidraw.");
+				};
+				query(".load-sample", composer).onclick = () => {
+					clearResult();
+					query(".filename", composer).textContent = "commerce-sketch.svg · demo fixture";
+					query(".source-image", composer).src = "sample.svg";
+					query(".source-image", composer).classList.remove("hidden");
+					scheduleConversion();
+				};
+				switchMode("text");
+			}
+			document
+				.querySelectorAll("[data-concept]")
+				.forEach((button) => (button.onclick = () => mount(button.dataset.concept)));
+			query("#choose-mermaid").onclick = chooseMermaid;
+			query("#slash-input").oninput = () => {
+				const input = query("#slash-input").value.toLowerCase();
+				const visible =
+					editing &&
+					defaultAgent !== "disabled" &&
+					input.startsWith("/") &&
+					"mermaid".startsWith(input.slice(1));
+				query("#slash-menu").classList.toggle("hidden", !visible);
+				query("#slash-input").setAttribute("aria-expanded", String(visible));
+			};
+			query("#slash-input").onkeydown = (event) => {
+				if (event.key === "Enter" && !query("#slash-menu").classList.contains("hidden")) {
+					event.preventDefault();
+					chooseMermaid();
+				}
+				if (event.key === "Escape") {
+					event.preventDefault();
+					query("#slash-menu").classList.add("hidden");
+					query("#slash-input").setAttribute("aria-expanded", "false");
+				}
+			};
+			query("#toggle-edit").onclick = () => {
+				editing = !editing;
+				closeComposer();
+				query("#launch").classList.toggle("hidden", !editing);
+				query("#toggle-edit").textContent = editing ? "Finish editing" : "Edit section";
+				query(".editor-state .badge").textContent = editing
+					? "Editing section · unsaved"
+					: "Read mode";
+			};
+
+			document.addEventListener("paste", (event) => {
+				if (
+					!composer ||
+					composer.classList.contains("hidden") ||
+					(concept === "dialog" && !query("#studio").open)
+				)
+					return;
+				const item = [...event.clipboardData.items].find((entry) =>
+					entry.type.startsWith("image/"),
+				);
+				if (item) {
+					event.preventDefault();
+					loadImage(item.getAsFile());
+				}
+			});
+			query("#preferences").onclick = () => query("#settings").showModal();
+			query("#settings .close").onclick = () => query("#settings").close();
+			query("#save-settings").onclick = () => {
+				defaultAgent = query('input[name="default-agent"]:checked').value;
+				query(".agent", composer).value = defaultAgent;
+				query("#settings").close();
+				query("#slash-menu").classList.add("hidden");
+				query("#slash-input").setAttribute("aria-expanded", "false");
+				query("#slash-input").placeholder =
+					defaultAgent === "disabled"
+						? "Diagram conversion disabled · change in Preferences"
+						: "Type /mermaid to add a diagram";
+				if (defaultAgent === "disabled") closeComposer();
+				toast("Demo preference updated for this page");
+			};
+			query("#recheck").onclick = () =>
+				(query("#settings-status").textContent =
+					"Demo availability refreshed. No local agents were contacted.");
+			query("#reset").onclick = () => {
+				query("#inserted-host").replaceChildren();
+				mount(concept);
+			};
+			query("#studio").addEventListener("cancel", (event) => {
+				event.preventDefault();
+				closeComposer();
+			});
+			mount("dialog");
+		</script>
+	</body>
+</html>

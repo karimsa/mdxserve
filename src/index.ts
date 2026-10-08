@@ -1,6 +1,7 @@
+import { setupDiagrams } from "./cli/setup-diagrams.js";
 import os from "node:os";
 import path from "node:path";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { startServer } from "./http/start.js";
 import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
 import { ComponentsService } from "./components/service.js";
@@ -367,12 +368,19 @@ program
 	.description(
 		"Install the mdxserve writing skill for Claude Code and Codex (via `npx skills add`), and remove the MCP registration earlier versions created. Safe to re-run; re-run after upgrading.",
 	)
-	.action(async () => {
+	.addOption(
+		new Option(
+			"--diagram-agent <agent>",
+			"Agent for AI diagrams (auto detects once and saves a concrete agent)",
+		).choices(["auto", "codex", "claude", "disabled"]),
+	)
+	.action(async (options: { diagramAgent?: string }) => {
 		console.log("==> Installing skills");
-		const result = await new SetupService({
+		const service = new SetupService({
 			pkgRoot: getPackageRoot(),
 			runner: zxCommandRunner(),
-		}).run();
+		});
+		const result = await service.run();
 		if (result.kind === "error") {
 			console.error(`mdxserve: ${result.message}`);
 			process.exitCode = 1;
@@ -382,13 +390,18 @@ program
 		console.log("==> Removing the old MCP registration");
 		if (result.cleanups.every((cleanup) => cleanup.status === "not-installed")) {
 			console.log("no claude/codex CLI found");
-			return;
 		}
 		for (const cleanup of result.cleanups) {
 			if (cleanup.status === "removed") console.log(`removed from ${cleanup.client}`);
 			else if (cleanup.status === "absent")
 				console.log(`nothing registered with ${cleanup.client}`);
 			else console.log(`${cleanup.client} not found, skipping`);
+		}
+		try {
+			await setupDiagrams(service, options.diagramAgent);
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : "Diagram setup failed");
+			process.exitCode = 1;
 		}
 	});
 

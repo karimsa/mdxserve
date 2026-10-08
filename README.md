@@ -39,7 +39,10 @@ mdxserve setup      # optional: installs the writing skill for Claude Code and C
 
 `mdxserve setup` copies the agent writing skill into your Claude Code and Codex skill folders
 (through `npx skills add`) and removes the MCP registration that older versions created. It is
-safe to re-run; run it again after upgrading so the installed skill matches the CLI.
+safe to re-run; run it again after upgrading so the installed skill matches the CLI. Setup also detects installed, signed-in agents and saves a concrete choice for diagram conversion.
+Interactive setup lets you choose Codex, Claude Code, or Disabled. Existing choices are preserved.
+Use `mdxserve setup --diagram-agent auto` for one-time detection, or choose `codex`, `claude`,
+or `disabled` explicitly. Installations that have not run setup keep conversion disabled.
 
 Interactive commands check for updates in the background at most once a day and show
 cached update notices on startup. Updates are never installed automatically. Disable
@@ -120,6 +123,39 @@ flowchart LR
 ````
 
 ![Mermaid diagrams rendered in the dark theme](docs/screenshots/diagrams-dark.jpg)
+
+### Create diagrams while editing
+
+Enable diagram conversion through **Settings → Diagrams** using the navbar cog or `mdxserve setup`.
+While editing a section, type `/mermaid` in an empty paragraph and press Enter. The dialog
+accepts rough descriptions, Mermaid-like text, or one PNG/JPEG/WebP image (drop, paste, or
+choose a file). For Excalidraw, use **Copy as PNG** or export an image; canvas drag payloads,
+SVG and `.excalidraw` files are not supported.
+
+Conversion runs after a 1-second typing pause, or immediately on **Cmd/Ctrl+Enter**,
+leaving the input editor, or clicking **Convert**. Superseded work is cancelled and repeated
+triggers for unchanged input do not launch duplicate conversions. Valid Mermaid is previewed locally without calling an agent.
+Review the preview and any inferred relationships, optionally edit the generated Mermaid in the left-hand **Mermaid** tab,
+and **Insert into draft**. Insertion is undoable; the normal section Save writes the fenced
+Mermaid block. The workflow is identical in `.md` and `.mdx`.
+
+**Auto detect** in Settings checks installed agents and authentication, selects a concrete agent,
+and waits for **Save settings**. It keeps the current agent if ready, otherwise selects Codex first
+when both are ready. Detection only runs in setup or from this button; conversion never probes
+or switches agents. The saved model defaults are **gpt-6-luna** for Codex and **haiku** for Claude Code.
+Settings shows a model dropdown for the selected agent, populated from its installed CLI.
+Switching agents preserves each model choice. Refresh models reloads the catalog without generating
+content; a discovery failure retains the saved selection. Loading choices never changes the saved model.
+These CLIs run non-interactively, without login or approval prompts, in temporary directories
+with tools disabled. Text and images are sent to that provider using your account and may
+incur usage charges. Sign in separately in your terminal. Detection cannot guarantee that a
+saved token is still accepted by its provider or that your account can access the selected model.
+Legacy `agent: "auto"` configurations require setup or an explicit Settings choice before conversion.
+
+Conversion and preferences require a same-machine connection. Disabled cancels pending work
+and hides the slash command; existing diagrams continue to render. Images are bounded at
+10 MiB and 25 megapixels, stripped of metadata and normalized before use; temporary uploads
+expire or are discarded when the dialog closes. No source image is added to the document.
 
 ### Builtin components
 

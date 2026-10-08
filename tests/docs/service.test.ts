@@ -66,6 +66,34 @@ describe("DocsService.readSource", () => {
 });
 
 describe("DocsService.saveSection", () => {
+	it.each([".md", ".mdx"])(
+		"saves an inserted Mermaid block in %s with the normal version guard",
+		async (extension) => {
+			const file = path.join(root, `diagram${extension}`);
+			await fs.writeFile(file, ORIGINAL);
+			const markdown = "```mermaid\nerDiagram\n CUSTOMER ||--o{ ORDER : places\n```";
+			const saved = await service.saveSection({
+				path: file,
+				startLine: 3,
+				endLine: 3,
+				version: versionOf(ORIGINAL),
+				markdown,
+			});
+			expect(saved.kind).toBe("ok");
+			const expected = `# Title\n\n${markdown}\n\nline five\n`;
+			expect(await fs.readFile(file, "utf8")).toBe(expected);
+			const stale = await service.saveSection({
+				path: file,
+				startLine: 3,
+				endLine: 3,
+				version: versionOf(ORIGINAL),
+				markdown: "stale",
+			});
+			expect(stale.kind).not.toBe("ok");
+			expect(await fs.readFile(file, "utf8")).toBe(expected);
+		},
+	);
+
 	it("replaces exactly the requested line range and returns the new version", async () => {
 		const result = await service.saveSection({
 			path: abs,
