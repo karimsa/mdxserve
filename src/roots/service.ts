@@ -242,6 +242,19 @@ export class RootsService {
 					currentDirs = await Promise.all(
 						this.configInputs(snapshot).map(realpathThroughMissingTail),
 					);
+					// Validate the entire snapshot before removing anything: removing an
+					// invalid entry must not activate the rest of a rejected user edit.
+					const conflict = this.checkSet(currentDirs);
+					if (conflict) return this.configError(conflict.message);
+					for (const dir of currentDirs) {
+						const admitted = await this.admit([dir]);
+						if (admitted.kind === "ok") continue;
+						// A previously mounted directory may have been deleted. Keep it
+						// removable, but do not admit new missing paths from user edits.
+						if (admitted.kind === "not-found" && this.mounted.some((info) => info.dir === dir))
+							continue;
+						return this.configError(admitted.message);
+					}
 				}
 			} catch (error) {
 				return this.configError(error);

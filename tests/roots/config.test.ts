@@ -88,6 +88,35 @@ it.each([
 	expect(dirs(roots)).toEqual([second]);
 });
 
+it.each(["nested", "filesystem root", "missing", "file"])(
+	"refuses removals from rejected %s config without changing the file or live roots",
+	async (invalidKind) => {
+		const roots = service();
+		await roots.initialize([first]);
+		const child = path.join(second, "child");
+		await fs.mkdir(child);
+		const file = path.join(base, "document.md");
+		await fs.writeFile(file, "# Document");
+		const invalidRoot =
+			invalidKind === "nested"
+				? second
+				: invalidKind === "filesystem root"
+					? "/"
+					: invalidKind === "missing"
+						? path.join(base, "missing")
+						: file;
+		const content = JSON.stringify({ roots: [invalidRoot, child] });
+		await fs.writeFile(config, content);
+		expect((await roots.reload()).kind).toBe("config-error");
+		const onChange = vi.fn();
+		roots.onChange(onChange);
+		expect((await roots.remove([invalidRoot])).kind).toBe("config-error");
+		expect(dirs(roots)).toEqual([first]);
+		expect(await fs.readFile(config, "utf8")).toBe(content);
+		expect(onChange).not.toHaveBeenCalled();
+	},
+);
+
 it("reads pending user edits before mutations and removes deleted directories", async () => {
 	const roots = service();
 	await roots.initialize([first]);
