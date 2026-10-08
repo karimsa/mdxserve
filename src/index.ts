@@ -1,7 +1,7 @@
 import { setupDiagrams } from "./cli/setup-diagrams.js";
 import os from "node:os";
 import path from "node:path";
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { startServer } from "./http/start.js";
 import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
 import { ComponentsService } from "./components/service.js";
@@ -368,13 +368,7 @@ program
 	.description(
 		"Install the mdxserve writing skill for Claude Code and Codex (via `npx skills add`), and remove the MCP registration earlier versions created. Safe to re-run; re-run after upgrading.",
 	)
-	.addOption(
-		new Option(
-			"--diagram-agent <agent>",
-			"Agent for AI diagrams (auto detects once and saves a concrete agent)",
-		).choices(["auto", "codex", "claude", "disabled"]),
-	)
-	.action(async (options: { diagramAgent?: string }) => {
+	.action(async () => {
 		console.log("==> Installing skills");
 		const service = new SetupService({
 			pkgRoot: getPackageRoot(),
@@ -398,7 +392,7 @@ program
 			else console.log(`${cleanup.client} not found, skipping`);
 		}
 		try {
-			await setupDiagrams(service, options.diagramAgent);
+			await setupDiagrams(service);
 		} catch (error) {
 			console.error(error instanceof Error ? error.message : "Diagram setup failed");
 			process.exitCode = 1;

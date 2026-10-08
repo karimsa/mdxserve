@@ -1,6 +1,6 @@
 # Creating diagrams
 
-Edit this section, add an empty paragraph, and type `/mermaid` to create a diagram. Enable diagram conversion in Settings → Diagrams or with `mdxserve setup --diagram-agent auto` first.
+Edit this section, add an empty paragraph, and type `/mermaid` to create a diagram. Enable diagram conversion in Settings → Diagrams or with `mdxserve setup` first.
 
 Describe a relationship such as “Customers place orders; each order contains line items”, or drop an exported image into the dialog. Review assumptions before inserting the result, then save the section.
 

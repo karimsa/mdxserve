@@ -1,6 +1,6 @@
 import path from "node:path";
-import type { PreferencesService } from "../preferences/service.js";
-import type { AgentPort, AgentStatus } from "../diagrams/types.js";
+import type { PreferencesService, PreferenceResult } from "../preferences/service.js";
+import type { AgentPort } from "../diagrams/types.js";
 import { discoverSkills, MCP_CLEANUPS, planSetup } from "./plan.js";
 import type { CommandRunner } from "./runner.js";
 
@@ -19,26 +19,44 @@ const STDERR_TAIL_LINES = 5;
 export class SetupService {
 	private readonly pkgRoot: string;
 	private readonly runner: CommandRunner;
+	private readonly diagramSetups = new WeakMap<PreferencesService, Promise<PreferenceResult>>();
 
 	constructor(options: { pkgRoot: string; runner: CommandRunner }) {
 		this.pkgRoot = options.pkgRoot;
 		this.runner = options.runner;
 	}
 
-	async prepareDiagrams(preferences: PreferencesService, agents: AgentPort) {
-		const existing = preferences.read();
-		if (existing.kind !== "ok") return existing;
-		let statuses: AgentStatus[] = [];
-		{
-			try {
-				statuses = await agents.probe();
-			} catch {
-				return { kind: "error" as const, message: "Could not check local agents" };
-			}
+	async configureDiagrams(
+		preferences: PreferencesService,
+		agents: AgentPort,
+	): Promise<PreferenceResult> {
+		const pending = this.diagramSetups.get(preferences);
+		if (pending) return pending;
+		const work = this.initializeDiagrams(preferences, agents);
+		this.diagramSetups.set(preferences, work);
+		try {
+			return await work;
+		} finally {
+			this.diagramSetups.delete(preferences);
 		}
-		const detected = statuses.find((status) => status.state === "ready")?.provider ?? "disabled";
-		const fallback = existing.configured ? existing.agent : detected;
-		return { ...existing, statuses, fallback, detected };
+	}
+
+	private async initializeDiagrams(
+		preferences: PreferencesService,
+		agents: AgentPort,
+	): Promise<PreferenceResult> {
+		const existing = preferences.read();
+		if (existing.kind !== "ok" || existing.configured) return existing;
+		try {
+			const statuses = await agents.probe();
+			// A Settings save during detection takes precedence over setup's suggestion.
+			const latest = preferences.read();
+			if (latest.kind !== "ok" || latest.configured) return latest;
+			const detected = statuses.find((status) => status.state === "ready")?.provider ?? "disabled";
+			return preferences.set(detected, latest.models);
+		} catch {
+			return { kind: "error", message: "Could not check local agents" };
+		}
 	}
 
 	async run(): Promise<SetupResult> {
