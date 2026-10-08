@@ -5,8 +5,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-npm pack --pack-destination "$tmp" >/dev/null            # prepack runs yarn build
-npm install -g --prefix "$tmp/prefix" "$tmp"/mdxserve-*.tgz
+tarball="$(npm pack --pack-destination "$tmp" --silent | tail -n 1)" # prepack runs yarn build
+npm install -g --prefix "$tmp/prefix" "$tmp/$tarball"
 bin="$tmp/prefix/bin/mdxserve"
 test "$("$bin" --version)" = "$(node -p "require('./package.json').version")"
 "$bin" --help | grep -q "^  setup"

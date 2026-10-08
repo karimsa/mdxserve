@@ -105,7 +105,7 @@ mdxserve components show Callout     # props table (types, defaults) + when to u
 mdxserve components show Callout --json
 ```
 
-If `mdxserve` is not on your PATH, install it with `npm install -g mdxserve`.
+If `mdxserve` is not on your PATH, install it with `npm install -g @karimsa/mdxserve`.
 
 Minimal usage:
 

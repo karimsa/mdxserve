@@ -20,7 +20,7 @@ config file: run it, open the URL, read.
 You need Node 22.12 or newer.
 
 ```bash
-npm install -g mdxserve
+npm install -g @karimsa/mdxserve
 mdxserve setup      # optional: installs the writing skill for Claude Code and Codex
 ```
 

@@ -41,7 +41,7 @@ For a git worktree, `./worktree-setup.sh` runs `yarn` so the tree is ready to bu
 CI (`.github/workflows/verify-pr.yml`) runs, in order: `yarn constraints`, `format:check`,
 `lint`, `typecheck`, `test`, `build`, `smoke`. Run the same set before opening a PR.
 
-The `mdxserve` on your `PATH` is a built `dist/cli.js` (the npm install, or your checkout after
+The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` npm install, or your checkout after
 `npm link`), so a change under `src/` or `client/` is not visible to it until you `yarn build`.
 `yarn dev` sees source changes immediately.
 
@@ -82,11 +82,14 @@ has the full rules.
 
 ## Releasing
 
-`.github/workflows/release.yml` publishes to npm when a `v*` tag is pushed, using npm trusted
-publishing (OIDC, with provenance). There is no npm token in the repo.
+The first `@karimsa/mdxserve` release needs an authenticated `npm publish --access public`.
+npm only lets a trusted publisher be configured after the package exists. Once it does,
+configure the package's Trusted Publisher setting on npmjs.com for the `karimsa/mdxserve`
+repository and `.github/workflows/release.yml`. Later releases use npm trusted publishing
+(OIDC, with provenance), with no npm token in the repo:
 
-1. Open a PR that bumps `version` in `package.json`, and merge it.
-2. Tag the merge commit and push the tag:
+1. Bump `version` in `package.json` and merge it into `main`.
+2. Tag that commit and push the tag:
 
 ```bash
 git tag v0.1.1 main
@@ -94,10 +97,7 @@ git push origin v0.1.1
 ```
 
 The workflow checks that the tag matches `package.json`, runs the same checks as
-`verify-pr.yml`, builds, runs `yarn smoke`, and publishes. npm only lets a trusted publisher
-be configured on a package that already exists, so the very first version was published by
-hand with `npm publish --access public`; since then the package's Trusted Publisher setting on
-npmjs.com points at `karimsa/mdxserve` and `release.yml`.
+`verify-pr.yml`, builds, runs `yarn smoke`, and publishes.
 
 ## Tests
 

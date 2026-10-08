@@ -62,7 +62,7 @@ describe("missingBuildArtifact", () => {
 	it("tells both installed and source-checkout users what to do", () => {
 		const message = missingBuildArtifact("dist/registry.json");
 		expect(message).toContain("dist/registry.json");
-		expect(message).toContain("npm i -g mdxserve");
+		expect(message).toContain("npm i -g @karimsa/mdxserve");
 		expect(message).toContain("yarn build");
 	});
 });

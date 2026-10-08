@@ -11,7 +11,7 @@ let cachedRoot: string | undefined;
  * Locate the root of the mdxserve package itself (not the directory being
  * served). Works whether we're running from `src/index.ts` via tsx (dev) or
  * from the bundled `dist/cli.js` (built), by walking up from this module's
- * location until a `package.json` with `"name": "mdxserve"` is found.
+ * location until a `package.json` with `"name": "@karimsa/mdxserve"` is found.
  */
 export function getPackageRoot(): string {
 	if (cachedRoot) return cachedRoot;
@@ -23,7 +23,7 @@ export function getPackageRoot(): string {
 		if (fs.existsSync(pkgPath)) {
 			try {
 				const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { name?: string };
-				if (pkg.name === "mdxserve") {
+				if (pkg.name === "@karimsa/mdxserve") {
 					cachedRoot = dir;
 					return dir;
 				}
@@ -35,7 +35,7 @@ export function getPackageRoot(): string {
 		const parent = path.dirname(dir);
 		if (parent === dir) {
 			throw new Error(
-				'mdxserve: could not locate package root (no package.json named "mdxserve" found)',
+				'mdxserve: could not locate package root (no package.json named "@karimsa/mdxserve" found)',
 			);
 		}
 		dir = parent;
@@ -88,5 +88,5 @@ export function readPackageVersion(): string {
 }
 
 export function missingBuildArtifact(relPath: string): string {
-	return `mdxserve: ${relPath} is missing. Reinstall with "npm i -g mdxserve", or run "yarn build" in a source checkout.`;
+	return `mdxserve: ${relPath} is missing. Reinstall with "npm i -g @karimsa/mdxserve", or run "yarn build" in a source checkout.`;
 }
