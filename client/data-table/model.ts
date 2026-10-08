@@ -41,6 +41,7 @@ export type Filter = {
 	unit?: string;
 };
 export type TableState = {
+	columnTypes?: Record<string, Column["type"]>;
 	sort?: { key: string; descending: boolean };
 	filters: Record<string, Filter>;
 	units: Record<string, string>;

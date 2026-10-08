@@ -77,7 +77,7 @@ function TableView({
 	renderCell,
 	storageKey,
 }: InternalProps & { storageKey: string }) {
-	const [state, setState] = useTableState(storageKey);
+	const [state, setState] = useTableState(storageKey, columns);
 	const [openColumn, setOpenColumn] = useState<string | null>(null);
 	const [active, setActive] = useState<ActiveCell>(null);
 	const tableRef = useRef<HTMLTableElement>(null);

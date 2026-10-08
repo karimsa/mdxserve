@@ -15,10 +15,56 @@ import {
 export type ActiveCell = { row: number; column: number } | null;
 export type VisibleRow = { row: Row; index: number };
 
+function normalizeFilter(filter: Filter, column: Column): Filter {
+	if (column.type === "text") {
+		return filter.pattern === undefined ? {} : { pattern: filter.pattern };
+	}
+
+	const options = column.type === "time" ? timeUnits : column.type === "bytes" ? byteUnits : [];
+	// A bound recorded in a different measurement must not be silently reinterpreted.
+	if (filter.unit && !options.includes(filter.unit)) return {};
+
+	return {
+		...(filter.min === undefined ? {} : { min: filter.min }),
+		...(filter.max === undefined ? {} : { max: filter.max }),
+		...(filter.unit && options.includes(filter.unit) ? { unit: filter.unit } : {}),
+	};
+}
+
+/** Reconcile persisted preferences before they reach sorting, filters, or labels. */
+export function normalizeTableState(state: TableState, columns: Column[]): TableState {
+	const columnTypes = Object.fromEntries(columns.map((column) => [column.key, column.type]));
+	const normalized: TableState = { columnTypes, filters: {}, units: {} };
+
+	if (state.sort && columns.some((column) => column.key === state.sort?.key)) {
+		normalized.sort = state.sort;
+	}
+
+	for (const column of columns) {
+		const previousType = state.columnTypes?.[column.key];
+		if (previousType && previousType !== column.type) continue;
+
+		const filter = state.filters[column.key];
+		if (filter) {
+			const compatible = normalizeFilter(filter, column);
+			if (Object.keys(compatible).length) normalized.filters[column.key] = compatible;
+		}
+
+		const options = column.type === "time" ? timeUnits : column.type === "bytes" ? byteUnits : [];
+		const unit = state.units[column.key];
+		if (options.length && (unit === "auto" || options.includes(unit))) {
+			normalized.units[column.key] = unit;
+		}
+	}
+
+	// Keep the same reference when already normalized so persistence does not cause render loops.
+	return JSON.stringify(normalized) === JSON.stringify(state) ? state : normalized;
+}
+
 export function deriveTableView(columns: Column[], data: Row[], state: TableState) {
 	const units = Object.fromEntries(
 		columns.map((column) => {
-			const options = column.type === "time" ? timeUnits : byteUnits;
+			const options = column.type === "time" ? timeUnits : column.type === "bytes" ? byteUnits : [];
 			return [
 				column.key,
 				options.includes(state.units[column.key])
