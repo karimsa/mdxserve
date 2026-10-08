@@ -46,6 +46,8 @@ const addRoots = procedure(
 	.mutation(async ({ ctx, input }) => {
 		const result = await ctx.roots.add(input.dirs);
 		switch (result.kind) {
+			case "config-error":
+				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.message });
 			case "ok":
 				return { added: result.added, roots: result.roots };
 			case "not-found":
@@ -72,6 +74,8 @@ const removeRoots = procedure(
 	.mutation(async ({ ctx, input }) => {
 		const result = await ctx.roots.remove(input.dirs);
 		switch (result.kind) {
+			case "config-error":
+				throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.message });
 			case "ok":
 				return { removed: result.removed, roots: result.roots };
 			case "not-mounted":

@@ -62,3 +62,48 @@ describe("startServer (lock held by another process)", () => {
 		}
 	});
 });
+
+it("rejects invalid startup config and releases the server lock", async () => {
+	await fs.writeFile(path.join(tmpDir, "config.json"), '{"roots":42}');
+	const outcome = await startServer({ roots: [], port: 0, host: "127.0.0.1" });
+	expect(outcome.kind).toBe("error");
+	const lock = new ServerLock(defaultLockPath());
+	try {
+		expect(lock.acquire()).toEqual({ kind: "ok" });
+	} finally {
+		lock.release();
+	}
+	expect(await fs.readFile(path.join(tmpDir, "config.json"), "utf8")).toBe('{"roots":42}');
+});
+
+it.each(["0.0.0.0", "::", "192.168.1.10", "docs.local"])(
+	"rejects %s before changing saved roots or taking the lock",
+	async (host) => {
+		const configPath = path.join(tmpDir, "config.json");
+		const content = JSON.stringify({ roots: ["private"] });
+		await fs.writeFile(configPath, content);
+		const outcome = await startServer({ roots: ["public"], port: 0, host });
+		expect(outcome).toEqual({
+			kind: "error",
+			message: expect.stringContaining("--dangerous-allow-network"),
+		});
+		expect(await fs.readFile(configPath, "utf8")).toBe(content);
+		expect(await fs.readdir(tmpDir)).toEqual(["config.json"]);
+	},
+);
+
+it("allows an explicitly opted-in network bind past the startup guard", async () => {
+	const lock = new ServerLock(defaultLockPath());
+	expect(lock.acquire()).toEqual({ kind: "ok" });
+	try {
+		const outcome = await startServer({
+			roots: [],
+			port: 0,
+			host: "0.0.0.0",
+			dangerousAllowNetwork: true,
+		});
+		expect(outcome.kind).toBe("already-running");
+	} finally {
+		lock.release();
+	}
+});

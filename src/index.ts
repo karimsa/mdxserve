@@ -46,56 +46,76 @@ program
 		"Start the server; mount folders with -w (repeatable) or later with `mdxserve roots add <dir>`",
 	)
 	.option("-p, --port <n>", "port to listen on", "4040")
-	.option("--host <host>", "host to bind to (use 0.0.0.0 to expose on the LAN)", "127.0.0.1")
+	.option(
+		"--host <host>",
+		"host to bind to (non-loopback requires --dangerous-allow-network)",
+		"127.0.0.1",
+	)
+	.option(
+		"--dangerous-allow-network",
+		"allow unauthenticated network access to all saved and future configured roots",
+	)
 	.option(
 		"-w, --watch <dir>",
 		"serve this directory (repeatable)",
 		(value: string, acc: string[]) => acc.concat(value),
 		[] as string[],
 	)
-	.action(async (opts: { port: string; host: string; watch: string[] }) => {
-		const inputs = opts.watch;
+	.action(
+		async (opts: {
+			port: string;
+			host: string;
+			watch: string[];
+			dangerousAllowNetwork?: boolean;
+		}) => {
+			const inputs = opts.watch;
 
-		// Which directories may be served together — existence, dedupe by
-		// realpath, no "/", no nesting — is RootsService's call, not the CLI's.
-		const admitted = await new RootsService(process.cwd()).admit(inputs);
-		if (admitted.kind !== "ok") {
-			console.error(`mdxserve: ${admitted.message}`);
+			// Which directories may be served together — existence, dedupe by
+			// realpath, no "/", no nesting — is RootsService's call, not the CLI's.
+			const admitted = await new RootsService(process.cwd()).admit(inputs);
+			if (admitted.kind !== "ok") {
+				console.error(`mdxserve: ${admitted.message}`);
+				process.exitCode = 1;
+				return;
+			}
+			const { roots } = admitted;
+
+			const port = Number.parseInt(opts.port, 10);
+			if (Number.isNaN(port)) {
+				console.error(`mdxserve: invalid port: ${opts.port}`);
+				process.exitCode = 1;
+				return;
+			}
+
+			const outcome = await startServer({
+				roots,
+				port,
+				host: opts.host,
+				dangerousAllowNetwork: opts.dangerousAllowNetwork,
+			});
+			if (outcome.kind === "ok") return;
 			process.exitCode = 1;
-			return;
-		}
-		const { roots } = admitted;
-
-		const port = Number.parseInt(opts.port, 10);
-		if (Number.isNaN(port)) {
-			console.error(`mdxserve: invalid port: ${opts.port}`);
-			process.exitCode = 1;
-			return;
-		}
-
-		const outcome = await startServer({ roots, port, host: opts.host });
-		if (outcome.kind === "ok") return;
-		process.exitCode = 1;
-		if (outcome.kind === "error") {
-			console.error(`mdxserve: ${outcome.message}`);
-			return;
-		}
-		if (outcome.port === undefined) {
+			if (outcome.kind === "error") {
+				console.error(`mdxserve: ${outcome.message}`);
+				return;
+			}
+			if (outcome.port === undefined) {
+				console.error(
+					`mdxserve: a server is already starting (pid ${outcome.pid}); run \`mdxserve status\` in a moment`,
+				);
+				return;
+			}
+			const url = serverBaseUrl({ host: outcome.host ?? "127.0.0.1", port: outcome.port });
 			console.error(
-				`mdxserve: a server is already starting (pid ${outcome.pid}); run \`mdxserve status\` in a moment`,
+				[
+					`mdxserve: a server is already running (pid ${outcome.pid}) at ${url}`,
+					"  add a folder to it:      mdxserve roots add <dir>",
+					"  see what it is serving:  mdxserve status",
+					"  stop it (Ctrl-C, or your process manager) before starting another",
+				].join("\n"),
 			);
-			return;
-		}
-		const url = serverBaseUrl({ host: outcome.host ?? "127.0.0.1", port: outcome.port });
-		console.error(
-			[
-				`mdxserve: a server is already running (pid ${outcome.pid}) at ${url}`,
-				"  add a folder to it:      mdxserve roots add <dir>",
-				"  see what it is serving:  mdxserve status",
-				"  stop it (Ctrl-C, or your process manager) before starting another",
-			].join("\n"),
-		);
-	});
+		},
+	);
 
 program
 	.command("export <file>")
