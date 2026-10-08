@@ -2,7 +2,7 @@
 
 - Every worktree will automatically run `yarn` to update dependencies and make sure the build is ready to go
 - Run `yarn dev` to start a dev server - it will automatically pick a random port if it cannot use its default port
-- Use claude-in-chrome to test the visual interactivity and rendering in a browser by navigating over to the dev server's port
+- Test the visual interactivity and rendering in a browser by navigating over to the dev server's port
 
 ## Architecture
 
@@ -87,4 +87,4 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## Creating PRs
 
-- You must use claude-in-chrome to take screenshots of the working functionality and upload it into the PR description
+- You must take screenshots of the working functionality and upload them into the PR description
