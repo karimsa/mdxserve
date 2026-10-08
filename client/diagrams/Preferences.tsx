@@ -38,7 +38,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 		}
 		setLoadingModels(true);
 		void trpcClient.listDiagramModels
-			.query({ provider: agent })
+			.mutate({ provider: agent })
 			.then((result) => {
 				if (!obsolete) setCatalog(result);
 			})

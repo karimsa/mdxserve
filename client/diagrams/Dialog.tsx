@@ -1,3 +1,4 @@
+import { sessionId } from "./session-id";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { trpcClient } from "../api";
@@ -33,10 +34,11 @@ export function MermaidDialog({
 	const dialog = useRef<HTMLDialogElement>(null);
 	const backdropPress = useRef(false);
 	const [shake, setShake] = useState(0);
-	const session = useRef(crypto.randomUUID());
+	const [session] = useState(sessionId);
 	const revision = useRef(0);
 	const [text, setText] = useState(initialSource ?? "");
 	const [image, setImage] = useState<{ id: string; url: string; name: string } | null>(null);
+	const [agentEnabled, setAgentEnabled] = useState(false);
 	const [settingsReady, setSettingsReady] = useState(false);
 	const gutter = useRef<HTMLDivElement>(null);
 	const [draft, setDraft] = useState<Draft | null>(null);
@@ -60,12 +62,13 @@ export function MermaidDialog({
 	useEffect(() => {
 		dialog.current?.showModal();
 		dialog.current?.querySelector("textarea")?.focus();
-		const owner = session.current;
+		const owner = session;
 		mounted.current = true;
 		void trpcClient.getDiagramPreferences
 			.query({})
-			.then(() => {
+			.then((settings) => {
 				if (mounted.current) {
+					setAgentEnabled(settings.agent !== "disabled");
 					setSettingsReady(true);
 				}
 			})
@@ -77,9 +80,9 @@ export function MermaidDialog({
 			mounted.current = false;
 			void trpcClient.releaseDiagramSession.mutate({ session: owner }).catch(() => {});
 		};
-	}, []);
+	}, [session]);
 	useEffect(() => {
-		const owner = session.current;
+		const owner = session;
 		return () => {
 			if (image) {
 				URL.revokeObjectURL(image.url);
@@ -88,16 +91,14 @@ export function MermaidDialog({
 					.catch(() => {});
 			}
 		};
-	}, [image]);
+	}, [image, session]);
 	useEffect(() => {
 		const changed = () => {
 			void trpcClient.getDiagramPreferences
 				.query({})
 				.then((result) => {
-					if (result.agent === "disabled") onClose();
-					else {
-						setPreferenceVersion((value) => value + 1);
-					}
+					setAgentEnabled(result.agent !== "disabled");
+					setPreferenceVersion((value) => value + 1);
 				})
 				.catch(() => {});
 		};
@@ -114,7 +115,7 @@ export function MermaidDialog({
 		const cancel = () => {
 			obsolete = true;
 			void trpcClient.cancelDiagramConversion
-				.mutate({ session: session.current, revision: generation })
+				.mutate({ session: session, revision: generation })
 				.catch(() => {});
 		};
 		if (manual) {
@@ -164,10 +165,14 @@ export function MermaidDialog({
 						return;
 					}
 				}
+				if (!agentEnabled) {
+					setError("Enter valid Mermaid, or enable an agent in Settings to fix rough input.");
+					return;
+				}
 				setStatus("Converting with your local agent…");
 
 				const result = await trpcClient.convertDiagram.mutate({
-					session: session.current,
+					session: session,
 					revision: attempt,
 					text,
 					imageId: image?.id,
@@ -201,6 +206,8 @@ export function MermaidDialog({
 		manual,
 		preferenceVersion,
 		settingsReady,
+		agentEnabled,
+		session,
 		initialSource,
 		directSave,
 	]);
@@ -209,22 +216,27 @@ export function MermaidDialog({
 		[],
 	);
 	async function upload(file: File) {
-		setCurrent(false);
 		setError("");
 		if (
 			!["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+			file.size === 0 ||
 			file.size > 10 * 1024 * 1024
 		) {
 			setError("Choose one PNG, JPEG or WebP image, at most 10 MiB.");
 			return;
 		}
+		if (!agentEnabled) {
+			setError("Enable an agent in Settings to convert an image.");
+			return;
+		}
+		setCurrent(false);
 		const ticket = ++uploadRevision.current;
 		setUploading(true);
 		setManual(false);
 		let uploadedId: string | undefined;
 		let adopted = false;
 		try {
-			const owner = session.current;
+			const owner = session;
 			const imageId = await trpcClient.beginDiagramImageUpload.mutate({ session: owner });
 			uploadedId = imageId;
 			const bytes = new Uint8Array(await file.arrayBuffer());
@@ -251,7 +263,7 @@ export function MermaidDialog({
 		} finally {
 			if (uploadedId && !adopted)
 				void trpcClient.discardDiagramImage
-					.mutate({ session: session.current, imageId: uploadedId })
+					.mutate({ session: session, imageId: uploadedId })
 					.catch(() => {});
 			if (mounted.current && ticket === uploadRevision.current) setUploading(false);
 		}

@@ -6,9 +6,12 @@ export async function normalizeDiagramImage(bytes: Buffer): Promise<Buffer> {
 	const metadata = await image.metadata();
 	if (!["png", "jpeg", "webp"].includes(metadata.format ?? "") || (metadata.pages ?? 1) > 1)
 		throw new Error("Choose a single PNG, JPEG or WebP image");
-	return image
+	const normalized = await image
 		.rotate()
 		.resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
 		.png()
 		.toBuffer();
+	if (normalized.length > 10 * 1024 * 1024)
+		throw new Error("Normalized image exceeds the 10 MiB limit");
+	return normalized;
 }

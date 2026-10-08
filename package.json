@@ -16,7 +16,9 @@
 		"cli"
 	],
 	"type": "module",
-	"bin": "dist/cli.js",
+	"bin": {
+		"mdxserve": "dist/cli.js"
+	},
 	"files": [
 		"dist",
 		"client",
@@ -26,7 +28,7 @@
 	"scripts": {
 		"build": "tsx scripts/build.ts",
 		"registry": "tsx scripts/build-registry.ts",
-		"dev": "tsx scripts/build-registry.ts && tsx src/index.ts serve -w example",
+		"dev": "tsx scripts/build.ts && tsx src/index.ts serve -w example",
 		"typecheck": "tsc --noEmit",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
@@ -90,6 +92,7 @@
 		"@vitejs/plugin-react": "6.0.5",
 		"bytes": "3.1.2",
 		"commander": "15.0.0",
+		"cross-spawn": "7.0.6",
 		"date-fns": "4.4.0",
 		"diff": "9.0.0",
 		"framer-motion": "13.0.0",
@@ -131,6 +134,7 @@
 	},
 	"devDependencies": {
 		"@types/bytes": "3.1.6",
+		"@types/cross-spawn": "6.0.6",
 		"@types/jsdom": "30.0.0",
 		"@types/lockfile": "1.0.4",
 		"@types/mdast": "4.0.4",

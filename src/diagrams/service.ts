@@ -35,6 +35,8 @@ export class DiagramsService {
 	private readonly uploads = new Map<string, Upload>();
 	private tail: Promise<unknown> = Promise.resolve();
 	private pending = 0;
+	private discovering = false;
+	private discoveryAbort?: AbortController;
 	constructor(
 		private readonly preferences: PreferencesService,
 		private readonly agents: AgentPort,
@@ -65,10 +67,14 @@ export class DiagramsService {
 	/** Called on configuration change and shutdown, including external setup changes. */
 	stopIfDisabled() {
 		const settings = this.preferences.read();
-		if (settings.kind === "error" || settings.agent === "disabled") this.dispose();
+		if (settings.kind === "error" || settings.agent === "disabled") this.stopConversions();
 		else this.prune();
 	}
 	dispose() {
+		this.discoveryAbort?.abort();
+		this.stopConversions();
+	}
+	private stopConversions() {
 		for (const session of this.sessions.values()) session.abort?.abort();
 		this.uploads.clear();
 	}
@@ -86,22 +92,34 @@ export class DiagramsService {
 		if (!allowed) return { kind: "forbidden", message: "Local access required" };
 		if (provider !== "codex" && provider !== "claude")
 			return { kind: "error", message: "Unknown diagram agent" };
+		if (this.discovering) return { kind: "busy", message: "Agent discovery is already running" };
+		this.discovering = true;
+		this.discoveryAbort = new AbortController();
 		try {
-			return { kind: "ok", value: await this.agents.models(provider) };
+			return { kind: "ok", value: await this.agents.models(provider, this.discoveryAbort.signal) };
 		} catch {
 			return {
 				kind: "error",
 				message:
 					"Could not load models from the CLI. Your saved model is unchanged. Retry after checking the CLI installation.",
 			};
+		} finally {
+			this.discovering = false;
+			this.discoveryAbort = undefined;
 		}
 	}
 	async probe(allowed: boolean): Promise<Outcome<AgentStatus[]>> {
 		if (!allowed) return { kind: "forbidden", message: "Local access required" };
+		if (this.discovering) return { kind: "busy", message: "Agent discovery is already running" };
+		this.discovering = true;
+		this.discoveryAbort = new AbortController();
 		try {
-			return { kind: "ok", value: await this.agents.probe() };
+			return { kind: "ok", value: await this.agents.probe(this.discoveryAbort.signal) };
 		} catch {
 			return { kind: "error", message: "Could not check local agents" };
+		} finally {
+			this.discovering = false;
+			this.discoveryAbort = undefined;
 		}
 	}
 	cancel(sessionId: string, revision: number, allowed: boolean): Outcome<null> {
@@ -184,6 +202,8 @@ export class DiagramsService {
 		upload.normalizing = true;
 		try {
 			const normalized = await this.normalize(Buffer.concat(upload.parts));
+			if (!normalized.length || normalized.length > 10 * 1024 * 1024)
+				throw new Error("Normalized image exceeds the 10 MiB limit");
 			const invalid = this.access(allowed);
 			if (invalid) return invalid;
 			if (this.uploads.get(key) !== upload)
@@ -222,7 +242,7 @@ export class DiagramsService {
 			return { kind: "busy", message: "Diagram conversion is busy; retry shortly" };
 		previous?.abort?.abort();
 		const abort = new AbortController();
-		const deadline = setTimeout(() => abort.abort(), 95000);
+		let deadline: ReturnType<typeof setTimeout> | undefined;
 		const session: Session = { revision: input.revision, abort, touched: Date.now() };
 		this.sessions.set(input.session, session);
 		this.pending++;
@@ -243,6 +263,7 @@ export class DiagramsService {
 				if (settings.kind !== "ok") return settings;
 				if (settings.agent === "disabled")
 					return { kind: "disabled", message: "Diagram conversion disabled" };
+				deadline = setTimeout(() => abort.abort(), 95000);
 				const provider = settings.agent;
 				const model = settings.models[provider];
 				try {

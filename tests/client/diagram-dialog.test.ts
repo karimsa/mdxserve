@@ -8,7 +8,9 @@ const rpc = vi.hoisted(() => ({
 	cancel: vi.fn(),
 	release: vi.fn(),
 	preferences: vi.fn(),
+	parse: vi.fn(),
 }));
+vi.mock("mermaid", () => ({ default: { initialize: vi.fn(), parse: rpc.parse } }));
 vi.mock("../../client/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: rpc.preferences },
@@ -43,6 +45,7 @@ const result = {
 beforeEach(async () => {
 	vi.useFakeTimers();
 	vi.clearAllMocks();
+	rpc.parse.mockResolvedValue(false);
 	rpc.preferences.mockResolvedValue({
 		agent: "codex",
 		models: { codex: "gpt-6-luna", claude: "haiku" },
@@ -268,4 +271,60 @@ it("allows outside dismissal after input is reverted before conversion", async (
 	await enter("");
 	await backdropClick();
 	expect(onClose).toHaveBeenCalledOnce();
+});
+
+it.each(["image/svg+xml", "image/png"])(
+	"keeps a ready draft after rejecting a %s attachment",
+	async (type) => {
+		await enter("customers have orders");
+		await settle();
+		expect(insertButton().disabled).toBe(false);
+		const file = new File(["invalid"], "diagram", { type });
+		if (type === "image/png") Object.defineProperty(file, "size", { value: 11 * 1024 * 1024 });
+		const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+		Object.defineProperty(input, "files", { configurable: true, value: [file] });
+		await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+		expect(insertButton().disabled).toBe(false);
+		expect(rpc.convert).toHaveBeenCalledTimes(1);
+	},
+);
+it("keeps valid source editable locally when the agent is disabled", async () => {
+	rpc.preferences.mockResolvedValue({ agent: "disabled" });
+	rpc.parse.mockResolvedValue(true);
+	await act(async () =>
+		root.render(
+			createElement(MermaidDialog, {
+				key: "disabled",
+				initialSource: result.mermaid,
+				directSave: true,
+				onClose: vi.fn(),
+				onInsert: vi.fn(),
+			}),
+		),
+	);
+	await enter("flowchart LR\n A --> B");
+	await settle();
+	expect(rpc.convert).not.toHaveBeenCalled();
+	expect(
+		[...document.querySelectorAll("button")].find(
+			(button) => button.textContent === "Save diagram",
+		)!.disabled,
+	).toBe(false);
+});
+it("never invokes an agent for rough text while disabled", async () => {
+	rpc.preferences.mockResolvedValue({ agent: "disabled" });
+	await act(async () =>
+		root.render(
+			createElement(MermaidDialog, {
+				key: "disabled-rough",
+				initialSource: result.mermaid,
+				onClose: vi.fn(),
+				onInsert: vi.fn(),
+			}),
+		),
+	);
+	await enter("add more orders");
+	await settle();
+	expect(rpc.convert).not.toHaveBeenCalled();
+	expect(document.querySelector('[role="alert"]')?.textContent).toContain("enable an agent");
 });

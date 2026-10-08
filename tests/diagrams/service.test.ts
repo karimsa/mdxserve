@@ -161,3 +161,61 @@ it("passes the configured model through syntax repair without probing or switchi
 		test.cleanup();
 	}
 });
+
+it("bounds discovery concurrency and aborts discovery on shutdown", async () => {
+	let started: () => void = () => {};
+	const began = new Promise<void>((resolve) => {
+		started = resolve;
+	});
+	const models = vi.fn(async (_provider, signal?: AbortSignal) => {
+		started();
+		await new Promise<void>((resolve) =>
+			signal!.addEventListener("abort", () => resolve(), { once: true }),
+		);
+		return [];
+	});
+	const test = fixture({ models, probe: async () => [], convert: async () => draft });
+	try {
+		const running = test.service.listModels("codex", true);
+		await began;
+		test.preferences.set("disabled");
+		test.service.stopIfDisabled();
+		expect(models.mock.calls[0][1]?.aborted).toBe(false);
+		expect((await test.service.listModels("claude", true)).kind).toBe("busy");
+		expect((await test.service.probe(true)).kind).toBe("busy");
+		expect(models).toHaveBeenCalledTimes(1);
+		test.service.dispose();
+		await running;
+		expect((await test.service.probe(true)).kind).toBe("ok");
+	} finally {
+		test.cleanup();
+	}
+});
+it("gives queued conversions their execution budget after dequeuing", async () => {
+	vi.useFakeTimers();
+	const test = fixture();
+	const signals: AbortSignal[] = [];
+	const finish: Array<() => void> = [];
+	test.port.convert = vi.fn(async (_provider, _input, signal) => {
+		signals.push(signal);
+		await new Promise<void>((resolve) => finish.push(resolve));
+		return draft;
+	});
+	try {
+		const first = test.service.convert(input, true);
+		await vi.advanceTimersByTimeAsync(0);
+		const second = test.service.convert({ ...input, session: "second" }, true);
+		await vi.advanceTimersByTimeAsync(70000);
+		finish[0]();
+		await first;
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(30000);
+		expect(signals[1].aborted).toBe(false);
+		finish[1]();
+		expect((await second).kind).toBe("ok");
+	} finally {
+		test.service.dispose();
+		test.cleanup();
+		vi.useRealTimers();
+	}
+});

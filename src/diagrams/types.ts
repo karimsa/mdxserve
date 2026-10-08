@@ -15,8 +15,8 @@ export type AgentStatus = {
 export type DiagramInput = { text: string; image?: Buffer; model: string };
 export type AgentModel = { id: string; label: string };
 export interface AgentPort {
-	models(provider: Provider): Promise<AgentModel[]>;
-	probe(): Promise<AgentStatus[]>;
+	models(provider: Provider, signal?: AbortSignal): Promise<AgentModel[]>;
+	probe(signal?: AbortSignal): Promise<AgentStatus[]>;
 	convert(provider: Provider, input: DiagramInput, signal: AbortSignal): Promise<DiagramDraft>;
 }
 export type ValidationPort = (source: string, signal: AbortSignal) => Promise<string | null>;

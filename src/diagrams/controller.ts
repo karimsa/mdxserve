@@ -54,7 +54,7 @@ export const diagramsController = {
 				.array(z.object({ id: z.string().refine(isDiagramModel), label: z.string().max(200) }))
 				.max(2000),
 		)
-		.query(async ({ ctx, input }) =>
+		.mutation(async ({ ctx, input }) =>
 			unwrap(await service(ctx).listModels(input.provider, ctx.isLoopback)),
 		),
 	discardDiagramImage: procedure("Discard a temporary image owned by this dialog.")

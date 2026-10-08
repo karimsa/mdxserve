@@ -7,7 +7,7 @@ const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn() }));
 vi.mock("../../client/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: rpc.get },
-		listDiagramModels: { query: rpc.list },
+		listDiagramModels: { mutate: rpc.list },
 		setDiagramPreferences: { mutate: rpc.save },
 	},
 }));

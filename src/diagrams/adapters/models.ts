@@ -23,7 +23,10 @@ const claudeCatalog = z.object({
 });
 const line = (value: unknown) => JSON.stringify(value) + "\n";
 /** Metadata only: no thread, prompt, generation or automatic model selection. */
-export async function listAgentModels(provider: Provider): Promise<AgentModel[]> {
+export async function listAgentModels(
+	provider: Provider,
+	signal = new AbortController().signal,
+): Promise<AgentModel[]> {
 	const models: AgentModel[] = [];
 	let finished = false;
 	let pages = 0;
@@ -63,7 +66,7 @@ export async function listAgentModels(provider: Provider): Promise<AgentModel[]>
 			: { type: "control_request", request_id: "models", request: { subtype: "initialize" } };
 	const result = await runProcess(provider, args, {
 		cwd: os.tmpdir(),
-		signal: new AbortController().signal,
+		signal,
 		timeoutMs: 15000,
 		env: environment(),
 		input: line(initial),

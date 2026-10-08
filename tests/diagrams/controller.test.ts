@@ -13,6 +13,9 @@ it("requires loopback even for preference reads", async () => {
 		);
 		await expect(api.getDiagramPreferences({})).rejects.toMatchObject({ code: "FORBIDDEN" });
 		await expect(api.convertDiagram(input)).rejects.toMatchObject({ code: "FORBIDDEN" });
+		await expect(api.listDiagramModels({ provider: "codex" })).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
 		expect(test.port.convert).not.toHaveBeenCalled();
 	} finally {
 		test.cleanup();
@@ -30,6 +33,9 @@ it("rejects cross-origin conversion and invalid input", async () => {
 			}),
 		);
 		await expect(api.convertDiagram(input)).rejects.toMatchObject({ code: "FORBIDDEN" });
+		await expect(api.listDiagramModels({ provider: "codex" })).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
 		const local = caller(
 			makeContext("/tmp", fixtureRegistry, { diagrams: test.service, isLoopback: true }),
 		);

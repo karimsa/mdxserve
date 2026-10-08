@@ -719,6 +719,7 @@ __metadata:
     "@trpc/server": "npm:11.18.0"
     "@trpc/tanstack-react-query": "npm:11.18.0"
     "@types/bytes": "npm:3.1.6"
+    "@types/cross-spawn": "npm:6.0.6"
     "@types/jsdom": "npm:30.0.0"
     "@types/lockfile": "npm:1.0.4"
     "@types/mdast": "npm:4.0.4"
@@ -732,6 +733,7 @@ __metadata:
     "@yarnpkg/types": "npm:4.0.1"
     bytes: "npm:3.1.2"
     commander: "npm:15.0.0"
+    cross-spawn: "npm:7.0.6"
     date-fns: "npm:4.4.0"
     diff: "npm:9.0.0"
     esbuild: "npm:0.28.2"
@@ -2097,6 +2099,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/cross-spawn@npm:6.0.6":
+  version: 6.0.6
+  resolution: "@types/cross-spawn@npm:6.0.6"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/e3d476bb6b3a54a8934a97fe6ee4bd13e2e5eb29073929a4be76a52466602ffaea420b20774ffe8503f9fa24f3ae34817e95e7f625689fb0d1c10404f5b2889c
+  languageName: node
+  linkType: hard
+
 "@types/d3-scale-chromatic@npm:^3.0.0":
   version: 3.1.0
   resolution: "@types/d3-scale-chromatic@npm:3.1.0"
@@ -2867,7 +2878,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-spawn@npm:^7.0.0":
+"cross-spawn@npm:7.0.6, cross-spawn@npm:^7.0.0":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
   dependencies:

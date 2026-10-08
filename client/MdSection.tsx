@@ -134,15 +134,6 @@ function Section({
 		try {
 			// The vanilla client, not the query cache: the source must be exactly
 			// what is on disk at this moment, never a cached copy.
-			if (target) {
-				const preferences = await trpcClient.getDiagramPreferences.query({});
-				if (preferences.agent === "disabled") {
-					pushToast({ tone: "warn", text: "Enable diagram editing in Settings → Diagrams." });
-					setMode("read");
-					setOpenSection((current) => (current === key ? null : current));
-					return;
-				}
-			}
 			const data = await trpcClient.getDocSource.query({ path });
 			// Functional update so a response that lands after another section
 			// took the atom (the effect above has already reset us to "read")

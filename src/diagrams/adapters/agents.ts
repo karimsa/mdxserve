@@ -13,13 +13,12 @@ const schema = JSON.stringify(z.toJSONSchema(draftSchema));
 export function localAgentPort(): AgentPort {
 	return {
 		models: listAgentModels,
-		async probe() {
+		async probe(signal = new AbortController().signal) {
 			return Promise.all(
 				(["codex", "claude"] as const).map(async (provider): Promise<AgentStatus> => {
 					try {
 						const command = await which(provider, { nothrow: true });
 						if (!command) return { provider, state: "missing" };
-						const signal = new AbortController().signal;
 						const help = await runProcess(
 							command,
 							provider === "codex" ? ["exec", "--help"] : ["--help"],

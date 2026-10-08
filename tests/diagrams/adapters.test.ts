@@ -33,3 +33,14 @@ it("blocks active content without rejecting flowchart arrows", () => {
 	expect(diagramPolicyError("flowchart TD\n Alpha --> Beta")).toBe(null);
 	expect(diagramPolicyError('flowchart TD\n click Alpha "https://example.com"')).not.toBe(null);
 });
+
+it("rejects images whose normalized PNG exceeds the byte limit", async () => {
+	const { randomBytes } = await import("node:crypto");
+	const jpeg = await sharp(randomBytes(2400 * 2400 * 3), {
+		raw: { width: 2400, height: 2400, channels: 3 },
+	})
+		.jpeg({ quality: 95 })
+		.toBuffer();
+	expect(jpeg.length).toBeLessThan(10 * 1024 * 1024);
+	await expect(normalizeDiagramImage(jpeg)).rejects.toThrow("Normalized image exceeds");
+});

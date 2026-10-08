@@ -1,5 +1,6 @@
 import { StringDecoder } from "node:string_decoder";
-import { spawn } from "node:child_process";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import spawn from "cross-spawn";
 import { $, which } from "zx";
 import type { CommandRunner } from "../setup/runner.js";
 
@@ -43,7 +44,7 @@ export async function runProcess(
 			detached: process.platform !== "win32",
 			windowsHide: true,
 			shell: false,
-		});
+		}) as ChildProcessWithoutNullStreams;
 		const output: Buffer[] = [];
 		let bytes = 0;
 		let buffered = "";

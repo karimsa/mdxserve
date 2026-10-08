@@ -356,6 +356,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	async function shutdown(): Promise<void> {
 		if (shuttingDown) return;
 		shuttingDown = true;
+		clearInterval(diagramWatch);
+		diagrams.dispose();
 		console.log("\n  Shutting down…");
 		try {
 			stopConfigWatch();

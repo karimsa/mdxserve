@@ -2,6 +2,8 @@ export function environment(): NodeJS.ProcessEnv {
 	const result: NodeJS.ProcessEnv = {};
 	for (const key of [
 		"PATH",
+		"PATHEXT",
+		"COMSPEC",
 		"HOME",
 		"USER",
 		"TMPDIR",
@@ -10,6 +12,8 @@ export function environment(): NodeJS.ProcessEnv {
 		"CODEX_HOME",
 		"OPENAI_API_KEY",
 		"ANTHROPIC_API_KEY",
+		"ANTHROPIC_AUTH_TOKEN",
+		"ANTHROPIC_BASE_URL",
 		"CLAUDE_CODE_OAUTH_TOKEN",
 		"CLAUDE_CONFIG_DIR",
 		"HTTPS_PROXY",
