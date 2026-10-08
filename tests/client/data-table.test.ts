@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { Table } from "../../client/Table";
 import { MarkdownTable } from "../../client/MarkdownTable";
 import DataTable from "../../client/builtins/DataTable";
 import {
@@ -102,6 +103,43 @@ async function renderMarkdown(source: string, extension = "md") {
 	);
 }
 describe("Markdown integration", () => {
+	it.each([MarkdownTable, Table])(
+		"forwards native table attributes when no header is recognized (%#)",
+		(Component) => {
+			const html = renderToStaticMarkup(
+				createElement(
+					Component,
+					{
+						id: "custom-table",
+						className: "custom-layout",
+						style: { width: "50%", borderSpacing: "4px" },
+						"aria-label": "Accessible custom table",
+						"aria-describedby": "table-description",
+						role: "grid",
+						tabIndex: 0,
+						title: "Custom title",
+					},
+					createElement(
+						"tbody",
+						null,
+						createElement("tr", null, createElement("td", null, "Content")),
+					),
+				),
+			);
+
+			const tableTag = html.match(/<table\b[^>]*>/)?.[0];
+			expect(tableTag).toContain('id="custom-table"');
+			expect(tableTag).toContain('class="custom-layout"');
+			expect(tableTag).toContain('style="width:50%;border-spacing:4px"');
+			expect(tableTag).toContain('aria-label="Accessible custom table"');
+			expect(tableTag).toContain('aria-describedby="table-description"');
+			expect(tableTag).toContain('role="grid"');
+			expect(tableTag).toContain('tabindex="0"');
+			expect(tableTag).toContain('title="Custom title"');
+			expect(html).toContain("<td>Content</td>");
+		},
+	);
+
 	it("preserves alignment from native cell attributes", () => {
 		const html = renderToStaticMarkup(
 			createElement(

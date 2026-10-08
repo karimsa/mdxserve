@@ -82,7 +82,11 @@ function renderMarkdownCell(
 	return table.cells[row][index]?.props.children;
 }
 
-export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableElement>) {
+export function MarkdownTable({
+	children,
+	id,
+	...tableProps
+}: TableHTMLAttributes<HTMLTableElement>) {
 	const fallbackId = useId();
 	const table = prepareMarkdownTable(children);
 	const { columns, data } = table;
@@ -91,7 +95,9 @@ export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableEle
 		return (
 			<div className="data-table">
 				<div className="data-table-scroll">
-					<table>{children}</table>
+					<table {...tableProps} id={id}>
+						{children}
+					</table>
 				</div>
 			</div>
 		);
