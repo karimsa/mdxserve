@@ -85,13 +85,16 @@ export function remarkSections() {
 				return;
 			}
 
+			// Positions are exclusive: an EOF fence ending after a newline points
+			// at column 1 of the next line, which is outside the editable range.
+			const endLine = last.position.end.line - (last.position.end.column === 1 ? 1 : 0);
 			const section: MdxJsxFlowElement = {
 				type: "mdxJsxFlowElement",
 				name: "MdSection",
 				attributes: [
 					attr("index", String(sectionIndex)),
 					attr("startLine", String(first.position.start.line)),
-					attr("endLine", String(last.position.end.line)),
+					attr("endLine", String(endLine)),
 				],
 				children: run as MdxJsxFlowElement["children"],
 				position: { start: first.position.start, end: last.position.end },

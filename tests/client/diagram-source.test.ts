@@ -25,3 +25,24 @@ it("ignores highlighted blank-line padding without changing the input source", (
 	});
 	expect(diagram?.source).toBe("flowchart LR\n\n A --> B");
 });
+
+it.each(["```", "~~~~"])("edits a %s fence terminated by EOF", (fence) => {
+	const markdown = `# Before\n\n${fence}mermaid\nflowchart LR\n A --> B`;
+	const diagram = locateDiagram(markdown, { index: 0, source: "flowchart LR\n A --> B" })!;
+	expect(diagram.replace("flowchart LR\n A --> C")).toBe(
+		`# Before\n\n${fence}mermaid\nflowchart LR\n A --> C\n${fence}`,
+	);
+});
+it("closes an EOF fence while preserving nested indentation and trailing newline", () => {
+	const diagram = locateDiagram("> ```mermaid\n> flowchart LR\n>  A --> B\n", {
+		index: 0,
+		source: "flowchart LR\n A --> B",
+	})!;
+	expect(diagram.replace("flowchart LR\n A --> C")).toBe(
+		"> ```mermaid\n> flowchart LR\n>  A --> C\n> ```\n",
+	);
+});
+it("can populate an empty EOF fence", () => {
+	const diagram = locateDiagram("```mermaid", { index: 0, source: "" })!;
+	expect(diagram.replace("flowchart LR\n A --> B")).toBe("```mermaid\nflowchart LR\n A --> B\n```");
+});

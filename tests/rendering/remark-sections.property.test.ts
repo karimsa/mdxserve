@@ -6,6 +6,7 @@ import { toString as mdastToString } from "mdast-util-to-string";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections.js";
+import { spliceLines } from "../../src/docs/edit.js";
 
 // Use the same syntax extensions as rendering and validation.
 function parse(src: string): Root {
@@ -31,6 +32,29 @@ function attrValue(section: MdxJsxFlowElement, name: string): string {
 	}
 	return found.value;
 }
+
+it.each(["", "\n", "\r\n"])(
+	"produces a saveable range for an EOF fence with %j ending",
+	(ending) => {
+		const source = "# Before\n\n```mermaid\nflowchart LR\n A --> B" + ending;
+		const sections = runPlugin(source).children.filter(isMdSection);
+		const diagram = sections[1];
+		expect(attrValue(diagram, "startLine")).toBe("3");
+		expect(attrValue(diagram, "endLine")).toBe("5");
+		const replacement = "```mermaid\nflowchart LR\n A --> C\n```";
+		const result = spliceLines(
+			source,
+			Number(attrValue(diagram, "startLine")),
+			Number(attrValue(diagram, "endLine")),
+			replacement,
+		);
+		const eol = ending === "\r\n" ? "\r\n" : "\n";
+		expect(result).toEqual({
+			ok: true,
+			text: ("# Before\n\n" + replacement).replaceAll("\n", eol) + ending,
+		});
+	},
+);
 
 function collectDescendants(node: RootContent): RootContent[] {
 	const acc: RootContent[] = [];

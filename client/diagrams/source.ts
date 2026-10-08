@@ -29,15 +29,27 @@ export function locateDiagram(markdown: string, target: ExistingDiagram) {
 	)
 		return null;
 	const original = markdown.slice(start, end);
-	const opening = original.match(/^(`{3,}|~{3,})[^\n]*\n/);
+	const opening = original.match(/^(`{3,}|~{3,})[^\n]*(?:\n|$)/);
 	if (!opening) return null;
 	const lastBreak = original.lastIndexOf("\n");
-	const closing = original.slice(lastBreak + 1);
+	const lastLine = original.slice(lastBreak + 1);
 	const fence = opening[1];
-	const closeMatch = closing.match(/^([\t >]*)(`{3,}|~{3,})[\t ]*$/);
-	if (!closeMatch || closeMatch[2][0] !== fence[0] || closeMatch[2].length < fence.length)
-		return null;
-	const prefix = closeMatch[1];
+	const closeMatch = lastLine.match(/^([\t >]*)(`{3,}|~{3,})[\t ]*$/);
+	const hasClosing =
+		lastBreak >= 0 &&
+		closeMatch &&
+		closeMatch[2][0] === fence[0] &&
+		closeMatch[2].length >= fence.length;
+	// Markdown permits fences terminated by EOF or the end of their container.
+	// Retain container indentation when adding an explicit closing delimiter.
+	const lineStart = markdown.lastIndexOf("\n", start - 1) + 1;
+	const openingPrefix = markdown.slice(lineStart, start);
+	const prefix = hasClosing
+		? closeMatch[1]
+		: openingPrefix.replace(/(?:[-+*]|\d+[.)])([ \t]+)/g, (marker) => " ".repeat(marker.length));
+	const closing = hasClosing ? lastLine : prefix + fence;
+	const openingLine = opening[0].endsWith("\n") ? opening[0] : opening[0] + "\n";
+	const trailingNewline = !hasClosing && original.endsWith("\n") ? "\n" : "";
 	return {
 		source: node.value,
 		replace(source: string) {
@@ -47,7 +59,15 @@ export function locateDiagram(markdown: string, target: ExistingDiagram) {
 				.split("\n")
 				.map((line) => prefix + line)
 				.join("\n");
-			return markdown.slice(0, start) + opening[0] + body + "\n" + closing + markdown.slice(end);
+			return (
+				markdown.slice(0, start) +
+				openingLine +
+				body +
+				"\n" +
+				closing +
+				trailingNewline +
+				markdown.slice(end)
+			);
 		},
 	};
 }
