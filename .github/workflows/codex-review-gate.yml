@@ -1,0 +1,41 @@
+name: Update Codex review gate
+
+on:
+  issue_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [Verify PR]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  checks: write
+
+# Reconcile from fresh API state, serially, so an older event cannot overwrite
+# a newer result. Every run checks all open PRs, including on manual dispatch.
+concurrency:
+  group: codex-review-gate
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.pull_request &&
+       github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      # These triggers run the default-branch workflow. Never check out or
+      # execute a PR head, merge ref, or an artifact from the triggering run.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { reconcile } = require('./.github/scripts/codex-review-gate.cjs');
+            await reconcile({ github, context, core });
