@@ -1,4 +1,6 @@
 import fsp from "node:fs/promises";
+import { watchFile, unwatchFile } from "node:fs";
+import { ensureConfig, readConfig, writeConfig, type ConfigSnapshot } from "./config.js";
 import os from "node:os";
 import path from "node:path";
 import { expandHome } from "./paths.js";
@@ -27,7 +29,10 @@ export interface RootsChange {
 
 export type RootsListener = (change: RootsChange) => void | Promise<void>;
 
+export type ConfigError = { kind: "config-error"; message: string };
+
 export type AddRootsResult =
+	| ConfigError
 	| { kind: "ok"; added: string[]; roots: RootInfo[] }
 	| { kind: "not-found"; message: string }
 	| { kind: "not-a-directory"; message: string }
@@ -35,7 +40,9 @@ export type AddRootsResult =
 	| { kind: "nested"; message: string };
 
 export type RemoveRootsResult =
-	{ kind: "ok"; removed: string[]; roots: RootInfo[] } | { kind: "not-mounted"; message: string };
+	| ConfigError
+	| { kind: "ok"; removed: string[]; roots: RootInfo[] }
+	| { kind: "not-mounted"; message: string };
 
 /**
  * `fs.realpath`, but tolerant of a missing tail: when `abs` itself is gone,
@@ -66,7 +73,7 @@ async function realpathThroughMissingTail(abs: string): Promise<string> {
  * the move to a single long-lived server whose roots can change at runtime)
  * the one place that owns which directories are currently mounted. `admit`
  * is the stateless check `serve` uses at startup; `add`/`remove` mutate the
- * live set and notify listeners (the dev server, the Vite watcher, the
+ * configuration (when configured), update the live set and notify listeners (the dev server, the Vite watcher, the
  * generated app.css) so a running server stays in sync with what it serves.
  * `add`/`remove` run inside a single queue so two concurrent calls can never
  * interleave their read-modify-write of the mounted set.
@@ -80,6 +87,7 @@ export class RootsService {
 		private readonly cwd: string,
 		private readonly home: string = os.homedir(),
 		mounted: string[] = [],
+		private readonly configPath?: string,
 	) {
 		this.mounted = computeRootInfos(mounted);
 	}
@@ -183,22 +191,33 @@ export class RootsService {
 			const resolved = await this.resolveInputs(inputs);
 			if (resolved.kind !== "ok") return resolved;
 
-			const currentDirs = this.mounted.map((info) => info.dir);
+			let snapshot: ConfigSnapshot | undefined;
+			let currentDirs = this.mounted.map((info) => info.dir);
+			try {
+				if (this.configPath) {
+					snapshot = readConfig(this.configPath);
+					const admitted = await this.admit(this.configInputs(snapshot));
+					if (admitted.kind !== "ok") return this.configError(admitted.message);
+					currentDirs = admitted.roots;
+				}
+			} catch (error) {
+				return this.configError(error);
+			}
+
 			const currentSet = new Set(currentDirs);
 			const added = resolved.roots.filter((dir) => !currentSet.has(dir));
 
 			const conflict = this.checkSet([...currentDirs, ...added]);
 			if (conflict) return conflict;
 
-			if (added.length === 0) {
-				return { kind: "ok", added: [], roots: this.list() };
+			try {
+				if (this.configPath && snapshot && added.length > 0)
+					writeConfig(this.configPath, snapshot, [...currentDirs, ...added]);
+			} catch (error) {
+				return this.configError(error);
 			}
-
-			this.mounted = computeRootInfos([...currentDirs, ...added]);
+			await this.apply([...currentDirs, ...added]);
 			const roots = this.list();
-			for (const listener of this.listeners) {
-				await listener({ added, removed: [], roots });
-			}
 			return { kind: "ok", added, roots };
 		});
 	}
@@ -215,6 +234,18 @@ export class RootsService {
 	 */
 	async remove(inputs: string[]): Promise<RemoveRootsResult> {
 		return this.enqueue(async () => {
+			let snapshot: ConfigSnapshot | undefined;
+			let currentDirs = this.mounted.map((info) => info.dir);
+			try {
+				if (this.configPath) {
+					snapshot = readConfig(this.configPath);
+					currentDirs = await Promise.all(
+						this.configInputs(snapshot).map(realpathThroughMissingTail),
+					);
+				}
+			} catch (error) {
+				return this.configError(error);
+			}
 			const removed: string[] = [];
 			const seen = new Set<string>();
 			for (const input of inputs) {
@@ -223,27 +254,96 @@ export class RootsService {
 				if (seen.has(resolvedDir)) continue;
 				seen.add(resolvedDir);
 
-				const isMounted = this.mounted.some((info) => info.dir === resolvedDir);
+				const isMounted = currentDirs.includes(resolvedDir);
 				if (!isMounted) {
 					return { kind: "not-mounted", message: `not mounted: ${resolvedDir}` };
 				}
 				removed.push(resolvedDir);
 			}
 
-			if (removed.length === 0) {
-				return { kind: "ok", removed: [], roots: this.list() };
+			let remaining = currentDirs.filter((dir) => !seen.has(dir));
+			if (this.configPath && snapshot) {
+				const admitted = await this.admit(remaining);
+				if (admitted.kind !== "ok") return this.configError(admitted.message);
+				remaining = admitted.roots;
+				try {
+					writeConfig(this.configPath, snapshot, admitted.roots);
+				} catch (error) {
+					return this.configError(error);
+				}
 			}
-
-			const removedSet = new Set(removed);
-			this.mounted = computeRootInfos(
-				this.mounted.filter((info) => !removedSet.has(info.dir)).map((info) => info.dir),
-			);
+			await this.apply(remaining);
 			const roots = this.list();
-			for (const listener of this.listeners) {
-				await listener({ added: [], removed, roots });
-			}
 			return { kind: "ok", removed, roots };
 		});
+	}
+
+	private configError(error: unknown): ConfigError {
+		return {
+			kind: "config-error",
+			message: `${this.configPath}: ${error instanceof Error ? error.message : String(error)}`,
+		};
+	}
+
+	private configInputs(snapshot: ConfigSnapshot): string[] {
+		return snapshot.value.roots.map((input) =>
+			path.resolve(path.dirname(this.configPath!), expandHome(input, this.home)),
+		);
+	}
+
+	private async apply(dirs: string[]): Promise<void> {
+		const previous = this.mounted.map((info) => info.dir);
+		if (JSON.stringify(previous) === JSON.stringify(dirs)) return;
+		this.mounted = computeRootInfos(dirs);
+		const change = {
+			added: dirs.filter((dir) => !previous.includes(dir)),
+			removed: previous.filter((dir) => !dirs.includes(dir)),
+			roots: this.list(),
+		};
+		for (const listener of this.listeners) await listener(change);
+	}
+
+	/** Initialize only at startup; a deleted config during runtime is an error, not an empty set. */
+	async initialize(inputs: string[]): Promise<AddRootsResult> {
+		try {
+			if (this.configPath) ensureConfig(this.configPath);
+		} catch (error) {
+			return this.configError(error);
+		}
+		return this.add(inputs);
+	}
+
+	async reload(): Promise<{ kind: "ok" } | ConfigError> {
+		return this.enqueue(async () => {
+			if (!this.configPath) return { kind: "ok" };
+			try {
+				const snapshot = readConfig(this.configPath);
+				const admitted = await this.admit(this.configInputs(snapshot));
+				if (admitted.kind !== "ok") return this.configError(admitted.message);
+				await this.apply(admitted.roots);
+				return { kind: "ok" };
+			} catch (error) {
+				return this.configError(error);
+			}
+		});
+	}
+
+	/** Poll the path so atomic editor replacements and deletion/recreation remain observable. */
+	watchConfig(onError: (message: string) => void): () => void {
+		if (!this.configPath) return () => {};
+		let closed = false;
+		const reload = () => {
+			if (closed) return;
+			void this.reload().then((result) => {
+				if (!closed && result.kind !== "ok") onError(result.message);
+			});
+		};
+		watchFile(this.configPath, { interval: 250, persistent: false }, reload);
+		reload();
+		return () => {
+			closed = true;
+			unwatchFile(this.configPath!, reload);
+		};
 	}
 
 	/** Subscribe to every future add/remove. Returns a function that unsubscribes. */

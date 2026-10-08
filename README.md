@@ -65,8 +65,24 @@ mdxserve roots list                # what is being served right now
 mdxserve status                    # pid, port, URL, and the folders served
 ```
 
-Folders you add this way last until the server stops. `mdxserve serve` with no `-w` starts
-an empty server you can add folders to later.
+Roots persist in `~/.mdxserve/config.json` (`$MDXSERVE_HOME/config.json` when set).
+`mdxserve serve` restores them on restart; `-w` adds folders to the saved list.
+You can also edit the file directly, including while the server is stopped:
+
+```json
+{
+	"roots": ["~/notes", "~/work/docs"]
+}
+```
+
+The running server automatically reloads edits, updating open browsers and document access.
+Relative paths resolve against the config directory; `~` resolves against your home directory.
+Use `"roots": []` to unmount everything. Invalid JSON, missing directories, and invalid root
+combinations leave the last working set active and log an error; fix the file to resume
+reloading. Deleting the config while running also preserves the last working set until the
+file is restored. An invalid config at startup reports an error. Root commands save changes
+atomically and preserve unrelated settings. SQLite records only the live server's status;
+the JSON file is the source of truth for which roots should exist.
 
 | Flag          | Default     | Effect                                                    |
 | ------------- | ----------- | --------------------------------------------------------- |

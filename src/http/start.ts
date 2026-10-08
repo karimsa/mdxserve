@@ -12,7 +12,7 @@ import { describeDocChange, type DocChange } from "./doc-change.js";
 import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
-import { ServerRegistry } from "../servers/server-registry.js";
+import { ServerRegistry, mdxserveHome } from "../servers/server-registry.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { RenderService } from "../rendering/render.js";
 import { bundleStandalone } from "../rendering/bundle.js";
@@ -144,9 +144,19 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const pkgRoot = getPackageRoot();
 
 	// Per-process state: the one mutable set of directories this server
-	// serves. Seeded from the roots `serve` was started with; `add`/`remove`
-	// (the roots tRPC procedures) change it live from here on.
-	const rootsService = new RootsService(process.cwd(), os.homedir(), roots);
+	// serves. Restore the configured roots and persist explicit startup additions;
+	// root procedures and external config edits share the same change listeners.
+	const rootsService = new RootsService(
+		process.cwd(),
+		os.homedir(),
+		[],
+		path.join(mdxserveHome(), "config.json"),
+	);
+	const initialized = await rootsService.initialize(roots);
+	if (initialized.kind !== "ok") {
+		lock.release();
+		return { kind: "error", message: initialized.message };
+	}
 
 	// Let a missing dist/registry.json (i.e. "run yarn build" first) propagate
 	// and fail startup fast, rather than only failing the first CLI call.
@@ -297,6 +307,10 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		}
 	});
 
+	const stopConfigWatch = rootsService.watchConfig((message) =>
+		console.error(`mdxserve: ${message}`),
+	);
+
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
 	printBanner(actualPort, host, actualPort !== options.port, rootsService.list());
 	serverRegistry.register({
@@ -309,6 +323,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	// Both are idempotent and synchronous, so they are safe to repeat from the
 	// `exit` handler — the only hook that still runs after an uncaught throw.
 	function releaseInstance(): void {
+		stopConfigWatch();
 		serverRegistry.unregister(process.pid);
 		lock.release();
 	}
@@ -320,6 +335,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		shuttingDown = true;
 		console.log("\n  Shutting down…");
 		try {
+			stopConfigWatch();
 			if (flushTimer) clearTimeout(flushTimer);
 			await vite.close();
 		} finally {

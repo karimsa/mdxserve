@@ -62,3 +62,16 @@ describe("startServer (lock held by another process)", () => {
 		}
 	});
 });
+
+it("rejects invalid startup config and releases the server lock", async () => {
+	await fs.writeFile(path.join(tmpDir, "config.json"), '{"roots":42}');
+	const outcome = await startServer({ roots: [], port: 0, host: "127.0.0.1" });
+	expect(outcome.kind).toBe("error");
+	const lock = new ServerLock(defaultLockPath());
+	try {
+		expect(lock.acquire()).toEqual({ kind: "ok" });
+	} finally {
+		lock.release();
+	}
+	expect(await fs.readFile(path.join(tmpDir, "config.json"), "utf8")).toBe('{"roots":42}');
+});

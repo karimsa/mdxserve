@@ -24,8 +24,14 @@ A second `serve` exits with an error naming the running instance's URL and point
 `roots add` or `status`. A stale lock left by a crashed process is detected by pid and taken
 over automatically; a stale row in `servers.db` is pruned the same way.
 
-Roots are running state. They last until the server stops, and a fresh `serve` starts with
-only the folders named on its command line (none, if no `-w`).
+Roots persist in `~/.mdxserve/config.json` (or `$MDXSERVE_HOME/config.json`).
+The `roots` array contains directory paths; `~` expands to your home and relative paths
+resolve against the config directory. `serve` restores this list and adds any `-w` paths.
+Root commands update the file. You can edit it yourself while the server is running or
+stopped; a running server reloads valid changes automatically. Set `roots` to `[]` to
+unmount everything. Invalid edits or a deleted config keep the last working roots active
+and log an error; correcting the file resumes reloading. Invalid startup configuration
+prevents startup.
 
 Set `MDXSERVE_HOME` to move the lock and database somewhere else — useful for running a
 throwaway instance side by side with your real one, since each home has its own server.
