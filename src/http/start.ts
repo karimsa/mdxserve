@@ -14,6 +14,7 @@ import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
 import { ServerRegistry, mdxserveHome } from "../servers/server-registry.js";
 import { admitBindHost, loopbackBindHost } from "../servers/bind-host.js";
+import { serverBaseUrl } from "../servers/remote.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { RenderService } from "../rendering/render.js";
 import { bundleStandalone } from "../rendering/bundle.js";
@@ -66,15 +67,15 @@ function networkAddress(host: string): string | undefined {
 	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
 }
 
-function printBanner(
+export function printBanner(
 	port: number,
 	host: string,
 	fallbackUsed: boolean,
 	rootInfos: RootInfo[],
 ): void {
-	const localUrl = `http://localhost:${port}`;
+	const localUrl = serverBaseUrl({ host, port });
 	const ip = networkAddress(host);
-	const networkUrl = ip ? `http://${ip}:${port}` : undefined;
+	const networkUrl = ip ? serverBaseUrl({ host: ip, port }) : undefined;
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
 	if (networkUrl) lines.push(`- Network:  ${networkUrl}`);
