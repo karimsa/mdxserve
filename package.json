@@ -16,7 +16,9 @@
 		"cli"
 	],
 	"type": "module",
-	"bin": "dist/cli.js",
+	"bin": {
+		"mdxserve": "dist/cli.js"
+	},
 	"files": [
 		"dist",
 		"client",
