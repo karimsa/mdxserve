@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { mdxFromMarkdown } from "mdast-util-mdx";
-import { mdxjs } from "micromark-extension-mdxjs";
+import { createProcessor } from "@mdx-js/mdx";
+import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options.js";
 import { toString as mdastToString } from "mdast-util-to-string";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections.js";
 
-// Same parse helper as src/docs/doc-cache.ts / tests/validation/validate.property.test.ts.
+// Use the same syntax extensions as rendering and validation.
 function parse(src: string): Root {
-	return fromMarkdown(src, { extensions: [mdxjs()], mdastExtensions: [mdxFromMarkdown()] });
+	return createProcessor({ ...mdxCompileOptions(), format: "mdx" }).parse(src) as Root;
 }
 
 function runPlugin(src: string): Root {
@@ -84,7 +83,8 @@ const tableArb = fc
 		const body = rows.map(([first, second]) => `| ${first} | ${second} |`).join("\n");
 		return [header, sep, body].join("\n");
 	});
-const thematicBreakArb = fc.constant("---");
+// Keep generated body rules unambiguous with document-level YAML fences.
+const thematicBreakArb = fc.constant("***");
 const jsxBlockArb = fc.constant('<Callout tone="info">\n\ntext\n\n</Callout>');
 const esmArb = fc.constant('import X from "./x"');
 const inlineJsxParagraphArb = words.map((word) => `${word} <Badge>x</Badge>`);
@@ -196,7 +196,8 @@ describe("remarkSections — oracle", () => {
 					const start = Number(attrValue(section, "startLine"));
 					const end = Number(attrValue(section, "endLine"));
 					const slice = lines.slice(start - 1, end).join("\n");
-					const reparsed = parse(slice);
+					// Preserve document-start parsing only for sections that actually start there.
+					const reparsed = parse(start === 1 ? slice : `\n${slice}`);
 					expect(mdastToString(reparsed)).toBe(
 						mdastToString({ type: "root", children: section.children } as Root),
 					);
@@ -215,8 +216,8 @@ describe("remarkSections — examples", () => {
 		}
 	});
 
-	it("a doc that opens with a plain horizontal rule (blank line after it) stays editable from line 1", () => {
-		const src = "---\n\nIntro paragraph.\n\n---\n\nMore text.\n";
+	it("a doc that opens with an unambiguous horizontal rule stays editable from line 1", () => {
+		const src = "***\n\nIntro paragraph.\n\n---\n\nMore text.\n";
 		const tree = runPlugin(src);
 		const first = tree.children.find(isMdSection);
 		expect(first && attrValue(first, "startLine")).toBe("1");
@@ -228,10 +229,7 @@ describe("remarkSections — examples", () => {
 		expect(tree.children.some(isMdSection)).toBe(true);
 	});
 
-	// Front matter has two Markdown shapes with no remark-frontmatter in the
-	// pipeline: `key: v` alone becomes a setext heading (the closing `---` is
-	// its underline); anything with lists/blank lines becomes several nodes
-	// and a second thematicBreak. No section may cover any line of either.
+	// Metadata must never enter an editable section, including lists and blank lines.
 	it("property: no section covers any front-matter line, whatever the block's shape", () => {
 		const yamlLine = fc
 			.tuple(fc.stringMatching(/^[a-z]{1,8}$/), fc.stringMatching(/^[a-z0-9 ]{1,12}$/))

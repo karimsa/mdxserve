@@ -154,7 +154,7 @@ export class SearchService {
 				if (existing && existing.mtime === mtime && existing.path === label) continue;
 
 				const doc = this.docCache.read(node.path, mtime);
-				const { headings, body } = classifyLines(doc.lines);
+				const { headings, body } = classifyLines(doc.bodyLines);
 				const entry: IndexedDoc = {
 					id: node.path,
 					title: doc.h1 ?? node.name,
@@ -200,7 +200,7 @@ export class SearchService {
 						path: node.path,
 						label: this.indexed.get(node.path)?.path ?? node.name,
 						title: doc.h1 ?? node.name,
-						excerpt: firstExcerpt(classifyLines(doc.lines).body),
+						excerpt: firstExcerpt(classifyLines(doc.bodyLines).body),
 						terms: [],
 						score: 1,
 					};
@@ -222,7 +222,7 @@ export class SearchService {
 						path: node.path,
 						label: (hit.path as string | undefined) ?? node.name,
 						title: (hit.title as string | undefined) ?? doc.h1 ?? node.name,
-						excerpt: matchExcerpt(classifyLines(doc.lines), terms),
+						excerpt: matchExcerpt(classifyLines(doc.bodyLines), terms),
 						terms,
 						score: hit.score,
 					},

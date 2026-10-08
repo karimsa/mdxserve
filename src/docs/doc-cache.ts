@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { bodyLines } from "./frontmatter.js";
 import path from "node:path";
 import { toHtml } from "hast-util-to-html";
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -15,6 +16,8 @@ export interface CachedDoc {
 	/** The same heading rendered as inline HTML (code, emphasis, links, …). */
 	h1Html?: string;
 	lines: string[];
+	/** Visible body, excluding leading YAML metadata, for listing and search. */
+	bodyLines: string[];
 }
 
 const MAX_READ_BYTES = 64 * 1024;
@@ -114,11 +117,12 @@ export class DocCache {
 		}
 
 		const lines = raw.split(/\r?\n/);
-		const headingLine = findHeadingLine(lines);
+		const contentLines = bodyLines(raw);
+		const headingLine = findHeadingLine(contentLines);
 		const isMdx = path.extname(absPath).toLowerCase() === ".mdx";
 		const { h1, h1Html } = parseHeading(headingLine, isMdx);
 
-		const doc: CachedDoc = { mtime, h1, h1Html, lines };
+		const doc: CachedDoc = { mtime, h1, h1Html, lines, bodyLines: contentLines };
 		this.cache.set(absPath, doc);
 		return doc;
 	}
