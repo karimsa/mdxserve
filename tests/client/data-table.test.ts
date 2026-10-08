@@ -222,6 +222,20 @@ describe("Markdown integration", () => {
 		expect(html).not.toContain("data-table-id");
 	});
 
+	it.each(["thead", "tbody", "tr", "th", "td"])(
+		"preserves authored attributes on %s descendants",
+		async (tag) => {
+			const children = "<thead><tr><th>Name</th></tr></thead><tbody><tr><td>East</td></tr></tbody>";
+			const source = `<Table>${children.replace(`<${tag}>`, `<${tag} className="authored" style={{color:"red"}} aria-label="Custom descendant" title="Keep this" onClick={() => {}}>`)}</Table>`;
+			const html = await renderMarkdown(source);
+			expect(html).toBe(await renderMarkdown(source, "mdx"));
+			expect(html).toContain(
+				`class="authored" style="color:red" aria-label="Custom descendant" title="Keep this"`,
+			);
+			expect(html).not.toContain("data-table-id");
+		},
+	);
+
 	it("keeps identities with heading context when identical-header tables are inserted or moved", async () => {
 		const table = "| Name | Count |\n| --- | --- |\n| East | 12 |";
 		const ids = (html: string) =>

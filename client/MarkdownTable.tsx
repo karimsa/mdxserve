@@ -41,13 +41,25 @@ function isElementOnly(children: ReactNode): boolean {
 	);
 }
 
+/** Rebuilt descendants only preserve children and the column-wide GFM alignment. */
+function hasUnsupportedProps(element: TableElement, cell = false): boolean {
+	return Object.keys(element.props).some((key) => {
+		if (key === "children" || (cell && key === "align")) return false;
+		if (cell && key === "style")
+			return Object.keys(element.props.style ?? {}).some((property) => property !== "textAlign");
+		return true;
+	});
+}
+
 function rectangularCells(row: TableElement, cellType: "th" | "td"): TableElement[] | undefined {
-	if (row.type !== "tr" || !isElementOnly(row.props.children)) return undefined;
+	if (row.type !== "tr" || hasUnsupportedProps(row) || !isElementOnly(row.props.children))
+		return undefined;
 	const cells = elements(row.props.children);
 	if (
 		cells.some(
 			(cell) =>
 				cell.type !== cellType ||
+				hasUnsupportedProps(cell, true) ||
 				(cell.props.rowSpan !== undefined && cell.props.rowSpan !== 1) ||
 				(cell.props.colSpan !== undefined && cell.props.colSpan !== 1),
 		)
@@ -62,7 +74,12 @@ function tableStructure(children: ReactNode) {
 	const sections = elements(children);
 	if (sections.length !== 2 || sections[0].type !== "thead" || sections[1].type !== "tbody")
 		return undefined;
-	if (sections.some((section) => !isElementOnly(section.props.children))) return undefined;
+	if (
+		sections.some(
+			(section) => hasUnsupportedProps(section) || !isElementOnly(section.props.children),
+		)
+	)
+		return undefined;
 
 	const headerRows = elements(sections[0].props.children);
 	if (headerRows.length !== 1) return undefined;
@@ -73,6 +90,14 @@ function tableStructure(children: ReactNode) {
 	for (const row of elements(sections[1].props.children)) {
 		const rowCells = rectangularCells(row, "td");
 		if (!rowCells || rowCells.length !== headers.length) return undefined;
+		if (
+			rowCells.some(
+				(cell, index) =>
+					(cell.props.style?.textAlign ?? cell.props.align) !==
+					(headers[index].props.style?.textAlign ?? headers[index].props.align),
+			)
+		)
+			return undefined;
 		cells.push(rowCells);
 	}
 	return { headers, cells };
