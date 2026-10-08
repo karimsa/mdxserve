@@ -1,11 +1,28 @@
 {
 	"name": "mdxserve",
 	"version": "0.1.0",
+	"description": "Serve a directory of Markdown/MDX files, like `serve` but for docs",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/karimsa/mdxserve.git"
+	},
+	"homepage": "https://github.com/karimsa/mdxserve#readme",
+	"bugs": "https://github.com/karimsa/mdxserve/issues",
+	"keywords": [
+		"markdown",
+		"mdx",
+		"docs",
+		"cli"
+	],
 	"type": "module",
-	"bin": "dist/cli.js",
+	"bin": {
+		"mdxserve": "dist/cli.js"
+	},
 	"files": [
 		"dist",
 		"client",
+		"!client/design-ref",
 		"skills"
 	],
 	"scripts": {
@@ -16,9 +33,18 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "oxlint",
-		"test": "vitest run"
+		"test": "vitest run",
+		"prepack": "yarn build",
+		"smoke": "bash scripts/smoke-pack.sh"
 	},
 	"packageManager": "yarn@4.18.0",
+	"engines": {
+		"node": ">=22.12"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
 	"dependencies": {
 		"@fontsource-variable/jetbrains-mono": "5.3.0",
 		"@fontsource-variable/manrope": "5.3.0",
@@ -69,7 +95,8 @@
 		"trash": "10.1.1",
 		"vfile-message": "4.0.3",
 		"vite": "8.2.1",
-		"zod": "4.4.3"
+		"zod": "4.4.3",
+		"zx": "8.8.5"
 	},
 	"devDependencies": {
 		"@types/lockfile": "1.0.4",

@@ -12,7 +12,7 @@ describe("mdxserve --help", () => {
 			timeout: 60_000,
 		});
 		expect(result.status).toBe(0);
-		for (const verb of ["validate", "search", "docs", "roots"]) {
+		for (const verb of ["validate", "search", "docs", "roots", "setup"]) {
 			expect(result.stdout).toMatch(new RegExp(`^\\s+${verb}\\b`, "m"));
 		}
 		expect(result.stdout).not.toMatch(/^\s+mcp\b/m);

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import type { ViteDevServer } from "vite";
-import { getPackageRoot } from "../infra/pkg.js";
+import { getPackageRoot, missingBuildArtifact } from "../infra/pkg.js";
 import type {
 	InvokeRequestMessage,
 	RenderOutcome,
@@ -265,7 +265,7 @@ export class RenderService {
 		if (!fs.existsSync(scriptPath)) {
 			return {
 				ok: false,
-				message: "mdxserve: dist/render-worker.js is missing — run `yarn build` first.",
+				message: missingBuildArtifact("dist/render-worker.js"),
 			};
 		}
 

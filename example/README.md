@@ -28,19 +28,18 @@ There is no build step and no config file required to get started.
 ## Running it
 
 ```bash
-# Serve the current directory on the default port (4040)
-npx mdxserve
+# Serve this folder on the default port (4040)
+npx mdxserve serve -w .
 
 # Serve a specific folder
-npx mdxserve docs/
+npx mdxserve serve -w docs/
 
-# Use a specific port (falls back to a free port automatically if 4040 is taken)
-npx mdxserve -p 5000
+# Use a specific port (falls back to a free port automatically if 5000 is taken)
+npx mdxserve serve -w docs/ -p 5000
 ```
 
-`[dir]` is an optional positional argument; it defaults to the current directory. `-p <port>`
-sets the port; if that port is already in use, `mdxserve` picks the next free one and prints
-the URL it actually bound to.
+`-w <dir>` names a folder to serve and can be repeated. `-p <port>` sets the port; if that port
+is already in use, `mdxserve` picks a free one and prints the URL it actually bound to.
 
 ## What a directory listing shows
 
@@ -69,7 +68,7 @@ Browsing to a folder shows:
 
 ## Using this as a template for your own docs
 
-Copy this folder (or just start from an empty one) and run `npx mdxserve` inside it. Any `.md`
+Copy this folder (or just start from an empty one) and run `npx mdxserve serve -w .` inside it. Any `.md`
 file works with no setup. If you want interactive components, write a `.tsx` file next to your
 `.mdx` file and `import` it — see `03-custom-components.mdx` for the pattern.
 

@@ -67,3 +67,6 @@ jobs:
 
       - name: Build
         run: yarn build
+
+      - name: Smoke test the packed tarball
+        run: yarn smoke

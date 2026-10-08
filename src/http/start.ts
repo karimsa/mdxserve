@@ -4,7 +4,7 @@ import os from "node:os";
 import fsp from "node:fs/promises";
 import { allowFsDir, createDevServer, disallowFsDir } from "../rendering/vite.js";
 import { renderAppCss } from "../rendering/app-css.js";
-import { getPackageRoot } from "../infra/pkg.js";
+import { getPackageRoot, resolveFromPkg } from "../infra/pkg.js";
 import { getViteCacheDir } from "../infra/cache.js";
 import { resolveRoot } from "../roots/paths.js";
 import { isServable } from "../roots/servable.js";
@@ -30,7 +30,15 @@ export interface StartServerOptions {
 
 /** Regenerate `file` for the given `roots`, so a root added/removed at runtime shows up in HMR's Tailwind scan. */
 async function writeAppCss(file: string, roots: string[], pkgRoot: string): Promise<void> {
-	await fsp.writeFile(file, renderAppCss({ sourceDirs: roots, pkgRoot }), "utf8");
+	await fsp.writeFile(
+		file,
+		renderAppCss({
+			sourceDirs: roots,
+			tailwindCss: resolveFromPkg("tailwindcss/index.css"),
+			clientDir: path.join(pkgRoot, "client"),
+		}),
+		"utf8",
+	);
 }
 
 function getLocalIPs(): string[] {

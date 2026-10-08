@@ -55,7 +55,7 @@ Here's a [link back to the README](./README.md), and here's an image:
 
 ## Inline code
 
-Use `npx mdxserve` to start the server, or pass `-p <port>` to pick a port. See
+Use `npx mdxserve serve -w .` to start the server, or pass `-p <port>` to pick a port. See
 [`renderListing()`](./README.md) for how directory listings are built.
 
 ## Fenced code blocks
@@ -158,14 +158,14 @@ instead of the page:
 
 ```bash
 # Install and run without a local install
-npx mdxserve docs/ -p 5000
+npx mdxserve serve -w docs/ -p 5000
 
 # Or install it once and reuse it
 npm install -g mdxserve
-mdxserve docs/
+mdxserve serve -w docs/
 
 # A single very long command, to check the code block scrolls horizontally on its own rather than widening the page
-mdxserve docs/ -p 5000 --host 0.0.0.0 --open --no-clipboard --log-level debug --config ./mdxserve.config.json --base-path /docs --strict
+mdxserve serve -w docs/ -w ~/notes -w ~/work/design-docs -w ~/work/runbooks -w ~/work/postmortems -p 5000 --host 0.0.0.0
 ```
 
 ## Mermaid diagrams

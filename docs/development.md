@@ -10,13 +10,15 @@ reference for people too. This page is the practical layer on top of it.
 ```bash
 git clone git@github.com:karimsa/mdxserve.git
 cd mdxserve
-./setup.sh
+yarn
+yarn build
 ```
 
-`setup.sh` runs `yarn install` and `yarn build`, symlinks `bin/mdxserve` into `~/.local/bin`
-(or `/usr/local/bin`) with the current `node` pinned in `.node-path` so the launcher survives
-switching Node versions, installs `skills/` with `npx skills add`, and re-run it after
-editing anything under `skills/`.
+`yarn build` writes `dist/`, which is what the published package ships. To make your checkout
+the `mdxserve` on your `PATH`, run `npm link` once (it points npm's global `mdxserve` at this
+checkout's `dist/cli.js`), then `yarn build` after each change. `mdxserve setup` installs the
+skill from `skills/` into Claude Code and Codex; re-run it after editing anything under
+`skills/`, since the skills CLI copies rather than symlinks.
 
 The project has no native modules and is installed with `enableScripts: false`, so a
 dependency that needs a postinstall build will not work. Pick a WASM or pure-JS alternative.
@@ -34,12 +36,14 @@ For a git worktree, `./worktree-setup.sh` runs `yarn` so the tree is ready to bu
 | `yarn lint`      | `oxlint` — includes the no-single-letter-names rule                                                                    |
 | `yarn format`    | `prettier --write .` (`format:check` is what CI runs)                                                                  |
 | `yarn test`      | `vitest run`                                                                                                           |
+| `yarn smoke`     | Packs the tarball, installs it into a throwaway global prefix, and runs the CLI from there (what users get)            |
 
 CI (`.github/workflows/verify-pr.yml`) runs, in order: `yarn constraints`, `format:check`,
-`lint`, `typecheck`, `test`, `build`. Run the same set before opening a PR.
+`lint`, `typecheck`, `test`, `build`, `smoke`. Run the same set before opening a PR.
 
-The `mdxserve` on your `PATH` is the built `dist/cli.js`, so a change under `src/` or
-`client/` is not visible to it until you `yarn build`. `yarn dev` sees source changes immediately.
+The `mdxserve` on your `PATH` is a built `dist/cli.js` (the npm install, or your checkout after
+`npm link`), so a change under `src/` or `client/` is not visible to it until you `yarn build`.
+`yarn dev` sees source changes immediately.
 
 ## Where things live
 
@@ -51,8 +55,8 @@ The `mdxserve` on your `PATH` is the built `dist/cli.js`, so a change under `src
 | `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                                      |
 | `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                                |
 | `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                                |
-| `skills/mdxserve/` | The agent writing skill `setup.sh` installs                                                                                                                                                                                |
-| `scripts/`         | `build-registry.ts`, which turns the builtins' zod schemas into `dist/registry.json`                                                                                                                                       |
+| `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                                          |
+| `scripts/`         | `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`) and `smoke-pack.sh` (`yarn smoke`)                                                                                                                  |
 | `docs/`            | These pages and the README screenshots                                                                                                                                                                                     |
 
 The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
@@ -75,6 +79,25 @@ has the full rules.
    list in `src/rendering/vite.ts`, or its hooks throw on first load.
 5. Show it in `example/06-builtins.mdx` (or `07-charts.mdx` for anything that draws data),
    and add a test under `tests/components/`.
+
+## Releasing
+
+`.github/workflows/release.yml` publishes to npm when a `v*` tag is pushed, using npm trusted
+publishing (OIDC, with provenance). There is no npm token in the repo.
+
+1. Open a PR that bumps `version` in `package.json`, and merge it.
+2. Tag the merge commit and push the tag:
+
+```bash
+git tag v0.1.1 main
+git push origin v0.1.1
+```
+
+The workflow checks that the tag matches `package.json`, runs the same checks as
+`verify-pr.yml`, builds, runs `yarn smoke`, and publishes. npm only lets a trusted publisher
+be configured on a package that already exists, so the very first version was published by
+hand with `npm publish --access public`; since then the package's Trusted Publisher setting on
+npmjs.com points at `karimsa/mdxserve` and `release.yml`.
 
 ## Tests
 

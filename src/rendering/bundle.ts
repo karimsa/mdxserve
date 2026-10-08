@@ -6,7 +6,8 @@ import { build, type Plugin } from "vite";
 import { renderAppCss } from "./app-css.js";
 import { collectIconNames, loadLucideNames } from "./mdx/icon-names.js";
 import { rehypeInlineImages } from "./mdx/inline-images.js";
-import { resolveFromPkg, sharedViteConfig } from "./vite.js";
+import { resolveFromPkg } from "../infra/pkg.js";
+import { sharedViteConfig } from "./vite.js";
 import { getPackageRoot } from "../infra/pkg.js";
 import type { BundleInput, BundleOutput, MermaidMode } from "./protocol.js";
 
@@ -266,9 +267,18 @@ export async function bundleStandalone(input: BundleInput): Promise<BundleOutput
 			sourceFiles: string[],
 			iconNames: ReadonlySet<string>,
 		): Promise<BundleBuildResult> => {
-			// Tailwind scans exactly these files (plus mdxserve's client/ and src/),
+			// Tailwind scans exactly these files (plus mdxserve's client/),
 			// never the doc's directory — see the module-graph pass below.
-			await fsp.writeFile(cssFile, renderAppCss({ sourceDirs: [], sourceFiles, pkgRoot }), "utf8");
+			await fsp.writeFile(
+				cssFile,
+				renderAppCss({
+					sourceDirs: [],
+					sourceFiles,
+					tailwindCss: resolveFromPkg("tailwindcss/index.css"),
+					clientDir: path.join(pkgRoot, "client"),
+				}),
+				"utf8",
+			);
 			const shared = sharedViteConfig({
 				// remarkSections deliberately omitted → no <MdSection> in the output.
 				rehypePlugins: [

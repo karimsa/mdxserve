@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Verify the tag matches package.json
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $expected" >&2
+            exit 1
+          fi
+
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; Node 22 ships an older npm.
+      - name: Upgrade npm
+        run: npm install -g npm@latest && npm --version
+
+      - name: Install dependencies
+        run: |
+          yarn config set enableGlobalCache false
+          yarn --immutable
+
+      - name: Checks
+        run: yarn constraints && yarn format:check && yarn lint && yarn typecheck && yarn test
+
+      - name: Build
+        run: yarn build
+
+      - name: Smoke test the packed tarball
+        run: yarn smoke
+
+      - name: Publish
+        run: npm publish --provenance --access public

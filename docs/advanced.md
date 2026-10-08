@@ -69,6 +69,11 @@ The `Origin` check means a page on another site cannot drive the write endpoints
 the server is bound to `0.0.0.0`. The section editor and the Trash action are mutations too,
 so they follow the same rule.
 
+One more thing a remote caller can reach: the dev server serves the files of mdxserve's own
+dependencies under `/@fs/`, from the `node_modules` the package was installed into. With a
+global or `npx` install that folder also holds whatever else is installed there, so bind to
+`0.0.0.0` only on a network you trust.
+
 ## Exporting
 
 `mdxserve export <file>` compiles one document into one self-contained HTML file. It never
@@ -153,9 +158,10 @@ the render status.
 `skills/mdxserve/SKILL.md` teaches an agent how to write Markdown that renders well here while
 staying portable: prefer plain GFM, tag every code fence, keep diagrams small, use a builtin
 only when it clarifies, and validate the file afterwards. It points the agent at
-`mdxserve components` and `mdxserve validate`. `setup.sh` installs it with
-`npx skills add` for Claude Code, Codex, and `~/.agents/skills`; re-run `setup.sh` after
-editing anything under `skills/`, since the skills CLI copies rather than symlinks.
+`mdxserve components` and `mdxserve validate`. `mdxserve setup` installs it with
+`npx skills add` for Claude Code, Codex, and `~/.agents/skills`; re-run `mdxserve setup` after
+upgrading (or, in a checkout, after editing anything under `skills/`), since the skills CLI
+copies rather than symlinks.
 
 ## The cache
 

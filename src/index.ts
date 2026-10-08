@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { startServer } from "./http/start.js";
 import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
 import { ComponentsService } from "./components/service.js";
+import { readPackageVersion } from "./infra/pkg.js";
 import { cleanCache, getCacheHome } from "./infra/cache.js";
 import { serverBaseUrl } from "./servers/remote.js";
 import { RootsService } from "./roots/service.js";
@@ -24,6 +25,9 @@ import { runValidate } from "./cli/validate.js";
 import { runSearch } from "./cli/search.js";
 import { runDocs } from "./cli/docs.js";
 import { runRootsAdd, runRootsList, runRootsRemove } from "./cli/roots.js";
+import { getPackageRoot } from "./infra/pkg.js";
+import { SetupService } from "./setup/service.js";
+import { zxCommandRunner } from "./setup/runner.js";
 
 const program = new Command();
 
@@ -31,7 +35,8 @@ const NOT_RUNNING = `mdxserve: ${NO_SERVER_MESSAGE}`;
 
 program
 	.name("mdxserve")
-	.description("Serve a directory of Markdown/MDX files, like `serve` but for docs");
+	.description("Serve a directory of Markdown/MDX files, like `serve` but for docs")
+	.version(readPackageVersion());
 
 program
 	.command("serve", { isDefault: true })
@@ -333,6 +338,36 @@ cache
 	.action(() => {
 		const removed = cleanCache();
 		console.log(removed ? `Removed ${getCacheHome()}` : `Nothing to clean at ${getCacheHome()}`);
+	});
+
+program
+	.command("setup")
+	.description(
+		"Install the mdxserve writing skill for Claude Code and Codex (via `npx skills add`), and remove the MCP registration earlier versions created. Safe to re-run; re-run after upgrading.",
+	)
+	.action(async () => {
+		console.log("==> Installing skills");
+		const result = await new SetupService({
+			pkgRoot: getPackageRoot(),
+			runner: zxCommandRunner(),
+		}).run();
+		if (result.kind === "error") {
+			console.error(`mdxserve: ${result.message}`);
+			process.exitCode = 1;
+			return;
+		}
+		if (result.skills === "none") console.log("no skills shipped with this install, skipping");
+		console.log("==> Removing the old MCP registration");
+		if (result.cleanups.every((cleanup) => cleanup.status === "not-installed")) {
+			console.log("no claude/codex CLI found");
+			return;
+		}
+		for (const cleanup of result.cleanups) {
+			if (cleanup.status === "removed") console.log(`removed from ${cleanup.client}`);
+			else if (cleanup.status === "absent")
+				console.log(`nothing registered with ${cleanup.client}`);
+			else console.log(`${cleanup.client} not found, skipping`);
+		}
 	});
 
 await program.parseAsync(process.argv);

@@ -13,7 +13,9 @@ calling it.
 ### Domain modules
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
-`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`.
+`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`, `setup/`. `setup/` is
+CLI-only (no `controller.ts`), and its `runner.ts` is the only file under `src/` that spawns a
+process (through `zx`).
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
   `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules

@@ -17,17 +17,16 @@ config file: run it, open the URL, read.
 
 ## Install
 
-You need Node 20 or newer (CI runs 22) and `git`. mdxserve is not on npm yet, so install it from a clone:
+You need Node 22.12 or newer.
 
 ```bash
-git clone git@github.com:karimsa/mdxserve.git
-cd mdxserve
-./setup.sh
+npm install -g mdxserve
+mdxserve setup      # optional: installs the writing skill for Claude Code and Codex
 ```
 
-`setup.sh` installs dependencies, builds, and links an `mdxserve` command onto your `PATH`
-(`~/.local/bin`, or `/usr/local/bin`). It also installs the writing skill for Claude Code and
-Codex if either is present. It is safe to re-run.
+`mdxserve setup` copies the agent writing skill into your Claude Code and Codex skill folders
+(through `npx skills add`) and removes the MCP registration that older versions created. It is
+safe to re-run; run it again after upgrading so the installed skill matches the CLI.
 
 ## Quick start
 
@@ -144,7 +143,7 @@ import { Counter } from "./components/Counter";
 ### The example folder
 
 [`example/`](./example) is a working tour of everything above — plain Markdown, MDX, custom
-components, Tailwind, every builtin, and a page of charts. From a clone:
+components, Tailwind, every builtin, and a page of charts. From a clone, after `yarn`:
 
 ```bash
 yarn dev    # serves ./example
@@ -191,7 +190,7 @@ and it gives the agent tools to write for it well:
 
 - **A writing skill.** `skills/mdxserve/SKILL.md` teaches an agent to write Markdown that
   renders richly here while staying plain and portable, and to check the builtin components
-  before using them.
+  before using them. `mdxserve setup` installs it for Claude Code and Codex.
 - **CLI verbs.** `mdxserve validate`, `search`, `docs`, `roots`, and `components` all take
   `--json`, so an agent can check a file, find docs, and manage served folders from a shell.
 

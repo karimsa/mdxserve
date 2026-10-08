@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getPackageRoot } from "../infra/pkg.js";
+import { getPackageRoot, missingBuildArtifact } from "../infra/pkg.js";
 
 export interface RegistryComponent {
 	name: string;
@@ -28,7 +28,7 @@ export function loadRegistry(): Registry {
 		raw = fs.readFileSync(registryPath, "utf8");
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-			throw new Error(`Component registry not found at ${registryPath}. Run "yarn build" first.`);
+			throw new Error(`${missingBuildArtifact("dist/registry.json")} (looked in ${registryPath})`);
 		}
 		throw error;
 	}

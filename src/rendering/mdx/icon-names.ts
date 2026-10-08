@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveFromPkg } from "../vite.js";
+import { resolveFromPkg } from "../../infra/pkg.js";
 
 const EXCLUDED_DIRS = new Set([
 	"node_modules",
