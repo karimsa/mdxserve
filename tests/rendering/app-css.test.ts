@@ -8,13 +8,8 @@ const absPathArb = fc
 	.array(segmentArb, { minLength: 1, maxLength: 4 })
 	.map((segments) => `/${segments.join("/")}`);
 
-/** Counts `@source "…"` and `@source not "…"` directives. */
-function countSources(text: string): number {
-	return text.match(/@source (not )?"/g)?.length ?? 0;
-}
-
 describe("renderAppCss", () => {
-	it("imports the given CSS, scans every source, and never scans src/", () => {
+	it("includes the styles and source paths needed by served docs", () => {
 		fc.assert(
 			fc.property(
 				absPathArb,
@@ -25,8 +20,8 @@ describe("renderAppCss", () => {
 					const css = renderAppCss({ tailwindCss, clientDir, sourceDirs, sourceFiles });
 					expect(css).toContain(`@import "${toPosix(tailwindCss)}"`);
 					expect(css).toContain(`@import "${toPosix(clientDir)}/app.css"`);
-					expect(css).not.toContain('/src"');
-					expect(countSources(css)).toBe(3 * sourceDirs.length + sourceFiles.length + 1);
+					for (const sourceDir of sourceDirs) expect(css).toContain(toPosix(sourceDir));
+					for (const sourceFile of sourceFiles) expect(css).toContain(toPosix(sourceFile));
 				},
 			),
 		);

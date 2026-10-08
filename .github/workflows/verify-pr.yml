@@ -74,6 +74,12 @@ jobs:
       - name: Test maintainer approval gate
         run: node --test tests/automation/maintainer-approval-gate.test.cjs
 
+      - name: Install browser
+        run: yarn playwright install --with-deps chromium
+
+      - name: Test browser features
+        run: yarn test:browser
+
       - name: Build
         run: yarn build
 

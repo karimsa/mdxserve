@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
@@ -12,10 +12,11 @@ import { makeContext } from "../helpers/context.js";
 // threading a spy through the context, and the procedure under test stays
 // exactly the one that runs in production.
 const trashed: string[] = [];
+let recoveryDir: string;
 vi.mock("trash", () => ({
 	default: async (absPath: string) => {
 		trashed.push(absPath);
-		await fs.rm(absPath, { force: true });
+		await fs.rename(absPath, path.join(recoveryDir, path.basename(absPath)));
 	},
 }));
 
@@ -32,15 +33,18 @@ beforeEach(async () => {
 	outsideDir = await fs.realpath(
 		await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-trash-controller-outside-")),
 	);
+	recoveryDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-trash-controller-recovery-"));
 	await fs.writeFile(path.join(fixtureDir, "one.md"), "# One\n", "utf8");
 	await fs.writeFile(path.join(fixtureDir, "two.md"), "# Two\n", "utf8");
 	await fs.mkdir(path.join(fixtureDir, "sub"));
+	await fs.writeFile(path.join(fixtureDir, "notes.txt"), "Keep this text.\n", "utf8");
 	await fs.writeFile(path.join(outsideDir, "secret.md"), "# Secret\n", "utf8");
 });
 
-afterAll(async () => {
+afterEach(async () => {
 	await fs.rm(fixtureDir, { recursive: true, force: true });
 	await fs.rm(outsideDir, { recursive: true, force: true });
+	await fs.rm(recoveryDir, { recursive: true, force: true });
 });
 
 function caller() {
@@ -55,7 +59,17 @@ describe("moveDocsToTrash", () => {
 
 		expect(result).toEqual({ deleted: [first, second], failed: [] });
 		expect(trashed).toEqual([first, second]);
-		expect(await fs.readdir(fixtureDir)).toEqual(["sub"]);
+		expect(await fs.readdir(fixtureDir)).toEqual(["notes.txt", "sub"]);
+		expect(await fs.readFile(path.join(recoveryDir, "one.md"), "utf8")).toBe("# One\n");
+		expect(await fs.readFile(path.join(recoveryDir, "two.md"), "utf8")).toBe("# Two\n");
+	});
+
+	it("refuses non-document files and leaves their contents intact", async () => {
+		const textFile = path.join(fixtureDir, "notes.txt");
+		const result = await caller().moveDocsToTrash({ paths: [textFile] });
+		expect(result).toEqual({ deleted: [], failed: [{ path: textFile, error: "Invalid path" }] });
+		expect(await fs.readFile(textFile, "utf8")).toBe("Keep this text.\n");
+		expect(trashed).toEqual([]);
 	});
 
 	it("reports each failure with its own path and reason, in the order asked for", async () => {

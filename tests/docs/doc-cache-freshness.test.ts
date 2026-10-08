@@ -1,8 +1,7 @@
-import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { DocCache } from "../../src/docs/doc-cache.js";
 
@@ -19,10 +18,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await fs.rm(fixtureDir, { recursive: true, force: true });
-});
-
-afterEach(() => {
-	vi.restoreAllMocks();
 });
 
 const wordArb = fc.constantFrom("alpha", "beta", "gamma", "delta", "widget", "gadget");
@@ -69,23 +64,18 @@ describe("DocCache.read — content reproduction", () => {
 	});
 });
 
-// DocCache reads the file through fs.openSync/fs.fstatSync/fs.readSync/fs.closeSync
-// (not fs.readFileSync), so fs.readSync is the call that corresponds to "one
-// physical read" here.
 describe("DocCache.read — caching by (path, mtime)", () => {
 	it(
-		"the same (path, mtime) returns a deep-equal object without a second physical read",
+		"the same (path, mtime) returns the cached document even if disk bytes change",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(linesArb, eolArb, async (lines, eol) => {
 					const { abs, mtime } = await writeFixture(lines, eol);
 					const cache = new DocCache();
 					const first = cache.read(abs, mtime);
-					const readSpy = vi.spyOn(fsSync, "readSync");
+					await fs.writeFile(abs, "changed on disk", "utf8");
 					const second = cache.read(abs, mtime);
 					expect(second).toEqual(first);
-					expect(readSpy).not.toHaveBeenCalled();
-					readSpy.mockRestore();
 				}),
 				{ numRuns: 20 },
 			);
@@ -94,17 +84,16 @@ describe("DocCache.read — caching by (path, mtime)", () => {
 	);
 
 	it(
-		"bumping mtime forces exactly one fresh physical read",
+		"a new mtime returns the changed document",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(linesArb, eolArb, async (lines, eol) => {
 					const { abs, mtime } = await writeFixture(lines, eol);
 					const cache = new DocCache();
 					cache.read(abs, mtime);
-					const readSpy = vi.spyOn(fsSync, "readSync");
-					cache.read(abs, mtime + 1);
-					expect(readSpy).toHaveBeenCalledTimes(1);
-					readSpy.mockRestore();
+					await fs.writeFile(abs, "changed on disk", "utf8");
+					const changed = cache.read(abs, mtime + 1);
+					expect(changed.lines.join("\n")).toBe("changed on disk");
 				}),
 				{ numRuns: 20 },
 			);

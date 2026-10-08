@@ -270,7 +270,7 @@ describe("remarkSections — examples", () => {
 	});
 
 	// Metadata must never enter an editable section, including lists and blank lines.
-	it("property: no section covers any front-matter line, whatever the block's shape", () => {
+	it("no section covers any front-matter line, whatever the block's shape", () => {
 		const yamlLine = fc
 			.tuple(fc.stringMatching(/^[a-z]{1,8}$/), fc.stringMatching(/^[a-z0-9 ]{1,12}$/))
 			.map(([key, value]) => `${key}: ${value}`);

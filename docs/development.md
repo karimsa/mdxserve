@@ -101,8 +101,8 @@ The workflow checks that the tag matches `package.json`, runs the same checks as
 
 ## Tests
 
-Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`,
-`controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`,
+Tests mirror the modules: `tests/<module>/service.test.ts`, `controller.test.ts`,
+and additional files named for the behavior they verify; adapters get `tests/api/`, `tests/cli/`,
 `tests/http/`, `tests/servers/`, `tests/rendering/`. Every service has functional tests for its
 behaviour and property tests for the guarantees its interface makes. The one exception is a
 service that owns an external process (`RenderService`): functional tests plus a single cheap
