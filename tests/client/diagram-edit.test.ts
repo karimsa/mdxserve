@@ -37,6 +37,18 @@ it("refuses a stale diagram location or source without changing the document", (
 	expect(replaceDiagram(editor, target, replacement)).toBe(false);
 	expect(editor.getMarkdown()).toBe(before);
 });
+it("matches highlighted blank-line padding but keeps the original source for editing", () => {
+	const source = "erDiagram\n CUSTOMER ||--o{ ORDER : places\n\n CUSTOMER {\n  int id PK\n }";
+	editor = new Editor({
+		extensions: [StarterKit, Markdown],
+		contentType: "markdown",
+		content: `\`\`\`mermaid\n${source}\n\`\`\``,
+	});
+	expect(findDiagram(editor, { index: 0, source: source.replace("\n\n", "\n \n") })?.source).toBe(
+		source,
+	);
+	expect(findDiagram(editor, { index: 0, source: source.replace("places", "owns") })).toBeNull();
+});
 it("exposes edit buttons in the section editor without adding them to serialized Markdown", () => {
 	let clicked = "";
 	editor = new Editor({

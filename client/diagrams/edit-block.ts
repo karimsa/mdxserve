@@ -4,12 +4,22 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { closeHistory } from "@tiptap/pm/history";
 import type { ExistingDiagram } from "./edit-context";
 export type DiagramEditTarget = { range: Range; source: string };
+// Syntax highlighting pads empty lines for display; those spaces aren't edits.
+function comparableSource(source: string): string {
+	return source
+		.replace(/\r\n/g, "\n")
+		.replace(/^[\t ]+$/gm, "")
+		.trim();
+}
 export function findDiagram(editor: Editor, target: ExistingDiagram): DiagramEditTarget | null {
 	let index = 0;
 	let found: DiagramEditTarget | null = null;
 	editor.state.doc.descendants((node, position) => {
 		if (node.type.name !== "codeBlock" || node.attrs.language !== "mermaid") return;
-		if (index++ === target.index && node.textContent.trim() === target.source.trim())
+		if (
+			index++ === target.index &&
+			comparableSource(node.textContent) === comparableSource(target.source)
+		)
 			found = { range: { from: position, to: position + node.nodeSize }, source: node.textContent };
 	});
 	return found;
