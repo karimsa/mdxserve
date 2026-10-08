@@ -28,6 +28,7 @@ import { runRootsAdd, runRootsList, runRootsRemove } from "./cli/roots.js";
 import { getPackageRoot } from "./infra/pkg.js";
 import { SetupService } from "./setup/service.js";
 import { zxCommandRunner } from "./setup/runner.js";
+import { notifyAboutUpdates } from "./cli/updates.js";
 
 const program = new Command();
 
@@ -35,6 +36,7 @@ const NOT_RUNNING = `mdxserve: ${NO_SERVER_MESSAGE}`;
 
 program
 	.name("mdxserve")
+	.option("--no-update-notifier", "disable update checks and notifications")
 	.description("Serve a directory of Markdown/MDX files, like `serve` but for docs")
 	.version(readPackageVersion());
 
@@ -370,4 +372,5 @@ program
 		}
 	});
 
+await notifyAboutUpdates();
 await program.parseAsync(process.argv);

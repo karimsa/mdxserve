@@ -41,6 +41,11 @@ mdxserve setup      # optional: installs the writing skill for Claude Code and C
 (through `npx skills add`) and removes the MCP registration that older versions created. It is
 safe to re-run; run it again after upgrading so the installed skill matches the CLI.
 
+Interactive commands check for updates in the background at most once a day and show
+cached update notices on startup. Updates are never installed automatically. Disable
+checks with `--no-update-notifier` or `NO_UPDATE_NOTIFIER=1`. CI, noninteractive commands,
+and `--json` output stay quiet.
+
 ## Quick start
 
 ```bash
