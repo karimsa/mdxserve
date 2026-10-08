@@ -1,3 +1,4 @@
+import { DiagramEditContext, type ExistingDiagram } from "./diagrams/edit-context";
 import {
 	lazy,
 	startTransition,
@@ -95,6 +96,7 @@ function Section({
 	children: ReactNode;
 }) {
 	const [mode, setMode] = useState<"read" | "loading" | "edit">("read");
+	const [initialDiagram, setInitialDiagram] = useState<ExistingDiagram | undefined>();
 	const [source, setSource] = useState("");
 	const [version, setVersion] = useState("");
 	const [openSection, setOpenSection] = useAtom(openSectionAtom);
@@ -120,14 +122,24 @@ function Section({
 		};
 	}, [key, setOpenSection]);
 
-	async function startEdit() {
+	async function startEdit(target?: ExistingDiagram) {
 		// Double-click and the pencil can both fire while a fetch is in flight.
 		if (mode !== "read") return;
+		setInitialDiagram(target);
 		setOpenSection(key);
 		setMode("loading");
 		try {
 			// The vanilla client, not the query cache: the source must be exactly
 			// what is on disk at this moment, never a cached copy.
+			if (target) {
+				const preferences = await trpcClient.getDiagramPreferences.query({});
+				if (preferences.agent === "disabled") {
+					pushToast({ tone: "warn", text: "Enable diagram editing in Settings → Diagrams." });
+					setMode("read");
+					setOpenSection((current) => (current === key ? null : current));
+					return;
+				}
+			}
 			const data = await trpcClient.getDocSource.query({ path });
 			// Functional update so a response that lands after another section
 			// took the atom (the effect above has already reset us to "read")
@@ -186,6 +198,7 @@ function Section({
 			>
 				<MdSectionEditor
 					source={source}
+					initialDiagram={initialDiagram}
 					version={version}
 					path={path}
 					startLine={startLine}
@@ -209,26 +222,30 @@ function Section({
 	}
 
 	return (
-		<div
-			className="mdx-section group"
-			data-md-section={index}
-			onDoubleClick={onDoubleClick}
-			onPointerEnter={preloadEditor}
+		<DiagramEditContext.Provider
+			value={mode === "read" ? (target) => void startEdit(target) : null}
 		>
-			{children}
-			{/* Floats over the section's top-right corner rather than in the left
+			<div
+				className="mdx-section group"
+				data-md-section={index}
+				onDoubleClick={onDoubleClick}
+				onPointerEnter={preloadEditor}
+			>
+				{children}
+				{/* Floats over the section's top-right corner rather than in the left
 			    gutter, which is where DocView's left ResizeHandle lives — the two
 			    hover affordances were fighting for the same strip of pixels. */}
-			<IconButton
-				icon="pencil"
-				label="Edit section"
-				size="sm"
-				variant="outline"
-				data-print-hide
-				disabled={mode === "loading"}
-				onClick={startEdit}
-				className="absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-			/>
-		</div>
+				<IconButton
+					icon="pencil"
+					label="Edit section"
+					size="sm"
+					variant="outline"
+					data-print-hide
+					disabled={mode === "loading"}
+					onClick={() => void startEdit()}
+					className="absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+				/>
+			</div>
+		</DiagramEditContext.Provider>
 	);
 }

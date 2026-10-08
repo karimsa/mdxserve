@@ -188,3 +188,29 @@ it("keeps generated source on the left while the diagram stays visible on the ri
 	);
 	expect(document.querySelector("select")).toBe(null);
 });
+it("opens an existing diagram with its source and only converts after it is edited", async () => {
+	const onInsert = vi.fn();
+	await act(async () =>
+		root.render(
+			createElement(MermaidDialog, {
+				key: "existing",
+				initialSource: result.mermaid,
+				onClose: vi.fn(),
+				onInsert,
+			}),
+		),
+	);
+	expect(document.querySelector<HTMLTextAreaElement>("#diagram-input")!.value).toBe(result.mermaid);
+	await settle();
+	expect(rpc.convert).not.toHaveBeenCalled();
+	const update = [...document.querySelectorAll("button")].find(
+		(button) => button.textContent === "Update in draft",
+	)!;
+	expect(update.disabled).toBe(false);
+	await enter(result.mermaid + "\nPlease add products to orders");
+	expect(update.disabled).toBe(true);
+	await settle();
+	expect(rpc.convert).toHaveBeenCalledTimes(1);
+	await act(async () => update.click());
+	expect(onInsert).toHaveBeenCalledWith(result.mermaid);
+});

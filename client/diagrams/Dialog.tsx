@@ -14,16 +14,18 @@ function policy(source: string) {
 	);
 }
 export function MermaidDialog({
+	initialSource,
 	onClose,
 	onInsert,
 }: {
+	initialSource?: string;
 	onClose: () => void;
 	onInsert: (source: string) => void;
 }) {
 	const dialog = useRef<HTMLDialogElement>(null);
 	const session = useRef(crypto.randomUUID());
 	const revision = useRef(0);
-	const [text, setText] = useState("");
+	const [text, setText] = useState(initialSource ?? "");
 	const [image, setImage] = useState<{ id: string; url: string; name: string } | null>(null);
 	const [settingsReady, setSettingsReady] = useState(false);
 	const gutter = useRef<HTMLDivElement>(null);
@@ -109,6 +111,12 @@ export function MermaidDialog({
 			setStatus("Editing Mermaid locally");
 			return cancel;
 		}
+		if (initialSource !== undefined && text === initialSource && !image) {
+			setDraft({ mermaid: initialSource, assumptions: [], changes: [] });
+			setCurrent(policy(initialSource));
+			setStatus("Edit the source or describe changes. Update the draft, then save the section.");
+			return cancel;
+		}
 		if (uploading || composing || (!text.trim() && !image)) {
 			setStatus(uploading ? "Preparing image…" : "Describe a diagram or drop an image.");
 			return cancel;
@@ -154,7 +162,7 @@ export function MermaidDialog({
 				setDraft(result);
 				setCurrent(true);
 				setStatus(
-					`Converted with ${result.provider === "codex" ? "Codex" : "Claude Code"} · review before inserting`,
+					`Converted with ${result.provider === "codex" ? "Codex" : "Claude Code"} · review before ${initialSource === undefined ? "inserting" : "updating"}`,
 				);
 			} catch (failure) {
 				if (obsolete) return;
@@ -171,7 +179,7 @@ export function MermaidDialog({
 			clearTimeout(timer);
 			cancel();
 		};
-	}, [text, image, uploading, composing, manual, preferenceVersion, settingsReady]);
+	}, [text, image, uploading, composing, manual, preferenceVersion, settingsReady, initialSource]);
 	const onRender = useCallback(
 		(source: string, valid: boolean) => setRendered(valid ? source : ""),
 		[],
@@ -228,7 +236,7 @@ export function MermaidDialog({
 		<dialog
 			ref={dialog}
 			className="diagram-dialog diagram-workspace"
-			aria-label="Create Mermaid diagram"
+			aria-label={initialSource === undefined ? "Create Mermaid diagram" : "Edit Mermaid diagram"}
 			onCancel={(event) => {
 				event.preventDefault();
 				event.stopPropagation();
@@ -264,7 +272,7 @@ export function MermaidDialog({
 			<header className="diagram-navbar">
 				<div className="diagram-title">
 					<Network size={18} />
-					<h2>New diagram</h2>
+					<h2>{initialSource === undefined ? "New diagram" : "Edit diagram"}</h2>
 					<span className="diagram-command">/mermaid</span>
 				</div>
 				<div className="diagram-actions">
@@ -283,7 +291,7 @@ export function MermaidDialog({
 						disabled={!draft || !current || rendered !== draft.mermaid || !policy(draft.mermaid)}
 						onClick={() => draft && onInsert(draft.mermaid)}
 					>
-						Insert into draft
+						{initialSource === undefined ? "Insert into draft" : "Update in draft"}
 					</button>
 					<button
 						type="button"

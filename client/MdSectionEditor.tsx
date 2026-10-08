@@ -1,3 +1,10 @@
+import {
+	findDiagram,
+	replaceDiagram,
+	mermaidEditButtons,
+	type DiagramEditTarget,
+} from "./diagrams/edit-block";
+import type { ExistingDiagram } from "./diagrams/edit-context";
 import { mermaidSlash } from "./diagrams/slash";
 import { MermaidDialog } from "./diagrams/Dialog";
 import type { Range } from "@tiptap/core";
@@ -35,6 +42,7 @@ const hint = {
 };
 
 export interface MdSectionEditorProps {
+	initialDiagram?: ExistingDiagram;
 	/** Raw markdown for exactly [startLine, endLine], sliced by MdSection.tsx. */
 	source: string;
 	/** Version token for the whole file at the moment `source` was fetched — the save's stale-write guard. */
@@ -91,6 +99,7 @@ function unwrapSoftBreaks(editor: Editor): void {
  * `@tiptap/extension-link` install is needed to configure `link`.
  */
 export default function MdSectionEditor({
+	initialDiagram,
 	source,
 	version,
 	path,
@@ -100,6 +109,9 @@ export default function MdSectionEditor({
 }: MdSectionEditorProps) {
 	const [saving, setSaving] = useState(false);
 	const diagramEnabled = useRef(false);
+	const [diagramReady, setDiagramReady] = useState(false);
+	const [editTarget, setEditTarget] = useState<DiagramEditTarget | null>(null);
+	const openedDiagram = useRef(false);
 	const [diagramRange, setDiagramRange] = useState<Range | null>(null);
 	const openDiagram = useRef<(range: Range) => void>(() => {});
 	openDiagram.current = setDiagramRange;
@@ -111,7 +123,11 @@ export default function MdSectionEditor({
 				.then((settings) => {
 					if (active) {
 						diagramEnabled.current = settings.agent !== "disabled";
-						if (!diagramEnabled.current) setDiagramRange(null);
+						setDiagramReady(diagramEnabled.current);
+						if (!diagramEnabled.current) {
+							setDiagramRange(null);
+							setEditTarget(null);
+						}
 					}
 				})
 				.catch(() => {
@@ -135,6 +151,7 @@ export default function MdSectionEditor({
 
 	const editor = useEditor({
 		extensions: [
+			mermaidEditButtons(() => diagramEnabled.current, setEditTarget),
 			mermaidSlash(
 				() => diagramEnabled.current,
 				(range) => openDiagram.current(range),
@@ -171,8 +188,25 @@ export default function MdSectionEditor({
 		setEntered(true);
 	}, [editor]);
 
+	useEffect(() => {
+		if (!editor || editor.isDestroyed || !initialDiagram || openedDiagram.current) return;
+		openedDiagram.current = true;
+		const target = findDiagram(editor, initialDiagram);
+		if (target) setEditTarget(target);
+		else
+			pushToast({
+				tone: "warn",
+				text: "Diagram changed on disk. Reopen the section before editing.",
+			});
+	}, [editor, initialDiagram]);
+
+	useEffect(() => {
+		if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr);
+	}, [editor, diagramReady]);
+
 	const closeDiagram = useCallback(() => {
 		setDiagramRange(null);
+		setEditTarget(null);
 		editor?.commands.focus();
 	}, [editor]);
 
@@ -232,7 +266,7 @@ export default function MdSectionEditor({
 	}
 
 	function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (event.defaultPrevented || diagramRange) return;
+		if (diagramRange || editTarget) return;
 		if ((event.metaKey || event.ctrlKey) && event.key === "s") {
 			event.preventDefault();
 			void save();
@@ -253,10 +287,23 @@ export default function MdSectionEditor({
 	return (
 		<div className="mdx-section" data-editing onClick={onClick} onKeyDown={onKeyDown}>
 			<EditorContent editor={editor} />
-			{diagramRange && (
+			{(diagramRange || editTarget) && (
 				<MermaidDialog
+					initialSource={editTarget?.source}
 					onClose={closeDiagram}
 					onInsert={(source) => {
+						if (editTarget) {
+							if (!replaceDiagram(editor, editTarget, source)) {
+								pushToast({
+									tone: "warn",
+									text: "Diagram changed. Reopen it before applying changes.",
+								});
+								return;
+							}
+							closeDiagram();
+							return;
+						}
+						if (!diagramRange) return;
 						if (diagramRange.to > editor.state.doc.content.size) {
 							closeDiagram();
 							return;
