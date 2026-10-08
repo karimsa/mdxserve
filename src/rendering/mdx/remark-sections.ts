@@ -50,7 +50,8 @@ function attr(name: string, value: string): MdxJsxAttribute {
  * per-section Tiptap editing without ever exposing JSX/ESM to a WYSIWYG
  * editor. Runs are split before any non-editable node and before any `h1`/`h2`
  * heading (so sections line up with the document's visual section
- * boundaries and stay reasonably small).
+ * boundaries and stay reasonably small). Mermaid blocks get their own section
+ * so its Edit action can open the diagram dialog directly.
  *
  * This is a *user* remark plugin (registered only in src/rendering/vite.ts, never in
  * src/rendering/mdx/mdx-options.ts): it runs after remarkMarkAndUnravel, so MDX node types
@@ -110,7 +111,10 @@ export function remarkSections() {
 			// depth <= 2 headings start a new run even when the run so far is
 			// still editable, so sections track the document's h1/h2 structure.
 			if (node.type === "heading" && node.depth <= 2) flush();
+			const diagram = node.type === "code" && node.lang === "mermaid";
+			if (diagram) flush();
 			run.push(node);
+			if (diagram) flush();
 		});
 		flush();
 

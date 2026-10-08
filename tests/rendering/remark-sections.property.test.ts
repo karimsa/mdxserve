@@ -95,6 +95,7 @@ const blockArb = fc.oneof(
 	headingArb,
 	listArb,
 	fenceArb,
+	fc.constant("```mermaid\nflowchart LR\n A --> B\n```"),
 	tableArb,
 	thematicBreakArb,
 	jsxBlockArb,
@@ -151,7 +152,7 @@ describe("remarkSections — invariance", () => {
 		);
 	});
 
-	it("two MdSections are never adjacent unless the second starts with a heading of depth <= 2", () => {
+	it("adjacent sections are separated by a heading or a standalone Mermaid block", () => {
 		fc.assert(
 			fc.property(docArb, (src) => {
 				const tree = runPlugin(src);
@@ -161,7 +162,13 @@ describe("remarkSections — invariance", () => {
 					if (!isMdSection(current) || !isMdSection(next)) continue;
 					const firstChild = next.children[0] as RootContent | undefined;
 					const startsWithSmallHeading = firstChild?.type === "heading" && firstChild.depth <= 2;
-					expect(startsWithSmallHeading).toBe(true);
+					const isDiagram = (section: MdxJsxFlowElement) => {
+						const block = section.children[0];
+						return (
+							section.children.length === 1 && block?.type === "code" && block.lang === "mermaid"
+						);
+					};
+					expect(startsWithSmallHeading || isDiagram(current) || isDiagram(next)).toBe(true);
 				}
 			}),
 		);

@@ -201,6 +201,22 @@ export default function MdSectionEditor({
 	}, [editor, initialDiagram]);
 
 	useEffect(() => {
+		if (!editor || editor.isDestroyed || !diagramReady || openedDiagram.current) return;
+		openedDiagram.current = true;
+		const document = editor.state.doc;
+		const block = document.firstChild;
+		// Tiptap adds an empty trailing paragraph after a code block.
+		const onlyDiagram =
+			document.childCount === 1 ||
+			(document.childCount === 2 &&
+				document.lastChild?.type.name === "paragraph" &&
+				document.lastChild.content.size === 0);
+		if (onlyDiagram && block?.type.name === "codeBlock" && block.attrs.language === "mermaid") {
+			setEditTarget({ range: { from: 0, to: block.nodeSize }, source: block.textContent });
+		}
+	}, [editor, diagramReady]);
+
+	useEffect(() => {
 		if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr);
 	}, [editor, diagramReady]);
 
