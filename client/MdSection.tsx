@@ -243,7 +243,7 @@ function Section({
 					data-print-hide
 					disabled={mode === "loading"}
 					onClick={() => void startEdit()}
-					className="absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+					className="mdx-section-edit absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
 				/>
 			</div>
 		</DiagramEditContext.Provider>
