@@ -1,9 +1,55 @@
-import { useEffect, useId, useRef, useState, type ReactNode, type KeyboardEvent } from "react";
+import { useId, useRef, type ReactNode, type KeyboardEvent, type FocusEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { enterTransition, exitTransition } from "../motion";
 import { createPortal } from "react-dom";
-import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/dom";
+import { useColumnMenu } from "./useColumnMenu";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
+
+function closeColumnMenu(onOpenChange: (open: boolean) => void, trigger: HTMLButtonElement | null) {
+	onOpenChange(false);
+	trigger?.focus();
+}
+
+function handleHeaderKey(
+	event: KeyboardEvent<HTMLButtonElement>,
+	onSort: () => void,
+	onOpenChange: (open: boolean) => void,
+	onNavigate: (event: KeyboardEvent<HTMLButtonElement>) => void,
+) {
+	if (event.key === " ") {
+		event.preventDefault();
+		onSort();
+	} else if (event.key === "Enter") {
+		event.preventDefault();
+		onOpenChange(true);
+	} else {
+		onNavigate(event);
+	}
+}
+
+function handleMenuKey(event: KeyboardEvent<HTMLDivElement>, close: () => void) {
+	if (event.key !== "Escape") return;
+
+	event.preventDefault();
+	event.stopPropagation();
+	close();
+}
+
+function handleMenuBlur(
+	event: FocusEvent<HTMLDivElement>,
+	trigger: HTMLButtonElement | null,
+	onOpenChange: (open: boolean) => void,
+) {
+	const nextTarget = event.relatedTarget;
+	if (
+		!nextTarget ||
+		event.currentTarget.contains(nextTarget) ||
+		trigger?.parentElement?.contains(nextTarget)
+	)
+		return;
+
+	onOpenChange(false);
+}
 
 /** Portaled to escape the table scroller, positioned against the triggering header. */
 export function ColumnMenu({
@@ -33,65 +79,8 @@ export function ColumnMenu({
 	const menu = useRef<HTMLDivElement>(null);
 	const menuId = useId();
 	const reducedMotion = useReducedMotion();
-	const [positioned, setPositioned] = useState(false);
-	const change = useRef(onOpenChange);
-	change.current = onOpenChange;
-	const close = () => {
-		onOpenChange(false);
-		trigger.current?.focus();
-	};
-	useEffect(() => {
-		if (!open) {
-			setPositioned(false);
-			return;
-		}
-		if (!trigger.current || !menu.current) return;
-		const anchor = trigger.current;
-		const popup = menu.current;
-		popup.inert = false;
-		popup.style.pointerEvents = "auto";
-		let disposed = false;
-		const cleanup = autoUpdate(anchor.closest("th") ?? anchor, popup, () => {
-			void computePosition(anchor.closest("th") ?? anchor, popup, {
-				placement: "bottom-start",
-				strategy: "fixed",
-				middleware: [
-					offset(6),
-					flip(),
-					shift({ padding: 8 }),
-					size({
-						padding: 8,
-						apply({ availableHeight }) {
-							popup.style.maxHeight = `${Math.max(0, availableHeight)}px`;
-						},
-					}),
-				],
-			}).then(({ x, y }) => {
-				if (disposed) return;
-				Object.assign(popup.style, { left: `${x}px`, top: `${y}px` });
-				setPositioned(true);
-			});
-		});
-
-		const dismiss = (event: PointerEvent) => {
-			if (
-				!popup.contains(event.target as Node) &&
-				!anchor.parentElement?.contains(event.target as Node)
-			)
-				change.current(false);
-		};
-		document.addEventListener("pointerdown", dismiss);
-		return () => {
-			disposed = true;
-			cleanup();
-			document.removeEventListener("pointerdown", dismiss);
-			popup.inert = true;
-			popup.style.pointerEvents = "none";
-		};
-	}, [open]);
-	useEffect(() => {
-		if (open && positioned) menu.current?.querySelector<HTMLInputElement>("input")?.focus();
-	}, [open, positioned]);
+	const positioned = useColumnMenu(open, onOpenChange, trigger, menu);
+	const close = () => closeColumnMenu(onOpenChange, trigger.current);
 
 	return (
 		<>
@@ -111,15 +100,7 @@ export function ColumnMenu({
 						onActivate();
 						onOpenChange(false);
 					}}
-					onKeyDown={(event) => {
-						if (event.key === " ") {
-							event.preventDefault();
-							onSort();
-						} else if (event.key === "Enter") {
-							event.preventDefault();
-							onOpenChange(true);
-						} else onNavigate(event);
-					}}
+					onKeyDown={(event) => handleHeaderKey(event, onSort, onOpenChange, onNavigate)}
 				>
 					<span>{label}</span>
 					{unit && <span className="data-table-unit">· {unit}</span>}
@@ -168,21 +149,8 @@ export function ColumnMenu({
 								aria-label={`${label} column options`}
 								style={{ transformOrigin: "top left" }}
 								onDoubleClick={(event) => event.stopPropagation()}
-								onKeyDown={(event) => {
-									if (event.key === "Escape") {
-										event.preventDefault();
-										event.stopPropagation();
-										close();
-									}
-								}}
-								onBlur={(event) => {
-									if (
-										event.relatedTarget &&
-										!event.currentTarget.contains(event.relatedTarget as Node) &&
-										!trigger.current?.parentElement?.contains(event.relatedTarget as Node)
-									)
-										onOpenChange(false);
-								}}
+								onKeyDown={(event) => handleMenuKey(event, close)}
+								onBlur={(event) => handleMenuBlur(event, trigger.current, onOpenChange)}
 							>
 								<div className="data-table-menu-title">{label}</div>
 								{children(close)}

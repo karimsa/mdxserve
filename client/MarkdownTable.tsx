@@ -5,6 +5,7 @@ import { inferColumn, parseBound, type Column, type Row } from "./data-table/mod
 function elements(children: ReactNode) {
 	return Children.toArray(children).filter(isValidElement<{ children?: ReactNode }>);
 }
+
 function text(children: ReactNode): string {
 	return Children.toArray(children)
 		.map((child) =>
@@ -16,8 +17,8 @@ function text(children: ReactNode): string {
 		)
 		.join("");
 }
-export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableElement>) {
-	const fallbackId = useId();
+
+function prepareMarkdownTable(children: ReactNode) {
 	const sections = elements(children);
 	const header = sections.find((section) => section.type === "thead");
 	const body = sections.find((section) => section.type === "tbody");
@@ -52,6 +53,28 @@ export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableEle
 			}),
 		),
 	);
+
+	return { columns, data, cells };
+}
+
+function renderMarkdownCell(
+	table: ReturnType<typeof prepareMarkdownTable>,
+	row: number,
+	key: string,
+) {
+	const index = Number(key.slice(7));
+	const column = table.columns[index];
+
+	// Unit columns use DataTable's shared-unit formatter; other cells retain their original markup.
+	if (column.type === "time" || column.type === "bytes") return undefined;
+	return table.cells[row][index]?.props.children;
+}
+
+export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableElement>) {
+	const fallbackId = useId();
+	const table = prepareMarkdownTable(children);
+	const { columns, data } = table;
+
 	if (!columns.length)
 		return (
 			<div className="data-table">
@@ -60,17 +83,13 @@ export function MarkdownTable({ children, id }: TableHTMLAttributes<HTMLTableEle
 				</div>
 			</div>
 		);
+
 	return (
 		<DataTable
 			id={id ?? `markdown-${fallbackId}`}
 			columns={columns}
 			data={data}
-			renderCell={(row, key) => {
-				const index = Number(key.slice(7));
-				return columns[index].type === "time" || columns[index].type === "bytes"
-					? undefined
-					: cells[row][index]?.props.children;
-			}}
+			renderCell={(row, key) => renderMarkdownCell(table, row, key)}
 		/>
 	);
 }
