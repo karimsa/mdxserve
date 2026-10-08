@@ -84,11 +84,12 @@ file is restored. An invalid config at startup reports an error. Root commands s
 atomically and preserve unrelated settings. SQLite records only the live server's status;
 the JSON file is the source of truth for which roots should exist.
 
-| Flag          | Default     | Effect                                                    |
-| ------------- | ----------- | --------------------------------------------------------- |
-| `-w, --watch` | none        | Serve this folder; repeat the flag for more than one      |
-| `-p, --port`  | `4040`      | Port to listen on; falls back to a free one if it's taken |
-| `--host`      | `127.0.0.1` | Interface to bind; `0.0.0.0` exposes it on your LAN       |
+| Flag                        | Default     | Effect                                                       |
+| --------------------------- | ----------- | ------------------------------------------------------------ |
+| `-w, --watch`               | none        | Serve this folder; repeat the flag for more than one         |
+| `-p, --port`                | `4040`      | Port to listen on; falls back to a free one if it's taken    |
+| `--host`                    | `127.0.0.1` | Interface to bind; non-loopback requires explicit opt-in     |
+| `--dangerous-allow-network` | off         | Allow unauthenticated network access to all configured roots |
 
 ## Writing docs
 

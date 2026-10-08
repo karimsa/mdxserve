@@ -62,8 +62,20 @@ folder is listed too, muted and unclickable, so you can see what is there.
 
 ## Exposing it on a network
 
-The server binds to `127.0.0.1` by default. `--host 0.0.0.0` makes it reachable from other
-machines on your LAN, and most of it works the same for them — reading and search. Three things are held back for callers that are not on the same machine:
+The server binds to `127.0.0.1` by default. Non-loopback bindings are rejected unless you
+explicitly pass `--dangerous-allow-network` on that invocation:
+
+```bash
+mdxserve serve --host 0.0.0.0 --dangerous-allow-network
+```
+
+This permits unauthenticated network access to **all configured roots**, including roots
+saved during earlier local-only sessions and any roots added through later config edits.
+The opt-in is not stored in the JSON config. `localhost` is pinned to `127.0.0.1` without DNS
+resolution; IPv4 loopback addresses and `::1` also work without the flag. Other hostnames
+require the flag even if they currently resolve to loopback.
+
+Network clients can read and search the served roots. Three things are held back for callers that are not on the same machine:
 
 | Capability                                                  | Loopback caller          | Remote caller                                                          |
 | ----------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------- |

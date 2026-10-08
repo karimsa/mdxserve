@@ -13,6 +13,7 @@ import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
 import { ServerRegistry, mdxserveHome } from "../servers/server-registry.js";
+import { admitBindHost, loopbackBindHost } from "../servers/bind-host.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { RenderService } from "../rendering/render.js";
 import { bundleStandalone } from "../rendering/bundle.js";
@@ -26,6 +27,7 @@ export interface StartServerOptions {
 	roots: string[];
 	port: number;
 	host: string;
+	dangerousAllowNetwork?: boolean;
 }
 
 /** Regenerate `file` for the given `roots`, so a root added/removed at runtime shows up in HMR's Tailwind scan. */
@@ -54,12 +56,11 @@ function getLocalIPs(): string[] {
 	return addresses;
 }
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
 
 /** The LAN address to advertise for `host`, or undefined when only loopback is reachable. */
 function networkAddress(host: string): string | undefined {
-	if (LOOPBACK_HOSTS.has(host)) return undefined;
+	if (loopbackBindHost(host) !== undefined) return undefined;
 	// A wildcard bind is reachable on every interface; pick the first. A
 	// concrete address is reachable only on itself.
 	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
@@ -127,7 +128,10 @@ export type StartOutcome =
 	| { kind: "error"; message: string };
 
 export async function startServer(options: StartServerOptions): Promise<StartOutcome> {
-	const { roots, host } = options;
+	const { roots } = options;
+	const bind = admitBindHost(options.host, options.dangerousAllowNetwork);
+	if (bind.kind !== "ok") return bind;
+	const { host } = bind;
 
 	// One server per user: take the lock before anything expensive (and before
 	// loadRegistry, so this path is testable without a build). A held lock is
