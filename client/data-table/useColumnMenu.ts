@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/dom";
 
 function observeColumnMenu(
-	anchor: HTMLButtonElement,
+	anchor: HTMLDivElement,
 	popup: HTMLDivElement,
 	onPositioned: () => void,
 	onDismiss: () => void,
@@ -55,7 +55,7 @@ function observeColumnMenu(
 export function useColumnMenu(
 	open: boolean,
 	onOpenChange: (open: boolean) => void,
-	trigger: RefObject<HTMLButtonElement | null>,
+	trigger: RefObject<HTMLDivElement | null>,
 	menu: RefObject<HTMLDivElement | null>,
 ) {
 	const [positioned, setPositioned] = useState(false);

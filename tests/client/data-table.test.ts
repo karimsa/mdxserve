@@ -99,7 +99,9 @@ async function renderMarkdown(source: string, extension = "md") {
 		{ ...options, ...runtime },
 	);
 	return renderToStaticMarkup(
-		createElement(result.default, { components: { table: MarkdownTable, DataTable } }),
+		createElement(result.default, {
+			components: { table: MarkdownTable, Table: MarkdownTable, DataTable },
+		}),
 	);
 }
 describe("Markdown integration", () => {
@@ -139,6 +141,109 @@ describe("Markdown integration", () => {
 			expect(html).toContain("<td>Content</td>");
 		},
 	);
+
+	it.each(["md", "mdx"])("preserves formatted and linked headers in %s", async (extension) => {
+		const html = await renderMarkdown(
+			"| `--flag` | **Bold** | [Help](#help) |\n| --- | --- | --- |\n| yes | value | link |",
+			extension,
+		);
+		const header = html.match(/<thead>[\s\S]*?<\/thead>/)?.[0];
+		expect(header).toContain("<code>--flag</code>");
+		expect(header).toContain("<strong>Bold</strong>");
+		expect(header).toContain('<a href="#help">Help</a>');
+		for (const [button] of header?.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [])
+			expect(button).not.toContain("<a ");
+	});
+
+	it("forwards attributes to the inner table when reconstructing a recognized header", async () => {
+		const html = await renderMarkdown(
+			'<Table id="custom" aria-label="Custom label" aria-describedby="details" className="layout" style={{width:"50%"}} tabIndex={0}><thead><tr><th>Name</th></tr></thead><tbody><tr><td>API</td></tr></tbody></Table>',
+		);
+		expect(html).toContain('data-table-id="custom"');
+		const tag = html.match(/<table\b[^>]*>/)?.[0];
+		for (const attribute of [
+			'id="custom"',
+			'aria-label="Custom label"',
+			'aria-describedby="details"',
+			'class="layout"',
+			'style="width:50%"',
+			'tabindex="0"',
+		])
+			expect(tag).toContain(attribute);
+	});
+
+	it.each([
+		[
+			"multiple header rows",
+			"<thead><tr><th>First</th></tr><tr><th>Second</th></tr></thead><tbody><tr><td>Value</td></tr></tbody>",
+			"<th>Second</th>",
+		],
+		[
+			"header colspan",
+			"<thead><tr><th colSpan={2}>Group</th></tr></thead><tbody><tr><td>One</td><td>Two</td></tr></tbody>",
+			'colSpan="2"',
+		],
+		[
+			"body rowspan",
+			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td rowSpan={2}>Both</td></tr><tr></tr></tbody>",
+			'rowSpan="2"',
+		],
+		[
+			"body colspan",
+			"<thead><tr><th>One</th><th>Two</th></tr></thead><tbody><tr><td colSpan={2}>Both</td></tr></tbody>",
+			'colSpan="2"',
+		],
+		[
+			"footer",
+			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody><tfoot><tr><td>Total</td></tr></tfoot>",
+			"<tfoot>",
+		],
+		[
+			"caption",
+			"<caption>Important caption</caption><thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody>",
+			"<caption>Important caption</caption>",
+		],
+		[
+			"multiple bodies",
+			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody><tbody><tr><td>Two</td></tr></tbody>",
+			"<td>Two</td>",
+		],
+		[
+			"uneven rows",
+			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td><td>Extra</td></tr></tbody>",
+			"<td>Extra</td>",
+		],
+	])("preserves native structure for %s", async (_, children, expected) => {
+		const source = `<Table id="complex" aria-label="Native table">${children}</Table>`;
+		const html = await renderMarkdown(source);
+		expect(html).toBe(await renderMarkdown(source, "mdx"));
+		expect(html.toLowerCase()).toContain(expected.toLowerCase());
+		expect(html).toContain('id="complex"');
+		expect(html).not.toContain("data-table-id");
+	});
+
+	it("keeps identities with heading context when identical-header tables are inserted or moved", async () => {
+		const table = "| Name | Count |\n| --- | --- |\n| East | 12 |";
+		const ids = (html: string) =>
+			[...html.matchAll(/data-table-id="([^"]+)"/g)].map((match) => match[1]);
+		const original = ids(await renderMarkdown(`## Alpha\n\n${table}\n\n## Beta\n\n${table}`));
+		const inserted = ids(
+			await renderMarkdown(`## New\n\n${table}\n\n## Alpha\n\n${table}\n\n## Beta\n\n${table}`),
+		);
+		const moved = ids(await renderMarkdown(`## Beta\n\n${table}\n\n## Alpha\n\n${table}`));
+		expect(inserted.slice(1)).toEqual(original);
+		expect(moved).toEqual([...original].reverse());
+	});
+
+	it("disables persistence for ambiguous generated identities", async () => {
+		const table = "| Name | Count |\n| --- | --- |\n| East | 12 |";
+		const html = await renderMarkdown(`${table}\n\n${table}`);
+		expect([...html.matchAll(/data-table-persist="([^"]+)"/g)].map((match) => match[1])).toEqual([
+			"false",
+			"false",
+		]);
+		expect(await renderMarkdown(table)).toContain('data-table-persist="true"');
+	});
 
 	it("preserves alignment from native cell attributes", () => {
 		const html = renderToStaticMarkup(

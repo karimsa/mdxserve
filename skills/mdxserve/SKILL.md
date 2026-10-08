@@ -140,6 +140,9 @@ Use **`DataTable` for datasets**: measurements, metrics, budgets, benchmarks, an
 readers will compare, sort, or filter. Use **native Markdown tables for facts**: option
 references, prose comparisons, and key/value documentation. Native tables get the same
 bordered interface with conservative type detection; they do not automatically get bars.
+Native tables use heading context for generated IDs. Same-header tables within the same
+heading context remain interactive but do not persist preferences; use explicit `DataTable`
+IDs when persistent state is required for those tables.
 Both forms work identically in `.md` and `.mdx`. For documents mainly read elsewhere,
 retain portable Markdown unless richer mdxserve content was requested.
 

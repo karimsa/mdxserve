@@ -5,17 +5,19 @@ import { createPortal } from "react-dom";
 import { useColumnMenu } from "./useColumnMenu";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 
-function closeColumnMenu(onOpenChange: (open: boolean) => void, trigger: HTMLButtonElement | null) {
+function closeColumnMenu(onOpenChange: (open: boolean) => void, trigger: HTMLDivElement | null) {
 	onOpenChange(false);
 	trigger?.focus();
 }
 
 function handleHeaderKey(
-	event: KeyboardEvent<HTMLButtonElement>,
+	event: KeyboardEvent<HTMLDivElement>,
 	onSort: () => void,
 	onOpenChange: (open: boolean) => void,
-	onNavigate: (event: KeyboardEvent<HTMLButtonElement>) => void,
+	onNavigate: (event: KeyboardEvent<HTMLDivElement>) => void,
 ) {
+	if (event.target !== event.currentTarget) return;
+
 	if (event.key === " ") {
 		event.preventDefault();
 		onSort();
@@ -37,7 +39,7 @@ function handleMenuKey(event: KeyboardEvent<HTMLDivElement>, close: () => void) 
 
 function handleMenuBlur(
 	event: FocusEvent<HTMLDivElement>,
-	trigger: HTMLButtonElement | null,
+	trigger: HTMLDivElement | null,
 	onOpenChange: (open: boolean) => void,
 ) {
 	const nextTarget = event.relatedTarget;
@@ -54,6 +56,7 @@ function handleMenuBlur(
 /** Portaled to escape the table scroller, positioned against the triggering header. */
 export function ColumnMenu({
 	label,
+	headerContent,
 	unit,
 	indicator,
 	open,
@@ -65,17 +68,18 @@ export function ColumnMenu({
 	children,
 }: {
 	label: string;
+	headerContent?: ReactNode;
 	unit?: string;
 	indicator?: string;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onActivate: () => void;
 	onSort: () => void;
-	onNavigate: (event: KeyboardEvent<HTMLButtonElement>) => void;
+	onNavigate: (event: KeyboardEvent<HTMLDivElement>) => void;
 	tabIndex: number;
 	children: (close: () => void) => ReactNode;
 }) {
-	const trigger = useRef<HTMLButtonElement>(null);
+	const trigger = useRef<HTMLDivElement>(null);
 	const menu = useRef<HTMLDivElement>(null);
 	const menuId = useId();
 	const reducedMotion = useReducedMotion();
@@ -85,9 +89,9 @@ export function ColumnMenu({
 	return (
 		<>
 			<div className="data-table-header-control">
-				<button
+				<div
 					ref={trigger}
-					type="button"
+					role="button"
 					className="data-table-heading"
 					aria-label={`${label} column header`}
 					aria-keyshortcuts="Space Enter ArrowUp ArrowDown ArrowLeft ArrowRight"
@@ -102,10 +106,10 @@ export function ColumnMenu({
 					}}
 					onKeyDown={(event) => handleHeaderKey(event, onSort, onOpenChange, onNavigate)}
 				>
-					<span>{label}</span>
+					<span>{headerContent ?? label}</span>
 					{unit && <span className="data-table-unit">· {unit}</span>}
 					{indicator && <span className="data-table-indicator">{indicator}</span>}
-				</button>
+				</div>
 				<button
 					type="button"
 					className="data-table-header-chevron"

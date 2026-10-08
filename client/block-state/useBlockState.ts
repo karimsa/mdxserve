@@ -20,6 +20,7 @@ import {
 
 export interface BlockStateOptions<State> {
 	schema: BlockStateSchema<State>;
+	persist?: boolean;
 	initialState: () => State;
 	normalize?: (state: State) => State;
 	legacyKeys?: (scope: BlockStateScope) => readonly string[];
@@ -46,9 +47,9 @@ export function useBlockState<State>(
 	scope: BlockStateScope,
 	options: BlockStateOptions<State>,
 ): readonly [State, Dispatch<SetStateAction<State>>] {
-	const key = blockStateKey(scope);
-	const latest = useRef({ scope, options });
-	latest.current = { scope, options };
+	const key = JSON.stringify([blockStateKey(scope), options.persist !== false]);
+	const latest = useRef({ scope, options, key });
+	latest.current = { scope, options, key };
 
 	const [snapshot, setSnapshot] = useState<StateSnapshot<State>>(() => ({
 		key,
@@ -63,14 +64,17 @@ export function useBlockState<State>(
 
 	useEffect(() => {
 		const { scope: currentScope, options: currentOptions } = latest.current;
-		if (blockStateKey(currentScope) !== key) return;
+		if (latest.current.key !== key) return;
 
-		const restored = restoreBlockState(
-			browserBlockStorage(),
-			currentScope,
-			currentOptions.schema,
-			currentOptions.legacyKeys?.(currentScope),
-		);
+		const restored =
+			currentOptions.persist === false
+				? undefined
+				: restoreBlockState(
+						browserBlockStorage(),
+						currentScope,
+						currentOptions.schema,
+						currentOptions.legacyKeys?.(currentScope),
+					);
 
 		setSnapshot({
 			key,
@@ -80,7 +84,7 @@ export function useBlockState<State>(
 	}, [key]);
 
 	useEffect(() => {
-		if (!current.loaded || blockStateKey(latest.current.scope) !== key) return;
+		if (!current.loaded || latest.current.key !== key) return;
 
 		// Commit reconciliation so removed preferences cannot return on later schema edits.
 		setSnapshot((previous) => {
@@ -91,13 +95,14 @@ export function useBlockState<State>(
 				return previous;
 			return { ...previous, value: normalized };
 		});
-		saveBlockState(browserBlockStorage(), latest.current.scope, normalized);
+		if (latest.current.options.persist !== false)
+			saveBlockState(browserBlockStorage(), latest.current.scope, normalized);
 	}, [key, current.loaded, normalized]);
 
 	const setState = useCallback<Dispatch<SetStateAction<State>>>(
 		(update) => {
 			setSnapshot((previous) => {
-				if (blockStateKey(latest.current.scope) !== key) return previous;
+				if (latest.current.key !== key) return previous;
 
 				const currentOptions = latest.current.options;
 				const value = previous.key === key ? previous.value : currentOptions.initialState();

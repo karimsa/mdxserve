@@ -11,7 +11,13 @@ import { inferColumn, parseBound, type Column, type Row } from "./data-table/mod
 
 function elements(children: ReactNode) {
 	return Children.toArray(children).filter(
-		isValidElement<{ children?: ReactNode; align?: string; style?: CSSProperties }>,
+		isValidElement<{
+			children?: ReactNode;
+			align?: string;
+			style?: CSSProperties;
+			rowSpan?: number;
+			colSpan?: number;
+		}>,
 	);
 }
 
@@ -27,12 +33,55 @@ function text(children: ReactNode): string {
 		.join("");
 }
 
-function prepareMarkdownTable(children: ReactNode) {
+type TableElement = ReturnType<typeof elements>[number];
+
+function isElementOnly(children: ReactNode): boolean {
+	return Children.toArray(children).every(
+		(child) => isValidElement(child) || (typeof child === "string" && !child.trim()),
+	);
+}
+
+function rectangularCells(row: TableElement, cellType: "th" | "td"): TableElement[] | undefined {
+	if (row.type !== "tr" || !isElementOnly(row.props.children)) return undefined;
+	const cells = elements(row.props.children);
+	if (
+		cells.some(
+			(cell) =>
+				cell.type !== cellType ||
+				(cell.props.rowSpan !== undefined && cell.props.rowSpan !== 1) ||
+				(cell.props.colSpan !== undefined && cell.props.colSpan !== 1),
+		)
+	)
+		return undefined;
+	return cells;
+}
+
+/** Only reconstruct a single rectangular header/body; preserve richer native structures intact. */
+function tableStructure(children: ReactNode) {
+	if (!isElementOnly(children)) return undefined;
 	const sections = elements(children);
-	const header = sections.find((section) => section.type === "thead");
-	const body = sections.find((section) => section.type === "tbody");
-	const headers = elements(elements(header?.props.children)[0]?.props.children);
-	const cells = elements(body?.props.children).map((row) => elements(row.props.children));
+	if (sections.length !== 2 || sections[0].type !== "thead" || sections[1].type !== "tbody")
+		return undefined;
+	if (sections.some((section) => !isElementOnly(section.props.children))) return undefined;
+
+	const headerRows = elements(sections[0].props.children);
+	if (headerRows.length !== 1) return undefined;
+	const headers = rectangularCells(headerRows[0], "th");
+	if (!headers?.length) return undefined;
+
+	const cells: TableElement[][] = [];
+	for (const row of elements(sections[1].props.children)) {
+		const rowCells = rectangularCells(row, "td");
+		if (!rowCells || rowCells.length !== headers.length) return undefined;
+		cells.push(rowCells);
+	}
+	return { headers, cells };
+}
+
+function prepareMarkdownTable(children: ReactNode) {
+	const structure = tableStructure(children);
+	if (!structure) return undefined;
+	const { headers, cells } = structure;
 	const columns: Column[] = headers.map((cell, index) => {
 		const align = cell.props.style?.textAlign ?? cell.props.align;
 		const alignment =
@@ -66,11 +115,11 @@ function prepareMarkdownTable(children: ReactNode) {
 		),
 	);
 
-	return { columns, data, cells };
+	return { columns, data, cells, headers };
 }
 
 function renderMarkdownCell(
-	table: ReturnType<typeof prepareMarkdownTable>,
+	table: NonNullable<ReturnType<typeof prepareMarkdownTable>>,
 	row: number,
 	key: string,
 ) {
@@ -85,13 +134,13 @@ function renderMarkdownCell(
 export function MarkdownTable({
 	children,
 	id,
+	"data-table-persist": persist,
 	...tableProps
-}: TableHTMLAttributes<HTMLTableElement>) {
+}: TableHTMLAttributes<HTMLTableElement> & { "data-table-persist"?: string }) {
 	const fallbackId = useId();
 	const table = prepareMarkdownTable(children);
-	const { columns, data } = table;
 
-	if (!columns.length)
+	if (!table)
 		return (
 			<div className="data-table">
 				<div className="data-table-scroll">
@@ -105,8 +154,11 @@ export function MarkdownTable({
 	return (
 		<DataTable
 			id={id ?? `markdown-${fallbackId}`}
-			columns={columns}
-			data={data}
+			columns={table.columns}
+			data={table.data}
+			persistState={Boolean(id) && persist !== "false"}
+			tableProps={{ ...tableProps, id }}
+			renderHeader={(key) => table.headers[Number(key.slice(7))]?.props.children}
 			renderCell={(row, key) => renderMarkdownCell(table, row, key)}
 		/>
 	);

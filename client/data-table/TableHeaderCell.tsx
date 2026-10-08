@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 import { ColumnOptions } from "./ColumnOptions";
 import { ColumnMenu } from "./ColumnMenu";
 import { type Column, type Row, type TableState } from "./model";
@@ -6,6 +6,7 @@ import { cycleSort, hasFilter, type ActiveCell, type VisibleRow } from "./table-
 import { navigateTable } from "./navigation";
 
 export interface TableHeaderCellProps {
+	renderHeader?: (key: string) => ReactNode;
 	column: Column;
 	columnIndex: number;
 	rowSpan?: number;
@@ -25,6 +26,7 @@ export interface TableHeaderCellProps {
 }
 
 export function TableHeaderCell({
+	renderHeader,
 	column,
 	columnIndex,
 	rowSpan = 1,
@@ -65,6 +67,7 @@ export function TableHeaderCell({
 				}
 				onSort={() => setState((previous) => cycleSort(previous, column.key))}
 				label={column.label}
+				headerContent={renderHeader?.(column.key)}
 				unit={units[column.key] || undefined}
 				indicator={`${sorted ? (state.sort?.descending ? "↓" : "↑") : ""}${filtered ? " •" : ""}`}
 				open={openColumn === column.key}

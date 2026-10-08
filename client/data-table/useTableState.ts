@@ -25,8 +25,9 @@ function legacyTableKeys(scope: BlockStateScope): string[] {
 	return [`mdxserve:table:v1:${scope.documentPath}:${scope.blockId}`];
 }
 
-export function useTableState(scope: BlockStateScope, columns: Column[]) {
+export function useTableState(scope: BlockStateScope, columns: Column[], persist = true) {
 	return useBlockState(scope, {
+		persist,
 		schema: savedStateSchema,
 		initialState: emptyState,
 		normalize: (state) => normalizeTableState(state, columns),

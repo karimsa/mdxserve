@@ -26,6 +26,8 @@ Import the hooks from `./useBlockState` and storage helpers/types from `./storag
 - Invalid saved data, blocked storage, and quota errors fall back to usable in-memory state.
   Normalization runs before rendering and saving and is committed to memory, so removed
   preferences do not reappear on later content edits. It may return a fresh object.
+- Set `persist: false` for blocks without an unambiguous identity. They retain in-memory
+  interaction but never read or write saved preferences.
 - For migrations, provide `legacyKeys(scope)`. Only a missing current key permits legacy reads;
   a corrupt current value does not resurrect older preferences. Successful restoration is saved
   under the new key. Legacy keys are left intact for compatibility with older app versions.

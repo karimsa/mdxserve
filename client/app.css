@@ -302,7 +302,8 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 
 /* Folder listing titles are rendered from the doc's first h1 as inline HTML. */
 /* Keep this in lockstep with the `.mdx-prose code` chip in design/base/prose.css. */
-.listing-title code {
+.listing-title code,
+.data-table-heading code {
 	font: var(--type-code-inline);
 	background: var(--code-bg-inline);
 	color: var(--text-accent);
@@ -480,6 +481,14 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 .data-table-heading svg {
 	flex-shrink: 0;
 	opacity: 0.6;
+}
+.data-table-heading a {
+	color: var(--text-accent);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.data-table-heading strong {
+	font-weight: 700;
 }
 .data-table-unit {
 	color: var(--text-subtle);

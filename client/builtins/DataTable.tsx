@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type TableHTMLAttributes } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { z } from "zod";
 import { TableHeaderCell } from "../data-table/TableHeaderCell";
@@ -34,7 +34,12 @@ export const dataTableProps = z.object({
 });
 
 export type DataTableProps = z.infer<typeof dataTableProps>;
-type InternalProps = DataTableProps & { renderCell?: (row: number, key: string) => ReactNode };
+type InternalProps = DataTableProps & {
+	renderCell?: (row: number, key: string) => ReactNode;
+	renderHeader?: (key: string) => ReactNode;
+	tableProps?: Omit<TableHTMLAttributes<HTMLTableElement>, "children">;
+	persistState?: boolean;
+};
 
 function validateTableProps(props: InternalProps) {
 	const parsed = dataTableProps.parse(props);
@@ -64,7 +69,15 @@ export default function DataTable(props: InternalProps) {
 	const scope = useDocumentBlockScope({ kind: "table", version: 1, blockId: parsed.id });
 
 	return (
-		<TableView key={blockStateKey(scope)} {...parsed} renderCell={props.renderCell} scope={scope} />
+		<TableView
+			key={blockStateKey(scope)}
+			{...parsed}
+			renderCell={props.renderCell}
+			renderHeader={props.renderHeader}
+			tableProps={props.tableProps}
+			persistState={props.persistState}
+			scope={scope}
+		/>
 	);
 }
 
@@ -74,9 +87,12 @@ function TableView({
 	columns,
 	data,
 	renderCell,
+	renderHeader,
+	tableProps,
+	persistState = true,
 	scope,
 }: InternalProps & { scope: BlockStateScope }) {
-	const [state, setState] = useTableState(scope, columns);
+	const [state, setState] = useTableState(scope, columns, persistState);
 	const [openColumn, setOpenColumn] = useState<string | null>(null);
 	const [active, setActive] = useState<ActiveCell>(null);
 	const tableRef = useRef<HTMLTableElement>(null);
@@ -90,6 +106,7 @@ function TableView({
 	const filteredColumns = columns.filter((column) => hasFilter(state.filters[column.key]));
 
 	const headerProps = {
+		renderHeader,
 		columnCount: columns.length,
 		data,
 		rows,
@@ -106,7 +123,7 @@ function TableView({
 	};
 
 	return (
-		<div className="data-table not-prose" data-table-id={id}>
+		<div className="data-table not-prose" data-table-id={id} data-table-persist={persistState}>
 			<div className="data-table-toolbar">
 				<span>{caption ?? "Table"}</span>
 				<span className="data-table-count">{data.length} rows</span>
@@ -138,7 +155,7 @@ function TableView({
 			)}
 
 			<div className="data-table-scroll">
-				<table ref={tableRef} aria-label={caption ?? "Data table"}>
+				<table aria-label={caption ?? "Data table"} {...tableProps} ref={tableRef}>
 					<thead>
 						{columns.some((column) => column.group) ? (
 							<>
