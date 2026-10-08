@@ -362,8 +362,10 @@ __metadata:
     "@trpc/client": "npm:11.18.0"
     "@trpc/server": "npm:11.18.0"
     "@trpc/tanstack-react-query": "npm:11.18.0"
+    "@types/bytes": "npm:3.1.6"
     "@types/lockfile": "npm:1.0.4"
     "@types/mdast": "npm:4.0.4"
+    "@types/ms": "npm:2.1.0"
     "@types/node": "npm:26.2.0"
     "@types/react": "npm:19.2.18"
     "@types/react-dom": "npm:19.2.4"
@@ -371,6 +373,7 @@ __metadata:
     "@types/update-notifier": "npm:6.0.8"
     "@vitejs/plugin-react": "npm:6.0.5"
     "@yarnpkg/types": "npm:4.0.1"
+    bytes: "npm:3.1.2"
     commander: "npm:15.0.0"
     date-fns: "npm:4.4.0"
     diff: "npm:9.0.0"
@@ -390,6 +393,7 @@ __metadata:
     micromark-extension-frontmatter: "npm:2.0.0"
     micromark-extension-mdxjs: "npm:3.0.0"
     minisearch: "npm:7.2.0"
+    ms: "npm:2.1.3"
     node-sqlite3-wasm: "npm:0.8.60"
     oxlint: "npm:1.77.0"
     prettier: "npm:3.9.6"
@@ -1699,6 +1703,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/bytes@npm:3.1.6":
+  version: 3.1.6
+  resolution: "@types/bytes@npm:3.1.6"
+  checksum: 10c0/2d9fff3d0aa5487f71a94a719b04336f03832211353927b9e1b3dc02a566f38c96b7a5ccb260af3893b4900f5bc5ee1b5adc3074a061b7a0522787ed57a8a5be
+  languageName: node
+  linkType: hard
+
 "@types/chai@npm:^5.2.2":
   version: 5.2.3
   resolution: "@types/chai@npm:5.2.3"
@@ -1812,7 +1823,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ms@npm:*":
+"@types/ms@npm:*, @types/ms@npm:2.1.0":
   version: 2.1.0
   resolution: "@types/ms@npm:2.1.0"
   checksum: 10c0/5ce692ffe1549e1b827d99ef8ff71187457e0eb44adbae38fdf7b9a74bae8d20642ee963c14516db1d35fa2652e65f47680fdf679dcbde52bbfadd021f497225
@@ -2275,6 +2286,13 @@ __metadata:
   dependencies:
     fill-range: "npm:^7.1.1"
   checksum: 10c0/7c6dfd30c338d2997ba77500539227b9d1f85e388a5f43220865201e407e076783d0881f2d297b9f80951b4c957fcf0b51c1d2d24227631643c3f7c284b0aa04
+  languageName: node
+  linkType: hard
+
+"bytes@npm:3.1.2":
+  version: 3.1.2
+  resolution: "bytes@npm:3.1.2"
+  checksum: 10c0/76d1c43cbd602794ad8ad2ae94095cddeb1de78c5dddaa7005c51af10b0176c69971a6d88e805a90c2b6550d76636e43c40d8427a808b8645ede885de4a0358e
   languageName: node
   linkType: hard
 
@@ -5273,7 +5291,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ms@npm:^2.1.3":
+"ms@npm:2.1.3, ms@npm:^2.1.3":
   version: 2.1.3
   resolution: "ms@npm:2.1.3"
   checksum: 10c0/d924b57e7312b3b63ad21fc5b3dc0af5e78d61a1fc7cfb5457edaf26326bf62be5307cc87ffb6862ef1c2b33b0233cdb5d4f01c4c958cc0d660948b65a287a48

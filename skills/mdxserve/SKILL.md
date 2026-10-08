@@ -30,7 +30,7 @@ add clarity, and prefer features that degrade gracefully everywhere else.
    error on them, and they draw data, which is `<Chart>`'s job (or a table). Mermaid is for a
    flow or a shape, not a dataset.
 4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
-   `<Kbd>`, `<FileTree>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`, `<Screenshot>`) only when they make
+   `<Kbd>`, `<FileTree>`, `<DataTable>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`, `<Screenshot>`) only when they make
    the content clearer: a warning the reader must not miss, per-OS or per-language variants of the
    same instructions, a status label, a small dataset that's clearer as a shape than a table.
    Outside mdxserve these show as raw tags, so use them sparingly and never for decoration.
@@ -133,6 +133,57 @@ Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search.
 Components contain ordinary Markdown: a `Tab` can hold lists, paragraphs, and code fences.
 Leave a blank line between a component tag and a Markdown block inside it so the block is
 parsed as Markdown.
+
+## Tables: data versus facts
+
+Use **`DataTable` for datasets**: measurements, metrics, budgets, benchmarks, and records
+readers will compare, sort, or filter. Use **native Markdown tables for facts**: option
+references, prose comparisons, and key/value documentation. Native tables get the same
+bordered interface with conservative type detection; they do not automatically get bars.
+Both forms work identically in `.md` and `.mdx`. For documents mainly read elsewhere,
+retain portable Markdown unless richer mdxserve content was requested.
+
+Check `mdxserve components show DataTable` before first use. Supply a stable, descriptive
+`id` unique within the document, and preserve it when updating data. Sorting, filters, and
+unit preferences are saved locally under the document and ID. Give columns stable unique
+`key` values; row objects use those keys. Missing values use `null`, never an invented zero.
+
+```mdx
+<DataTable
+  id="endpoint-performance"
+  caption="Endpoint performance"
+  columns={[
+    { key: "endpoint", label: "Endpoint", type: "text" },
+    { key: "success", label: "Success", type: "percent" },
+    { key: "mean", label: "Mean", type: "time", unit: "ms", group: "Latency", bars: true },
+    { key: "peak", label: "Peak", type: "time", unit: "ms", group: "Latency", bars: true },
+    { key: "payload", label: "Payload", type: "bytes", unit: "B" },
+    { key: "cost", label: "Cost", type: "currency", format: (value) => `$${value.toFixed(2)}` }
+  ]}
+  data={[
+    { endpoint: "/search", success: 0.995, mean: 120, peak: 450, payload: 2048, cost: 12.50 },
+    { endpoint: "/export", success: 0.98, mean: 2400, peak: 8000, payload: 1048576, cost: 25 }
+  ]}
+/>
+```
+
+- `text` uses strings; readers filter with a regular expression, case-insensitive.
+- `number` uses finite numbers; readers filter by inclusive minimum and maximum.
+- `percent` uses **fractions**: `0.15` displays **15%**. Filter inputs use displayed percentage
+  points (`15` or `15%`), not fractions.
+- `time` uses numeric data and a required base `unit` accepted by `ms` (e.g. `ms`, `seconds`,
+  `hours`). One unit is chosen for the entire column; readers can override it. Filters accept
+  durations such as `500ms` or `2s`; bare numbers use the currently displayed unit.
+- `bytes` uses numeric data and a required base `unit` accepted by `bytes` (`B`, `KB`, `MB`,
+  `GB`, `TB`, `PB`). Units are binary (1 KB = 1024 B). The whole column shares a display unit;
+  filters accept `10MB`, or bare numbers in the displayed unit.
+- `currency` keeps numeric data and **requires `format: (value) => string`**. Include the
+  intended currency in that formatter or label. Filters expand `10K`, `2M`, `1B`, and `1T`.
+- Adjacent columns with the same `group` get a shared top-level heading.
+- Set `bars: true` only when comparing magnitudes is meaningful. Omit it for IDs, years,
+  ranks, or ambiguous measurements. Each column has its own zero-inclusive scale, fixed
+  across sorting/filtering; negative values extend left of zero. Equal bar lengths across
+  different columns do not imply equal quantities.
 
 ## Plan files
 

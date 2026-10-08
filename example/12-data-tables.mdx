@@ -1,0 +1,39 @@
+# Data tables
+
+Typed columns keep measurements comparable. Select a header or cell and use the arrow keys to move. On a header, Space cycles sorting; Enter opens its filter and focuses the first input. Tab moves to the next input. Click a header chevron for the same options.
+
+<DataTable
+  id="service-performance"
+  caption="Service performance"
+  columns={[
+    { key: "service", label: "Service", type: "text" },
+    { key: "requests", label: "Requests", type: "number", bars: true },
+    { key: "success", label: "Success", type: "percent", bars: true },
+    { key: "mean", label: "Mean", type: "time", unit: "ms", group: "Latency", bars: true },
+    { key: "peak", label: "Peak", type: "time", unit: "ms", group: "Latency", bars: true },
+    { key: "size", label: "Transfer", type: "bytes", unit: "B" },
+    { key: "cost", label: "Cost", type: "currency", format: (value) => `$${value.toLocaleString("en-US")}` }
+  ]}
+  data={[
+    { service: "Search", requests: 12000, success: 0.998, mean: 120, peak: 2400, size: 2097152, cost: 15000 },
+    { service: "API", requests: 48000, success: 0.985, mean: 75, peak: 1800, size: 8388608, cost: 42000 },
+    { service: "Export", requests: 900, success: 0.95, mean: 3500, peak: 15000, size: 67108864, cost: 2500 },
+    { service: "Worker", requests: 6400, success: 1, mean: 500, peak: 750, size: 524288, cost: 8000 }
+  ]}
+/>
+
+## Native Markdown tables
+
+Facts still use ordinary Markdown. Links and inline formatting remain intact.
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| **Port** | 4040 | HTTP server port |
+| Host | `127.0.0.1` | Loopback address |
+| Documentation | [Builtins](./06-builtins.mdx) | Available components |
+
+| Region | Requests | Success |
+| --- | ---: | ---: |
+| East | 4200 | 99.2% |
+| West | 3100 | 98.1% |
+| North | 850 | 100% |

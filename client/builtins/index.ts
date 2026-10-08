@@ -12,6 +12,7 @@ import FileTree, { fileTreeProps } from "./FileTree";
 import Chart, { chartProps } from "./Chart";
 import Sparkline, { sparklineProps } from "./Sparkline";
 import Dropdown, { Option, dropdownProps, optionProps } from "./Dropdown";
+import DataTable, { dataTableProps } from "./DataTable";
 import Screenshot, { screenshotProps } from "./Screenshot";
 
 export interface BuiltinDefinition {
@@ -23,6 +24,15 @@ export interface BuiltinDefinition {
 }
 
 export const builtins: BuiltinDefinition[] = [
+	{
+		name: "DataTable",
+		description:
+			"A bordered, sortable, filterable data table with typed columns, unit selection, grouped headers and optional bars.",
+		whenToUse:
+			"Use for datasets and quantitative comparisons; use native Markdown tables for facts and prose. Required stable document-unique id. Columns have key, label, type (text/number/percent/time/bytes/currency), optional group and bars. Percent values are fractions (0.15 means 15%). Time and bytes require unit; currency requires a format function and numeric data. Bars are opt-in and independently scaled by column. Reader state is local to the document and ID.",
+		props: dataTableProps,
+		Component: DataTable,
+	},
 	{
 		name: "Callout",
 		description:

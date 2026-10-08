@@ -1,0 +1,147 @@
+import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { evaluate } from "@mdx-js/mdx";
+import * as runtime from "react/jsx-runtime";
+import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { MarkdownTable } from "../../client/MarkdownTable";
+import DataTable from "../../client/builtins/DataTable";
+import {
+	autoUnit,
+	inferColumn,
+	compareValues,
+	filterPredicate,
+	formatValue,
+	parseBound,
+	unitFactor,
+	type Column,
+} from "../../client/data-table/model";
+
+const number: Column = { key: "value", label: "Value", type: "number" };
+const percent: Column = { ...number, type: "percent" };
+const time: Column = { ...number, type: "time", unit: "milliseconds" };
+const size: Column = { ...number, type: "bytes", unit: "KB" };
+const currency: Column = { ...number, type: "currency", format: (value) => `$${value.toFixed(2)}` };
+describe("typed table values", () => {
+	it("keeps saved numeric duration bounds meaningful when auto display units change", () => {
+		expect(filterPredicate(time, { min: "1", unit: "s" }, "ms")(500)).toBe(false);
+		expect(filterPredicate(time, { min: "1", unit: "s" }, "ms")(2000)).toBe(true);
+	});
+	it("infers only consistent units and preserves ambiguous columns as text", () => {
+		expect(inferColumn("duration", "Duration", ["2s", "500ms"]).type).toBe("time");
+		expect(inferColumn("size", "Size", ["1MB", "20KB"]).type).toBe("bytes");
+		expect(inferColumn("mixed", "Mixed", ["1MB", "2s"]).type).toBe("text");
+		expect(inferColumn("id", "ID", ["001", "002"]).type).toBe("text");
+		expect(inferColumn("money", "Money", ["$1", "€2"]).type).toBe("text");
+	});
+	it("uses fractional source percentages and percentage-point filters", () => {
+		expect(formatValue(0.15, percent)).toBe("15%");
+		expect(parseBound("15%", percent)).toBe(0.15);
+		expect(filterPredicate(percent, { min: "15", max: "20" })(0.18)).toBe(true);
+	});
+	it("converts duration aliases, explicit units and bare display values to the source unit", () => {
+		expect(unitFactor("time", "hours")).toBe(3600000);
+		expect(parseBound("2 seconds", time)).toBe(2000);
+		expect(parseBound("2", time, "s")).toBe(2000);
+		expect(autoUnit(time, [20, 2400, null])).toBe("s");
+		expect(formatValue(500, time, "s")).toBe("0.5 s");
+	});
+	it("uses binary bytes and rejects unrecognized units instead of accepting a numeric prefix", () => {
+		expect(parseBound("1MB", size)).toBe(1024);
+		expect(formatValue(1024, size, "MB")).toBe("1 MB");
+		expect(() => unitFactor("bytes", "potatoes")).toThrow();
+		expect(() => parseBound("12oops", size)).toThrow();
+	});
+	it("expands currency suffixes without converting numeric source data to text", () => {
+		expect(parseBound("10K", currency)).toBe(10000);
+		expect(parseBound("-2.5M", currency)).toBe(-2500000);
+		expect(formatValue(12.5, currency)).toBe("$12.50");
+	});
+	it("matches regex case insensitively by default and reports invalid patterns", () => {
+		const text: Column = { ...number, type: "text" };
+		expect(filterPredicate(text, { pattern: "^api$" })("API")).toBe(true);
+		expect(filterPredicate(text, { pattern: "^api$", caseSensitive: true })("API")).toBe(false);
+		expect(() => filterPredicate(text, { pattern: "[" })).toThrow();
+	});
+	it("uses inclusive bounds, preserves missing values, and rejects inverted or malformed bounds", () => {
+		expect(filterPredicate(number, { min: "0", max: "10" })(0)).toBe(true);
+		expect(filterPredicate(number, { min: "0", max: "10" })(10)).toBe(true);
+		expect(filterPredicate(number, { min: "0" })(null)).toBe(false);
+		expect(filterPredicate(number, {})(null)).toBe(true);
+		expect(() => filterPredicate(number, { min: "10", max: "0" })).toThrow();
+		expect(() => parseBound("3oops", number)).toThrow();
+	});
+	it("sorts numbers numerically and keeps missing values last in either direction", () => {
+		for (const descending of [true, false]) {
+			const values = [10, null, 2].sort((left, right) => compareValues(left, right, descending));
+			expect(values).toEqual(descending ? [10, 2, null] : [2, 10, null]);
+		}
+	});
+	it("requires identity, numeric measures, base units and currency formatters", () => {
+		const render = (props: object) =>
+			renderToStaticMarkup(createElement(DataTable, props as never));
+		expect(() => render({ columns: [number], data: [] })).toThrow();
+		expect(() =>
+			render({ id: "table", columns: [{ ...number, type: "time" }], data: [] }),
+		).toThrow();
+		expect(() =>
+			render({ id: "table", columns: [{ ...number, type: "currency" }], data: [] }),
+		).toThrow();
+		expect(() => render({ id: "table", columns: [number], data: [{ value: "12" }] })).toThrow();
+		expect(() => render({ id: "table", columns: [number, number], data: [] })).toThrow();
+	});
+});
+async function renderMarkdown(source: string, extension = "md") {
+	const { providerImportSource: _, ...options } = mdxCompileOptions();
+	const result = await evaluate(
+		{ value: source, path: `table.${extension}` },
+		{ ...options, ...runtime },
+	);
+	return renderToStaticMarkup(
+		createElement(result.default, { components: { table: MarkdownTable, DataTable } }),
+	);
+}
+describe("Markdown integration", () => {
+	it("normalizes native duration and byte columns into one display unit", async () => {
+		const html = await renderMarkdown(
+			"| Duration | Size |\n| --- | --- |\n| 2s | 1MB |\n| 500ms | 512KB |",
+		);
+		expect(html).toContain("0.5 s");
+		expect(html).toContain("0.5 MB");
+	});
+	it("renders identical native tables in md and mdx, preserving links and inline formatting", async () => {
+		const source =
+			"| Name | Count |\n| --- | ---: |\n| **East** | 12 |\n| [West](https://example.com) | 2 |";
+		const markdown = await renderMarkdown(source);
+		expect(markdown).toBe(await renderMarkdown(source, "mdx"));
+		expect(markdown).toContain('data-table-id="markdown-table-');
+		expect(markdown).toContain("<strong>East</strong>");
+		expect(markdown).toContain('href="https://example.com"');
+		expect(markdown).toContain('data-numeric="true"');
+		expect(markdown).not.toContain('class="data-table-bar"');
+	});
+	it("preserves native identity across row edits and distinguishes same-header tables", async () => {
+		const source = "| Name | Count |\n| --- | --- |\n| East | 12 |";
+		const id = (html: string) =>
+			[...html.matchAll(/data-table-id="([^"]+)"/g)].map((match) => match[1]);
+		expect(id(await renderMarkdown(source))).toEqual(
+			id(await renderMarkdown(source.replace("12", "42"))),
+		);
+		const ids = id(await renderMarkdown(`${source}\n\n${source}`));
+		expect(new Set(ids).size).toBe(2);
+	});
+	it("does not coerce mixed text or leading-zero identifiers into numbers", async () => {
+		const html = await renderMarkdown(
+			"| ID | Mixed |\n| --- | --- |\n| 001 | 12 |\n| 002 | pending |",
+		);
+		expect(html).not.toContain('data-numeric="true"');
+	});
+	it("renders grouped numeric tables in both extensions without client globals", async () => {
+		const source =
+			'<DataTable id="metrics" columns={[{key:"value",label:"Value",type:"number",group:"Totals",bars:true}]} data={[{value:2},{value:-1}]} />';
+		const html = await renderMarkdown(source);
+		expect(html).toBe(await renderMarkdown(source, "mdx"));
+		expect(html).toContain('scope="colgroup"');
+		expect(html).toContain('class="data-table-bar"');
+	});
+});

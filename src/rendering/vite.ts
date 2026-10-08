@@ -168,6 +168,13 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		{ find: "tippy.js", replacement: tippyEntry },
 		{ find: "lucide-react", replacement: lucideEntry },
 		{ find: "date-fns", replacement: dateFnsEntry },
+		// The UMD entry cannot run directly in the SSR module runner.
+		{
+			find: "@floating-ui/dom",
+			replacement: path.join(packageDir("@floating-ui/dom"), "dist/floating-ui.dom.mjs"),
+		},
+		{ find: "ms", replacement: resolveFromPkg("ms") },
+		{ find: "bytes", replacement: resolveFromPkg("bytes") },
 		{ find: "jotai", replacement: jotaiEntry },
 		...tiptapAliases,
 		{ find: "@tanstack/react-query", replacement: reactQueryEntry },
@@ -227,6 +234,8 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		"svg-pan-zoom",
 		"zod",
 		"framer-motion",
+		"ms",
+		"bytes",
 		"react-hot-toast",
 		"@tippyjs/react",
 		"tippy.js",
@@ -367,6 +376,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					"@mdx-js/react",
 					"zod",
 					"framer-motion",
+					"ms",
+					"bytes",
 					// MdSection imports pushToast at module scope, and Toast.tsx imports
 					// react-hot-toast at module scope — so it too is on every SSR render.
 					"react-hot-toast",
