@@ -67,6 +67,9 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## General philosophy
 
+- `.md` and `.mdx` must always have identical syntax and behavior. Never choose parsing,
+  rendering, validation, editing, or export behavior based on which extension a document has.
+  Any syntax rule or escape hatch must work the same way in both.
 - Every service should be cognizant of its service boundaries, revalidating assumptions across boundaries
 - All HTTP API methods made available should be strongly typed on both input parameters and result, using zod, ensuring we have both compile-time and runtime type safety
 - All HTTP API methods should be GET or POST methods, written as RPC methods (i.e. `getEntityById` vs. `/entity/:id`)
