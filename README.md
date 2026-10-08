@@ -1,6 +1,19 @@
-# mdxserve
+<p align="center">
+    <img src="client/favicon.svg" alt="mdxserve logo" width="96" height="96" />
+</p>
 
-`serve`, but for Markdown and MDX.
+<h1 align="center">mdxserve</h1>
+
+<p align="center">The prettiest way to view Markdown and MDX.</p>
+
+<p align="center">
+    <a href="https://www.npmjs.com/package/@karimsa/mdxserve">
+        <img src="https://img.shields.io/npm/v/@karimsa/mdxserve" alt="npm version" />
+    </a>
+    <a href="LICENSE">
+        <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
+    </a>
+</p>
 
 Point it at a folder of `.md` / `.mdx` files and it serves them as a site you can browse: a
 listing of every folder, each file rendered as a page with syntax-highlighted code, mermaid
