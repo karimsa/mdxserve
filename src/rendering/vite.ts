@@ -199,7 +199,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		name: "mdxserve:lenient-md",
 		enforce: "pre" as const,
 		transform(code: string, id: string) {
-			if (!/\.md(\?|$)/.test(id)) return null;
+			if (!/\.mdx?(\?|$)/.test(id)) return null;
 			const escaped = escapeBareLt(code);
 			return escaped === code ? null : { code: escaped, map: null };
 		},

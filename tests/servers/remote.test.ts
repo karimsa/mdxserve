@@ -27,7 +27,7 @@ describe("serverBaseUrl", () => {
 		expect(serverBaseUrl({ host: "192.168.1.10", port: 4040 })).toBe("http://192.168.1.10:4040");
 	});
 
-	it("property: the base URL parses and its port round-trips", () => {
+	it("the base URL parses and its port round-trips", () => {
 		const hostArb = fc.constantFrom(
 			"0.0.0.0",
 			"::",

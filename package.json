@@ -34,6 +34,7 @@
 		"format:check": "prettier --check .",
 		"lint": "oxlint",
 		"test": "vitest run",
+		"test:browser": "vitest run --config vitest.browser.config.ts",
 		"prepack": "yarn build",
 		"smoke": "bash scripts/smoke-pack.sh"
 	},
@@ -110,6 +111,7 @@
 		"esbuild": "0.28.2",
 		"fast-check": "4.9.0",
 		"oxlint": "1.77.0",
+		"playwright": "1.58.2",
 		"prettier": "3.9.6",
 		"tsx": "4.23.12",
 		"typescript": "7.0.2",

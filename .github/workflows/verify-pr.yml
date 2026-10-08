@@ -65,6 +65,12 @@ jobs:
       - name: Test
         run: yarn test
 
+      - name: Install browser
+        run: yarn playwright install --with-deps chromium
+
+      - name: Test browser features
+        run: yarn test:browser
+
       - name: Build
         run: yarn build
 

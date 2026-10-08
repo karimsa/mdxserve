@@ -80,7 +80,7 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## Writing tests
 
-- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/rendering/`
+- Tests mirror the modules: `tests/<module>/service.test.ts`, `controller.test.ts`, and additional files named for the behavior they verify (for example `service-save.test.ts` or `controller-paths.test.ts`); adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/rendering/`. Use generated cases where useful without labeling a file by testing technique.
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
 - A service that owns an external process (`RenderService`) may lean on functional tests plus one cheap property; a full property run against a live Vite server is not worth the wall clock
