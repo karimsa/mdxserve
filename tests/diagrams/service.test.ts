@@ -48,6 +48,47 @@ describe("DiagramsService", () => {
 			test.cleanup();
 		}
 	});
+	it("keeps conversion capacity available after many dialogs close while rejecting late requests", async () => {
+		const test = fixture();
+		try {
+			for (let index = 0; index < 120; index++) {
+				const session = `closed-${index}`;
+				expect((await test.service.convert({ ...input, session }, true)).kind).toBe("ok");
+				expect(test.service.release(session, true).kind).toBe("ok");
+			}
+			for (const session of ["closed-0", "closed-119"]) {
+				expect((await test.service.convert({ ...input, session, revision: 2 }, true)).kind).toBe(
+					"cancelled",
+				);
+				expect(test.service.beginUpload(session, true).kind).toBe("cancelled");
+			}
+			test.service.cancel("cancel-before-arrival", 2, true);
+			expect(
+				(await test.service.convert({ ...input, session: "cancel-before-arrival" }, true)).kind,
+			).toBe("cancelled");
+			expect((await test.service.convert(input, true)).kind).toBe("ok");
+			expect(test.port.convert).toHaveBeenCalledTimes(121);
+		} finally {
+			test.cleanup();
+		}
+	});
+	it("still bounds unreleased sessions and frees capacity when one closes", async () => {
+		const test = fixture();
+		try {
+			for (let index = 0; index < 100; index++)
+				expect(
+					(await test.service.convert({ ...input, session: `open-${index}` }, true)).kind,
+				).toBe("ok");
+			expect((await test.service.convert(input, true)).kind).toBe("busy");
+			test.service.release("open-0", true);
+			expect((await test.service.convert(input, true)).kind).toBe("ok");
+			expect(
+				(await test.service.convert({ ...input, session: "open-0", revision: 2 }, true)).kind,
+			).toBe("cancelled");
+		} finally {
+			test.cleanup();
+		}
+	});
 	it("kills superseded work and serializes replacement", async () => {
 		let started: () => void = () => {};
 		const began = new Promise<void>((resolve) => (started = resolve));

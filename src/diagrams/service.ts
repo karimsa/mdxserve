@@ -64,6 +64,12 @@ export class DiagramsService {
 			if (session.touched < cutoff && !session.abort) this.sessions.delete(key);
 		for (const [key, upload] of this.uploads) if (upload.touched < cutoff) this.uploads.delete(key);
 	}
+	private activeSessionCount() {
+		let count = 0;
+		for (const session of this.sessions.values())
+			if (session.revision !== Number.MAX_SAFE_INTEGER) count++;
+		return count;
+	}
 	/** Called on configuration change and shutdown, including external setup changes. */
 	stopIfDisabled() {
 		const settings = this.preferences.read();
@@ -130,7 +136,7 @@ export class DiagramsService {
 			previous.abort?.abort();
 			previous.revision = revision;
 			previous.touched = Date.now();
-		} else if (!previous && this.sessions.size < 100)
+		} else if (!previous && this.activeSessionCount() < 100)
 			this.sessions.set(sessionId, { revision, touched: Date.now() });
 		return { kind: "ok", value: null };
 	}
@@ -238,7 +244,7 @@ export class DiagramsService {
 		const previous = this.sessions.get(input.session);
 		if (previous && input.revision <= previous.revision)
 			return { kind: "cancelled", message: "Superseded conversion" };
-		if (this.pending >= 4 || (!previous && this.sessions.size >= 100))
+		if (this.pending >= 4 || (!previous && this.activeSessionCount() >= 100))
 			return { kind: "busy", message: "Diagram conversion is busy; retry shortly" };
 		previous?.abort?.abort();
 		const abort = new AbortController();
