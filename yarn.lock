@@ -382,10 +382,12 @@ __metadata:
     lockfile: "npm:1.0.4"
     lucide-react: "npm:1.30.0"
     mdast-util-from-markdown: "npm:2.0.3"
+    mdast-util-frontmatter: "npm:2.0.1"
     mdast-util-mdx: "npm:3.0.0"
     mdast-util-to-hast: "npm:13.2.1"
     mdast-util-to-string: "npm:4.0.0"
     mermaid: "npm:10.9.8"
+    micromark-extension-frontmatter: "npm:2.0.0"
     micromark-extension-mdxjs: "npm:3.0.0"
     minisearch: "npm:7.2.0"
     node-sqlite3-wasm: "npm:0.8.60"
@@ -4242,7 +4244,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mdast-util-frontmatter@npm:^2.0.0":
+"mdast-util-frontmatter@npm:2.0.1, mdast-util-frontmatter@npm:^2.0.0":
   version: 2.0.1
   resolution: "mdast-util-frontmatter@npm:2.0.1"
   dependencies:
@@ -4546,7 +4548,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"micromark-extension-frontmatter@npm:^2.0.0":
+"micromark-extension-frontmatter@npm:2.0.0, micromark-extension-frontmatter@npm:^2.0.0":
   version: 2.0.0
   resolution: "micromark-extension-frontmatter@npm:2.0.0"
   dependencies:
