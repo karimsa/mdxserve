@@ -1,4 +1,4 @@
-import { useContext, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { z } from "zod";
 import { TableHeaderCell } from "../data-table/TableHeaderCell";
@@ -11,7 +11,8 @@ import {
 	type ActiveCell,
 } from "../data-table/table-state";
 import { TableCell } from "../data-table/TableCell";
-import { DocContext } from "../DocContext";
+import { useDocumentBlockScope } from "../block-state/useBlockState";
+import { blockStateKey, type BlockStateScope } from "../block-state/storage";
 import { columnSchema, unitFactor } from "../data-table/model";
 
 export const dataTableProps = z.object({
@@ -60,12 +61,10 @@ function validateTableProps(props: InternalProps) {
 export default function DataTable(props: InternalProps) {
 	const parsed = validateTableProps(props);
 
-	const context = useContext(DocContext);
-	const path = context?.path ?? (typeof location === "undefined" ? "" : location.pathname);
-	const storageKey = `mdxserve:table:v1:${path}:${parsed.id}`;
+	const scope = useDocumentBlockScope({ kind: "table", version: 1, blockId: parsed.id });
 
 	return (
-		<TableView key={storageKey} {...parsed} renderCell={props.renderCell} storageKey={storageKey} />
+		<TableView key={blockStateKey(scope)} {...parsed} renderCell={props.renderCell} scope={scope} />
 	);
 }
 
@@ -75,9 +74,9 @@ function TableView({
 	columns,
 	data,
 	renderCell,
-	storageKey,
-}: InternalProps & { storageKey: string }) {
-	const [state, setState] = useTableState(storageKey, columns);
+	scope,
+}: InternalProps & { scope: BlockStateScope }) {
+	const [state, setState] = useTableState(scope, columns);
 	const [openColumn, setOpenColumn] = useState<string | null>(null);
 	const [active, setActive] = useState<ActiveCell>(null);
 	const tableRef = useRef<HTMLTableElement>(null);

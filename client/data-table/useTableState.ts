@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
 import { z } from "zod";
-import { emptyState, type Column, type TableState } from "./model";
+import { useBlockState } from "../block-state/useBlockState";
+import type { BlockStateScope } from "../block-state/storage";
+import { emptyState, type Column } from "./model";
 import { normalizeTableState } from "./table-state";
 
 const savedStateSchema = z.object({
@@ -20,33 +21,15 @@ const savedStateSchema = z.object({
 	units: z.record(z.string(), z.string()),
 });
 
-export function useTableState(storageKey: string, columns: Column[]) {
-	const [state, setState] = useState<TableState>(emptyState);
-	const [loaded, setLoaded] = useState(false);
-	const normalized = normalizeTableState(state, columns);
+function legacyTableKeys(scope: BlockStateScope): string[] {
+	return [`mdxserve:table:v1:${scope.documentPath}:${scope.blockId}`];
+}
 
-	useEffect(() => {
-		try {
-			const saved = savedStateSchema.safeParse(
-				JSON.parse(localStorage.getItem(storageKey) ?? "null"),
-			);
-			if (saved.success) setState(saved.data);
-		} catch {
-			/* storage is optional */
-		}
-		setLoaded(true);
-	}, [storageKey]);
-
-	useEffect(() => {
-		if (loaded) {
-			setState(normalized);
-			try {
-				localStorage.setItem(storageKey, JSON.stringify(normalized));
-			} catch {
-				/* storage is optional */
-			}
-		}
-	}, [normalized, loaded, storageKey]);
-
-	return [normalized, setState] as const;
+export function useTableState(scope: BlockStateScope, columns: Column[]) {
+	return useBlockState(scope, {
+		schema: savedStateSchema,
+		initialState: emptyState,
+		normalize: (state) => normalizeTableState(state, columns),
+		legacyKeys: legacyTableKeys,
+	});
 }
