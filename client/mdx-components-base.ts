@@ -11,7 +11,7 @@ import type { ComponentType } from "react";
 import { TaskCheckbox } from "./TaskCheckbox";
 import { Figure, Pre } from "./CodeBlock";
 import { H2, H3, H4 } from "./Heading";
-import { Table } from "./Table";
+import { MarkdownTable } from "./MarkdownTable";
 import { builtinComponents } from "./builtins/index";
 
 /**
@@ -28,5 +28,5 @@ export const mdxComponentsBase: Record<string, ComponentType<any>> = {
 	h3: H3,
 	h4: H4,
 	input: TaskCheckbox,
-	table: Table,
+	table: MarkdownTable,
 };
