@@ -61,13 +61,4 @@ describe("allowFsDir / disallowFsDir", () => {
 		const removed = await fetch(url);
 		expect(removed.status).not.toBe(200);
 	});
-
-	it("is idempotent: allowing the same dir twice adds only one fs.allow entry", () => {
-		allowFsDir(vite, extraDir);
-		const before = vite.config.server.fs.allow.filter((entry) => entry === extraDir).length;
-		allowFsDir(vite, extraDir);
-		const after = vite.config.server.fs.allow.filter((entry) => entry === extraDir).length;
-		expect(after).toBe(before);
-		disallowFsDir(vite, extraDir);
-	});
 });

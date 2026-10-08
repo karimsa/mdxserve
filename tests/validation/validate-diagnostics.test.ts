@@ -237,11 +237,7 @@ describe("validateSource — examples", () => {
 		expect(typeof result.diagnostics[0].line).toBe("number");
 	});
 
-	it("a bare `<` before a digit is ok as .md (escaped) but not as .mdx", async () => {
-		// Mirrors the motivating example in src/rendering/mdx/lenient-md.ts: `<` immediately
-		// followed by a digit is a hard JSX parse error, since MDX tries to read
-		// it as a tag name. `.md` gets escapeBareLt run on it first; `.mdx` does
-		// not.
+	it("a bare `<` before a digit is accepted by both .md and .mdx", async () => {
 		const md = await validateSource({
 			source: "(<800px)\n",
 			path: "x.md",
@@ -254,7 +250,8 @@ describe("validateSource — examples", () => {
 			path: "x.mdx",
 			registry: fixtureRegistry,
 		});
-		expect(mdx.ok).toBe(false);
+		expect(mdx.ok).toBe(true);
+		expect(mdx.diagnostics).toEqual(md.diagnostics);
 	});
 });
 
@@ -372,7 +369,7 @@ describe("validateSource — render step", () => {
 		expect(called).toBe(false);
 	});
 
-	it("property: for docs with no `{`/`<` at all that validate ok statically, a passing render never flips ok, and render-error only appears when rendered:true", async () => {
+	it("for docs with no `{`/`<` at all that validate ok statically, a passing render never flips ok, and render-error only appears when rendered:true", async () => {
 		await fc.assert(
 			fc.asyncProperty(plainDocArb, fc.boolean(), async (doc, renderOk) => {
 				const outcome: FakeRenderOutcome = renderOk

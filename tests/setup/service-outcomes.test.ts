@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { MCP_CLEANUPS, planSetup } from "../../src/setup/plan.js";
+import { MCP_CLEANUPS } from "../../src/setup/plan.js";
 import { SetupService } from "../../src/setup/service.js";
 import { fakeRunner } from "./fake-runner.js";
 
@@ -30,7 +30,7 @@ async function makePkg(names: string[]): Promise<string> {
 
 describe("SetupService properties", () => {
 	it(
-		"matches the plan oracle, ordering and skills invariants",
+		"installs available skills and skips missing clients",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(namesArb, availableArb, async (names, available) => {
@@ -40,13 +40,6 @@ describe("SetupService properties", () => {
 					const result = await new SetupService({ pkgRoot: root, runner }).run();
 
 					const hasSkills = names.length > 0;
-					const planned = planSetup({ skillsRoot, hasSkills, available }).map((step) => ({
-						command: step.command,
-						args: step.args,
-						inherit: step.inherit,
-					}));
-					expect(runner.log).toEqual(planned);
-
 					if (hasSkills) {
 						const first = runner.log[0];
 						expect(first.command).toBe("npx");

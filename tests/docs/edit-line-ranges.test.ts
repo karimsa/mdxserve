@@ -203,7 +203,7 @@ describe("spliceLines — commutation of disjoint splices", () => {
 });
 
 describe("spliceLines — out of range", () => {
-	it("property: an invalid [start, end] never throws and always reports ok: false", () => {
+	it("an invalid [start, end] never throws and always reports ok: false", () => {
 		fc.assert(
 			fc.property(
 				fc.array(lineArb, { minLength: 0, maxLength: 6 }),

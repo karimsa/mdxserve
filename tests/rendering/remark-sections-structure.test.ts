@@ -8,7 +8,7 @@ import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections.js";
 
-// Same parse helper as src/docs/doc-cache.ts / tests/validation/validate.property.test.ts.
+// Same parse helper as src/docs/doc-cache.ts / tests/validation/validate-diagnostics.test.ts.
 function parse(src: string): Root {
 	return fromMarkdown(src, { extensions: [mdxjs()], mdastExtensions: [mdxFromMarkdown()] });
 }
@@ -56,7 +56,7 @@ const FORBIDDEN_TYPES = new Set([
 
 // ---- Block vocabulary ---------------------------------------------------
 // A small mix of pure-markdown blocks (editable) and MDX-flavoured blocks
-// (never editable), joined with blank lines like tests/validate.property.test.ts's
+// (never editable), joined with blank lines like tests/validation/validate-diagnostics.test.ts's
 // docArb, but broader: it must also reach JSX flow blocks, ESM, and inline
 // JSX/expressions inside a paragraph, since those are exactly what the
 // allow-list is supposed to exclude.
@@ -232,7 +232,7 @@ describe("remarkSections — examples", () => {
 	// pipeline: `key: v` alone becomes a setext heading (the closing `---` is
 	// its underline); anything with lists/blank lines becomes several nodes
 	// and a second thematicBreak. No section may cover any line of either.
-	it("property: no section covers any front-matter line, whatever the block's shape", () => {
+	it("no section covers any front-matter line, whatever the block's shape", () => {
 		const yamlLine = fc
 			.tuple(fc.stringMatching(/^[a-z]{1,8}$/), fc.stringMatching(/^[a-z0-9 ]{1,12}$/))
 			.map(([key, value]) => `${key}: ${value}`);

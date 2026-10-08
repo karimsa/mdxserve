@@ -2,7 +2,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import fs from "node:fs";
 import trash from "trash";
-import { isServable } from "../roots/servable.js";
+import { isDocFile, isServable } from "../roots/servable.js";
 import { resolveRoot } from "../roots/paths.js";
 import type { RootInfo } from "../roots/root-info.js";
 
@@ -86,6 +86,10 @@ export class TrashService {
 
 			if (st.isDirectory()) {
 				failed.push({ path: givenPath, error: "Is a directory" });
+				continue;
+			}
+			if (!isDocFile(hit.abs)) {
+				failed.push({ path: givenPath, error: "Invalid path" });
 				continue;
 			}
 

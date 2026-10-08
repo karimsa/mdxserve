@@ -10,10 +10,11 @@ import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext } from "../helpers/context.js";
 
 const trashed: string[] = [];
+let recoveryDir: string;
 vi.mock("trash", () => ({
 	default: async (absPath: string) => {
 		trashed.push(absPath);
-		await fs.rm(absPath, { force: true });
+		await fs.rename(absPath, path.join(recoveryDir, path.basename(absPath)));
 	},
 }));
 
@@ -24,6 +25,7 @@ type Target =
 	| { kind: "doc"; name: string }
 	| { kind: "dir"; name: string }
 	| { kind: "dotfile"; name: string }
+	| { kind: "non-doc"; name: string }
 	| { kind: "missing"; name: string }
 	| { kind: "outside"; name: string };
 
@@ -33,6 +35,7 @@ const targetArb: fc.Arbitrary<Target> = fc.oneof(
 	letter.map((name): Target => ({ kind: "doc", name: `${name}.md` })),
 	letter.map((name): Target => ({ kind: "dir", name: `dir-${name}` })),
 	letter.map((name): Target => ({ kind: "dotfile", name: `.${name}.md` })),
+	letter.map((name): Target => ({ kind: "non-doc", name: `${name}.txt` })),
 	letter.map((name): Target => ({ kind: "missing", name: `missing-${name}.md` })),
 	letter.map((name): Target => ({ kind: "outside", name: `${name}.md` })),
 );
@@ -58,6 +61,7 @@ async function withTargets(
 	const outside = await fs.realpath(
 		await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-trash-prop-outside-")),
 	);
+	recoveryDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-trash-prop-recovery-"));
 	try {
 		const paths: string[] = [];
 		const deletable = new Set<string>();
@@ -76,6 +80,8 @@ async function withTargets(
 				await fs.mkdir(abs);
 			} else if (target.kind === "dotfile") {
 				await fs.writeFile(abs, "# Dot\n", "utf8");
+			} else if (target.kind === "non-doc") {
+				await fs.writeFile(abs, "Keep this text.\n", "utf8");
 			}
 			paths.push(abs);
 		}
@@ -83,6 +89,7 @@ async function withTargets(
 	} finally {
 		await fs.rm(root, { recursive: true, force: true });
 		await fs.rm(outside, { recursive: true, force: true });
+		await fs.rm(recoveryDir, { recursive: true, force: true });
 	}
 }
 
@@ -127,6 +134,11 @@ describe("moveDocsToTrash properties", () => {
 
 						expect([...result.deleted].sort()).toEqual([...deletable].sort());
 						expect([...trashed].sort()).toEqual([...deletable].sort());
+						for (const moved of deletable) {
+							expect(await fs.readFile(path.join(recoveryDir, path.basename(moved)), "utf8")).toBe(
+								"# Doc\n",
+							);
+						}
 						for (const failure of result.failed) {
 							expect(deletable.has(failure.path)).toBe(false);
 							expect(failure.error.length).toBeGreaterThan(0);

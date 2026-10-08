@@ -34,7 +34,7 @@ describe("isTrustedHost", () => {
 		expect(isTrustedHost("", "127.0.0.1")).toBe(false);
 	});
 
-	it("property: a DNS name is never trusted, whatever port or local address it comes with", () => {
+	it("a DNS name is never trusted, whatever port or local address it comes with", () => {
 		const label = fc.stringMatching(/^[a-z][a-z0-9-]{0,20}$/);
 		const dnsName = fc
 			.array(label, { minLength: 2, maxLength: 4 })
@@ -51,7 +51,7 @@ describe("isTrustedHost", () => {
 		);
 	});
 
-	it("property: the socket's own IPv4 address is trusted with any port", () => {
+	it("the socket's own IPv4 address is trusted with any port", () => {
 		const octet = fc.integer({ min: 0, max: 255 });
 		const ipv4 = fc.tuple(octet, octet, octet, octet).map((parts) => parts.join("."));
 		const port = fc.integer({ min: 1, max: 65535 });

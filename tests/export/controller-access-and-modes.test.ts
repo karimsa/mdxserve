@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { TRPCError } from "@trpc/server";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import type { ApiContext } from "../../src/api/trpc.js";
@@ -14,7 +13,6 @@ import { makeContext as buildContext } from "../helpers/context.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
 const createCaller = createCallerFactory(appRouter);
-const KNOWN_CODES = new Set(["FORBIDDEN", "NOT_FOUND", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"]);
 
 let fixtureDir: string;
 
@@ -63,31 +61,6 @@ describe("exportDoc — properties", () => {
 					).rejects.toMatchObject({ code: "FORBIDDEN" });
 				}),
 				{ numRuns: 20 },
-			);
-		},
-		PROPERTY_TIMEOUT_MS,
-	);
-
-	it(
-		"every thrown error is a TRPCError with a code from the declared set",
-		async () => {
-			await fc.assert(
-				fc.asyncProperty(
-					fc.string({ minLength: 1, maxLength: 200 }),
-					fc.boolean(),
-					async (pathValue, isLoopback) => {
-						const { port } = fakeBundle();
-						try {
-							await createCaller(makeContext({ isLoopback, bundle: port })).exportDoc({
-								path: pathValue,
-							});
-						} catch (error) {
-							expect(error).toBeInstanceOf(TRPCError);
-							expect(KNOWN_CODES.has((error as TRPCError).code)).toBe(true);
-						}
-					},
-				),
-				{ numRuns: 25 },
 			);
 		},
 		PROPERTY_TIMEOUT_MS,

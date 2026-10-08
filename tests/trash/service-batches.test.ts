@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import fc from "fast-check";
-import { isServable } from "../../src/roots/servable.js";
 import { TrashService } from "../../src/trash/service.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
@@ -92,12 +91,17 @@ function collectCandidates(dirAbs: string, entries: EntrySpec[], rootAbs: string
 	for (const entry of entries) {
 		const abs = path.join(dirAbs, entry.name);
 		const rel = path.relative(rootAbs, abs).split(path.sep);
-		const invalidSegment = rel.some((segment) => !isServable(segment));
+		const invalidSegment = rel.some(
+			(segment) => segment.startsWith(".") || segment === "node_modules",
+		);
 		if (entry.type === "dir" || entry.type === "node_modules") {
 			out.push({ abs, category: invalidSegment ? "invalid" : "directory" });
 			out.push(...collectCandidates(abs, entry.children, rootAbs));
 		} else {
-			out.push({ abs, category: invalidSegment ? "invalid" : "validFile" });
+			out.push({
+				abs,
+				category: invalidSegment || entry.type !== "doc" ? "invalid" : "validFile",
+			});
 		}
 	}
 	return out;
@@ -192,7 +196,12 @@ describe("moveDocsToTrash containment", () => {
 							expect(relReal.startsWith("..") || path.isAbsolute(relReal)).toBe(false);
 
 							const relSegments = path.relative(root, abs).split(path.sep);
-							expect(relSegments.every(isServable)).toBe(true);
+							expect(
+								relSegments.every(
+									(segment) => !segment.startsWith(".") && segment !== "node_modules",
+								),
+							).toBe(true);
+							expect(/\.mdx?$/i.test(abs)).toBe(true);
 						}
 					} finally {
 						await rmTree(root);

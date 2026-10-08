@@ -69,8 +69,7 @@ describe("renderStatusLine", () => {
 });
 
 describe("messages", () => {
-	it("no longer mention the MCP add_root tool", () => {
-		expect(NO_ROOTS_MESSAGE).not.toContain("add_root");
+	it("points readers to the available server and roots commands", () => {
 		expect(NO_ROOTS_MESSAGE).toContain("mdxserve roots add <dir>");
 		expect(NO_SERVER_MESSAGE).toContain("mdxserve serve");
 	});
