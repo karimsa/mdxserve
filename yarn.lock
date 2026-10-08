@@ -231,7 +231,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@floating-ui/dom@npm:^1.0.0":
+"@floating-ui/dom@npm:1.8.0, @floating-ui/dom@npm:^1.0.0":
   version: 1.8.0
   resolution: "@floating-ui/dom@npm:1.8.0"
   dependencies:
@@ -319,6 +319,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@karimsa/mdxserve@workspace:."
   dependencies:
+    "@floating-ui/dom": "npm:1.8.0"
     "@fontsource-variable/jetbrains-mono": "npm:5.3.0"
     "@fontsource-variable/manrope": "npm:5.3.0"
     "@mdx-js/mdx": "npm:3.1.1"
@@ -328,9 +329,32 @@ __metadata:
     "@tanstack/react-query": "npm:5.101.4"
     "@tippyjs/react": "npm:4.2.6"
     "@tiptap/core": "npm:3.29.2"
+    "@tiptap/extension-blockquote": "npm:3.29.2"
+    "@tiptap/extension-bold": "npm:3.29.2"
+    "@tiptap/extension-bubble-menu": "npm:3.29.2"
+    "@tiptap/extension-bullet-list": "npm:3.29.2"
+    "@tiptap/extension-code": "npm:3.29.2"
+    "@tiptap/extension-code-block": "npm:3.29.2"
+    "@tiptap/extension-document": "npm:3.29.2"
+    "@tiptap/extension-dropcursor": "npm:3.29.2"
+    "@tiptap/extension-floating-menu": "npm:3.29.2"
+    "@tiptap/extension-gapcursor": "npm:3.29.2"
+    "@tiptap/extension-hard-break": "npm:3.29.2"
+    "@tiptap/extension-heading": "npm:3.29.2"
+    "@tiptap/extension-horizontal-rule": "npm:3.29.2"
     "@tiptap/extension-image": "npm:3.29.2"
+    "@tiptap/extension-italic": "npm:3.29.2"
+    "@tiptap/extension-link": "npm:3.29.2"
     "@tiptap/extension-list": "npm:3.29.2"
+    "@tiptap/extension-list-item": "npm:3.29.2"
+    "@tiptap/extension-list-keymap": "npm:3.29.2"
+    "@tiptap/extension-ordered-list": "npm:3.29.2"
+    "@tiptap/extension-paragraph": "npm:3.29.2"
+    "@tiptap/extension-strike": "npm:3.29.2"
     "@tiptap/extension-table": "npm:3.29.2"
+    "@tiptap/extension-text": "npm:3.29.2"
+    "@tiptap/extension-underline": "npm:3.29.2"
+    "@tiptap/extensions": "npm:3.29.2"
     "@tiptap/markdown": "npm:3.29.2"
     "@tiptap/pm": "npm:3.29.2"
     "@tiptap/react": "npm:3.29.2"
@@ -373,6 +397,7 @@ __metadata:
     rehype-pretty-code: "npm:0.14.5"
     rehype-slug: "npm:6.0.0"
     remark-gfm: "npm:4.0.1"
+    rollup: "npm:4.64.0"
     shiki: "npm:4.4.2"
     svg-pan-zoom: "npm:3.6.2"
     tailwindcss: "npm:4.3.3"
@@ -447,6 +472,13 @@ __metadata:
   peerDependencies:
     rollup: ">=2"
   checksum: 10c0/a1c2f0a45cae42fbb769dc6e0b691c3233db6f042679dafd07a09a8038ad99f5500e345765a0b0f75a47533f4eb3ca1f8eb058d7263808145b4b96add817753b
+  languageName: node
+  linkType: hard
+
+"@napi-rs/lzma-linux-x64-gnu@npm:1.5.1":
+  version: 1.5.1
+  resolution: "@napi-rs/lzma-linux-x64-gnu@npm:1.5.1"
+  conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
@@ -784,6 +816,181 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@rollup/rollup-android-arm-eabi@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-android-arm-eabi@npm:4.64.0"
+  conditions: os=android & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-android-arm64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-android-arm64@npm:4.64.0"
+  conditions: os=android & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-darwin-arm64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-darwin-arm64@npm:4.64.0"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-darwin-x64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-darwin-x64@npm:4.64.0"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-freebsd-arm64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-freebsd-arm64@npm:4.64.0"
+  conditions: os=freebsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-freebsd-x64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-freebsd-x64@npm:4.64.0"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-arm-gnueabihf@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-arm-gnueabihf@npm:4.64.0"
+  conditions: os=linux & cpu=arm & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-arm-musleabihf@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-arm-musleabihf@npm:4.64.0"
+  conditions: os=linux & cpu=arm & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-arm64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-arm64-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-arm64-musl@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-arm64-musl@npm:4.64.0"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-loong64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-loong64-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=loong64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-loong64-musl@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-loong64-musl@npm:4.64.0"
+  conditions: os=linux & cpu=loong64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-ppc64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-ppc64-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=ppc64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-ppc64-musl@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-ppc64-musl@npm:4.64.0"
+  conditions: os=linux & cpu=ppc64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-riscv64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-riscv64-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=riscv64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-riscv64-musl@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-riscv64-musl@npm:4.64.0"
+  conditions: os=linux & cpu=riscv64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-s390x-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-s390x-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=s390x & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-x64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-x64-gnu@npm:4.64.0"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-linux-x64-musl@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-linux-x64-musl@npm:4.64.0"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-openbsd-x64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-openbsd-x64@npm:4.64.0"
+  conditions: os=openbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-openharmony-arm64@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-openharmony-arm64@npm:4.64.0"
+  conditions: os=openharmony & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-win32-arm64-msvc@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-win32-arm64-msvc@npm:4.64.0"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-win32-ia32-msvc@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-win32-ia32-msvc@npm:4.64.0"
+  conditions: os=win32 & cpu=ia32
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-win32-x64-gnu@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-win32-x64-gnu@npm:4.64.0"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@rollup/rollup-win32-x64-msvc@npm:4.64.0":
+  version: 4.64.0
+  resolution: "@rollup/rollup-win32-x64-msvc@npm:4.64.0"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
 "@shikijs/core@npm:4.4.2":
   version: 4.4.2
   resolution: "@shikijs/core@npm:4.4.2"
@@ -1104,7 +1311,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-blockquote@npm:^3.29.2":
+"@tiptap/extension-blockquote@npm:3.29.2, @tiptap/extension-blockquote@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-blockquote@npm:3.29.2"
   peerDependencies:
@@ -1114,7 +1321,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-bold@npm:^3.29.2":
+"@tiptap/extension-bold@npm:3.29.2, @tiptap/extension-bold@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-bold@npm:3.29.2"
   peerDependencies:
@@ -1123,7 +1330,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-bubble-menu@npm:^3.29.2":
+"@tiptap/extension-bubble-menu@npm:3.29.2, @tiptap/extension-bubble-menu@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-bubble-menu@npm:3.29.2"
   dependencies:
@@ -1135,7 +1342,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-bullet-list@npm:^3.29.2":
+"@tiptap/extension-bullet-list@npm:3.29.2, @tiptap/extension-bullet-list@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-bullet-list@npm:3.29.2"
   peerDependencies:
@@ -1144,7 +1351,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-code-block@npm:^3.29.2":
+"@tiptap/extension-code-block@npm:3.29.2, @tiptap/extension-code-block@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-code-block@npm:3.29.2"
   peerDependencies:
@@ -1154,7 +1361,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-code@npm:^3.29.2":
+"@tiptap/extension-code@npm:3.29.2, @tiptap/extension-code@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-code@npm:3.29.2"
   peerDependencies:
@@ -1163,7 +1370,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-document@npm:^3.29.2":
+"@tiptap/extension-document@npm:3.29.2, @tiptap/extension-document@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-document@npm:3.29.2"
   peerDependencies:
@@ -1172,7 +1379,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-dropcursor@npm:^3.29.2":
+"@tiptap/extension-dropcursor@npm:3.29.2, @tiptap/extension-dropcursor@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-dropcursor@npm:3.29.2"
   peerDependencies:
@@ -1181,7 +1388,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-floating-menu@npm:^3.29.2":
+"@tiptap/extension-floating-menu@npm:3.29.2, @tiptap/extension-floating-menu@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-floating-menu@npm:3.29.2"
   peerDependencies:
@@ -1192,7 +1399,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-gapcursor@npm:^3.29.2":
+"@tiptap/extension-gapcursor@npm:3.29.2, @tiptap/extension-gapcursor@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-gapcursor@npm:3.29.2"
   peerDependencies:
@@ -1201,7 +1408,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-hard-break@npm:^3.29.2":
+"@tiptap/extension-hard-break@npm:3.29.2, @tiptap/extension-hard-break@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-hard-break@npm:3.29.2"
   peerDependencies:
@@ -1210,7 +1417,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-heading@npm:^3.29.2":
+"@tiptap/extension-heading@npm:3.29.2, @tiptap/extension-heading@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-heading@npm:3.29.2"
   peerDependencies:
@@ -1219,7 +1426,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-horizontal-rule@npm:^3.29.2":
+"@tiptap/extension-horizontal-rule@npm:3.29.2, @tiptap/extension-horizontal-rule@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-horizontal-rule@npm:3.29.2"
   peerDependencies:
@@ -1238,7 +1445,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-italic@npm:^3.29.2":
+"@tiptap/extension-italic@npm:3.29.2, @tiptap/extension-italic@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-italic@npm:3.29.2"
   peerDependencies:
@@ -1247,7 +1454,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-link@npm:^3.29.2":
+"@tiptap/extension-link@npm:3.29.2, @tiptap/extension-link@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-link@npm:3.29.2"
   dependencies:
@@ -1259,7 +1466,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-list-item@npm:^3.29.2":
+"@tiptap/extension-list-item@npm:3.29.2, @tiptap/extension-list-item@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-list-item@npm:3.29.2"
   peerDependencies:
@@ -1268,7 +1475,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-list-keymap@npm:^3.29.2":
+"@tiptap/extension-list-keymap@npm:3.29.2, @tiptap/extension-list-keymap@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-list-keymap@npm:3.29.2"
   peerDependencies:
@@ -1287,7 +1494,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-ordered-list@npm:^3.29.2":
+"@tiptap/extension-ordered-list@npm:3.29.2, @tiptap/extension-ordered-list@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-ordered-list@npm:3.29.2"
   peerDependencies:
@@ -1296,7 +1503,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-paragraph@npm:^3.29.2":
+"@tiptap/extension-paragraph@npm:3.29.2, @tiptap/extension-paragraph@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-paragraph@npm:3.29.2"
   peerDependencies:
@@ -1305,7 +1512,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-strike@npm:^3.29.2":
+"@tiptap/extension-strike@npm:3.29.2, @tiptap/extension-strike@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-strike@npm:3.29.2"
   peerDependencies:
@@ -1324,7 +1531,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-text@npm:^3.29.2":
+"@tiptap/extension-text@npm:3.29.2, @tiptap/extension-text@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-text@npm:3.29.2"
   peerDependencies:
@@ -1333,7 +1540,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extension-underline@npm:^3.29.2":
+"@tiptap/extension-underline@npm:3.29.2, @tiptap/extension-underline@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extension-underline@npm:3.29.2"
   peerDependencies:
@@ -1342,7 +1549,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/extensions@npm:^3.29.2":
+"@tiptap/extensions@npm:3.29.2, @tiptap/extensions@npm:^3.29.2":
   version: 3.29.2
   resolution: "@tiptap/extensions@npm:3.29.2"
   peerDependencies:
@@ -1554,7 +1761,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/estree@npm:*, @types/estree@npm:^1.0.0":
+"@types/estree@npm:*, @types/estree@npm:1.0.9, @types/estree@npm:^1.0.0":
   version: 1.0.9
   resolution: "@types/estree@npm:1.0.9"
   checksum: 10c0/3ad3286ca2988cd550dafb8f2ad599c8474868e954fa601a36655bdfefd8039f7c714b8c1c7f2ae219ffbd58bd4660e66fa7479a0120fc02d4777057d4865387
@@ -3126,7 +3333,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@npm:~2.3.3":
+"fsevents@npm:~2.3.2, fsevents@npm:~2.3.3":
   version: 2.3.3
   resolution: "fsevents@npm:2.3.3"
   dependencies:
@@ -3136,7 +3343,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@patch:fsevents@npm%3A~2.3.3#optional!builtin<compat/fsevents>":
+"fsevents@patch:fsevents@npm%3A~2.3.2#optional!builtin<compat/fsevents>, fsevents@patch:fsevents@npm%3A~2.3.3#optional!builtin<compat/fsevents>":
   version: 2.3.3
   resolution: "fsevents@patch:fsevents@npm%3A2.3.3#optional!builtin<compat/fsevents>::version=2.3.3&hash=df0bf1"
   dependencies:
@@ -5888,6 +6095,99 @@ __metadata:
   bin:
     rolldown: ./bin/cli.mjs
   checksum: 10c0/4dbeabc826e59877c7520b2ae1f48d0111e1d21865f5931ff3d184d33f02683e943e65eb24932128fc03701bbcde1b341f313b3fa7f8007368bd1b5e993265f0
+  languageName: node
+  linkType: hard
+
+"rollup@npm:4.64.0":
+  version: 4.64.0
+  resolution: "rollup@npm:4.64.0"
+  dependencies:
+    "@napi-rs/lzma-linux-x64-gnu": "npm:1.5.1"
+    "@rollup/rollup-android-arm-eabi": "npm:4.64.0"
+    "@rollup/rollup-android-arm64": "npm:4.64.0"
+    "@rollup/rollup-darwin-arm64": "npm:4.64.0"
+    "@rollup/rollup-darwin-x64": "npm:4.64.0"
+    "@rollup/rollup-freebsd-arm64": "npm:4.64.0"
+    "@rollup/rollup-freebsd-x64": "npm:4.64.0"
+    "@rollup/rollup-linux-arm-gnueabihf": "npm:4.64.0"
+    "@rollup/rollup-linux-arm-musleabihf": "npm:4.64.0"
+    "@rollup/rollup-linux-arm64-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-arm64-musl": "npm:4.64.0"
+    "@rollup/rollup-linux-loong64-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-loong64-musl": "npm:4.64.0"
+    "@rollup/rollup-linux-ppc64-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-ppc64-musl": "npm:4.64.0"
+    "@rollup/rollup-linux-riscv64-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-riscv64-musl": "npm:4.64.0"
+    "@rollup/rollup-linux-s390x-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-x64-gnu": "npm:4.64.0"
+    "@rollup/rollup-linux-x64-musl": "npm:4.64.0"
+    "@rollup/rollup-openbsd-x64": "npm:4.64.0"
+    "@rollup/rollup-openharmony-arm64": "npm:4.64.0"
+    "@rollup/rollup-win32-arm64-msvc": "npm:4.64.0"
+    "@rollup/rollup-win32-ia32-msvc": "npm:4.64.0"
+    "@rollup/rollup-win32-x64-gnu": "npm:4.64.0"
+    "@rollup/rollup-win32-x64-msvc": "npm:4.64.0"
+    "@types/estree": "npm:1.0.9"
+    fsevents: "npm:~2.3.2"
+  dependenciesMeta:
+    "@napi-rs/lzma-linux-x64-gnu":
+      optional: true
+    "@rollup/rollup-android-arm-eabi":
+      optional: true
+    "@rollup/rollup-android-arm64":
+      optional: true
+    "@rollup/rollup-darwin-arm64":
+      optional: true
+    "@rollup/rollup-darwin-x64":
+      optional: true
+    "@rollup/rollup-freebsd-arm64":
+      optional: true
+    "@rollup/rollup-freebsd-x64":
+      optional: true
+    "@rollup/rollup-linux-arm-gnueabihf":
+      optional: true
+    "@rollup/rollup-linux-arm-musleabihf":
+      optional: true
+    "@rollup/rollup-linux-arm64-gnu":
+      optional: true
+    "@rollup/rollup-linux-arm64-musl":
+      optional: true
+    "@rollup/rollup-linux-loong64-gnu":
+      optional: true
+    "@rollup/rollup-linux-loong64-musl":
+      optional: true
+    "@rollup/rollup-linux-ppc64-gnu":
+      optional: true
+    "@rollup/rollup-linux-ppc64-musl":
+      optional: true
+    "@rollup/rollup-linux-riscv64-gnu":
+      optional: true
+    "@rollup/rollup-linux-riscv64-musl":
+      optional: true
+    "@rollup/rollup-linux-s390x-gnu":
+      optional: true
+    "@rollup/rollup-linux-x64-gnu":
+      optional: true
+    "@rollup/rollup-linux-x64-musl":
+      optional: true
+    "@rollup/rollup-openbsd-x64":
+      optional: true
+    "@rollup/rollup-openharmony-arm64":
+      optional: true
+    "@rollup/rollup-win32-arm64-msvc":
+      optional: true
+    "@rollup/rollup-win32-ia32-msvc":
+      optional: true
+    "@rollup/rollup-win32-x64-gnu":
+      optional: true
+    "@rollup/rollup-win32-x64-msvc":
+      optional: true
+    fsevents:
+      optional: true
+  bin:
+    rollup: dist/bin/rollup
+  checksum: 10c0/415cadfa7f1a590c85e442662e297824ba0d1919c7b07e38f2f1f23ce585ca0005a61b2305b2aafdf5a751f31e6de247b1dcae500b44344224f559f07f1fc5d4
   languageName: node
   linkType: hard
 
