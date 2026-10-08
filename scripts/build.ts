@@ -1,7 +1,24 @@
+import * as esbuild from "esbuild";
 import { $ } from "zx";
 
-const cliBanner = "--banner:js=#!/usr/bin/env node";
+const buildOptions = {
+	bundle: true,
+	platform: "node",
+	target: "node22",
+	format: "esm",
+	packages: "external",
+	logLevel: "info",
+} satisfies esbuild.BuildOptions;
 
 await $`tsx scripts/build-registry.ts`;
-await $`esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.js ${cliBanner}`;
-await $`esbuild src/rendering/render-worker.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/render-worker.js`;
+await esbuild.build({
+	...buildOptions,
+	entryPoints: ["src/index.ts"],
+	outfile: "dist/cli.js",
+	banner: { js: "#!/usr/bin/env node" },
+});
+await esbuild.build({
+	...buildOptions,
+	entryPoints: ["src/rendering/render-worker.ts"],
+	outfile: "dist/render-worker.js",
+});
