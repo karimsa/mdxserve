@@ -1,5 +1,6 @@
 import type { CompileOptions } from "@mdx-js/mdx";
 import type { PluggableList } from "unified";
+import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
@@ -20,7 +21,7 @@ export function mdxCompileOptions(
 		// (The default "detect" mode parses .md as plain Markdown and silently
 		// drops unknown tags.)
 		format: "mdx",
-		remarkPlugins: [remarkGfm, ...(extra.remarkPlugins ?? [])],
+		remarkPlugins: [remarkFrontmatter, remarkGfm, ...(extra.remarkPlugins ?? [])],
 		rehypePlugins: [
 			// Stable heading ids for the TOC rail and `.mdx-anchor` links.
 			rehypeSlug,

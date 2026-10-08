@@ -40,29 +40,6 @@ function isEditable(node: RootContent): boolean {
 	return true;
 }
 
-/**
- * How many leading children make up a front matter block (0 when there is
- * none). See the comment at the call site for the shapes this covers.
- */
-function frontmatterExtent(children: RootContent[]): number {
-	const first = children[0];
-	if (!first || first.type !== "thematicBreak" || first.position?.start.line !== 1) return 0;
-	// Front matter content sits flush under the opening rule. A plain
-	// horizontal rule at the top of a doc is followed by a blank line, so its
-	// next node starts on line 3 or later — leave that doc fully editable.
-	if (children[1]?.position?.start.line !== 2) return 0;
-	for (let index = 1; index < children.length; index++) {
-		const node = children[index];
-		if (node.type === "thematicBreak") return index + 1;
-		// A setext heading directly after the opening rule: its underline is
-		// the closing `---`, so the block ends with it.
-		if (node.type === "heading" && index === 1) return 2;
-	}
-	// Never closed, so not front matter: an ordinary rule at the top of an
-	// ordinary doc.
-	return 0;
-}
-
 function attr(name: string, value: string): MdxJsxAttribute {
 	return { type: "mdxJsxAttribute", name, value };
 }
@@ -85,16 +62,7 @@ export function remarkSections() {
 	return (tree: Root): void => {
 		const children = tree.children;
 
-		// No remark-frontmatter in the pipeline, so a leading `---` block parses
-		// as ordinary Markdown: `---\nkey: v\n---` becomes a thematicBreak plus a
-		// setext heading (the closing `---` is the heading underline), while a
-		// multi-line block like `---\ntags:\n  - a\n---` becomes a thematicBreak,
-		// a paragraph, a list and a second thematicBreak. Either way it would
-		// look perfectly editable, and opening it in the editor would rewrite
-		// the metadata. Skip everything from the line-1 rule through whatever
-		// closes it: the next thematicBreak, or a setext heading whose
-		// underline is the closing `---`.
-		const frontmatterEnd = frontmatterExtent(children);
+		// Frontmatter is a non-editable yaml node; its source positions remain intact.
 
 		const result: RootContent[] = [];
 		let run: RootContent[] = [];
@@ -132,8 +100,8 @@ export function remarkSections() {
 			run = [];
 		}
 
-		children.forEach((node, index) => {
-			const editable = index >= frontmatterEnd && isEditable(node);
+		children.forEach((node) => {
+			const editable = isEditable(node);
 			if (!editable) {
 				flush();
 				result.push(node);
