@@ -12,7 +12,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker build -f site/Dockerfile.vercel -t "$image_name" .
+docker build -f site/Dockerfile.vercel \
+  --build-arg "VERCEL_GIT_COMMIT_SHA=$(git rev-parse HEAD)" \
+  -t "$image_name" site
 docker run -d --name "$container_name" -p 127.0.0.1:18080:8080 "$image_name" >/dev/null
 
 ready=false

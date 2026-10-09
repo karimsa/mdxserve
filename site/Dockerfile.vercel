@@ -1,19 +1,19 @@
-FROM node:22-bookworm-slim AS build
+FROM node:22-bookworm-slim AS source
 
+ARG VERCEL_GIT_COMMIT_SHA
 WORKDIR /opt/mdxserve
+COPY deployment/fetch-source.mjs /tmp/fetch-source.mjs
+RUN node /tmp/fetch-source.mjs "$VERCEL_GIT_COMMIT_SHA"
+
+FROM source AS build
+
 RUN corepack enable
-COPY package.json yarn.lock .yarnrc.yml ./
 RUN yarn install --immutable
-COPY scripts/ ./scripts/
-COPY src/ ./src/
-COPY client/ ./client/
 RUN yarn build
 
-FROM node:22-bookworm-slim AS runtime-dependencies
+FROM source AS runtime-dependencies
 
-WORKDIR /opt/mdxserve
 RUN corepack enable
-COPY package.json yarn.lock .yarnrc.yml ./
 RUN YARN_ENABLE_IMMUTABLE_INSTALLS=true yarn workspaces focus --production
 
 FROM node:22-bookworm-slim
@@ -25,13 +25,13 @@ ENV NODE_ENV=production \
     __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.vercel.app
 
 WORKDIR /opt/mdxserve
-COPY package.json ./
+COPY --from=source /opt/mdxserve/package.json ./
 COPY --from=build /opt/mdxserve/dist/ ./dist/
 COPY --from=build /opt/mdxserve/client/ ./client/
 COPY --from=runtime-dependencies /opt/mdxserve/node_modules/ ./node_modules/
 
-COPY site/*.mdx /srv/docs/
-COPY site/examples/ /srv/docs/examples/
+COPY --from=source /opt/mdxserve/site/*.mdx /srv/docs/
+COPY --from=source /opt/mdxserve/site/examples/ /srv/docs/examples/
 
 RUN mkdir -p "$MDXSERVE_HOME" "$MDXSERVE_CACHE_HOME" \
     && chown -R node:node /tmp/mdxserve
