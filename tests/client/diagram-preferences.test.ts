@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getDefaultStore } from "jotai";
-import { contentLayoutAtom } from "../../client/state";
+import { contentLayoutAtom, tocVisibleAtom } from "../../client/state";
 import { DiagramPreferences } from "../../client/diagrams/Preferences";
 const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn(), probe: vi.fn() }));
 vi.mock("../../client/api", () => ({
@@ -22,6 +22,7 @@ beforeEach(async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("localStorage", new JSDOM("", { url: "http://localhost" }).window.localStorage);
 	getDefaultStore().set(contentLayoutAtom, "flexible");
+	getDefaultStore().set(tocVisibleAtom, true);
 	rpc.get.mockResolvedValue({ agent: "codex", models: { codex: "gpt-6-luna", claude: "haiku" } });
 	rpc.list.mockImplementation(async ({ provider }) =>
 		provider === "codex"
@@ -138,4 +139,20 @@ it("applies layout changes immediately and keeps them across reopening, independ
 	await act(async () => root.render(createElement(DiagramPreferences, { onClose: vi.fn() })));
 	await clickButton("Layout");
 	expect(document.querySelector<HTMLSelectElement>("#content-layout")!.value).toBe("full-width");
+});
+
+it("defaults to visible contents and autosaves visibility independently of diagram settings", async () => {
+	await clickButton("Layout");
+	expect(document.querySelector<HTMLSelectElement>("#toc-visibility")!.value).toBe("visible");
+	await select("#toc-visibility", "hidden");
+	expect(getDefaultStore().get(tocVisibleAtom)).toBe(false);
+	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("false");
+	expect(rpc.save).not.toHaveBeenCalled();
+	await act(async () => root.render(null));
+	await act(async () => root.render(createElement(DiagramPreferences, { onClose: vi.fn() })));
+	await clickButton("Layout");
+	expect(document.querySelector<HTMLSelectElement>("#toc-visibility")!.value).toBe("hidden");
+	await select("#toc-visibility", "visible");
+	expect(getDefaultStore().get(tocVisibleAtom)).toBe(true);
+	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("true");
 });

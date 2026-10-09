@@ -98,3 +98,7 @@ export const contentLayoutAtom = atomWithStorage<ContentLayout>(
 	undefined,
 	{ getOnInit: true },
 );
+
+export const tocVisibleAtom = atomWithStorage<boolean>("mdxserve.toc.visible", true, undefined, {
+	getOnInit: true,
+});

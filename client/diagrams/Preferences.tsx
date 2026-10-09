@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { contentLayoutAtom, type ContentLayout } from "../state";
+import { contentLayoutAtom, tocVisibleAtom, type ContentLayout } from "../state";
 import { useEffect, useState } from "react";
 import { Modal } from "../ui/Modal";
 import { ChevronDown, Network, PanelsTopLeft, Settings, X } from "lucide-react";
@@ -8,6 +8,7 @@ export type AgentChoice = "codex" | "claude" | "disabled";
 export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 	const [category, setCategory] = useState<"diagrams" | "layout">("diagrams");
 	const [layout, setLayout] = useAtom(contentLayoutAtom);
+	const [tocVisible, setTocVisible] = useAtom(tocVisibleAtom);
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
 	const [models, setModels] = useState({ codex: "", claude: "" });
 	const [catalog, setCatalog] = useState<{ id: string; label: string }[]>([]);
@@ -131,6 +132,23 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 								>
 									<option value="flexible">Flexible</option>
 									<option value="full-width">Full width</option>
+								</select>
+								<ChevronDown size={14} aria-hidden="true" />
+							</span>
+						</label>
+						<label className="diagram-setting-row" htmlFor="toc-visibility">
+							<span>
+								<strong>Table of contents</strong>
+								<small>Show the “On this page” navigation beside documents.</small>
+							</span>
+							<span className="diagram-agent-select">
+								<select
+									id="toc-visibility"
+									value={tocVisible ? "visible" : "hidden"}
+									onChange={(event) => setTocVisible(event.target.value === "visible")}
+								>
+									<option value="visible">Visible</option>
+									<option value="hidden">Hidden</option>
 								</select>
 								<ChevronDown size={14} aria-hidden="true" />
 							</span>
