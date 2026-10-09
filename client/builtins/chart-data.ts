@@ -81,22 +81,34 @@ export function binValues(values: number[], bins?: number): HistogramBin[] {
 		return [{ label: formatBinEdge(min, 1), value: finite.length, start: min, end: max }];
 	}
 	const count = clamp(bins ?? autoBinCount(finite.length), 1, 50);
-	const step = (max - min) / count;
-	const counts = new Array(count).fill(0) as number[];
-	for (const value of finite) {
-		const index = Math.min(count - 1, Math.floor(((value - min) / (max - min)) * count));
-		counts[index]++;
-	}
-	return counts.map((value, index) => {
-		const start = min + step * index;
-		const end = index === count - 1 ? max : min + step * (index + 1);
+	const range = max - min;
+	const step = range / count;
+	const edges = Array.from({ length: count + 1 }, (_element, index) => {
+		if (index === 0) return min;
+		if (index === count) return max;
+		const fraction = index / count;
+		// Interpolate the full range so a rounded subnormal step cannot accumulate error.
+		const edge = Number.isFinite(range)
+			? min + range * fraction
+			: min * (1 - fraction) + max * fraction;
+		return clamp(edge, min, max);
+	});
+	const result = Array.from({ length: count }, (_element, index) => {
+		const start = edges[index]!;
+		const end = edges[index + 1]!;
 		return {
 			label: `${formatBinEdge(start, step)}–${formatBinEdge(end, step)}`,
-			value,
+			value: 0,
 			start,
 			end,
 		};
 	});
+	for (const value of finite) {
+		// Use the rounded edges so boundary values agree with the displayed ranges.
+		const index = result.findIndex((bin, index) => index === count - 1 || value < bin.end);
+		result[index]!.value++;
+	}
+	return result;
 }
 
 /** A stride-thinned subset of `[0, edgeCount)`, always including the first

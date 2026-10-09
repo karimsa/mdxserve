@@ -71,6 +71,33 @@ describe("binValues", () => {
 		expect(bins.map((bin) => bin.value)).toEqual([2, 2]);
 	});
 
+	it.each([
+		[[-2e-323, 0], 6],
+		[[0, Number.MIN_VALUE], 6],
+		[[-Number.MIN_VALUE, 0, Number.MIN_VALUE], 6],
+		[[-Number.MAX_VALUE, 0, Number.MAX_VALUE], 6],
+	] as const)(
+		"keeps rounded edges ordered and counts values in their actual ranges: %j, %i",
+		(values, count) => {
+			const bins = binValues([...values], count);
+			expect(bins).toHaveLength(count);
+			expect(bins[0]!.start).toBe(Math.min(...values));
+			expect(bins[bins.length - 1]!.end).toBe(Math.max(...values));
+			for (const [index, bin] of bins.entries()) {
+				expect(Number.isFinite(bin.start)).toBe(true);
+				expect(Number.isFinite(bin.end)).toBe(true);
+				expect(bin.end).toBeGreaterThanOrEqual(bin.start);
+				if (index > 0) expect(bin.start).toBe(bins[index - 1]!.end);
+				const expectedCount = values.filter(
+					(value) =>
+						value >= bin.start && (index === bins.length - 1 ? value <= bin.end : value < bin.end),
+				).length;
+				expect(bin.value).toBe(expectedCount);
+			}
+			expect(bins.reduce((total, bin) => total + bin.value, 0)).toBe(values.length);
+		},
+	);
+
 	it("returns [] for an empty or all-NaN input", () => {
 		expect(binValues([])).toEqual([]);
 		expect(binValues([Number.NaN, Number.NaN])).toEqual([]);
