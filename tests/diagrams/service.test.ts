@@ -260,3 +260,62 @@ it("gives queued conversions their execution budget after dequeuing", async () =
 		vi.useRealTimers();
 	}
 });
+
+it.each([false, true])(
+	"admits the newest queued edit with explicit cancellation %s",
+	async (cancelFirst) => {
+		let started: () => void = () => {};
+		const began = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		let finish: () => void = () => {};
+		const blocked = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+		const test = fixture();
+		test.port.convert = vi.fn(async (_provider, request) => {
+			if (request.text === "blocking conversion") {
+				started();
+				await blocked;
+			}
+			return draft;
+		});
+		try {
+			const first = test.service.convert({ ...input, text: "blocking conversion" }, true);
+			await began;
+			const others = ["other-1", "other-2"].map((session) =>
+				test.service.convert({ ...input, session }, true),
+			);
+			const revisions = [test.service.convert({ ...input, session: "editing" }, true)];
+			expect((await test.service.convert({ ...input, session: "overflow" }, true)).kind).toBe(
+				"busy",
+			);
+			for (let revision = 2; revision <= 10; revision++) {
+				if (cancelFirst) test.service.cancel("editing", revision - 1, true);
+				revisions.push(
+					test.service.convert(
+						{ ...input, session: "editing", revision, text: `edit ${revision}` },
+						true,
+					),
+				);
+			}
+			expect(test.port.convert).toHaveBeenCalledTimes(1);
+			finish();
+			expect((await first).kind).toBe("ok");
+			expect((await Promise.all(others)).map((result) => result.kind)).toEqual(["ok", "ok"]);
+			const results = await Promise.all(revisions);
+			expect(results.slice(0, -1).every((result) => result.kind === "cancelled")).toBe(true);
+			expect(results.at(-1)?.kind).toBe("ok");
+			expect(test.port.convert).toHaveBeenCalledTimes(4);
+			expect(test.port.convert).toHaveBeenLastCalledWith(
+				"codex",
+				expect.objectContaining({ text: "edit 10" }),
+				expect.anything(),
+			);
+		} finally {
+			finish();
+			test.service.dispose();
+			test.cleanup();
+		}
+	},
+);

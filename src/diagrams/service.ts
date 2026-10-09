@@ -34,7 +34,8 @@ export class DiagramsService {
 	private readonly sessions = new Map<string, Session>();
 	private readonly uploads = new Map<string, Upload>();
 	private tail: Promise<unknown> = Promise.resolve();
-	private pending = 0;
+	private readonly pending = new Set<AbortController>();
+	private running?: AbortController;
 	private discovering = false;
 	private discoveryAbort?: AbortController;
 	constructor(
@@ -244,17 +245,25 @@ export class DiagramsService {
 		const previous = this.sessions.get(input.session);
 		if (previous && input.revision <= previous.revision)
 			return { kind: "cancelled", message: "Superseded conversion" };
-		if (this.pending >= 4 || (!previous && this.activeSessionCount() >= 100))
+		// Aborted queued revisions do not consume capacity. A new revision can
+		// also reuse its own queued slot before superseding that revision below.
+		const pending = [...this.pending].filter(
+			(controller) =>
+				controller === this.running ||
+				(!controller.signal.aborted && controller !== previous?.abort),
+		).length;
+		if (pending >= 4 || (!previous && this.activeSessionCount() >= 100))
 			return { kind: "busy", message: "Diagram conversion is busy; retry shortly" };
 		previous?.abort?.abort();
 		const abort = new AbortController();
 		let deadline: ReturnType<typeof setTimeout> | undefined;
 		const session: Session = { revision: input.revision, abort, touched: Date.now() };
 		this.sessions.set(input.session, session);
-		this.pending++;
+		this.pending.add(abort);
 		const work = this.tail.then(
 			async (): Promise<Outcome<DiagramDraft & { provider: Provider }>> => {
 				if (abort.signal.aborted) return { kind: "cancelled", message: "Conversion cancelled" };
+				this.running = abort;
 				const unavailable = this.access(allowed);
 				if (unavailable) return unavailable;
 				let image: Buffer | undefined;
@@ -325,7 +334,8 @@ export class DiagramsService {
 			return await work;
 		} finally {
 			clearTimeout(deadline);
-			this.pending--;
+			this.pending.delete(abort);
+			if (this.running === abort) this.running = undefined;
 			if (this.sessions.get(input.session) === session) {
 				session.abort = undefined;
 				session.touched = Date.now();
