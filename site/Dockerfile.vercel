@@ -22,7 +22,7 @@ ENV NODE_ENV=production \
     MDXSERVE_IMMUTABLE_SITE=1 \
     MDXSERVE_HOME=/tmp/mdxserve/state \
     MDXSERVE_CACHE_HOME=/tmp/mdxserve/cache \
-    __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.vercel.app
+    __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.vercel.app,mdxserve.karim.build
 
 WORKDIR /opt/mdxserve
 COPY --from=source /opt/mdxserve/package.json ./

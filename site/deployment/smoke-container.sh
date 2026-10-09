@@ -49,6 +49,13 @@ case "$asset_type" in
   *) echo "Unexpected client module content type: $asset_type" >&2; exit 1 ;;
 esac
 
+custom_host_type="$(curl --silent --fail --max-time 15 -H 'Host: mdxserve.karim.build' \
+  -o "$response_file" -w '%{content_type}' "$base_url/@vite/client")"
+case "$custom_host_type" in
+  text/javascript*) ;;
+  *) echo "Vite client blocked on custom domain: $custom_host_type" >&2; exit 1 ;;
+esac
+
 doc_type="$(curl --silent --fail --max-time 15 -H 'Host: smoke.vercel.app' \
   -o "$response_file" -w '%{content_type}' "$base_url/@fs/srv/docs/README.mdx")"
 case "$doc_type" in
