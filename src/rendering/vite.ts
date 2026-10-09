@@ -285,6 +285,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		appType: "custom",
 		server: {
 			middlewareMode: true,
+			// Vercel's container has a lower open-file limit. Eagerly traversing
+			// lucide's dynamic icon map can exhaust it before the page loads.
+			preTransformRequests: process.env.MDXSERVE_IMMUTABLE_SITE !== "1",
 			// Served roots can be large (a whole repo); keep the watcher away from
 			// dependency/venv/build trees and don't follow symlinks out of the root.
 			watch: {
