@@ -18,7 +18,11 @@ import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
 import { ServerRegistry, mdxserveHome } from "../servers/server-registry.js";
-import { admitBindHost, loopbackBindHost } from "../servers/bind-host.js";
+import {
+	resolveBindPermissions,
+	loopbackBindHost,
+	type PermissionMode,
+} from "../servers/bind-host.js";
 import { serverBaseUrl } from "../servers/remote.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { RenderService } from "../rendering/render.js";
@@ -34,6 +38,7 @@ export interface StartServerOptions {
 	port: number;
 	host: string;
 	dangerousAllowNetwork?: boolean;
+	permissions?: string;
 }
 
 /** Regenerate `file` for the given `roots`, so a root added/removed at runtime shows up in HMR's Tailwind scan. */
@@ -77,6 +82,7 @@ export function printBanner(
 	host: string,
 	fallbackUsed: boolean,
 	rootInfos: RootInfo[],
+	permissions: PermissionMode = "full",
 ): void {
 	const localUrl = serverBaseUrl({ host, port });
 	const ip = networkAddress(host);
@@ -84,6 +90,7 @@ export function printBanner(
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];
 	if (networkUrl) lines.push(`- Network:  ${networkUrl}`);
+	lines.push(`- Permissions: ${permissions}`);
 	lines.push(`- API:      ${localUrl}/__mdxserve/trpc`);
 	lines.push("");
 	if (rootInfos.length === 0) {
@@ -135,9 +142,20 @@ export type StartOutcome =
 
 export async function startServer(options: StartServerOptions): Promise<StartOutcome> {
 	const { roots } = options;
-	const bind = admitBindHost(options.host, options.dangerousAllowNetwork);
+	const bind = resolveBindPermissions(
+		options.host,
+		options.permissions,
+		options.dangerousAllowNetwork,
+	);
 	if (bind.kind !== "ok") return bind;
-	const { host } = bind;
+	const { host, permissions } = bind;
+	const restricted = permissions === "restricted";
+	if (restricted && roots.length !== 1) {
+		return {
+			kind: "error",
+			message: "restricted permissions require exactly one explicit -w directory",
+		};
+	}
 
 	// One server per user: take the lock before anything expensive (and before
 	// loadRegistry, so this path is testable without a build). A held lock is
@@ -146,6 +164,13 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const serverRegistry = new ServerRegistry();
 	const acquired = lock.acquire();
 	if (acquired.kind === "held") {
+		if (restricted) {
+			return {
+				kind: "error",
+				message:
+					"restricted permissions cannot reuse an existing mdxserve server; use a separate MDXSERVE_HOME",
+			};
+		}
 		const running = serverRegistry.current();
 		return { kind: "already-running", pid: acquired.pid, port: running?.port, host: running?.host };
 	}
@@ -160,7 +185,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		process.cwd(),
 		os.homedir(),
 		[],
-		path.join(mdxserveHome(), "config.json"),
+		restricted ? undefined : path.join(mdxserveHome(), "config.json"),
 	);
 	const initialized = await rootsService.initialize(roots);
 	if (initialized.kind !== "ok") {
@@ -194,12 +219,13 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	// Chokidar applies the configured `ignored` globs to added paths too.
 	for (const rootInfo of rootsService.list()) vite.watcher.add(rootInfo.dir);
 
-	const renderer = new RenderService(vite);
+	const renderer = restricted ? undefined : new RenderService(vite);
 
 	// One rolldown build at a time: exportDoc is CPU-heavy and two tabs (or a
 	// double-click) must queue rather than run concurrent builds.
 	let exportChain: Promise<unknown> = Promise.resolve();
 	const bundle: BundlePort = (input) => {
+		if (restricted) throw new Error("Export is disabled with restricted permissions");
 		const next = exportChain.then(() => bundleStandalone(input));
 		exportChain = next.catch(() => undefined);
 		return next;
@@ -208,17 +234,19 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const docCache = new DocCache();
 	const search = new SearchService(docCache);
 	const docs = new DocsService(rootsService, registry);
-	const diagrams = new DiagramsService(
-		new PreferencesService(path.join(mdxserveHome(), "config.json")),
-		localAgentPort(),
-		validateDiagram,
-		normalizeDiagramImage,
-	);
-	const diagramWatch = setInterval(() => diagrams.stopIfDisabled(), 1000);
-	diagramWatch.unref();
+	const diagrams = restricted
+		? undefined
+		: new DiagramsService(
+				new PreferencesService(path.join(mdxserveHome(), "config.json")),
+				localAgentPort(),
+				validateDiagram,
+				normalizeDiagramImage,
+			);
+	const diagramWatch = diagrams ? setInterval(() => diagrams.stopIfDisabled(), 1000) : undefined;
+	diagramWatch?.unref();
 	httpServer.once("close", () => {
-		clearInterval(diagramWatch);
-		diagrams.dispose();
+		if (diagramWatch) clearInterval(diagramWatch);
+		diagrams?.dispose();
 	});
 
 	httpServer.on("request", (req, res) => {
@@ -228,12 +256,13 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			pkgRoot,
 			vite,
 			cssFile,
-			render: (absPath) => renderer.render(absPath),
+			render: renderer ? (absPath) => renderer.render(absPath) : undefined,
 			bundle,
 			docCache,
 			search,
 			docs,
 			diagrams,
+			permissions,
 		}).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {
@@ -335,7 +364,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	);
 
 	const actualPort = await listenWithFallback(httpServer, options.port, host);
-	printBanner(actualPort, host, actualPort !== options.port, rootsService.list());
+	printBanner(actualPort, host, actualPort !== options.port, rootsService.list(), permissions);
 	serverRegistry.register({
 		port: actualPort,
 		pid: process.pid,
@@ -356,8 +385,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	async function shutdown(): Promise<void> {
 		if (shuttingDown) return;
 		shuttingDown = true;
-		clearInterval(diagramWatch);
-		diagrams.dispose();
+		if (diagramWatch) clearInterval(diagramWatch);
+		diagrams?.dispose();
 		console.log("\n  Shutting down…");
 		try {
 			stopConfigWatch();

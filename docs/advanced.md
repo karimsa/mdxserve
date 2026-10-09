@@ -62,18 +62,34 @@ folder is listed too, muted and unclickable, so you can see what is there.
 
 ## Exposing it on a network
 
-The server binds to `127.0.0.1` by default. Non-loopback bindings are rejected unless you
-explicitly pass `--dangerous-allow-network` on that invocation:
+The server binds to `127.0.0.1` by default. Permission mode defaults to `full` on
+loopback and `restricted` on other interfaces. Startup prints the effective mode.
+`localhost` is pinned to `127.0.0.1` without DNS resolution. IPv4 loopback addresses
+and `::1` also default to full permissions. Other hostnames default to restricted,
+even if they currently resolve to loopback.
+
+For a public site, use [`--permissions restricted`](../README.md#hosting-a-public-reader).
+It requires one explicit root, ignores saved roots, and denies all HTTP mutations
+regardless of the peer address. Select it explicitly when a reverse proxy connects
+to a loopback listener:
 
 ```bash
-mdxserve serve --host 0.0.0.0 --dangerous-allow-network
+mdxserve serve --permissions restricted -w ./site
 ```
 
-This permits unauthenticated network access to **all configured roots**, including roots
-saved during earlier local-only sessions and any roots added through later config edits.
-The opt-in is not stored in the JSON config. `localhost` is pinned to `127.0.0.1` without DNS
-resolution; IPv4 loopback addresses and `::1` also work without the flag. Other hostnames
-require the flag even if they currently resolve to loopback.
+To allow full permissions on a trusted network, specify both options:
+
+```bash
+mdxserve serve --host 0.0.0.0 --permissions full --dangerous-allow-network
+```
+
+Full permissions on a non-loopback interface are rejected without the dangerous flag.
+The dangerous flag alone does not change the default permission mode. These options
+apply to the current invocation and are not stored in the JSON config.
+
+Full network access exposes **all configured roots**, including roots saved during
+earlier local sessions and roots added through later config edits. The following
+caller restrictions still apply in full mode.
 
 Network clients can read and search the served roots. Three things are held back for callers that are not on the same machine:
 
@@ -89,8 +105,8 @@ so they follow the same rule.
 
 One more thing a remote caller can reach: the dev server serves the files of mdxserve's own
 dependencies under `/@fs/`, from the `node_modules` the package was installed into. With a
-global or `npx` install that folder also holds whatever else is installed there, so bind to
-`0.0.0.0` only on a network you trust.
+global or `npx` install that folder also holds whatever else is installed there, so use
+full permissions on a network interface only on a network you trust.
 
 ## Exporting
 

@@ -103,3 +103,32 @@ describe("same-origin guard", () => {
 		});
 	});
 });
+
+it("restricted policy blocks direct mutation callers even when their context claims loopback", async () => {
+	const docPath = path.join(fixtureDir, "good.md");
+	const api = createCaller(
+		makeContext({
+			permissions: "restricted",
+			isLoopback: true,
+			host: "127.0.0.1:4040",
+			origin: "http://127.0.0.1:4040",
+		}),
+	);
+	const source = await api.getDocSource({ path: docPath });
+	await expect(
+		api.saveDocSection({
+			path: docPath,
+			startLine: 1,
+			endLine: 1,
+			version: source.version,
+			markdown: "# Changed",
+		}),
+	).rejects.toMatchObject({ code: "FORBIDDEN" });
+	await expect(api.moveDocsToTrash({ paths: [docPath] })).rejects.toMatchObject({
+		code: "FORBIDDEN",
+	});
+	await expect(api.validateDoc({ path: docPath })).rejects.toMatchObject({ code: "FORBIDDEN" });
+	await expect(api.exportDoc({ path: docPath })).rejects.toMatchObject({ code: "FORBIDDEN" });
+	await expect(api.getDiagramPreferences({})).rejects.toMatchObject({ code: "FORBIDDEN" });
+	expect(await fs.readFile(docPath, "utf8")).toBe(source.text);
+});

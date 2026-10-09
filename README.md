@@ -24,9 +24,9 @@ updates. Write JSX in an `.mdx` file and it renders too.
 
 ![The same page in the dark theme](docs/screenshots/reader-dark.jpg)
 
-It is built for folders of Markdown that already exist — notes, a `docs/` directory, plan
-files an AI agent wrote — rather than for publishing a site. There is no build step and no
-config file: run it, open the URL, read.
+It works with folders of Markdown that already exist: notes, a `docs/` directory, or plan
+files an AI agent wrote. For local use, there is no build step or config file: run it,
+open the URL, and read. Use `--permissions restricted` to publish one folder as a read-only site.
 
 ## Install
 
@@ -84,12 +84,40 @@ file is restored. An invalid config at startup reports an error. Root commands s
 atomically and preserve unrelated settings. SQLite records only the live server's status;
 the JSON file is the source of truth for which roots should exist.
 
-| Flag                        | Default     | Effect                                                       |
-| --------------------------- | ----------- | ------------------------------------------------------------ |
-| `-w, --watch`               | none        | Serve this folder; repeat the flag for more than one         |
-| `-p, --port`                | `4040`      | Port to listen on; falls back to a free one if it's taken    |
-| `--host`                    | `127.0.0.1` | Interface to bind; non-loopback requires explicit opt-in     |
-| `--dangerous-allow-network` | off         | Allow unauthenticated network access to all configured roots |
+| Flag                        | Default         | Effect                                                    |
+| --------------------------- | --------------- | --------------------------------------------------------- |
+| `-w, --watch`               | none            | Serve this folder; repeat the flag for more than one      |
+| `-p, --port`                | `4040`          | Port to listen on; falls back to a free one if it's taken |
+| `--host`                    | `127.0.0.1`     | Interface to bind; determines default permission mode     |
+| `--dangerous-allow-network` | off             | Authorize full permissions on a non-loopback interface    |
+| `--permissions <mode>`      | interface-based | `full` on loopback, `restricted` on other interfaces      |
+
+## Hosting a public reader
+
+Permission mode defaults to `full` on loopback and `restricted` on other interfaces.
+The effective mode is printed at startup. Use `--permissions restricted` to select the
+public reader restrictions explicitly, including behind a proxy connected over loopback:
+
+```bash
+MDXSERVE_HOME=/tmp/mdxserve-public mdxserve serve --permissions restricted -w ./site --host 0.0.0.0 -p "${PORT:-4040}"
+```
+
+Restricted mode requires one `-w` directory. It ignores saved roots
+and config changes. All HTTP mutations are denied, including editing, Trash, root changes,
+exports, and diagram agents, even when a reverse proxy connects over loopback. The reader,
+navigation, and search remain available. A restricted instance will not reuse another server
+under the same `MDXSERVE_HOME`; give it its own directory.
+
+Treat every file in `./site` as public. Visitors can fetch MDX source and visible assets,
+including imported CSS and JSX. Vite also serves the mdxserve client and dependency modules
+needed by the page. Hidden files, links to hidden targets, and links outside the served root
+are blocked; links to visible files inside the root still work.
+Run the server with a read-only site directory and no agent credentials. At the public proxy,
+limit requests per client and concurrent requests to bound repeated Vite compilation and
+search work.
+Full permissions on a non-loopback interface require both `--permissions full` and
+`--dangerous-allow-network`. The dangerous flag alone leaves the default restricted mode
+in place. Use full network access only on a trusted network.
 
 ## Writing docs
 

@@ -12,17 +12,23 @@ Each domain module's `controller.ts` (`src/roots/`, `src/listing/`, `src/search/
 
 ## Transport rules
 
-| Request                                      | Response                                                           |
-| -------------------------------------------- | ------------------------------------------------------------------ |
-| Query                                        | `GET`                                                              |
-| Mutation                                     | `POST` with a JSON body                                            |
-| `POST` with any other content type           | `415`                                                              |
-| Mutation over `GET`                          | `405`                                                              |
-| Mutation whose `Origin` doesn't match `Host` | `403` — see [LAN exposure](./advanced.md#exposing-it-on-a-network) |
+| Request                                         | Response                                                           |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| Query                                           | `GET`                                                              |
+| Mutation                                        | `POST` with a JSON body                                            |
+| `POST` with any other content type              | `415`                                                              |
+| Mutation over `GET`                             | `405`                                                              |
+| Mutation whose `Origin` doesn't match `Host`    | `403` — see [LAN exposure](./advanced.md#exposing-it-on-a-network) |
+| Any mutation in `--permissions restricted` mode | `403`, including calls from loopback or a reverse proxy            |
 
 The request and response encoding is tRPC's; the reference client is the one the CLI and the
 stdio bridge use, in `src/servers/`. Reach for that (or any tRPC client pointed at the
 `AppRouter` type) before hand-writing requests.
+
+In `--permissions restricted` mode, queries for the reader, tree, search, components, and document source
+remain available. Diagram preferences and every mutation are blocked. The restricted policy is
+set at server startup, so a reverse proxy's local upstream connection cannot grant write or
+server-side execution privileges.
 
 ## Methods
 

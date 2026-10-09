@@ -91,10 +91,10 @@ export class DocsService {
 	 * "Raw" matters: startLine/endLine from the compiled MdSection props index
 	 * into the on-disk file, not the transformed one.
 	 */
-	async readSource(inputPath: string): Promise<ReadSourceResult> {
+	async readSource(inputPath: string, publicOnly = false): Promise<ReadSourceResult> {
 		const rootInfos = this.roots.list();
 		const rootDirs = rootInfos.map((rootInfo) => rootInfo.dir);
-		const resolved = await resolveDocPath(rootDirs, inputPath);
+		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
 
 		const stat = await fsp.stat(resolved.abs);

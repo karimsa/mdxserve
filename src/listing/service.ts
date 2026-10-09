@@ -23,6 +23,7 @@ export class ListingService {
 	constructor(
 		private readonly rootInfos: RootInfo[],
 		private readonly docCache: DocCache,
+		private readonly publicOnly = false,
 	) {}
 
 	/**
@@ -39,12 +40,18 @@ export class ListingService {
 		const resolved = await resolveDirPath(
 			this.rootInfos.map((rootInfo) => rootInfo.dir),
 			inputPath,
+			this.publicOnly,
 		);
 		if (!resolved.ok) return { kind: "not-found", message: "Not found" };
 
 		return {
 			kind: "ok",
-			listing: readListing(resolved.abs, rootInfoFor(this.rootInfos, resolved.root), this.docCache),
+			listing: readListing(
+				resolved.abs,
+				rootInfoFor(this.rootInfos, resolved.root),
+				this.docCache,
+				this.publicOnly,
+			),
 		};
 	}
 
@@ -60,7 +67,7 @@ export class ListingService {
 				roots: this.rootInfos.map((rootInfo) => ({
 					name: rootInfo.name,
 					dir: rootInfo.dir,
-					nodes: readTree(rootInfo.dir, input.maxDepth),
+					nodes: readTree(rootInfo.dir, input.maxDepth, this.publicOnly ? rootInfo.dir : undefined),
 				})),
 			};
 		}
@@ -68,6 +75,7 @@ export class ListingService {
 		const resolved = await resolveDirPath(
 			this.rootInfos.map((rootInfo) => rootInfo.dir),
 			input.path,
+			this.publicOnly,
 		);
 		if (!resolved.ok) {
 			return { kind: "not-found", message: resolved.error };
@@ -81,7 +89,11 @@ export class ListingService {
 				{
 					name: rootInfo.name,
 					dir: rootInfo.dir,
-					nodes: readTree(resolved.abs, input.maxDepth),
+					nodes: readTree(
+						resolved.abs,
+						input.maxDepth,
+						this.publicOnly ? resolved.root : undefined,
+					),
 				},
 			],
 		};

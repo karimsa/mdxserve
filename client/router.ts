@@ -75,9 +75,14 @@ function ensureDocModule(path: string): Promise<void> {
  * entry.tsx before React mounts so multi-root navigation (home crumb, `..`
  * row) doesn't flash in or out while the tree query is still loading.
  */
-export const shellInfo: { rootCount: number | null; sameMachine: boolean } = {
+export const shellInfo: {
+	rootCount: number | null;
+	sameMachine: boolean;
+	permissions: "full" | "restricted";
+} = {
 	rootCount: null,
 	sameMachine: false,
+	permissions: "full",
 };
 
 function mapRoots(data: DocTreeOutput): RootTree[] {

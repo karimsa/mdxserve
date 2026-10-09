@@ -64,7 +64,11 @@ const getFolderListing = procedure(
 	.input(getFolderListingInput)
 	.output(folderListingSchema)
 	.query(async ({ ctx, input }) => {
-		const listingService = new ListingService(ctx.rootInfos, ctx.docCache);
+		const listingService = new ListingService(
+			ctx.rootInfos,
+			ctx.docCache,
+			ctx.permissions === "restricted",
+		);
 		const result = await listingService.folderListing(input.path);
 		if (result.kind === "not-found") {
 			throw new TRPCError({ code: "NOT_FOUND", message: "Not found" });
@@ -78,7 +82,11 @@ const getDocTree = procedure(
 	.input(getDocTreeInput)
 	.output(docTreeSchema)
 	.query(async ({ ctx, input }) => {
-		const listingService = new ListingService(ctx.rootInfos, ctx.docCache);
+		const listingService = new ListingService(
+			ctx.rootInfos,
+			ctx.docCache,
+			ctx.permissions === "restricted",
+		);
 		const result = await listingService.docTree({ path: input.path, maxDepth: input.maxDepth });
 		if (result.kind === "not-found") {
 			throw new TRPCError({ code: "NOT_FOUND", message: result.message });

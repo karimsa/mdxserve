@@ -49,13 +49,11 @@ program
 	.option("-p, --port <n>", "port to listen on", "4040")
 	.option(
 		"--host <host>",
-		"host to bind to (non-loopback requires --dangerous-allow-network)",
+		"host to bind to (non-loopback defaults to restricted permissions)",
 		"127.0.0.1",
 	)
-	.option(
-		"--dangerous-allow-network",
-		"allow unauthenticated network access to all saved and future configured roots",
-	)
+	.option("--dangerous-allow-network", "allow --permissions full on a non-loopback interface")
+	.option("--permissions <mode>", "access mode: full or restricted (default depends on host)")
 	.option(
 		"-w, --watch <dir>",
 		"serve this directory (repeatable)",
@@ -68,6 +66,7 @@ program
 			host: string;
 			watch: string[];
 			dangerousAllowNetwork?: boolean;
+			permissions?: string;
 		}) => {
 			const inputs = opts.watch;
 
@@ -93,6 +92,7 @@ program
 				port,
 				host: opts.host,
 				dangerousAllowNetwork: opts.dangerousAllowNetwork,
+				permissions: opts.permissions,
 			});
 			if (outcome.kind === "ok") return;
 			process.exitCode = 1;
@@ -102,7 +102,7 @@ program
 			}
 			if (outcome.port === undefined) {
 				console.error(
-					`mdxserve: a server is already starting (pid ${outcome.pid}); run \`mdxserve status\` in a moment`,
+					`mdxserve: a server is already starting (pid ${outcome.pid}); these startup options were not applied. Run \`mdxserve status\` in a moment`,
 				);
 				return;
 			}
@@ -110,6 +110,7 @@ program
 			console.error(
 				[
 					`mdxserve: a server is already running (pid ${outcome.pid}) at ${url}`,
+					"  these startup options were not applied; the existing server keeps its permissions",
 					"  add a folder to it:      mdxserve roots add <dir>",
 					"  see what it is serving:  mdxserve status",
 					"  stop it (Ctrl-C, or your process manager) before starting another",
