@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import { Settings } from "../Settings";
 import { trpcClient } from "../api";
 export type AgentChoice = "codex" | "claude" | "disabled";

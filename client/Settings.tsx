@@ -1,6 +1,10 @@
 import { useAtom } from "jotai";
 import { useState, type ReactNode } from "react";
-import { ChevronDown, Network, PanelsTopLeft, Settings as SettingsIcon, X } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
+import Network from "lucide-react/dist/esm/icons/network.mjs";
+import PanelsTopLeft from "lucide-react/dist/esm/icons/panels-top-left.mjs";
+import SettingsIcon from "lucide-react/dist/esm/icons/settings.mjs";
+import X from "lucide-react/dist/esm/icons/x.mjs";
 import { contentLayoutAtom, tocVisibleAtom, type ContentLayout } from "./state";
 import { Modal } from "./ui/Modal";
 
