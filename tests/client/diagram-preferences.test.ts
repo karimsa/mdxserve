@@ -156,3 +156,56 @@ it("defaults to visible contents and autosaves visibility independently of diagr
 	expect(getDefaultStore().get(tocVisibleAtom)).toBe(true);
 	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("true");
 });
+
+it("keeps the modal open through every dismissal path until an autosave failure is shown", async () => {
+	const onClose = vi.fn();
+	await act(async () => root.render(createElement(DiagramPreferences, { onClose })));
+	let rejectSave!: (failure: Error) => void;
+	rpc.save.mockImplementationOnce(
+		() =>
+			new Promise((_, reject) => {
+				rejectSave = reject;
+			}),
+	);
+	await select("#diagram-model", "custom");
+	const dialog = document.querySelector("dialog")!;
+	vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue(new DOMRect(20, 20, 400, 300));
+	await act(async () => {
+		dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+		dialog.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }));
+		dialog.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 0, clientY: 0 }));
+		document.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')!.click();
+	});
+	expect(onClose).not.toHaveBeenCalled();
+	expect(document.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')!.disabled).toBe(
+		true,
+	);
+	await act(async () => rejectSave(new Error("offline")));
+	expect(document.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t save settings");
+	await act(async () =>
+		document.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')!.click(),
+	);
+	expect(onClose).toHaveBeenCalledOnce();
+});
+it("offers browser-local layout settings to remote viewers without accessing diagram preferences", async () => {
+	await act(async () => root.render(null));
+	vi.clearAllMocks();
+	await act(async () =>
+		root.render(createElement(DiagramPreferences, { onClose: vi.fn(), canEditDiagrams: false })),
+	);
+	expect(document.querySelector("#content-layout")).not.toBeNull();
+	expect(document.querySelector("#diagram-agent")).toBeNull();
+	expect(
+		[...document.querySelectorAll("button")].some(
+			(button) => button.textContent?.trim() === "Diagrams",
+		),
+	).toBe(false);
+	await select("#content-layout", "full-width");
+	await select("#toc-visibility", "hidden");
+	expect(localStorage.getItem("mdxserve.content.layout")).toBe('"full-width"');
+	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("false");
+	expect(rpc.get).not.toHaveBeenCalled();
+	expect(rpc.list).not.toHaveBeenCalled();
+	expect(rpc.save).not.toHaveBeenCalled();
+	expect(document.body.textContent).not.toContain("Loading settings");
+});

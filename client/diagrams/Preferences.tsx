@@ -5,8 +5,16 @@ import { Modal } from "../ui/Modal";
 import { ChevronDown, Network, PanelsTopLeft, Settings, X } from "lucide-react";
 import { trpcClient } from "../api";
 export type AgentChoice = "codex" | "claude" | "disabled";
-export function DiagramPreferences({ onClose }: { onClose: () => void }) {
-	const [category, setCategory] = useState<"diagrams" | "layout">("diagrams");
+export function DiagramPreferences({
+	onClose,
+	canEditDiagrams = true,
+}: {
+	onClose: () => void;
+	canEditDiagrams?: boolean;
+}) {
+	const [category, setCategory] = useState<"diagrams" | "layout">(
+		canEditDiagrams ? "diagrams" : "layout",
+	);
 	const [layout, setLayout] = useAtom(contentLayoutAtom);
 	const [tocVisible, setTocVisible] = useAtom(tocVisibleAtom);
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
@@ -17,10 +25,11 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 	const [refreshModels, setRefreshModels] = useState(0);
 	const [statuses, setStatuses] = useState("Agents haven’t been checked yet.");
 	const [error, setError] = useState("");
-	const [pending, setPending] = useState(true);
+	const [pending, setPending] = useState(canEditDiagrams);
 	const [checking, setChecking] = useState(false);
 	const [loaded, setLoaded] = useState(false);
 	useEffect(() => {
+		if (!canEditDiagrams) return;
 		void trpcClient.getDiagramPreferences
 			.query({})
 			.then((result) => {
@@ -30,12 +39,12 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 			})
 			.catch((failure) => setError(failure.message))
 			.finally(() => setPending(false));
-	}, []);
+	}, [canEditDiagrams]);
 	useEffect(() => {
 		let obsolete = false;
 		setCatalog([]);
 		setModelError("");
-		if (!loaded || agent === "disabled") {
+		if (!canEditDiagrams || !loaded || agent === "disabled") {
 			setLoadingModels(false);
 			return;
 		}
@@ -54,7 +63,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 		return () => {
 			obsolete = true;
 		};
-	}, [agent, loaded, refreshModels]);
+	}, [canEditDiagrams, agent, loaded, refreshModels]);
 	async function save(nextAgent: AgentChoice, nextModels = models) {
 		const previousAgent = agent;
 		const previousModels = models;
@@ -74,8 +83,15 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 		}
 	}
 
+	const saving = (loaded && pending) || checking;
 	return (
-		<Modal open onClose={onClose} className="diagram-dialog diagram-settings" aria-label="Settings">
+		<Modal
+			open
+			onClose={onClose}
+			dismissible={!saving}
+			className="diagram-dialog diagram-settings"
+			aria-label="Settings"
+		>
 			<header className="diagram-navbar">
 				<div className="diagram-title">
 					<Settings size={17} />
@@ -85,6 +101,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 					type="button"
 					className="diagram-icon-button"
 					aria-label="Close settings"
+					disabled={saving}
 					onClick={onClose}
 				>
 					<X size={18} />
@@ -101,15 +118,17 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 						<PanelsTopLeft size={15} />
 						Layout
 					</button>
-					<button
-						type="button"
-						className="diagram-settings-category"
-						aria-pressed={category === "diagrams"}
-						onClick={() => setCategory("diagrams")}
-					>
-						<Network size={15} />
-						Diagrams
-					</button>
+					{canEditDiagrams && (
+						<button
+							type="button"
+							className="diagram-settings-category"
+							aria-pressed={category === "diagrams"}
+							onClick={() => setCategory("diagrams")}
+						>
+							<Network size={15} />
+							Diagrams
+						</button>
+					)}
 				</aside>
 				{category === "layout" ? (
 					<section>

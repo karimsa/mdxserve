@@ -649,7 +649,7 @@ export function ListingView({
 					);
 				})}
 			</motion.div>
-			{sidebar || fullWidth ? null : (
+			{sidebar ? null : (
 				<ConfirmDeleteDialog
 					open={confirmOpen}
 					files={selected}

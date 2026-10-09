@@ -311,10 +311,15 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	return (
 		<div className="min-h-screen bg-surface-page">
 			<AnimatePresence>
-				{diagramPreferences && <DiagramPreferences onClose={() => setDiagramPreferences(false)} />}
+				{diagramPreferences && (
+					<DiagramPreferences
+						canEditDiagrams={shellInfo.sameMachine}
+						onClose={() => setDiagramPreferences(false)}
+					/>
+				)}
 			</AnimatePresence>
 			<TopBar
-				onDiagramPreferences={shellInfo.sameMachine ? () => setDiagramPreferences(true) : undefined}
+				onDiagramPreferences={() => setDiagramPreferences(true)}
 				homeHref="/"
 				hostLabel={location.host}
 				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
