@@ -55,13 +55,18 @@ export type ResolvedDoc = { ok: true; abs: string; root: string } | { ok: false;
  * when exactly one root has a file at that location. Then apply the same
  * safety checks as the server's doc-serving route: per-segment servability,
  * a realpath containment check (so a symlinked directory can't point outside
- * its root), and a .md/.mdx regular-file check.
+ * its root), and a .md/.mdx regular-file check. Public readers also reject
+ * symlinks whose target has a hidden segment inside the root.
  *
  * When `roots` is empty (no mdxserve server running), only an absolute path
  * can be resolved — there's nothing to resolve a relative path against — and
  * the containment check is skipped. Every other check still applies.
  */
-export async function resolveDocPath(roots: string[], input: string): Promise<ResolvedDoc> {
+export async function resolveDocPath(
+	roots: string[],
+	input: string,
+	publicOnly = false,
+): Promise<ResolvedDoc> {
 	let hit: { root: string; abs: string } | null;
 	if (path.isAbsolute(input)) {
 		if (roots.length === 0) {
@@ -123,7 +128,7 @@ export async function resolveDocPath(roots: string[], input: string): Promise<Re
 		if (
 			relReal.startsWith("..") ||
 			path.isAbsolute(relReal) ||
-			!relReal.split(path.sep).filter(Boolean).every(isServable)
+			(publicOnly && !relReal.split(path.sep).filter(Boolean).every(isServable))
 		) {
 			return { ok: false, error: `${abs} is outside every served directory` };
 		}
@@ -148,9 +153,14 @@ export type ResolvedDir = { ok: true; abs: string; root: string } | { ok: false;
 /**
  * Resolve an absolute directory path inside a served root, with the same
  * realpath containment check as `resolveDocPath` so a symlinked directory
- * can't be used to list files outside every root.
+ * can't be used to list files outside every root. Public readers also reject
+ * directory aliases whose target has a hidden segment.
  */
-export async function resolveDirPath(roots: string[], input: string): Promise<ResolvedDir> {
+export async function resolveDirPath(
+	roots: string[],
+	input: string,
+	publicOnly = false,
+): Promise<ResolvedDir> {
 	const hit = await resolveRootFollowingLinks(roots, input);
 	if (!hit) return { ok: false, error: `${input} is outside every served directory` };
 
@@ -171,7 +181,7 @@ export async function resolveDirPath(roots: string[], input: string): Promise<Re
 	if (
 		relReal.startsWith("..") ||
 		path.isAbsolute(relReal) ||
-		!relReal.split(path.sep).filter(Boolean).every(isServable)
+		(publicOnly && !relReal.split(path.sep).filter(Boolean).every(isServable))
 	) {
 		return { ok: false, error: `${hit.abs} is outside every served directory` };
 	}

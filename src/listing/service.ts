@@ -40,6 +40,7 @@ export class ListingService {
 		const resolved = await resolveDirPath(
 			this.rootInfos.map((rootInfo) => rootInfo.dir),
 			inputPath,
+			this.publicOnly,
 		);
 		if (!resolved.ok) return { kind: "not-found", message: "Not found" };
 
@@ -74,6 +75,7 @@ export class ListingService {
 		const resolved = await resolveDirPath(
 			this.rootInfos.map((rootInfo) => rootInfo.dir),
 			input.path,
+			this.publicOnly,
 		);
 		if (!resolved.ok) {
 			return { kind: "not-found", message: resolved.error };

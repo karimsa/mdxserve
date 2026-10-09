@@ -323,6 +323,21 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 });
 
 describe("restricted permissions", () => {
+	it.each(["entry.tsx%5C..%5C..%5C.hidden.tsx", "entry.tsx%5C..%2F..%5C.hidden.tsx"])(
+		"rejects encoded separators in %s before routing internal files to Vite",
+		async (rest) => {
+			const middleware = vi.fn((_req: unknown, res: http.ServerResponse) => {
+				res.statusCode = 200;
+				res.end("vite");
+			});
+			const vite = { middlewares: middleware } as unknown as ViteDevServer;
+			const { base } = await startWith({ permissions: "restricted", vite });
+			const response = await fetch(`${base}/__mdxserve/${rest}`);
+			expect(response.status).toBe(404);
+			expect(middleware).not.toHaveBeenCalled();
+		},
+	);
+
 	it("serves the reader but denies same-origin writes and local-only reads on a loopback connection", async () => {
 		const { base } = await startWith({ permissions: "restricted", vite: htmlVite() });
 		const client = createTRPCClient<AppRouter>({
@@ -447,6 +462,54 @@ describe("restricted permissions", () => {
 				fs.rm(visibleLink, { force: true }),
 			]);
 			await fs.rm(outsideDir, { recursive: true, force: true });
+		}
+	});
+
+	it("keeps visible doc and directory aliases to hidden targets in full mode only", async () => {
+		const hiddenDir = path.join(fixtureDir, ".hosting-drafts");
+		const dirAlias = path.join(fixtureDir, "hosting-drafts");
+		const aliases = ["md", "mdx"].map((extension) => ({
+			target: path.join(hiddenDir, `guide.${extension}`),
+			alias: path.join(fixtureDir, `hosting-guide.${extension}`),
+		}));
+		try {
+			await fs.mkdir(hiddenDir);
+			for (const { target, alias } of aliases) {
+				await fs.writeFile(target, `# ${path.extname(target)} guide\n`);
+				await fs.symlink(target, alias);
+			}
+			await fs.symlink(hiddenDir, dirAlias, "dir");
+
+			for (const permissions of ["full", "restricted"] as const) {
+				const { base } = await startWith({ permissions });
+				const client = createTRPCClient<AppRouter>({
+					links: [httpLink({ url: `${base}/__mdxserve/trpc` })],
+				});
+				for (const { alias } of aliases) {
+					if (permissions === "full") {
+						expect((await client.getDocSource.query({ path: alias })).text).toContain("guide");
+					} else {
+						await expect(client.getDocSource.query({ path: alias })).rejects.toMatchObject({
+							data: { code: "NOT_FOUND" },
+						});
+					}
+				}
+				if (permissions === "full") {
+					expect((await client.getFolderListing.query({ path: dirAlias })).entries).toHaveLength(2);
+					expect((await client.getDocTree.query({ path: dirAlias })).roots).toHaveLength(1);
+				} else {
+					await expect(client.getFolderListing.query({ path: dirAlias })).rejects.toMatchObject({
+						data: { code: "NOT_FOUND" },
+					});
+					await expect(client.getDocTree.query({ path: dirAlias })).rejects.toMatchObject({
+						data: { code: "NOT_FOUND" },
+					});
+				}
+			}
+		} finally {
+			await Promise.all(aliases.map(({ alias }) => fs.rm(alias, { force: true })));
+			await fs.rm(dirAlias, { force: true });
+			await fs.rm(hiddenDir, { recursive: true, force: true });
 		}
 	});
 });

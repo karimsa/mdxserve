@@ -29,6 +29,13 @@ beforeAll(async () => {
 	// Symlinked docs: one whose target stays inside the root, one that escapes.
 	await fs.symlink(path.join(rootDir, "doc.md"), path.join(rootDir, "sub", "alias.md"), "file");
 	await fs.symlink(path.join(outsideDir, "secret.md"), path.join(rootDir, "leak.md"), "file");
+	await fs.mkdir(path.join(rootDir, ".drafts"));
+	for (const extension of ["md", "mdx"]) {
+		const target = path.join(rootDir, ".drafts", `guide.${extension}`);
+		await fs.writeFile(target, `# ${extension} guide\n`, "utf8");
+		await fs.symlink(target, path.join(rootDir, `guide.${extension}`), "file");
+	}
+	await fs.symlink(path.join(rootDir, ".drafts"), path.join(rootDir, "drafts"), "dir");
 	// A symlink alias of the root itself (like /tmp vs /private/tmp on macOS).
 	aliasDir = path.join(outsideDir, "alias");
 	await fs.symlink(rootDir, aliasDir, "dir");
@@ -76,6 +83,15 @@ describe("resolveDocPath with a root", () => {
 });
 
 describe("resolveDocPath with symlinked docs", () => {
+	it.each(["md", "mdx"])(
+		"keeps a visible %s alias to a hidden target in full mode but rejects it in restricted mode",
+		async (extension) => {
+			const alias = path.join(rootDir, `guide.${extension}`);
+			expect(await resolveDocPath([rootDir], alias)).toMatchObject({ ok: true, abs: alias });
+			expect((await resolveDocPath([rootDir], alias, true)).ok).toBe(false);
+		},
+	);
+
 	it("accepts a symlinked doc whose target stays inside the root", async () => {
 		const abs = path.join(rootDir, "sub", "alias.md");
 		expect(await resolveDocPath([rootDir], abs)).toMatchObject({ ok: true, abs, root: rootDir });
@@ -105,6 +121,12 @@ describe("paths through a symlink alias of the root", () => {
 });
 
 describe("resolveDirPath", () => {
+	it("keeps a visible directory alias to a hidden target in full mode but rejects it in restricted mode", async () => {
+		const alias = path.join(rootDir, "drafts");
+		expect(await resolveDirPath([rootDir], alias)).toMatchObject({ ok: true, abs: alias });
+		expect((await resolveDirPath([rootDir], alias, true)).ok).toBe(false);
+	});
+
 	it("accepts a real directory inside a root", async () => {
 		const abs = path.join(rootDir, "sub");
 		expect(await resolveDirPath([rootDir], abs)).toMatchObject({ ok: true, abs, root: rootDir });

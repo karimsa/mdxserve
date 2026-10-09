@@ -138,7 +138,9 @@ export async function handleRequest(
 
 	if (pathname.startsWith(MDXSERVE_PREFIX)) {
 		const rest = decodeURIComponent(pathname.slice(MDXSERVE_PREFIX.length));
-		if (restricted && !rest.split("/").every(isServable)) {
+		// Windows treats decoded backslashes as path separators too. Check
+		// both forms before path.join can collapse a hidden or parent segment.
+		if (restricted && !rest.split(/[\\/]/).every(isServable)) {
 			res.statusCode = 404;
 			res.end("Not found");
 			return;

@@ -40,7 +40,7 @@ const getDocSource = procedure(
 	.input(getDocSourceInput)
 	.output(docSourceSchema)
 	.query(async ({ ctx, input }) => {
-		const result = await ctx.docs.readSource(input.path);
+		const result = await ctx.docs.readSource(input.path, ctx.permissions === "restricted");
 		switch (result.kind) {
 			case "ok":
 				return result.source;
