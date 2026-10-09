@@ -1,0 +1,331 @@
+# Builtin components
+
+`mdxserve` ships a small library of components that are available in every `.mdx` file with
+no `import` — they're registered globally, the same way `pre` and `figure` are overridden for
+code blocks. If you `import` your own component with the same name in a file, your local
+import wins.
+
+export const longBefore = `service:
+  name: sample-service
+  replicas: 2
+  image: ghcr.io/example/sample-service:1.4.0
+  port: 8080
+  env: production
+  region: us-east1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  healthCheck:
+    path: /healthz
+    interval: 30s
+  logging:
+    level: info
+    format: json`;
+
+export const longAfter = `service:
+  name: sample-service
+  replicas: 4
+  image: ghcr.io/example/sample-service:1.4.0
+  port: 8080
+  env: production
+  region: us-east1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  healthCheck:
+    path: /healthz
+    interval: 30s
+  logging:
+    level: debug
+    format: json`;
+
+## Callout
+
+<Callout>
+  This is the default `note` tone. No import was needed to use `<Callout>` on this page.
+</Callout>
+
+<Callout tone="tip">
+	`tone="tip"` is for a helpful aside — a shortcut, a default worth knowing about.
+</Callout>
+
+<Callout tone="warn" title="Before you continue">
+	`tone="warn"` switches the palette, and `title` renders as a bold heading above the body. Tones:
+	`note`, `tip`, `ok`, `warn`, `danger`. (`type="warn"`/`type="info"` still work as a deprecated
+	alias for `tone`.)
+</Callout>
+
+## Button
+
+<div className="not-prose flex flex-wrap items-center gap-3">
+	<Button variant="primary">Primary</Button>
+	<Button variant="secondary">Secondary</Button>
+	<Button variant="ghost">Ghost</Button>
+	<Button variant="danger">Danger</Button>
+</div>
+
+<div className="not-prose mt-3 flex flex-wrap items-center gap-3">
+	<Button size="sm">Small</Button>
+	<Button size="md">Medium</Button>
+	<Button size="lg">Large</Button>
+</div>
+
+<div className="not-prose mt-3">
+	<Button href="./01-markdown.mdx">Go to 01-markdown.mdx</Button>
+</div>
+
+`href` renders the button as a link; since it points at another doc in this folder, the
+SPA router intercepts the click and navigates client-side instead of a full page load.
+Click any button and watch it pop.
+
+## Tooltip
+
+Hover over <Tooltip content="A tooltip on plain inline text.">this dotted word</Tooltip> to
+see a tippy.js tooltip themed to match mdxserve. Tooltips also work on other inline builtins,
+like this <Tooltip content="Tooltips can wrap a Badge too." placement="right"><Badge tone="info">hover me</Badge></Tooltip>.
+
+## Tabs
+
+<Tabs>
+	<Tab label="Overview">
+		`Tabs` reads its `Tab` children to build a tab list and cross-fades between panels. Panel
+		content is regular prose — lists, code fences, anything MDX supports.
+	</Tab>
+	<Tab label="Example list">
+		- Tabs remember which panel was active - Switching animates an underline between tab labels -
+		Arrow keys move focus between tabs
+	</Tab>
+	<Tab label="Code">
+		```tsx
+		<Tabs defaultValue="b">
+			<Tab label="A" value="a">
+				First panel
+			</Tab>
+			<Tab label="B" value="b">
+				Second panel
+			</Tab>
+		</Tabs>
+		```
+	</Tab>
+</Tabs>
+
+## Badge
+
+<div className="not-prose flex flex-wrap items-center gap-2">
+	<Badge tone="neutral">neutral</Badge>
+	<Badge tone="teal">teal</Badge>
+	<Badge tone="info">info</Badge>
+	<Badge tone="ok">ok</Badge>
+	<Badge tone="warn">warn</Badge>
+	<Badge tone="danger">danger</Badge>
+	<Badge tone="note">note</Badge>
+</div>
+
+<div className="not-prose mt-2 flex flex-wrap items-center gap-2">
+	<Badge variant="soft">soft</Badge>
+	<Badge variant="solid">solid</Badge>
+	<Badge variant="outline">outline</Badge>
+</div>
+
+<div className="not-prose mt-2 flex flex-wrap items-center gap-2">
+	<Badge tone="ok" dot>
+		Online
+	</Badge>
+	<Badge tone="danger" dot>
+		Offline
+	</Badge>
+	<Badge tone="warn" dot>
+		Degraded
+	</Badge>
+</div>
+
+`color="gray"|"sky"|"green"|"amber"|"red"|"violet"` still works as a deprecated alias for `tone`.
+
+## Diff
+
+<Diff
+	title="server.ts"
+	language="ts"
+	before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
+	after={`const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(\`listening on \${port}\`);`}
+/>
+
+`Diff` renders a GitHub-style diff between `before` and `after`, with a pill to switch between
+the unified view above and a side-by-side split view, and a copy button that copies `after`.
+Same-length removed/added blocks get intra-line highlights when the changed portion of the
+line is small enough to be worth marking.
+
+With a longer snippet, unchanged runs longer than `2 * context` (or just `context` at the very
+start/end) collapse into a clickable separator — set `context={1}` here to make that show up
+with only two small, far-apart changes:
+
+<Diff title="config.yaml" context={1} before={longBefore} after={longAfter} />
+
+```mdx
+<Diff
+	title="server.ts"
+	language="ts"
+	before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
+	after={`const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(\`listening on \${port}\`);`}
+/>
+```
+
+## Card
+
+<CardGrid>
+	<Card
+		icon="rocket"
+		title="Getting started"
+		description="Point mdxserve at a folder and it starts serving."
+		href="./01-markdown.mdx"
+		meta="2 min read"
+	/>
+	<Card
+		icon="terminal"
+		title="CLI reference"
+		description="Every flag, its default, and what it changes."
+		href="./01-markdown.mdx"
+		meta="Reference"
+	/>
+	<Card
+		icon="git-branch"
+		title="Diagrams"
+		description="Mermaid flowcharts and sequence diagrams render inline."
+		interactive
+	/>
+</CardGrid>
+
+`CardGrid` lays its `Card` children out in a responsive grid; `href` (or `interactive`) turns
+on the hover lift and trailing arrow.
+
+## Kbd
+
+Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search, or <Kbd>esc</Kbd> to close it.
+
+## FileTree
+
+<FileTree
+	nodes={[
+		{
+			name: "docs",
+			children: [
+				{
+					name: "guides",
+					children: [
+						{ name: "install.mdx", path: "install" },
+						{ name: "deploy.mdx", path: "deploy" },
+					],
+				},
+				{ name: "readme.md", path: "readme" },
+			],
+		},
+		{ name: "package.json" },
+	]}
+	activePath="deploy"
+/>
+
+`nodes` is a plain JSON array of `{ name, path?, children?, open? }` — pass it inline, since
+it has to be JSON-serializable. `activePath` highlights the matching row.
+
+## Chart
+
+<Chart
+	filename="requests.json"
+	type="bar"
+	unit="ms"
+	data={[
+		{ label: "Mon", p50: 42, p99: 180 },
+		{ label: "Tue", p50: 38, p99: 165 },
+		{ label: "Wed", p50: 51, p99: 210 },
+		{ label: "Thu", p50: 44, p99: 190 },
+		{ label: "Fri", p50: 36, p99: 150 },
+	]}
+	series={["p50", "p99"]}
+	yLabel="Latency"
+	xLabel="This week"
+/>
+
+`type` is `bar`, `line`, `area`, or `histogram`; `series` picks which keys of each `data`
+entry to plot (up to four before a table reads better). `unit` suffixes the axis and
+tooltip values. Bar charts also take `orientation="horizontal"` for long labels; see
+`07-charts.mdx` for both, plus a histogram over raw `values`.
+
+## Sparkline
+
+Requests over the last hour: <Sparkline values={[12, 18, 15, 22, 19, 27, 24, 31, 28, 35]} />,
+trending up.
+
+## Dropdown
+
+`Dropdown` is a button that opens a menu. Give it `options` for a plain picker:
+
+<Dropdown
+	label="Theme"
+	options={[
+		{ value: "system", label: "System", description: "Follow the OS setting" },
+		"Light",
+		"Dark",
+	]}
+/>
+
+`options` takes strings, or `{ value, label }` pairs when the value should differ from the
+label (and an optional `description` line); add `size="sm"` for the 28px control.
+
+Give it `Option` children instead and it becomes a content switcher — the menu picks which
+option's content renders below, cross-faded:
+
+<Dropdown label="Install on">
+	<Option label="macOS">```bash brew install mdxserve ```</Option>
+	<Option label="Linux">```bash curl -fsSL https://mdxserve.dev/install.sh | sh ```</Option>
+	<Option label="Windows">```powershell scoop install mdxserve ```</Option>
+</Dropdown>
+
+Prefer `Tabs` when there are only 2-4 visible alternatives; reach for `Dropdown` once the list
+of options gets longer than fits comfortably as tabs.
+
+## Screenshot
+
+`Screenshot` frames an image as a macOS window, so a picture of an app or web page reads as a
+window rather than a bare bitmap. `src` resolves relative to the document like a Markdown
+image; `title` names the window and `caption` adds a note underneath. The expand control in the
+title bar opens the image full-screen, where you can drag to pan and scroll to zoom.
+
+<Screenshot
+	src="./assets/reader-light.jpg"
+	alt="mdxserve rendering a Markdown document in the light theme"
+	title="mdxserve — 01-markdown.mdx"
+	caption="The reader view, with the table of contents pinned to the right."
+/>
+
+Keep plain `![alt](src)` for diagrams, logos, and photos — the window chrome only makes sense
+around something that was on a screen.
+
+## Discovering builtins from the CLI
+
+The same metadata that describes each builtin — its props, defaults, and when to use it — is
+published as a JSON registry at build time, and can be queried from the command line:
+
+```bash
+# List every builtin component
+mdxserve components search
+
+# Search by name, description, or prop
+mdxserve components search callout
+
+# Show full details for one component, including a props table
+mdxserve components show Callout
+
+# Get the raw registry entry as JSON (handy for tools/AI agents)
+mdxserve components show Callout --json
+```
+
+This is the same registry an AI coding agent can query to find out what components are
+available before writing docs for you.

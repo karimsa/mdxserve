@@ -73,3 +73,15 @@ jobs:
 
       - name: Smoke test the packed tarball
         run: yarn smoke
+
+  site-container:
+    name: Site container
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and smoke test the site image
+        run: bash site/deployment/smoke-container.sh

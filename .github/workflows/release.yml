@@ -53,5 +53,49 @@ jobs:
       - name: Smoke test the packed tarball
         run: yarn smoke
 
+      - name: Check site deployment selection
+        run: |
+          node --test site/deployment/wait-for-production.test.mjs
+
       - name: Publish
         run: npm publish --provenance --access public
+
+  promote-site:
+    name: Promote site on Vercel
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: site-production
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Verify Vercel credentials
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing $name; see site/DEPLOYMENT.md" >&2
+              exit 1
+            fi
+          done
+
+      - name: Find the tagged production deployment
+        id: deployment
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          deployment_id="$(node site/deployment/wait-for-production.mjs "$commit_sha")"
+          echo "id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+      - name: Promote the tagged deployment
+        run: npx --yes vercel@63.1.0 promote "${{ steps.deployment.outputs.id }}" --yes --token "$VERCEL_TOKEN"

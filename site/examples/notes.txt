@@ -1,0 +1,5 @@
+This is a plain text file, not Markdown or MDX.
+
+In an mdxserve directory listing, files like this one show up muted/greyed out rather than
+as clickable links, since mdxserve only renders .md and .mdx files. It's here so the example
+folder has a non-Markdown file to demonstrate that.

@@ -1,0 +1,96 @@
+# Make yourself at home
+
+Point mdxserve at a folder of Markdown or MDX. It gives you a browser for the files, with readable pages, search, and interactive components.
+
+## Open your first folder
+
+You need **Node.js 22.12 or newer**. From a terminal, run this with the path to your docs:
+
+```bash
+npx @karimsa/mdxserve serve -w ./docs
+```
+
+Open the URL printed in the terminal. The default is `http://127.0.0.1:4040`. If that port is busy, mdxserve picks a free one.
+
+For a command you can use every day, install it globally:
+
+```bash
+npm install -g @karimsa/mdxserve
+mdxserve serve -w ~/notes
+```
+
+## Start with a file you already have
+
+A README, a project plan, or a folder of notes is enough. Headings become navigation, fenced code gets highlighting, and a Mermaid fence becomes a diagram.
+
+Add a builtin component when it helps explain something:
+
+```mdx title="notes/first-idea.md"
+# A small idea
+
+Write the explanation here.
+
+<Callout tone="note" title="Something to remember">
+	Keep the decision next to the reasons behind it.
+</Callout>
+```
+
+`.md` and `.mdx` support the same syntax. Both can use JSX, expressions, and imported components. Escape a literal brace as `\{`, or put code-like text in backticks.
+
+## Read, edit, repeat
+
+Use the sidebar to move between files. Search your served folders with `⌘K` or `Ctrl K`. Toggle the theme from the top bar.
+
+Double-click a section, or use its pencil, to edit it. Save with `⌘S` or `Ctrl S`, or press `Esc` to cancel. Saving writes to the original file. Changes made in your usual text editor also update the open page.
+
+<Callout tone="note" title="These are your local files">
+	Run mdxserve on your own machine for editing. The examples on this website are here to explore the
+	reader and its components.
+</Callout>
+
+## Keep a few folders within reach
+
+```bash
+mdxserve serve -w ~/notes -w ~/work/docs
+mdxserve roots add ~/another-project/docs
+mdxserve roots list
+mdxserve status
+```
+
+mdxserve runs one server per user. It remembers mounted folders in `~/.mdxserve/config.json`, so you can start it again with `mdxserve serve`.
+
+## Send someone a page
+
+Export one document to a standalone HTML file:
+
+```bash
+mdxserve export ./docs/guide.md -o ./guide.html
+```
+
+For a page with diagrams that must work fully offline, bundle Mermaid too:
+
+```bash
+mdxserve export ./docs/guide.md -o ./guide.html --mermaid bundle
+```
+
+You can also export from the viewer's top bar. Export creates a copy. It does not keep the recipient's file in sync with yours.
+
+## Give your agent the same tools
+
+Install the writing skill for Claude Code and Codex:
+
+```bash
+mdxserve setup
+```
+
+Inspect the available components or check a document from the terminal:
+
+```bash
+mdxserve components search
+mdxserve components show Callout
+mdxserve validate ./docs/guide.md --json
+```
+
+Validation checks syntax and component usage without a server. With a server running, it can check rendering too.
+
+[Explore the example documents](./examples/README.mdx) or [read the project on GitHub](https://github.com/karimsa/mdxserve).
