@@ -1,6 +1,7 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useCallback, useRef, useState } from "react";
+import { Settings } from "../Settings";
 import { DocView } from "../DocView";
 import { fadeRise } from "../motion";
 import { useTheme } from "../theme";
@@ -20,6 +21,7 @@ import type { StandaloneMeta } from "../standalone-entry";
  */
 export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 	const { theme, toggle } = useTheme();
+	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [tocVersion, setTocVersion] = useState(0);
 	const docWidth = useAtomValue(docWidthAtom);
 	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
@@ -41,7 +43,15 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 
 	return (
 		<div className="min-h-screen bg-surface-page">
-			<TopBar theme={theme} onToggleTheme={toggle} hostLabel={meta.label} />
+			<AnimatePresence>
+				{settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
+			</AnimatePresence>
+			<TopBar
+				theme={theme}
+				onToggleTheme={toggle}
+				hostLabel={meta.label}
+				onDiagramPreferences={() => setSettingsOpen(true)}
+			/>
 			<main className="flex flex-1 min-w-0 px-8 pt-10 pb-24">
 				<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">
 					<motion.div
