@@ -9,7 +9,7 @@ import { ListingService } from "../listing/service.js";
 import { renderShell, type Route } from "./shell.js";
 import type { RootsService } from "../roots/service.js";
 import { resolveRoot } from "../roots/paths.js";
-import { isDocFile } from "../roots/servable.js";
+import { isDocFile, isPublicPath, isServable } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
 import { rootInfoFor } from "../roots/root-info.js";
 import type { BundlePort, RenderPort } from "../rendering/protocol.js";
@@ -19,6 +19,7 @@ import type { DocsService } from "../docs/service.js";
 import { appRouter } from "../api/router.js";
 import { isTrustedHost } from "./host.js";
 import { toPosix } from "../infra/paths.js";
+import type { PermissionMode } from "../servers/bind-host.js";
 
 const MDXSERVE_PREFIX = "/__mdxserve/";
 
@@ -49,6 +50,7 @@ export interface RequestContext {
 	search: SearchService;
 	/** Per-process state, created once in startServer: it owns the per-file save lock. */
 	docs: DocsService;
+	permissions?: PermissionMode;
 }
 
 export async function handleRequest(
@@ -65,6 +67,7 @@ export async function handleRequest(
 	const url = req.url ?? "/";
 	const pathname = url.split("?")[0] ?? "/";
 	const search = url.slice(pathname.length);
+	const restricted = ctx.permissions === "restricted";
 
 	// The validate_doc render step executes a served doc's top-level JS in a
 	// Node worker. Serving pages to the LAN (--host 0.0.0.0) is deliberate
@@ -87,6 +90,7 @@ export async function handleRequest(
 			remoteAddress === "::ffff:127.0.0.1" ||
 			(remoteAddress !== undefined && remoteAddress === req.socket.localAddress)) &&
 		isTrustedHost(req.headers.host, req.socket.localAddress);
+	const sameMachine = isLoopback && !restricted;
 
 	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
 		res.statusCode = 200;
@@ -116,6 +120,7 @@ export async function handleRequest(
 				roots: ctx.roots,
 				registry,
 				isLoopback,
+				permissions: ctx.permissions,
 				render,
 				bundle,
 				docCache,
@@ -132,7 +137,12 @@ export async function handleRequest(
 	}
 
 	if (pathname.startsWith(MDXSERVE_PREFIX)) {
-		const rest = pathname.slice(MDXSERVE_PREFIX.length);
+		const rest = decodeURIComponent(pathname.slice(MDXSERVE_PREFIX.length));
+		if (restricted && !rest.split("/").every(isServable)) {
+			res.statusCode = 404;
+			res.end("Not found");
+			return;
+		}
 		const target = rest === "app.css" ? ctx.cssFile : path.join(pkgRoot, "client", rest);
 		req.url = `/@fs/${toPosix(target)}${search}`;
 		vite.middlewares(req, res, () => {
@@ -152,6 +162,19 @@ export async function handleRequest(
 		const rest = pathname.slice("/@fs/".length);
 		const abs = `/${decodeURIComponent(rest)}`;
 		const hit = resolveRoot(roots, abs);
+		if (restricted) {
+			let realHit: ReturnType<typeof resolveRoot> = null;
+			try {
+				realHit = resolveRoot(roots, await fsp.realpath(abs));
+			} catch {
+				// Let Vite reject files outside its allow list.
+			}
+			if ((hit && !isPublicPath(hit.root, hit.abs)) || (!hit && realHit)) {
+				res.statusCode = 404;
+				res.end("Not found");
+				return;
+			}
+		}
 
 		if (hit && isDocFile(hit.abs)) {
 			try {
@@ -202,7 +225,7 @@ export async function handleRequest(
 		res.end(
 			await vite.transformIndexHtml(
 				pathname,
-				renderShell(route, entrySrc, roots.length, isLoopback),
+				renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 			),
 		);
 		return;
@@ -219,7 +242,7 @@ export async function handleRequest(
 			res.end(
 				await vite.transformIndexHtml(
 					pathname,
-					renderShell(route, entrySrc, roots.length, isLoopback),
+					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 				),
 			);
 			return;
@@ -230,6 +253,11 @@ export async function handleRequest(
 	}
 
 	const { root, abs } = hit;
+	if (restricted && !isPublicPath(root, abs)) {
+		res.statusCode = 404;
+		res.end("Not found");
+		return;
+	}
 	const rootInfo = rootInfoFor(rootInfos, root);
 
 	let stat: fs.Stats | null = null;
@@ -250,7 +278,9 @@ export async function handleRequest(
 		// getFolderListing gets it — the stat above only decides which
 		// representation to serve, and the service still has the final say on
 		// whether this directory may be listed at all.
-		const result = await new ListingService(rootInfos, docCache).folderListing(decodedPathname);
+		const result = await new ListingService(rootInfos, docCache, restricted).folderListing(
+			decodedPathname,
+		);
 		if (result.kind === "ok") {
 			const route: Route = { kind: "listing", ...result.listing };
 			res.statusCode = 200;
@@ -258,7 +288,7 @@ export async function handleRequest(
 			res.end(
 				await vite.transformIndexHtml(
 					pathname,
-					renderShell(route, entrySrc, roots.length, isLoopback),
+					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 				),
 			);
 			return;
@@ -274,7 +304,7 @@ export async function handleRequest(
 		res.end(
 			await vite.transformIndexHtml(
 				pathname,
-				renderShell(route, entrySrc, roots.length, isLoopback),
+				renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 			),
 		);
 		return;
@@ -294,7 +324,7 @@ export async function handleRequest(
 			res.end(
 				await vite.transformIndexHtml(
 					pathname,
-					renderShell(route, entrySrc, roots.length, isLoopback),
+					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 				),
 			);
 			return;
@@ -334,7 +364,7 @@ export async function handleRequest(
 			res.end(
 				await vite.transformIndexHtml(
 					pathname,
-					renderShell(route, entrySrc, roots.length, isLoopback),
+					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
 				),
 			);
 			return;

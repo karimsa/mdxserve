@@ -77,12 +77,12 @@ it("rejects invalid startup config and releases the server lock", async () => {
 });
 
 it.each(["0.0.0.0", "::", "192.168.1.10", "docs.local"])(
-	"rejects %s before changing saved roots or taking the lock",
+	"rejects explicit full permissions on %s before changing saved roots or taking the lock",
 	async (host) => {
 		const configPath = path.join(tmpDir, "config.json");
 		const content = JSON.stringify({ roots: ["private"] });
 		await fs.writeFile(configPath, content);
-		const outcome = await startServer({ roots: ["public"], port: 0, host });
+		const outcome = await startServer({ roots: ["public"], port: 0, host, permissions: "full" });
 		expect(outcome).toEqual({
 			kind: "error",
 			message: expect.stringContaining("--dangerous-allow-network"),
@@ -92,7 +92,7 @@ it.each(["0.0.0.0", "::", "192.168.1.10", "docs.local"])(
 	},
 );
 
-it("allows an explicitly opted-in network bind past the startup guard", async () => {
+it("allows explicit full permissions on the network only with the dangerous opt-in", async () => {
 	const lock = new ServerLock(defaultLockPath());
 	expect(lock.acquire()).toEqual({ kind: "ok" });
 	try {
@@ -100,9 +100,77 @@ it("allows an explicitly opted-in network bind past the startup guard", async ()
 			roots: [],
 			port: 0,
 			host: "0.0.0.0",
+			permissions: "full",
 			dangerousAllowNetwork: true,
 		});
 		expect(outcome.kind).toBe("already-running");
+	} finally {
+		lock.release();
+	}
+});
+
+it("defaults network binding to restricted and requires one explicit root before taking the lock", async () => {
+	for (const roots of [[], ["one", "two"]]) {
+		const outcome = await startServer({ roots, port: 0, host: "0.0.0.0" });
+		expect(outcome).toEqual({
+			kind: "error",
+			message: "restricted permissions require exactly one explicit -w directory",
+		});
+	}
+	const lock = new ServerLock(defaultLockPath());
+	try {
+		expect(lock.acquire()).toEqual({ kind: "ok" });
+	} finally {
+		lock.release();
+	}
+});
+
+it("does not promote a network bind to full permissions with the dangerous flag alone", async () => {
+	const outcome = await startServer({
+		roots: [],
+		port: 0,
+		host: "0.0.0.0",
+		dangerousAllowNetwork: true,
+	});
+	expect(outcome).toEqual({
+		kind: "error",
+		message: "restricted permissions require exactly one explicit -w directory",
+	});
+});
+
+it("rejects an invalid permissions mode before taking the lock", async () => {
+	const outcome = await startServer({
+		roots: [],
+		port: 0,
+		host: "127.0.0.1",
+		permissions: "sandbox",
+	});
+	expect(outcome).toEqual({
+		kind: "error",
+		message: expect.stringContaining("invalid permissions mode"),
+	});
+	const lock = new ServerLock(defaultLockPath());
+	try {
+		expect(lock.acquire()).toEqual({ kind: "ok" });
+	} finally {
+		lock.release();
+	}
+});
+
+it("refuses to reuse an existing server when restricted permissions are requested", async () => {
+	const lock = new ServerLock(defaultLockPath());
+	expect(lock.acquire()).toEqual({ kind: "ok" });
+	try {
+		const outcome = await startServer({
+			roots: [tmpDir],
+			port: 0,
+			host: "0.0.0.0",
+			permissions: "restricted",
+		});
+		expect(outcome).toEqual({
+			kind: "error",
+			message: expect.stringContaining("cannot reuse an existing mdxserve server"),
+		});
 	} finally {
 		lock.release();
 	}

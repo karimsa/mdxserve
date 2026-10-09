@@ -321,3 +321,132 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 		expect(genuine.status).toBe(200);
 	});
 });
+
+describe("restricted permissions", () => {
+	it("serves the reader but denies same-origin writes and local-only reads on a loopback connection", async () => {
+		const { base } = await startWith({ permissions: "restricted", vite: htmlVite() });
+		const client = createTRPCClient<AppRouter>({
+			links: [httpLink({ url: `${base}/__mdxserve/trpc`, headers: { origin: base } })],
+		});
+		const docPath = path.join(fixtureDir, "good.md");
+		const source = await client.getDocSource.query({ path: docPath });
+		const tree = await client.getDocTree.query({});
+		expect(tree.roots).toHaveLength(1);
+		const page = await fetch(`${base}${encodeURI(docPath)}`, { headers: { accept: "text/html" } });
+		expect(page.status).toBe(200);
+		const html = await page.text();
+		expect(html).toContain('data-permissions="restricted"');
+		expect(html).toContain('data-same-machine="0"');
+
+		await expect(
+			client.saveDocSection.mutate({
+				path: docPath,
+				startLine: 3,
+				endLine: 3,
+				version: source.version,
+				markdown: "Defaced",
+			}),
+		).rejects.toMatchObject({ data: { code: "FORBIDDEN" } });
+		await expect(client.moveDocsToTrash.mutate({ paths: [docPath] })).rejects.toMatchObject({
+			data: { code: "FORBIDDEN" },
+		});
+		await expect(client.addRoots.mutate({ dirs: [fixtureDir] })).rejects.toMatchObject({
+			data: { code: "FORBIDDEN" },
+		});
+		await expect(client.exportDoc.mutate({ path: docPath })).rejects.toMatchObject({
+			data: { code: "FORBIDDEN" },
+		});
+		await expect(client.getDiagramPreferences.query({})).rejects.toMatchObject({
+			data: { code: "FORBIDDEN" },
+		});
+		expect(await fs.readFile(docPath, "utf8")).toBe(source.text);
+	});
+
+	it("blocks hidden files and links out of the root through both file routes", async () => {
+		const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-hosting-outside-"));
+		const visible = path.join(fixtureDir, "hosting-visible.txt");
+		const hidden = path.join(fixtureDir, ".hosting-hidden.txt");
+		const outside = path.join(outsideDir, "outside.txt");
+		const linked = path.join(fixtureDir, "hosting-linked.txt");
+		const hiddenLink = path.join(fixtureDir, "hosting-hidden-link.txt");
+		try {
+			await fs.writeFile(visible, "visible");
+			await fs.writeFile(hidden, "hidden");
+			await fs.writeFile(outside, "outside");
+			await fs.symlink(outside, linked);
+			await fs.symlink(hidden, hiddenLink);
+			const vite = {
+				middlewares: (_req: unknown, res: http.ServerResponse) => {
+					res.statusCode = 200;
+					res.end("vite");
+				},
+			} as unknown as ViteDevServer;
+			const { base } = await startWith({ permissions: "restricted", vite });
+			for (const filePath of [hidden, linked, hiddenLink]) {
+				for (const prefix of ["", "/@fs"]) {
+					const response = await fetch(`${base}${prefix}${encodeURI(filePath)}`);
+					expect(response.status).toBe(404);
+				}
+			}
+			for (const prefix of ["", "/@fs"]) {
+				const response = await fetch(`${base}${prefix}${encodeURI(visible)}`);
+				expect(response.status).toBe(200);
+			}
+		} finally {
+			await Promise.all([
+				fs.rm(visible, { force: true }),
+				fs.rm(hidden, { force: true }),
+				fs.rm(linked, { force: true }),
+				fs.rm(hiddenLink, { force: true }),
+			]);
+			await fs.rm(outsideDir, { recursive: true, force: true });
+		}
+	});
+
+	it("omits private symlink targets from source, listings, tree, and search", async () => {
+		const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-hosting-doc-outside-"));
+		const hidden = path.join(fixtureDir, ".hosting-private.mdx");
+		const outside = path.join(outsideDir, "outside.mdx");
+		const hiddenLink = path.join(fixtureDir, "hosting-private-link.mdx");
+		const outsideLink = path.join(fixtureDir, "hosting-outside-link.mdx");
+		const visibleLink = path.join(fixtureDir, "hosting-visible-link.mdx");
+		try {
+			await fs.writeFile(hidden, "# Hidden\n\nPrivate phrase\n");
+			await fs.writeFile(outside, "# Outside\n\nOutside phrase\n");
+			await fs.symlink(hidden, hiddenLink);
+			await fs.symlink(outside, outsideLink);
+			await fs.symlink(path.join(fixtureDir, "good.md"), visibleLink);
+			const { base } = await startWith({ permissions: "restricted", vite: htmlVite() });
+			const client = createTRPCClient<AppRouter>({
+				links: [httpLink({ url: `${base}/__mdxserve/trpc` })],
+			});
+			const listing = await client.getFolderListing.query({ path: fixtureDir });
+			const names = listing.entries.map((entry) => entry.name);
+			expect(names).toContain(path.basename(visibleLink));
+			expect(names).not.toContain(path.basename(hiddenLink));
+			expect(names).not.toContain(path.basename(outsideLink));
+			const tree = await client.getDocTree.query({});
+			const paths = tree.roots[0].nodes.map((node) => node.path);
+			expect(paths).toContain(visibleLink);
+			expect(paths).not.toContain(hiddenLink);
+			expect(paths).not.toContain(outsideLink);
+			expect((await client.searchDocs.query({ query: "Private phrase" })).results).toEqual([]);
+			expect((await client.searchDocs.query({ query: "Outside phrase" })).results).toEqual([]);
+			await expect(client.getDocSource.query({ path: hiddenLink })).rejects.toMatchObject({
+				data: { code: "NOT_FOUND" },
+			});
+			await expect(client.getDocSource.query({ path: outsideLink })).rejects.toMatchObject({
+				data: { code: "NOT_FOUND" },
+			});
+			expect((await client.getDocSource.query({ path: visibleLink })).text).toContain("Hello.");
+		} finally {
+			await Promise.all([
+				fs.rm(hidden, { force: true }),
+				fs.rm(hiddenLink, { force: true }),
+				fs.rm(outsideLink, { force: true }),
+				fs.rm(visibleLink, { force: true }),
+			]);
+			await fs.rm(outsideDir, { recursive: true, force: true });
+		}
+	});
+});

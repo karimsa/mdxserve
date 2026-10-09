@@ -313,7 +313,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			<AnimatePresence>
 				{diagramPreferences && (
 					<DiagramPreferences
-						canEditDiagrams={shellInfo.sameMachine}
+						canEditDiagrams={shellInfo.sameMachine && shellInfo.permissions !== "restricted"}
 						onClose={() => setDiagramPreferences(false)}
 					/>
 				)}
@@ -325,7 +325,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
 				search={{ onOpen: () => setSearchOpen(true) }}
 				exportDoc={
-					route.kind === "doc" && shellInfo.sameMachine
+					route.kind === "doc" && shellInfo.permissions !== "restricted" && shellInfo.sameMachine
 						? { pending: exporting, onExport: handleExport }
 						: undefined
 				}

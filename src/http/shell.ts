@@ -2,6 +2,7 @@ import path from "node:path";
 import { renderDocument, escapeHtml } from "./html.js";
 import type { FolderListing } from "../listing/folder.js";
 import type { RootInfo } from "../roots/root-info.js";
+import type { PermissionMode } from "../servers/bind-host.js";
 
 export type Route =
 	| { kind: "home"; roots: RootInfo[] }
@@ -42,15 +43,15 @@ export function renderShell(
 	entrySrc = "/__mdxserve/entry.tsx",
 	rootCount = 1,
 	sameMachine = false,
+	permissions: PermissionMode = "full",
 ): string {
 	const routeJson = escapeForInlineScript(JSON.stringify(route));
 
 	// The root count rides along so the client knows whether to show
 	// multi-root navigation before the tree API has answered; same-machine
-	// rides along so the client can show same-machine-only affordances (the
-	// Export button) without waiting on a round trip.
+	// and permission mode let the client show only available actions from its first paint.
 	const body = `    <div id="root"></div>
-    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}">${routeJson}</script>
+    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}" data-permissions="${permissions}">${routeJson}</script>
     <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
 	return renderDocument({ title: titleFor(route), body });

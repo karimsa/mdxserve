@@ -135,12 +135,12 @@ export class SearchService {
 	private readonly indexed = new Map<string, IndexedDoc>();
 
 	/** Bring the index up to date and return the docs in tree order. */
-	sync(roots: RootInfo[]): TreeNode[] {
+	sync(roots: RootInfo[], publicOnly = false): TreeNode[] {
 		const allNodes: TreeNode[] = [];
 		const seen = new Set<string>();
 
 		for (const root of roots) {
-			const nodes = flatten(readTree(root.dir));
+			const nodes = flatten(readTree(root.dir, 8, publicOnly ? root.dir : undefined));
 			for (const node of nodes) {
 				allNodes.push(node);
 				seen.add(node.path);
@@ -188,8 +188,8 @@ export class SearchService {
 	 * `rawQuery`, powered by MiniSearch (prefix + light fuzzy matching, titles boosted).
 	 * Purely data — no HTML.
 	 */
-	search(roots: RootInfo[], rawQuery: string): { results: SearchResult[] } {
-		const nodes = this.sync(roots);
+	search(roots: RootInfo[], rawQuery: string, publicOnly = false): { results: SearchResult[] } {
+		const nodes = this.sync(roots, publicOnly);
 		const query = rawQuery.trim();
 
 		if (query === "") {

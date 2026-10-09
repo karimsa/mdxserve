@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isServable } from "../roots/servable.js";
+import { isPublicPath, isServable } from "../roots/servable.js";
 
 // Kept in sync with the Vite watcher's ignore list (see src/rendering/vite.ts) so the
 // tree never surfaces directories we don't watch for changes.
@@ -33,7 +33,7 @@ export interface TreeNode {
  * Only .md/.mdx files and directories that (transitively) contain at least
  * one doc are included. Purely data — no HTML.
  */
-export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
+export function readTree(dirAbs: string, maxDepth = 8, publicRoot?: string): TreeNode[] {
 	function walk(dir: string, depth: number): TreeNode[] {
 		let dirents: fs.Dirent[];
 		try {
@@ -46,6 +46,7 @@ export function readTree(dirAbs: string, maxDepth = 8): TreeNode[] {
 		for (const dirent of dirents) {
 			if (!isServable(dirent.name)) continue;
 			const abs = path.join(dir, dirent.name);
+			if (publicRoot && !isPublicPath(publicRoot, abs)) continue;
 
 			if (dirent.isDirectory()) {
 				if (TREE_IGNORED_DIRS.has(dirent.name)) continue;

@@ -7,6 +7,7 @@ import type { BundlePort, RenderOutcome } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
+import type { PermissionMode } from "../servers/bind-host.js";
 
 /**
  * Everything a procedure resolver needs, built fresh per request by
@@ -23,6 +24,8 @@ export interface ApiContext {
 	registry: Registry;
 	/** Whether this request came from the same machine (see src/http/server.ts). */
 	isLoopback: boolean;
+	/** Immutable process policy: a restricted reader with no mutating or local-only RPCs. */
+	permissions?: PermissionMode;
 	/** Renders a doc server-side; only defined when a Vite dev server is live. */
 	render?: (absPath: string) => Promise<RenderOutcome>;
 	/**
@@ -79,6 +82,12 @@ function isCrossOrigin(ctx: ApiContext): boolean {
 // preflight rules; queries stay reachable since nothing they return can be
 // read cross-origin without CORS headers either.
 const rejectCrossOriginMutations = trpc.middleware(({ ctx, type, next }) => {
+	if (type === "mutation" && ctx.permissions === "restricted") {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Mutations are disabled in restricted mode",
+		});
+	}
 	if (type === "mutation" && isCrossOrigin(ctx)) {
 		throw new TRPCError({ code: "FORBIDDEN", message: "Cross-origin write rejected" });
 	}
@@ -90,7 +99,7 @@ const rejectCrossOriginMutations = trpc.middleware(({ ctx, type, next }) => {
 // must not be able to make this process start reading/watching arbitrary
 // directories the operator didn't choose.
 export const requireLoopback = trpc.middleware(({ ctx, next }) => {
-	if (!ctx.isLoopback) {
+	if (ctx.permissions === "restricted" || !ctx.isLoopback) {
 		throw new TRPCError({
 			code: "FORBIDDEN",
 			message: "This operation requires a same-machine connection",

@@ -120,7 +120,11 @@ export async function resolveDocPath(roots: string[], input: string): Promise<Re
 			return { ok: false, error: `${abs} not found` };
 		}
 		const relReal = path.relative(realRoot, realFile);
-		if (relReal.startsWith("..") || path.isAbsolute(relReal)) {
+		if (
+			relReal.startsWith("..") ||
+			path.isAbsolute(relReal) ||
+			!relReal.split(path.sep).filter(Boolean).every(isServable)
+		) {
 			return { ok: false, error: `${abs} is outside every served directory` };
 		}
 	}
@@ -164,7 +168,11 @@ export async function resolveDirPath(roots: string[], input: string): Promise<Re
 		return { ok: false, error: `${hit.abs} not found` };
 	}
 	const relReal = path.relative(realRoot, realDir);
-	if (relReal.startsWith("..") || path.isAbsolute(relReal)) {
+	if (
+		relReal.startsWith("..") ||
+		path.isAbsolute(relReal) ||
+		!relReal.split(path.sep).filter(Boolean).every(isServable)
+	) {
 		return { ok: false, error: `${hit.abs} is outside every served directory` };
 	}
 

@@ -9,7 +9,7 @@ import { Icon } from "./ui/Icon";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { ConfirmDeleteDialog } from "./ui/ConfirmDeleteDialog";
 import { pushToast } from "./ui/Toast";
-import type { ListingEntry } from "./router";
+import { shellInfo, type ListingEntry } from "./router";
 import Button from "./builtins/Button";
 import Dropdown from "./builtins/Dropdown";
 import {
@@ -372,6 +372,7 @@ export function ListingView({
 }) {
 	const { path, rootDir, entries } = route;
 	const sidebar = mode === "sidebar";
+	const canDelete = shellInfo.permissions !== "restricted" && !sidebar;
 	const atRootTop = path === `${rootDir}/`;
 	const segments = path.split("/").filter(Boolean);
 	const parentSegments = segments.slice(0, -1);
@@ -438,14 +439,14 @@ export function ListingView({
 	// consumed it, or the confirm dialog is up (it handles its own Escape).
 	// Sidebar mode has no selection to clear, so skip wiring the listener.
 	useEffect(() => {
-		if (sidebar) return;
+		if (!canDelete) return;
 		function onKeyDown(event: globalThis.KeyboardEvent) {
 			if (event.defaultPrevented || confirmOpen) return;
 			if (event.key === "Escape" && selectionActive) setSelectedNames(new Set());
 		}
 		document.addEventListener("keydown", onKeyDown);
 		return () => document.removeEventListener("keydown", onKeyDown);
-	}, [sidebar, confirmOpen, selectionActive]);
+	}, [canDelete, confirmOpen, selectionActive]);
 
 	const trashMutation = useMutation(
 		trpc.moveDocsToTrash.mutationOptions({
@@ -457,6 +458,7 @@ export function ListingView({
 	// `pending` and fire a duplicate request before React re-renders.
 	const pendingRef = useRef(false);
 	const handleConfirm = async () => {
+		if (!canDelete) return;
 		if (pendingRef.current) return;
 		pendingRef.current = true;
 		setPending(true);
@@ -533,8 +535,8 @@ export function ListingView({
 			) : (
 				<div className="mb-2 flex items-center justify-between gap-2">
 					<div data-print-hide className="flex items-center gap-2">
-						<SelectMenu fileEntries={fileEntries} onSelect={setSelectedNames} />
-						{selectionActive ? (
+						{canDelete && <SelectMenu fileEntries={fileEntries} onSelect={setSelectedNames} />}
+						{canDelete && selectionActive ? (
 							<>
 								<span className="font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-subtle tabular-nums">
 									{selected.length} selected
@@ -610,7 +612,7 @@ export function ListingView({
 							/>
 						);
 					}
-					const selection = sidebar
+					const selection = !canDelete
 						? {}
 						: {
 								selectable: true,
@@ -649,7 +651,7 @@ export function ListingView({
 					);
 				})}
 			</motion.div>
-			{sidebar ? null : (
+			{canDelete ? (
 				<ConfirmDeleteDialog
 					open={confirmOpen}
 					files={selected}
@@ -659,7 +661,7 @@ export function ListingView({
 					}}
 					onConfirm={handleConfirm}
 				/>
-			)}
+			) : null}
 		</div>
 	);
 }

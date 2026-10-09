@@ -23,6 +23,7 @@ export class ListingService {
 	constructor(
 		private readonly rootInfos: RootInfo[],
 		private readonly docCache: DocCache,
+		private readonly publicOnly = false,
 	) {}
 
 	/**
@@ -44,7 +45,12 @@ export class ListingService {
 
 		return {
 			kind: "ok",
-			listing: readListing(resolved.abs, rootInfoFor(this.rootInfos, resolved.root), this.docCache),
+			listing: readListing(
+				resolved.abs,
+				rootInfoFor(this.rootInfos, resolved.root),
+				this.docCache,
+				this.publicOnly,
+			),
 		};
 	}
 
@@ -60,7 +66,7 @@ export class ListingService {
 				roots: this.rootInfos.map((rootInfo) => ({
 					name: rootInfo.name,
 					dir: rootInfo.dir,
-					nodes: readTree(rootInfo.dir, input.maxDepth),
+					nodes: readTree(rootInfo.dir, input.maxDepth, this.publicOnly ? rootInfo.dir : undefined),
 				})),
 			};
 		}
@@ -81,7 +87,11 @@ export class ListingService {
 				{
 					name: rootInfo.name,
 					dir: rootInfo.dir,
-					nodes: readTree(resolved.abs, input.maxDepth),
+					nodes: readTree(
+						resolved.abs,
+						input.maxDepth,
+						this.publicOnly ? resolved.root : undefined,
+					),
 				},
 			],
 		};

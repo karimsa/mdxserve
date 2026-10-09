@@ -16,10 +16,11 @@ it.each([
 	vi.spyOn(console, "log").mockImplementation((line: string) => {
 		output.push(line);
 	});
-	printBanner(4040, host, false, [{ name: "docs", dir: "/notes" }]);
+	printBanner(4040, host, false, [{ name: "docs", dir: "/notes" }], "restricted");
 	const banner = output.join("\n");
 	expect(banner).toContain(`- Local:    ${baseUrl}`);
 	expect(banner).toContain(`- API:      ${baseUrl}/__mdxserve/trpc`);
+	expect(banner).toContain("- Permissions: restricted");
 	expect(banner).toContain(`- docs: ${baseUrl}/notes/`);
 	if (host === "127.0.0.2" || host === "::1") expect(banner).not.toContain("- Network:");
 	if (host === "2001:db8::1") expect(banner).toContain(`- Network:  ${baseUrl}`);

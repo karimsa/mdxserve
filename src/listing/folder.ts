@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { RootInfo } from "../roots/root-info.js";
-import { isServable } from "../roots/servable.js";
+import { isPublicPath, isServable } from "../roots/servable.js";
 
 export interface ListingEntry {
 	name: string;
@@ -28,11 +28,20 @@ export interface FolderListing {
  * Read a directory listing for the absolute directory `dirAbs`, which belongs
  * to the mounted root `rootInfo`. Purely data — no HTML.
  */
-export function readListing(dirAbs: string, rootInfo: RootInfo, docCache: DocCache): FolderListing {
+export function readListing(
+	dirAbs: string,
+	rootInfo: RootInfo,
+	docCache: DocCache,
+	publicOnly = false,
+): FolderListing {
 	const dirents = fs.readdirSync(dirAbs, { withFileTypes: true });
 
 	const entries: ListingEntry[] = dirents
-		.filter((dirent) => isServable(dirent.name))
+		.filter(
+			(dirent) =>
+				isServable(dirent.name) &&
+				(!publicOnly || isPublicPath(rootInfo.dir, path.join(dirAbs, dirent.name))),
+		)
 		.map((dirent) => {
 			const isDir = dirent.isDirectory();
 			const ext = path.extname(dirent.name).toLowerCase();

@@ -14,6 +14,7 @@ import { useAtom } from "jotai";
 import { trpcClient } from "./api";
 import { DocContext } from "./DocContext";
 import { openSectionAtom } from "./state";
+import { shellInfo } from "./router";
 import { IconButton } from "./ui/IconButton";
 import { pushToast } from "./ui/Toast";
 
@@ -127,6 +128,7 @@ function Section({
 	}, [key, setOpenSection]);
 
 	async function startEdit(target?: ExistingDiagram) {
+		if (shellInfo.permissions === "restricted") return;
 		// Double-click and the pencil can both fire while a fetch is in flight.
 		if (mode !== "read") return;
 		setInitialDiagram(target);
@@ -209,6 +211,7 @@ function Section({
 	// word inside a code block, and svg-pan-zoom's double-click zoom on a
 	// mermaid diagram (client/Mermaid.tsx `dblClickZoomEnabled`).
 	function onDoubleClick(event: MouseEvent<HTMLDivElement>) {
+		if (shellInfo.permissions === "restricted") return;
 		const target = event.target as Element | null;
 		if (target?.closest("a, button, input, select, textarea, summary, pre, svg")) return;
 		event.preventDefault();
@@ -217,7 +220,11 @@ function Section({
 
 	return (
 		<DiagramEditContext.Provider
-			value={mode === "read" ? (target) => void startEdit(target) : null}
+			value={
+				shellInfo.permissions !== "restricted" && mode === "read"
+					? (target) => void startEdit(target)
+					: null
+			}
 		>
 			<AnimatePresence>
 				{mode === "diagram" && initialDiagram && (
@@ -237,23 +244,25 @@ function Section({
 			<div
 				className="mdx-section group"
 				data-md-section={index}
-				onDoubleClick={onDoubleClick}
-				onPointerEnter={preloadEditor}
+				onDoubleClick={shellInfo.permissions === "restricted" ? undefined : onDoubleClick}
+				onPointerEnter={shellInfo.permissions === "restricted" ? undefined : preloadEditor}
 			>
 				{children}
 				{/* Floats over the section's top-right corner rather than in the left
 			    gutter, which is where DocView's left ResizeHandle lives — the two
 			    hover affordances were fighting for the same strip of pixels. */}
-				<IconButton
-					icon="pencil"
-					label="Edit section"
-					size="sm"
-					variant="outline"
-					data-print-hide
-					disabled={mode === "loading"}
-					onClick={() => void startEdit()}
-					className="mdx-section-edit absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-				/>
+				{shellInfo.permissions !== "restricted" && (
+					<IconButton
+						icon="pencil"
+						label="Edit section"
+						size="sm"
+						variant="outline"
+						data-print-hide
+						disabled={mode === "loading"}
+						onClick={() => void startEdit()}
+						className="mdx-section-edit absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+					/>
+				)}
 			</div>
 		</DiagramEditContext.Provider>
 	);

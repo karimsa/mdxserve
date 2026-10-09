@@ -49,7 +49,10 @@ const validateDoc = procedure(
 			ctx.rootInfos,
 			ctx.registry,
 			ctx.render,
-		).validateDoc({ path: input.path, allowRender: ctx.isLoopback });
+		).validateDoc({
+			path: input.path,
+			allowRender: ctx.isLoopback && ctx.permissions !== "restricted",
+		});
 		switch (outcome.kind) {
 			case "not-found":
 				throw new TRPCError({ code: "NOT_FOUND", message: outcome.message });

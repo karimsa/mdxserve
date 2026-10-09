@@ -23,7 +23,9 @@ const searchDocs = procedure(
 )
 	.input(searchDocsInput)
 	.output(searchDocsResultSchema)
-	.query(({ ctx, input }) => ctx.search.search(ctx.rootInfos, input.query));
+	.query(({ ctx, input }) =>
+		ctx.search.search(ctx.rootInfos, input.query, ctx.permissions === "restricted"),
+	);
 
 export const searchController = { searchDocs };
 
