@@ -331,6 +331,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		optimizeDeps: {
 			entries: [],
 			include: shared.optimizeDepsInclude,
+			// An immutable server has no websocket to reload clients after Vite
+			// discovers new dependencies. Finish the explicit optimization set
+			// before accepting requests so all modules use one browser hash.
+			noDiscovery: process.env.MDXSERVE_IMMUTABLE_SITE === "1",
 			// client/ui/Icon.tsx imports chrome icons per file and author icons via
 			// lucide-react/dynamicIconImports; nothing imports the bare
 			// "lucide-react" entry any more. Excluding it stops Vite from
