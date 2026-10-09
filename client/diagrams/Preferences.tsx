@@ -67,7 +67,6 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 		<Modal
 			open
 			onClose={onClose}
-			dismissOnBackdrop={false}
 			className="diagram-dialog diagram-settings"
 			aria-label="Settings"
 		>
