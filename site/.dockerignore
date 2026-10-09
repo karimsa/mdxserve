@@ -1,3 +1,2 @@
-**
-!deployment/
-!deployment/fetch-source.mjs
+deployment/
+examples/notes.txt
