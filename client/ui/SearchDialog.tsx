@@ -1,3 +1,4 @@
+import { Modal } from "./Modal";
 import {
 	useEffect,
 	useState,
@@ -5,10 +6,10 @@ import {
 	type KeyboardEvent,
 	type ReactNode,
 } from "react";
-import { AnimatePresence, motion, type MotionProps } from "framer-motion";
+import { motion, type MotionProps } from "framer-motion";
 import { Icon } from "./Icon";
 import { Kbd } from "./Kbd";
-import { TRANSITIONS, VARIANTS } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 export interface SearchResult {
 	title: ReactNode;
@@ -49,7 +50,7 @@ function highlight(text: ReactNode, terms: string[] | undefined): ReactNode {
 // React still types on `HTMLAttributes`); `Omit` it, along with the
 // motion.div-owned event props, before extending.
 export interface SearchDialogProps extends Omit<
-	HTMLAttributes<HTMLDivElement>,
+	HTMLAttributes<HTMLDialogElement>,
 	"results" | "onSelect" | keyof MotionProps
 > {
 	open?: boolean;
@@ -79,7 +80,7 @@ export function SearchDialog({
 		setHighlighted(0);
 	}, [query, results, open]);
 
-	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+	function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
 		if (event.key === "ArrowDown") {
 			event.preventDefault();
 			setHighlighted((current) => Math.min(current + 1, Math.max(results.length - 1, 0)));
@@ -92,96 +93,77 @@ export function SearchDialog({
 				event.preventDefault();
 				onSelect?.(result);
 			}
-		} else if (event.key === "Escape") {
-			event.preventDefault();
-			onClose?.();
 		}
 	}
 
 	return (
-		<AnimatePresence>
-			{open ? (
-				<motion.div
-					key="scrim"
-					onClick={onClose}
-					{...VARIANTS.scrim}
-					className="fixed inset-0 z-[var(--z-modal)] flex justify-center bg-[var(--scrim)] pt-[10vh] backdrop-blur-sm"
-				>
-					<motion.div
-						onClick={(event) => event.stopPropagation()}
-						onKeyDown={handleKeyDown}
-						{...VARIANTS.pop}
-						className={
-							"w-[560px] max-w-[92vw] self-start overflow-hidden rounded-xl border border-border-default bg-surface-raised shadow-lg" +
-							(className ? " " + className : "")
-						}
-						{...rest}
-					>
-						<div className="flex h-12 items-center gap-3 border-b border-border-subtle px-4">
-							<Icon name="search" size="md" className="text-text-subtle" />
-							<input
-								autoFocus
-								data-bare-focus
-								value={query}
-								onChange={(event) => onQueryChange?.(event.target.value)}
-								placeholder="Search docs"
-								className="flex-1 border-0 bg-transparent text-[18px] font-normal text-text-body outline-none placeholder:text-text-subtle"
-							/>
-							<Kbd>esc</Kbd>
-						</div>
-						<motion.div
-							layout
-							transition={TRANSITIONS.glide}
-							className="max-h-80 overflow-y-auto p-2"
-						>
-							{results.length === 0 ? (
-								<div className="p-6 text-center text-[13px] leading-normal font-medium text-text-subtle">
-									No matches
+		<Modal
+			open={open}
+			onClose={onClose}
+			placement="top"
+			aria-label="Search docs"
+			className={"w-[560px] overflow-hidden " + (className ?? "")}
+			onKeyDown={handleKeyDown}
+			{...rest}
+		>
+			<div className="flex h-12 items-center gap-3 border-b border-border-subtle px-4">
+				<Icon name="search" size="md" className="text-text-subtle" />
+				<input
+					autoFocus
+					data-bare-focus
+					value={query}
+					onChange={(event) => onQueryChange?.(event.target.value)}
+					placeholder="Search docs"
+					className="flex-1 border-0 bg-transparent text-[18px] font-normal text-text-body outline-none placeholder:text-text-subtle"
+				/>
+				<Kbd>esc</Kbd>
+			</div>
+			<motion.div layout transition={TRANSITIONS.glide} className="max-h-80 overflow-y-auto p-2">
+				{results.length === 0 ? (
+					<div className="p-6 text-center text-[13px] leading-normal font-medium text-text-subtle">
+						No matches
+					</div>
+				) : (
+					results.map((result, index) => {
+						const active = index === highlighted;
+						return (
+							<motion.div
+								key={(result.path ?? "") + index}
+								layout
+								initial={{ opacity: 0, y: 4 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{
+									...TRANSITIONS.glide,
+									delay: Math.min(index, STAGGER_CAP - 1) * 0.02,
+								}}
+								onMouseEnter={() => setHighlighted(index)}
+								onClick={() => onSelect?.(result)}
+								className={
+									"flex cursor-pointer items-start gap-3 rounded-md p-2.5 " +
+									(active ? "bg-surface-hover" : "bg-transparent")
+								}
+							>
+								<Icon name="file-text" size="sm" className="mt-0.5 text-text-subtle" />
+								<div className="min-w-0 flex-1">
+									{result.label ? (
+										<div className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[length:var(--size-2xs)] text-text-subtle">
+											{highlight(result.label, result.terms)}
+										</div>
+									) : null}
+									<div className="text-[13px] leading-normal font-semibold text-text-heading">
+										{highlight(result.title, result.terms)}
+									</div>
+									{result.excerpt ? (
+										<div className="mt-px overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-normal text-text-muted">
+											{highlight(result.excerpt, result.terms)}
+										</div>
+									) : null}
 								</div>
-							) : (
-								results.map((result, index) => {
-									const active = index === highlighted;
-									return (
-										<motion.div
-											key={(result.path ?? "") + index}
-											layout
-											initial={{ opacity: 0, y: 4 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												...TRANSITIONS.glide,
-												delay: Math.min(index, STAGGER_CAP - 1) * 0.02,
-											}}
-											onMouseEnter={() => setHighlighted(index)}
-											onClick={() => onSelect?.(result)}
-											className={
-												"flex cursor-pointer items-start gap-3 rounded-md p-2.5 " +
-												(active ? "bg-surface-hover" : "bg-transparent")
-											}
-										>
-											<Icon name="file-text" size="sm" className="mt-0.5 text-text-subtle" />
-											<div className="min-w-0 flex-1">
-												{result.label ? (
-													<div className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[length:var(--size-2xs)] text-text-subtle">
-														{highlight(result.label, result.terms)}
-													</div>
-												) : null}
-												<div className="text-[13px] leading-normal font-semibold text-text-heading">
-													{highlight(result.title, result.terms)}
-												</div>
-												{result.excerpt ? (
-													<div className="mt-px overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-normal text-text-muted">
-														{highlight(result.excerpt, result.terms)}
-													</div>
-												) : null}
-											</div>
-										</motion.div>
-									);
-								})
-							)}
-						</motion.div>
-					</motion.div>
-				</motion.div>
-			) : null}
-		</AnimatePresence>
+							</motion.div>
+						);
+					})
+				)}
+			</motion.div>
+		</Modal>
 	);
 }

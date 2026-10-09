@@ -1,8 +1,8 @@
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useRef } from "react";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { TocList } from "../ui/TocList";
-import { TOC_MAX_WIDTH, TOC_MIN_WIDTH, tocWidthAtom } from "../state";
+import { TOC_MAX_WIDTH, TOC_MIN_WIDTH, tocVisibleAtom, tocWidthAtom } from "../state";
 import { useToc } from "./useToc";
 
 function clampWidth(px: number): number {
@@ -13,9 +13,10 @@ function clampWidth(px: number): number {
 export function TocRail({ path, version }: { path: string; version: number }) {
 	const { items, activeId, setActiveId } = useToc(path, version);
 	const [width, setWidth] = useAtom(tocWidthAtom);
+	const visible = useAtomValue(tocVisibleAtom);
 	const railRef = useRef<HTMLDivElement>(null);
 	const hasH2 = items.some((item) => item.level === 2);
-	if (!hasH2) return null;
+	if (!visible || !hasH2) return null;
 
 	function handleSelect(id: string) {
 		setActiveId(id);

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { queryClient, trpc } from "./api";
@@ -13,6 +13,7 @@ import type { ListingEntry } from "./router";
 import Button from "./builtins/Button";
 import Dropdown from "./builtins/Dropdown";
 import {
+	contentLayoutAtom,
 	LISTING_MAX_WIDTH,
 	LISTING_MIN_WIDTH,
 	listingSortAtom,
@@ -389,6 +390,7 @@ export function ListingView({
 		[sorted, sidebar],
 	);
 	const setWidth = useSetAtom(listingWidthAtom);
+	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
 	const container = useRef<HTMLDivElement>(null);
 
 	const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
@@ -497,7 +499,7 @@ export function ListingView({
 
 	return (
 		<div ref={container} className="relative">
-			{sidebar ? null : (
+			{sidebar || fullWidth ? null : (
 				<>
 					<ResizeHandle
 						side="left"

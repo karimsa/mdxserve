@@ -1,10 +1,22 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { ChevronDown, Network, Settings, X } from "lucide-react";
+import { useAtom } from "jotai";
+import { contentLayoutAtom, tocVisibleAtom, type ContentLayout } from "../state";
+import { useEffect, useState } from "react";
+import { Modal } from "../ui/Modal";
+import { ChevronDown, Network, PanelsTopLeft, Settings, X } from "lucide-react";
 import { trpcClient } from "../api";
 export type AgentChoice = "codex" | "claude" | "disabled";
-export function DiagramPreferences({ onClose }: { onClose: () => void }) {
-	const dialog = useRef<HTMLDialogElement>(null);
+export function DiagramPreferences({
+	onClose,
+	canEditDiagrams = true,
+}: {
+	onClose: () => void;
+	canEditDiagrams?: boolean;
+}) {
+	const [category, setCategory] = useState<"diagrams" | "layout">(
+		canEditDiagrams ? "diagrams" : "layout",
+	);
+	const [layout, setLayout] = useAtom(contentLayoutAtom);
+	const [tocVisible, setTocVisible] = useAtom(tocVisibleAtom);
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
 	const [models, setModels] = useState({ codex: "", claude: "" });
 	const [catalog, setCatalog] = useState<{ id: string; label: string }[]>([]);
@@ -13,11 +25,11 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 	const [refreshModels, setRefreshModels] = useState(0);
 	const [statuses, setStatuses] = useState("Agents haven’t been checked yet.");
 	const [error, setError] = useState("");
-	const [pending, setPending] = useState(true);
+	const [pending, setPending] = useState(canEditDiagrams);
 	const [checking, setChecking] = useState(false);
 	const [loaded, setLoaded] = useState(false);
 	useEffect(() => {
-		dialog.current?.showModal();
+		if (!canEditDiagrams) return;
 		void trpcClient.getDiagramPreferences
 			.query({})
 			.then((result) => {
@@ -27,12 +39,12 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 			})
 			.catch((failure) => setError(failure.message))
 			.finally(() => setPending(false));
-	}, []);
+	}, [canEditDiagrams]);
 	useEffect(() => {
 		let obsolete = false;
 		setCatalog([]);
 		setModelError("");
-		if (!loaded || agent === "disabled") {
+		if (!canEditDiagrams || !loaded || agent === "disabled") {
 			setLoadingModels(false);
 			return;
 		}
@@ -51,31 +63,34 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 		return () => {
 			obsolete = true;
 		};
-	}, [agent, loaded, refreshModels]);
-	async function save() {
+	}, [canEditDiagrams, agent, loaded, refreshModels]);
+	async function save(nextAgent: AgentChoice, nextModels = models) {
+		const previousAgent = agent;
+		const previousModels = models;
+		setAgent(nextAgent);
+		setModels(nextModels);
 		setPending(true);
 		setError("");
 		try {
-			await trpcClient.setDiagramPreferences.mutate({ agent, models });
+			await trpcClient.setDiagramPreferences.mutate({ agent: nextAgent, models: nextModels });
 			window.dispatchEvent(new Event("mdxserve-diagram-preferences"));
-			onClose();
-		} catch (failure) {
-			setError(failure instanceof Error ? failure.message : "Could not save");
+		} catch {
+			setAgent(previousAgent);
+			setModels(previousModels);
+			setError("Couldn’t save settings. Your previous settings are unchanged. Try again.");
 		} finally {
 			setPending(false);
 		}
 	}
-	return createPortal(
-		<dialog
-			ref={dialog}
+
+	const saving = (loaded && pending) || checking;
+	return (
+		<Modal
+			open
+			onClose={onClose}
+			dismissible={!saving}
 			className="diagram-dialog diagram-settings"
 			aria-label="Settings"
-			onCancel={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				onClose();
-			}}
-			onKeyDown={(event) => event.stopPropagation()}
 		>
 			<header className="diagram-navbar">
 				<div className="diagram-title">
@@ -86,6 +101,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 					type="button"
 					className="diagram-icon-button"
 					aria-label="Close settings"
+					disabled={saving}
 					onClick={onClose}
 				>
 					<X size={18} />
@@ -93,140 +109,205 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 			</header>
 			<div className="diagram-settings-body">
 				<aside>
-					<span className="diagram-settings-category">
-						<Network size={15} />
-						Diagrams
-					</span>
-				</aside>
-				<section>
-					<h3>Diagram generation</h3>
-					<p>Turn descriptions and images into editable Mermaid.</p>
-					<label className="diagram-setting-row" htmlFor="diagram-agent">
-						<span>
-							<strong>Default agent</strong>
-							<small>Use an installed, signed-in CLI.</small>
-						</span>
-						<span className="diagram-agent-select">
-							<select
-								id="diagram-agent"
-								value={agent}
-								onChange={(event) => setAgent(event.target.value as AgentChoice)}
-								disabled={!loaded}
-							>
-								<option value="codex">Codex</option>
-								<option value="claude">Claude Code</option>
-								<option value="disabled">Disabled</option>
-							</select>
-							<ChevronDown size={14} aria-hidden="true" />
-						</span>
-					</label>
-					<p className="diagram-setting-note">
-						Auto detect selects an installed, signed-in agent. Save to use that choice for every
-						conversion.
-					</p>
-					{agent !== "disabled" && (
-						<>
-							<label className="diagram-setting-row" htmlFor="diagram-model">
-								<span>
-									<strong>Model</strong>
-									<small>{agent === "codex" ? "Codex" : "Claude Code"} model for diagrams.</small>
-								</span>
-								<span className="diagram-agent-select diagram-model-select">
-									<select
-										id="diagram-model"
-										aria-label="Model"
-										value={models[agent]}
-										disabled={!loaded || loadingModels}
-										onChange={(event) => setModels({ ...models, [agent]: event.target.value })}
-									>
-										{!catalog.some((model) => model.id === models[agent]) && (
-											<option value={models[agent]}>
-												{models[agent]}
-												{loadingModels ? "" : " (saved)"}
-											</option>
-										)}
-										{catalog.map((model) => (
-											<option key={model.id} value={model.id}>
-												{model.label}
-											</option>
-										))}
-									</select>
-									<ChevronDown size={14} aria-hidden="true" />
-								</span>
-							</label>
-							<div className="diagram-model-status">
-								<small role="status">
-									{loadingModels
-										? "Loading models from CLI…"
-										: modelError || "Models from your installed CLI."}
-								</small>
-								<button
-									type="button"
-									disabled={loadingModels}
-									onClick={() => setRefreshModels((value) => value + 1)}
-								>
-									Refresh models
-								</button>
-							</div>
-						</>
-					)}
-					<div className="diagram-agent-status">
-						<span role="status">{statuses}</span>
+					<button
+						type="button"
+						className="diagram-settings-category"
+						aria-pressed={category === "layout"}
+						onClick={() => setCategory("layout")}
+					>
+						<PanelsTopLeft size={15} />
+						Layout
+					</button>
+					{canEditDiagrams && (
 						<button
 							type="button"
-							disabled={checking || pending || !loaded}
-							onClick={async () => {
-								setChecking(true);
-								setStatuses("Checking agents…");
-								try {
-									const result = await trpcClient.probeDiagramAgents.mutate({});
-									const ready = result.filter((status) => status.state === "ready");
-									setAgent(
-										ready.find((status) => status.provider === agent)?.provider ??
-											ready[0]?.provider ??
-											"disabled",
-									);
-									setStatuses(
-										result
-											.map(
-												(status) =>
-													`${status.provider === "codex" ? "Codex" : "Claude Code"}: ${status.state}`,
-											)
-											.join(" · "),
-									);
-								} catch {
-									setStatuses("Could not check agents");
-								} finally {
-									setChecking(false);
-								}
-							}}
+							className="diagram-settings-category"
+							aria-pressed={category === "diagrams"}
+							onClick={() => setCategory("diagrams")}
 						>
-							Auto detect
+							<Network size={15} />
+							Diagrams
 						</button>
-					</div>
-					<p className="diagram-settings-disclosure">
-						Text and images are sent to the selected provider using your account. Disabled stops
-						conversion; existing diagrams still render.
-					</p>
-					<p role="alert" className="diagram-error">
-						{error}
-					</p>
-				</section>
+					)}
+				</aside>
+				{category === "layout" ? (
+					<section>
+						<h3>Layout</h3>
+						<p>Choose how content fills the available space.</p>
+						<label className="diagram-setting-row" htmlFor="content-layout">
+							<span>
+								<strong>Content layout</strong>
+								<small>
+									{layout === "flexible"
+										? "Drag the bars to resize content."
+										: "Content automatically fills the available width."}
+								</small>
+							</span>
+							<span className="diagram-agent-select">
+								<select
+									id="content-layout"
+									value={layout}
+									onChange={(event) => setLayout(event.target.value as ContentLayout)}
+								>
+									<option value="flexible">Flexible</option>
+									<option value="full-width">Full width</option>
+								</select>
+								<ChevronDown size={14} aria-hidden="true" />
+							</span>
+						</label>
+						<label className="diagram-setting-row" htmlFor="toc-visibility">
+							<span>
+								<strong>Table of contents</strong>
+								<small>Show the “On this page” navigation beside documents.</small>
+							</span>
+							<span className="diagram-agent-select">
+								<select
+									id="toc-visibility"
+									value={tocVisible ? "visible" : "hidden"}
+									onChange={(event) => setTocVisible(event.target.value === "visible")}
+								>
+									<option value="visible">Visible</option>
+									<option value="hidden">Hidden</option>
+								</select>
+								<ChevronDown size={14} aria-hidden="true" />
+							</span>
+						</label>
+					</section>
+				) : (
+					<section>
+						<h3>Diagram generation</h3>
+						<p>Turn descriptions and images into editable Mermaid.</p>
+						<label className="diagram-setting-row" htmlFor="diagram-agent">
+							<span>
+								<strong>Default agent</strong>
+								<small>Use an installed, signed-in CLI.</small>
+							</span>
+							<span className="diagram-agent-select">
+								<select
+									id="diagram-agent"
+									value={agent}
+									onChange={(event) => void save(event.target.value as AgentChoice)}
+									disabled={!loaded || pending || checking}
+								>
+									<option value="codex">Codex</option>
+									<option value="claude">Claude Code</option>
+									<option value="disabled">Disabled</option>
+								</select>
+								<ChevronDown size={14} aria-hidden="true" />
+							</span>
+						</label>
+						<p className="diagram-setting-note">
+							Auto detect selects an installed, signed-in agent for every conversion.
+						</p>
+						{agent !== "disabled" && (
+							<>
+								<label className="diagram-setting-row" htmlFor="diagram-model">
+									<span>
+										<strong>Model</strong>
+										<small>{agent === "codex" ? "Codex" : "Claude Code"} model for diagrams.</small>
+									</span>
+									<span className="diagram-agent-select diagram-model-select">
+										<select
+											id="diagram-model"
+											aria-label="Model"
+											value={models[agent]}
+											disabled={!loaded || loadingModels || pending || checking}
+											onChange={(event) =>
+												void save(agent, { ...models, [agent]: event.target.value })
+											}
+										>
+											{!catalog.some((model) => model.id === models[agent]) && (
+												<option value={models[agent]}>
+													{models[agent]}
+													{loadingModels ? "" : " (saved)"}
+												</option>
+											)}
+											{catalog.map((model) => (
+												<option key={model.id} value={model.id}>
+													{model.label}
+												</option>
+											))}
+										</select>
+										<ChevronDown size={14} aria-hidden="true" />
+									</span>
+								</label>
+								<div className="diagram-model-status">
+									<small role="status">
+										{loadingModels
+											? "Loading models from CLI…"
+											: modelError || "Models from your installed CLI."}
+									</small>
+									<button
+										type="button"
+										disabled={loadingModels}
+										onClick={() => setRefreshModels((value) => value + 1)}
+									>
+										Refresh models
+									</button>
+								</div>
+							</>
+						)}
+						<div className="diagram-agent-status">
+							<span role="status">{statuses}</span>
+							<button
+								type="button"
+								disabled={checking || pending || !loaded}
+								onClick={async () => {
+									setChecking(true);
+									setStatuses("Checking agents…");
+									try {
+										const result = await trpcClient.probeDiagramAgents.mutate({});
+										const ready = result.filter((status) => status.state === "ready");
+										await save(
+											ready.find((status) => status.provider === agent)?.provider ??
+												ready[0]?.provider ??
+												"disabled",
+										);
+										setStatuses(
+											result
+												.map(
+													(status) =>
+														`${status.provider === "codex" ? "Codex" : "Claude Code"}: ${status.state}`,
+												)
+												.join(" · "),
+										);
+									} catch {
+										setStatuses("Could not check agents");
+									} finally {
+										setChecking(false);
+									}
+								}}
+							>
+								Auto detect
+							</button>
+						</div>
+						<p className="diagram-settings-disclosure">
+							Text and images are sent to the selected provider using your account. Disabled stops
+							conversion; existing diagrams still render.
+						</p>
+					</section>
+				)}
 			</div>
 			<footer className="diagram-settings-footer">
 				<span>
-					Also available through <code>mdxserve setup</code>
+					{category === "layout" ? (
+						"Saved in this browser."
+					) : (
+						<>
+							Also available through <code>mdxserve setup</code>
+						</>
+					)}
 				</span>
-				<button
-					type="button"
-					className="diagram-primary"
-					disabled={pending || checking || !loaded}
-					onClick={() => void save()}
-				>
-					Save settings
-				</button>
+				{error ? (
+					<p role="alert" className="diagram-error">
+						{error}
+					</p>
+				) : (
+					<span role="status">
+						{pending ? (loaded ? "Saving…" : "Loading settings…") : "Settings save automatically."}
+					</span>
+				)}
 			</footer>
-		</dialog>,
-		document.body,
+		</Modal>
 	);
 }

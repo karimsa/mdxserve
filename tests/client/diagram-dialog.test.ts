@@ -54,6 +54,9 @@ beforeEach(async () => {
 	rpc.cancel.mockResolvedValue(null);
 	rpc.release.mockResolvedValue(null);
 	rpc.convert.mockResolvedValue(result);
+	HTMLDialogElement.prototype.close = function () {
+		this.open = false;
+	};
 	HTMLDialogElement.prototype.showModal = function () {
 		this.open = true;
 	};

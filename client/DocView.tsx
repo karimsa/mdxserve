@@ -5,7 +5,13 @@ import { ErrorBox } from "./ErrorBox";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import type { DocModuleState } from "./doc-module-cache";
 import { ResizeHandle } from "./ui/ResizeHandle";
-import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "./state";
+import {
+	contentLayoutAtom,
+	DOC_MAX_WIDTH,
+	DOC_MIN_WIDTH,
+	docWidthAtom,
+	openSectionAtom,
+} from "./state";
 
 // Each Component a re-import produces (including an HMR re-import after a
 // fix) is a distinct function identity, so this assigns it a stable, unique
@@ -45,6 +51,7 @@ export function DocView({
 	onRendered?: () => void;
 }) {
 	const cached = module;
+	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
 	const setWidth = useSetAtom(docWidthAtom);
 	// While a section is being edited the page width is pinned: a drag would
 	// reflow the editor under the caret, and the handles' hover strips sit
@@ -75,7 +82,7 @@ export function DocView({
 	const Content = cached.Component;
 	return (
 		<div ref={container} className="relative">
-			{!editing && (
+			{!editing && !fullWidth && (
 				<>
 					<ResizeHandle
 						side="left"

@@ -31,7 +31,13 @@ import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
 import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import { DESKTOP_MEDIA } from "../platform";
-import { docWidthAtom, LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
+import {
+	contentLayoutAtom,
+	docWidthAtom,
+	LISTING_MAX_WIDTH,
+	LISTING_MIN_WIDTH,
+	listingWidthAtom,
+} from "../state";
 
 const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
 const SEARCH_DEBOUNCE_MS = 120;
@@ -173,6 +179,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const [exporting, setExporting] = useState(false);
 	const listingWidth = useAtomValue(listingWidthAtom);
 	const docWidth = useAtomValue(docWidthAtom);
+	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
 	const contentRef = useRef<HTMLDivElement>(null);
 	const contentWidth = useContentWidth(contentRef);
 	const listingMaxWidth = useListingMaxWidth(contentWidth, listingWidth);
@@ -303,9 +310,16 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	return (
 		<div className="min-h-screen bg-surface-page">
-			{diagramPreferences && <DiagramPreferences onClose={() => setDiagramPreferences(false)} />}
+			<AnimatePresence>
+				{diagramPreferences && (
+					<DiagramPreferences
+						canEditDiagrams={shellInfo.sameMachine}
+						onClose={() => setDiagramPreferences(false)}
+					/>
+				)}
+			</AnimatePresence>
 			<TopBar
-				onDiagramPreferences={shellInfo.sameMachine ? () => setDiagramPreferences(true) : undefined}
+				onDiagramPreferences={() => setDiagramPreferences(true)}
 				homeHref="/"
 				hostLabel={location.host}
 				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
@@ -340,16 +354,18 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 								animate="enter"
 								exit="exit"
 								className={
-									route.kind === "listing" || (route.kind === "doc" && docMaxWidth)
+									fullWidth || route.kind === "listing" || (route.kind === "doc" && docMaxWidth)
 										? "w-full"
 										: "w-full max-w-prose"
 								}
 								style={
-									route.kind === "listing"
-										? { maxWidth: listingMaxWidth }
-										: route.kind === "doc" && docMaxWidth
-											? { maxWidth: docMaxWidth }
-											: undefined
+									fullWidth
+										? { maxWidth: "100%" }
+										: route.kind === "listing"
+											? { maxWidth: listingMaxWidth }
+											: route.kind === "doc" && docMaxWidth
+												? { maxWidth: docMaxWidth }
+												: undefined
 								}
 							>
 								<Breadcrumb items={breadcrumbItems(route, rootCount)} />

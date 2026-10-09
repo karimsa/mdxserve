@@ -69,6 +69,10 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## General philosophy
 
+- Settings autosave when changed and take effect immediately. Do not add Save or Apply
+  buttons to settings. For asynchronous persistence, show saving status and failures,
+  preserve the last saved value on failure, and prevent overlapping writes from losing changes.
+
 - `.md` and `.mdx` must always have identical syntax and behavior. Never choose parsing,
   rendering, validation, editing, or export behavior based on which extension a document has.
   Any syntax rule or escape hatch must work the same way in both.

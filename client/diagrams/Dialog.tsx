@@ -1,6 +1,7 @@
+import { AnimatePresence } from "framer-motion";
 import { sessionId } from "./session-id";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { Modal } from "../ui/Modal";
 import { trpcClient } from "../api";
 import { MermaidDiagram } from "../Mermaid";
 import { DiagramPreferences } from "./Preferences";
@@ -31,8 +32,6 @@ export function MermaidDialog({
 	onClose: () => void;
 	onInsert: (source: string) => void;
 }) {
-	const dialog = useRef<HTMLDialogElement>(null);
-	const backdropPress = useRef(false);
 	const [shake, setShake] = useState(0);
 	const [session] = useState(sessionId);
 	const revision = useRef(0);
@@ -60,8 +59,6 @@ export function MermaidDialog({
 		if (gutter.current) gutter.current.style.transform = "translateY(0)";
 	}, [code]);
 	useEffect(() => {
-		dialog.current?.showModal();
-		dialog.current?.querySelector("textarea")?.focus();
 		const owner = session;
 		mounted.current = true;
 		void trpcClient.getDiagramPreferences
@@ -273,43 +270,20 @@ export function MermaidDialog({
 		!!image ||
 		uploading ||
 		(draft !== null && draft.mermaid !== (initialSource ?? ""));
-	function outsideDialog(clientX: number, clientY: number) {
-		const bounds = dialog.current?.getBoundingClientRect();
-		return (
-			!!bounds &&
-			(clientX < bounds.left ||
-				clientX > bounds.right ||
-				clientY < bounds.top ||
-				clientY > bounds.bottom)
-		);
-	}
-	return createPortal(
-		<dialog
-			ref={dialog}
+	return (
+		<Modal
+			open
+			onClose={onClose}
 			className="diagram-dialog diagram-workspace"
 			data-shake={shake ? (shake % 2 ? "left" : "right") : undefined}
-			onPointerDown={(event) => {
-				backdropPress.current =
-					event.target === event.currentTarget && outsideDialog(event.clientX, event.clientY);
-			}}
-			onClick={(event) => {
-				const backdropClick =
-					backdropPress.current &&
-					event.target === event.currentTarget &&
-					outsideDialog(event.clientX, event.clientY);
-				backdropPress.current = false;
-				if (!backdropClick || saving) return;
+			initialFocus="textarea"
+			dismissible={!saving}
+			onBackdropClick={() => {
 				if (dirty) setShake((count) => count + 1);
 				else onClose();
 			}}
 			aria-label={initialSource === undefined ? "Create Mermaid diagram" : "Edit Mermaid diagram"}
-			onCancel={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				onClose();
-			}}
 			onKeyDown={(event) => {
-				event.stopPropagation();
 				if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
 					event.preventDefault();
 					flush.current();
@@ -590,8 +564,9 @@ export function MermaidDialog({
 				</span>
 			)}
 
-			{preferences && <DiagramPreferences onClose={() => setPreferences(false)} />}
-		</dialog>,
-		document.body,
+			<AnimatePresence>
+				{preferences && <DiagramPreferences onClose={() => setPreferences(false)} />}
+			</AnimatePresence>
+		</Modal>
 	);
 }

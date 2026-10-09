@@ -1,16 +1,5 @@
 .diagram-dialog {
-	margin: auto;
-	padding: 0;
-	border: 1px solid var(--border-strong);
-	border-radius: 10px;
-	background: var(--surface-card);
-	color: var(--text-body);
 	font-family: var(--font-core);
-	box-shadow: 0 28px 100px #0006;
-}
-.diagram-dialog::backdrop {
-	background: #0008;
-	backdrop-filter: blur(4px);
 }
 .diagram-workspace[open] {
 	display: flex;
@@ -334,19 +323,36 @@
 	min-height: 360px;
 }
 .diagram-settings-body aside {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
 	padding: 20px 12px;
 	border-right: 1px solid var(--border-default);
 	background: var(--surface-sunken);
 }
-.diagram-settings-category {
+.diagram-dialog .diagram-settings-category {
+	justify-content: flex-start;
+	width: 100%;
+	border: 0;
+	text-align: left;
+	cursor: pointer;
 	display: flex;
 	align-items: center;
 	gap: 9px;
 	padding: 9px 10px;
 	border-radius: 5px;
+	color: var(--text-muted);
+	background: transparent;
+	font-size: 12px;
+}
+.diagram-dialog .diagram-settings-category[aria-pressed="true"],
+.diagram-dialog .diagram-settings-category[aria-pressed="true"]:hover:not(:disabled) {
 	color: var(--text-accent);
 	background: var(--surface-accent-soft);
-	font-size: 12px;
+}
+.diagram-settings-category:focus-visible {
+	outline: 2px solid var(--text-accent);
+	outline-offset: 2px;
 }
 .diagram-settings-body section {
 	padding: 26px;
@@ -456,7 +462,15 @@
 		grid-template-columns: 1fr;
 	}
 	.diagram-settings-body aside {
-		display: none;
+		display: flex;
+		flex-direction: row;
+		gap: 8px;
+		padding: 12px;
+		border-right: 0;
+		border-bottom: 1px solid var(--border-default);
+	}
+	.diagram-dialog .diagram-settings-category {
+		width: auto;
 	}
 	.diagram-settings-footer {
 		flex-wrap: wrap;
