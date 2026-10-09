@@ -195,6 +195,9 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		// as an unregistered component on every doc.
 		...mdx({
 			...mdxCompileOptions({ remarkPlugins, rehypePlugins }),
+			// The immutable site runs production React even though Vite is a dev
+			// server. Its MDX must use jsx/jsxs, not development-only jsxDEV.
+			...(process.env.MDXSERVE_IMMUTABLE_SITE === "1" ? { development: false } : {}),
 			mdxExtensions: [".mdx", ".md"],
 			mdExtensions: [],
 		}),

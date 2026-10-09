@@ -61,6 +61,10 @@ it("serves the app and every site document with one optimized dependency version
 		const response = await fetch(`${baseUrl}/@fs${encodeURI(filePath)}`);
 		expect(response.status, filePath).toBe(200);
 		const body = await response.text();
+		if (filePath.endsWith(".mdx")) {
+			expect(body, filePath).toContain("react_jsx-runtime");
+			expect(body, filePath).not.toContain("react_jsx-dev-runtime");
+		}
 		for (const match of body.matchAll(/\/deps\/[^"']+\?v=([a-f0-9]+)/g)) versions.add(match[1]);
 	}
 	expect(versions.size).toBe(1);
