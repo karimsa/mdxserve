@@ -1,20 +1,27 @@
 // @vitest-environment jsdom
+import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { getDefaultStore } from "jotai";
+import { contentLayoutAtom } from "../../client/state";
 import { DiagramPreferences } from "../../client/diagrams/Preferences";
-const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn() }));
+const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn(), probe: vi.fn() }));
 vi.mock("../../client/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: rpc.get },
 		listDiagramModels: { mutate: rpc.list },
 		setDiagramPreferences: { mutate: rpc.save },
+		probeDiagramAgents: { mutate: rpc.probe },
 	},
 }));
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(async () => {
-	vi.clearAllMocks();
+	vi.resetAllMocks();
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+	vi.stubGlobal("localStorage", new JSDOM("", { url: "http://localhost" }).window.localStorage);
+	getDefaultStore().set(contentLayoutAtom, "flexible");
 	rpc.get.mockResolvedValue({ agent: "codex", models: { codex: "gpt-6-luna", claude: "haiku" } });
 	rpc.list.mockImplementation(async ({ provider }) =>
 		provider === "codex"
@@ -25,6 +32,7 @@ beforeEach(async () => {
 			: [{ id: "haiku", label: "Haiku" }],
 	);
 	rpc.save.mockResolvedValue({});
+	rpc.probe.mockResolvedValue([{ provider: "claude", state: "ready" }]);
 	HTMLDialogElement.prototype.close = function () {
 		this.open = false;
 	};
@@ -39,6 +47,7 @@ beforeEach(async () => {
 afterEach(async () => {
 	await act(async () => root.unmount());
 	host.remove();
+	vi.unstubAllGlobals();
 });
 async function select(selector: string, value: string) {
 	await act(async () => {
@@ -55,11 +64,7 @@ it("shows only the active agent's models and preserves each selection across swi
 	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.value).toBe("haiku");
 	await select("#diagram-agent", "codex");
 	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.value).toBe("custom");
-	await act(async () =>
-		[...document.querySelectorAll("button")]
-			.find((button) => button.textContent === "Save settings")!
-			.click(),
-	);
+
 	expect(rpc.save).toHaveBeenCalledWith({
 		agent: "codex",
 		models: { codex: "custom", claude: "haiku" },
@@ -72,4 +77,65 @@ it("keeps the saved model when discovery fails", async () => {
 	await select("#diagram-agent", "claude");
 	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.value).toBe("haiku");
 	expect(document.body.textContent).toContain("Your saved choice is unchanged");
+});
+
+async function clickButton(label: string) {
+	await act(async () => {
+		[...document.querySelectorAll("button")]
+			.find((button) => button.textContent?.trim() === label)!
+			.click();
+	});
+}
+it("autosaves agent and model changes without closing Settings or writing during load", async () => {
+	expect(rpc.save).not.toHaveBeenCalled();
+	expect(document.body.textContent).not.toContain("Save settings");
+	await select("#diagram-model", "custom");
+	expect(rpc.save).toHaveBeenLastCalledWith({
+		agent: "codex",
+		models: { codex: "custom", claude: "haiku" },
+	});
+	await select("#diagram-agent", "disabled");
+	expect(rpc.save).toHaveBeenLastCalledWith({
+		agent: "disabled",
+		models: { codex: "custom", claude: "haiku" },
+	});
+	expect(document.querySelector("dialog")!.open).toBe(true);
+});
+it("saves the auto-detected agent without a separate save action", async () => {
+	await clickButton("Auto detect");
+	expect(rpc.save).toHaveBeenLastCalledWith({
+		agent: "claude",
+		models: { codex: "gpt-6-luna", claude: "haiku" },
+	});
+	expect(document.querySelector<HTMLSelectElement>("#diagram-agent")!.value).toBe("claude");
+});
+it("prevents overlapping writes and restores the saved selection after a failure", async () => {
+	let rejectSave!: (failure: Error) => void;
+	rpc.save.mockImplementationOnce(
+		() =>
+			new Promise((_, reject) => {
+				rejectSave = reject;
+			}),
+	);
+	await select("#diagram-model", "custom");
+	expect(document.body.textContent).toContain("Saving…");
+	expect(document.querySelector<HTMLSelectElement>("#diagram-agent")!.disabled).toBe(true);
+	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.disabled).toBe(true);
+	await act(async () => rejectSave(new Error("offline")));
+	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.value).toBe("gpt-6-luna");
+	expect(document.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t save settings");
+	await select("#diagram-model", "custom");
+	expect(document.querySelector('[role="alert"]')).toBeNull();
+	expect(document.querySelector<HTMLSelectElement>("#diagram-model")!.value).toBe("custom");
+});
+it("applies layout changes immediately and keeps them across reopening, independently of diagram writes", async () => {
+	await clickButton("Layout");
+	await select("#content-layout", "full-width");
+	expect(getDefaultStore().get(contentLayoutAtom)).toBe("full-width");
+	expect(localStorage.getItem("mdxserve.content.layout")).toBe('"full-width"');
+	expect(rpc.save).not.toHaveBeenCalled();
+	await act(async () => root.render(null));
+	await act(async () => root.render(createElement(DiagramPreferences, { onClose: vi.fn() })));
+	await clickButton("Layout");
+	expect(document.querySelector<HTMLSelectElement>("#content-layout")!.value).toBe("full-width");
 });

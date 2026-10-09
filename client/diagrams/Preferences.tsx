@@ -7,8 +7,7 @@ import { trpcClient } from "../api";
 export type AgentChoice = "codex" | "claude" | "disabled";
 export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 	const [category, setCategory] = useState<"diagrams" | "layout">("diagrams");
-	const [savedLayout, setSavedLayout] = useAtom(contentLayoutAtom);
-	const [layout, setLayout] = useState(savedLayout);
+	const [layout, setLayout] = useAtom(contentLayoutAtom);
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
 	const [models, setModels] = useState({ codex: "", claude: "" });
 	const [catalog, setCatalog] = useState<{ id: string; label: string }[]>([]);
@@ -55,25 +54,25 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 			obsolete = true;
 		};
 	}, [agent, loaded, refreshModels]);
-	async function save() {
-		if (category === "layout") {
-			setSavedLayout(layout);
-			onClose();
-			return;
-		}
+	async function save(nextAgent: AgentChoice, nextModels = models) {
+		const previousAgent = agent;
+		const previousModels = models;
+		setAgent(nextAgent);
+		setModels(nextModels);
 		setPending(true);
 		setError("");
 		try {
-			await trpcClient.setDiagramPreferences.mutate({ agent, models });
-			setSavedLayout(layout);
+			await trpcClient.setDiagramPreferences.mutate({ agent: nextAgent, models: nextModels });
 			window.dispatchEvent(new Event("mdxserve-diagram-preferences"));
-			onClose();
-		} catch (failure) {
-			setError(failure instanceof Error ? failure.message : "Could not save");
+		} catch {
+			setAgent(previousAgent);
+			setModels(previousModels);
+			setError("Couldn’t save settings. Your previous settings are unchanged. Try again.");
 		} finally {
 			setPending(false);
 		}
 	}
+
 	return (
 		<Modal open onClose={onClose} className="diagram-dialog diagram-settings" aria-label="Settings">
 			<header className="diagram-navbar">
@@ -150,8 +149,8 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 								<select
 									id="diagram-agent"
 									value={agent}
-									onChange={(event) => setAgent(event.target.value as AgentChoice)}
-									disabled={!loaded}
+									onChange={(event) => void save(event.target.value as AgentChoice)}
+									disabled={!loaded || pending || checking}
 								>
 									<option value="codex">Codex</option>
 									<option value="claude">Claude Code</option>
@@ -161,8 +160,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 							</span>
 						</label>
 						<p className="diagram-setting-note">
-							Auto detect selects an installed, signed-in agent. Save to use that choice for every
-							conversion.
+							Auto detect selects an installed, signed-in agent for every conversion.
 						</p>
 						{agent !== "disabled" && (
 							<>
@@ -176,8 +174,10 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 											id="diagram-model"
 											aria-label="Model"
 											value={models[agent]}
-											disabled={!loaded || loadingModels}
-											onChange={(event) => setModels({ ...models, [agent]: event.target.value })}
+											disabled={!loaded || loadingModels || pending || checking}
+											onChange={(event) =>
+												void save(agent, { ...models, [agent]: event.target.value })
+											}
 										>
 											{!catalog.some((model) => model.id === models[agent]) && (
 												<option value={models[agent]}>
@@ -221,7 +221,7 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 									try {
 										const result = await trpcClient.probeDiagramAgents.mutate({});
 										const ready = result.filter((status) => status.state === "ready");
-										setAgent(
+										await save(
 											ready.find((status) => status.provider === agent)?.provider ??
 												ready[0]?.provider ??
 												"disabled",
@@ -248,9 +248,6 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 							Text and images are sent to the selected provider using your account. Disabled stops
 							conversion; existing diagrams still render.
 						</p>
-						<p role="alert" className="diagram-error">
-							{error}
-						</p>
 					</section>
 				)}
 			</div>
@@ -264,14 +261,15 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 						</>
 					)}
 				</span>
-				<button
-					type="button"
-					className="diagram-primary"
-					disabled={category === "diagrams" && (pending || checking || !loaded)}
-					onClick={() => void save()}
-				>
-					Save settings
-				</button>
+				{error ? (
+					<p role="alert" className="diagram-error">
+						{error}
+					</p>
+				) : (
+					<span role="status">
+						{pending ? (loaded ? "Saving…" : "Loading settings…") : "Settings save automatically."}
+					</span>
+				)}
 			</footer>
 		</Modal>
 	);
