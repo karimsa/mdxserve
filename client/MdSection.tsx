@@ -1,3 +1,4 @@
+import { AnimatePresence } from "framer-motion";
 import { DiagramEditContext, type ExistingDiagram } from "./diagrams/edit-context";
 import {
 	lazy,
@@ -218,19 +219,21 @@ function Section({
 		<DiagramEditContext.Provider
 			value={mode === "read" ? (target) => void startEdit(target) : null}
 		>
-			{mode === "diagram" && initialDiagram && (
-				<Suspense fallback={null}>
-					<DiagramEditDialog
-						source={source}
-						target={initialDiagram}
-						path={path}
-						version={version}
-						startLine={startLine}
-						endLine={endLine}
-						onClose={finishEdit}
-					/>
-				</Suspense>
-			)}
+			<AnimatePresence>
+				{mode === "diagram" && initialDiagram && (
+					<Suspense fallback={null}>
+						<DiagramEditDialog
+							source={source}
+							target={initialDiagram}
+							path={path}
+							version={version}
+							startLine={startLine}
+							endLine={endLine}
+							onClose={finishEdit}
+						/>
+					</Suspense>
+				)}
+			</AnimatePresence>
 			<div
 				className="mdx-section group"
 				data-md-section={index}

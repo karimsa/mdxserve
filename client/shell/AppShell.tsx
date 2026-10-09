@@ -303,7 +303,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	return (
 		<div className="min-h-screen bg-surface-page">
-			{diagramPreferences && <DiagramPreferences onClose={() => setDiagramPreferences(false)} />}
+			<AnimatePresence>
+				{diagramPreferences && <DiagramPreferences onClose={() => setDiagramPreferences(false)} />}
+			</AnimatePresence>
 			<TopBar
 				onDiagramPreferences={shellInfo.sameMachine ? () => setDiagramPreferences(true) : undefined}
 				homeHref="/"

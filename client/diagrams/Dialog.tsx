@@ -1,3 +1,4 @@
+import { AnimatePresence } from "framer-motion";
 import { sessionId } from "./session-id";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "../ui/Modal";
@@ -563,7 +564,9 @@ export function MermaidDialog({
 				</span>
 			)}
 
-			{preferences && <DiagramPreferences onClose={() => setPreferences(false)} />}
+			<AnimatePresence>
+				{preferences && <DiagramPreferences onClose={() => setPreferences(false)} />}
+			</AnimatePresence>
 		</Modal>
 	);
 }

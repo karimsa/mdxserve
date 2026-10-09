@@ -9,6 +9,7 @@ import { TRANSITIONS } from "../motion";
 export interface ExpandModalProps {
 	open: boolean;
 	onClose: () => void;
+	onExitComplete?: () => void;
 	/** Lucide icon shown before the title. */
 	icon: string;
 	title: string;
@@ -114,6 +115,7 @@ function resizeFromCentre(
 export function ExpandModal({
 	open,
 	onClose,
+	onExitComplete,
 	icon,
 	title,
 	hint,
@@ -153,7 +155,7 @@ export function ExpandModal({
 	}, []);
 
 	useEffect(() => {
-		if (!open) resetSize();
+		if (open) resetSize();
 	}, [open, resetSize]);
 
 	// Keep a custom size inside the window if the window shrinks underneath it.
@@ -243,6 +245,7 @@ export function ExpandModal({
 		<Modal
 			open={open}
 			onClose={onClose}
+			onExitComplete={onExitComplete}
 			panelRef={panelRef}
 			aria-label={`Expanded ${title.toLowerCase()}`}
 			// A dragged panel takes an explicit size; auto margins keep it centered.

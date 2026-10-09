@@ -1,11 +1,12 @@
 import { useEffect, useRef, type Ref } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, type HTMLMotionProps } from "framer-motion";
+import { AnimatePresence, motion, useIsPresent, type HTMLMotionProps } from "framer-motion";
 import { VARIANTS } from "../motion";
 
 type ModalProps = Omit<HTMLMotionProps<"dialog">, "onClose" | "onCancel" | "ref" | "open"> & {
 	open: boolean;
 	onClose?: () => void;
+	onExitComplete?: () => void;
 	/** Disable Escape and backdrop dismissal while an operation is pending. */
 	dismissible?: boolean;
 	dismissOnBackdrop?: boolean;
@@ -19,11 +20,17 @@ type ModalProps = Omit<HTMLMotionProps<"dialog">, "onClose" | "onCancel" | "ref"
 // A parent and its nested modal can unmount in either order.
 const scrollLocks = new WeakMap<Document, { count: number; overflow: string }>();
 
-/** Native modality supplies focus containment, focus return and nested top-layer ordering. */
-export function Modal({ open, ...props }: ModalProps) {
+/**
+ * Native modality supplies focus containment, focus return and nested top-layer ordering.
+ * Toggle `open` to close, or wrap a conditionally mounted owner in AnimatePresence.
+ * Exit propagation keeps the native dialog open until its panel has finished fading.
+ */
+export function Modal({ open, onExitComplete, ...props }: ModalProps) {
 	if (typeof document === "undefined") return null;
 	return createPortal(
-		<AnimatePresence>{open && <ModalSurface key="modal" {...props} />}</AnimatePresence>,
+		<AnimatePresence propagate onExitComplete={onExitComplete}>
+			{open && <ModalSurface key="modal" {...props} />}
+		</AnimatePresence>,
 		document.body,
 	);
 }
@@ -41,6 +48,7 @@ function ModalSurface({
 	onKeyDown,
 	...props
 }: Omit<ModalProps, "open">) {
+	const present = useIsPresent();
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const backdropPress = useRef(false);
 	useEffect(() => {
@@ -87,11 +95,12 @@ function ModalSurface({
 				if (panelRef) panelRef.current = dialog;
 			}}
 			aria-modal="true"
+			data-exiting={!present || undefined}
 			className={`modal modal--${placement} ${className}`}
 			onCancel={(event) => {
 				event.preventDefault();
 				event.stopPropagation();
-				if (dismissible) onClose?.();
+				if (present && dismissible) onClose?.();
 			}}
 			onKeyDown={(event) => {
 				onKeyDown?.(event);
@@ -104,7 +113,8 @@ function ModalSurface({
 				event.stopPropagation();
 				const outside = backdropPress.current && isBackdrop(event);
 				backdropPress.current = false;
-				if (outside && dismissible && dismissOnBackdrop) (onBackdropClick ?? onClose)?.();
+				if (present && outside && dismissible && dismissOnBackdrop)
+					(onBackdropClick ?? onClose)?.();
 			}}
 		>
 			{children}

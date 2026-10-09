@@ -402,6 +402,7 @@ function PanZoomSvg({
  */
 function ExpandableDiagram({ svg, toolbar }: { svg: string; toolbar?: ReactNode }) {
 	const [expanded, setExpanded] = useState(false);
+	const [closing, setClosing] = useState(false);
 	return (
 		<>
 			{/* Only one copy of the markup is live at a time. Mermaid doesn't namespace
@@ -410,7 +411,7 @@ function ExpandableDiagram({ svg, toolbar }: { svg: string; toolbar?: ReactNode 
 			    SVG — the one svg-pan-zoom has already wrapped and transformed. The
 			    card sits behind the scrim while expanded, so the placeholder that
 			    holds its height never shows. */}
-			{expanded ? (
+			{expanded || closing ? (
 				<div className="h-96 w-full" aria-hidden="true" />
 			) : (
 				<PanZoomSvg svg={svg} viewportClassName="h-96" onExpand={() => setExpanded(true)} />
@@ -419,7 +420,11 @@ function ExpandableDiagram({ svg, toolbar }: { svg: string; toolbar?: ReactNode 
 				open={expanded}
 				svg={svg}
 				toolbar={toolbar}
-				onClose={() => setExpanded(false)}
+				onClose={() => {
+					setClosing(true);
+					setExpanded(false);
+				}}
+				onExitComplete={() => setClosing(false)}
 			/>
 		</>
 	);
@@ -430,16 +435,19 @@ function DiagramModal({
 	svg,
 	toolbar,
 	onClose,
+	onExitComplete,
 }: {
 	open: boolean;
 	svg: string;
 	toolbar?: ReactNode;
 	onClose: () => void;
+	onExitComplete: () => void;
 }) {
 	return (
 		<ExpandModal
 			open={open}
 			onClose={onClose}
+			onExitComplete={onExitComplete}
 			icon="image"
 			title="Diagram"
 			hint="Drag to pan · scroll to zoom"

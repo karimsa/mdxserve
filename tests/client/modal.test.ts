@@ -2,6 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { AnimatePresence } from "framer-motion";
 import { Modal } from "../../client/ui/Modal";
 
 let root: Root;
@@ -108,3 +109,35 @@ it("focuses the requested input and returns focus on unmount", async () => {
 	expect(document.activeElement).toBe(opener);
 	opener.remove();
 });
+
+it.each(["controlled", "conditional"])(
+	"retains a %s modal and scroll lock until its exit animation finishes",
+	async (mode) => {
+		const onExitComplete = vi.fn();
+		function renderModal(open: boolean) {
+			const modal = createElement(
+				Modal,
+				{ open: mode === "conditional" || open, onExitComplete },
+				"Dialog contents",
+			);
+			return mode === "conditional"
+				? createElement(AnimatePresence, {}, open ? modal : null)
+				: modal;
+		}
+		await act(async () => root.render(renderModal(true)));
+		const dialog = document.querySelector("dialog")!;
+		await act(async () => root.render(renderModal(false)));
+		expect(dialog.isConnected).toBe(true);
+		expect(dialog.open).toBe(true);
+		expect(dialog.dataset.exiting).toBe("true");
+		expect(dialog.textContent).toBe("Dialog contents");
+		expect(document.body.style.overflow).toBe("hidden");
+		expect(onExitComplete).not.toHaveBeenCalled();
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		});
+		expect(document.querySelector("dialog")).toBeNull();
+		expect(document.body.style.overflow).toBe("");
+		expect(onExitComplete).toHaveBeenCalledOnce();
+	},
+);

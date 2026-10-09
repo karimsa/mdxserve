@@ -24,7 +24,7 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
 import { Image } from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { isTRPCClientError } from "@trpc/client";
 import { trpcClient } from "./api";
 import { TRANSITIONS } from "./motion";
@@ -303,55 +303,57 @@ export default function MdSectionEditor({
 	return (
 		<div className="mdx-section" data-editing onClick={onClick} onKeyDown={onKeyDown}>
 			<EditorContent editor={editor} />
-			{(diagramRange || editTarget) && (
-				<MermaidDialog
-					initialSource={editTarget?.source}
-					onClose={closeDiagram}
-					onInsert={(source) => {
-						if (editTarget) {
-							if (!replaceDiagram(editor, editTarget, source)) {
+			<AnimatePresence>
+				{(diagramRange || editTarget) && (
+					<MermaidDialog
+						initialSource={editTarget?.source}
+						onClose={closeDiagram}
+						onInsert={(source) => {
+							if (editTarget) {
+								if (!replaceDiagram(editor, editTarget, source)) {
+									pushToast({
+										tone: "warn",
+										text: "Diagram changed. Reopen it before applying changes.",
+									});
+									return;
+								}
+								closeDiagram();
+								return;
+							}
+							if (!diagramRange) return;
+							if (diagramRange.to > editor.state.doc.content.size) {
+								closeDiagram();
+								return;
+							}
+							const from = editor.state.doc.resolve(diagramRange.from);
+							if (
+								from.parent.type.name !== "paragraph" ||
+								from.parent.textContent !==
+									editor.state.doc.textBetween(diagramRange.from, diagramRange.to)
+							) {
 								pushToast({
 									tone: "warn",
-									text: "Diagram changed. Reopen it before applying changes.",
+									text: "Insertion location changed. Close the dialog and choose a new block.",
 								});
 								return;
 							}
+							editor
+								.chain()
+								.focus()
+								.insertContentAt(
+									{ from: from.before(), to: from.after() },
+									{
+										type: "codeBlock",
+										attrs: { language: "mermaid" },
+										content: [{ type: "text", text: source }],
+									},
+								)
+								.run();
 							closeDiagram();
-							return;
-						}
-						if (!diagramRange) return;
-						if (diagramRange.to > editor.state.doc.content.size) {
-							closeDiagram();
-							return;
-						}
-						const from = editor.state.doc.resolve(diagramRange.from);
-						if (
-							from.parent.type.name !== "paragraph" ||
-							from.parent.textContent !==
-								editor.state.doc.textBetween(diagramRange.from, diagramRange.to)
-						) {
-							pushToast({
-								tone: "warn",
-								text: "Insertion location changed. Close the dialog and choose a new block.",
-							});
-							return;
-						}
-						editor
-							.chain()
-							.focus()
-							.insertContentAt(
-								{ from: from.before(), to: from.after() },
-								{
-									type: "codeBlock",
-									attrs: { language: "mermaid" },
-									content: [{ type: "text", text: source }],
-								},
-							)
-							.run();
-						closeDiagram();
-					}}
-				/>
-			)}
+						}}
+					/>
+				)}
+			</AnimatePresence>
 			{/* Keyboard is the only way out of edit mode (no buttons), so the hints
 			    float in the right gutter beside the frame, out of the text flow —
 			    the section keeps its read-mode box exactly. pointer-events-none so
