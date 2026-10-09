@@ -88,3 +88,13 @@ export const docWidthAtom = atomWithStorage<number | null>("mdxserve.doc.width",
  * back to read mode, discarding whatever it had open (see client/MdSection.tsx).
  */
 export const openSectionAtom = atom<string | null>(null);
+
+export type ContentLayout = "flexible" | "full-width";
+
+/** Content layout preference; saved widths are retained when full width is active. */
+export const contentLayoutAtom = atomWithStorage<ContentLayout>(
+	"mdxserve.content.layout",
+	"flexible",
+	undefined,
+	{ getOnInit: true },
+);

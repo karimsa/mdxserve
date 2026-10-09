@@ -5,7 +5,7 @@ import { DocView } from "../DocView";
 import { fadeRise } from "../motion";
 import { useTheme } from "../theme";
 import { docModuleCache } from "../doc-module-cache";
-import { docWidthAtom } from "../state";
+import { contentLayoutAtom, docWidthAtom } from "../state";
 import { Footer } from "./Footer";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
@@ -22,6 +22,7 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 	const { theme, toggle } = useTheme();
 	const [tocVersion, setTocVersion] = useState(0);
 	const docWidth = useAtomValue(docWidthAtom);
+	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
 	const contentRef = useRef<HTMLDivElement>(null);
 	const contentWidth = useContentWidth(contentRef);
 	const docMaxWidth = useDocMaxWidth(contentWidth, docWidth);
@@ -47,8 +48,10 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 						variants={fadeRise}
 						initial="initial"
 						animate="enter"
-						className={docMaxWidth ? "w-full" : "w-full max-w-prose"}
-						style={docMaxWidth ? { maxWidth: docMaxWidth } : undefined}
+						className={fullWidth || docMaxWidth ? "w-full" : "w-full max-w-prose"}
+						style={
+							fullWidth ? { maxWidth: "100%" } : docMaxWidth ? { maxWidth: docMaxWidth } : undefined
+						}
 					>
 						<DocView
 							path={meta.path}
