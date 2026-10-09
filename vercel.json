@@ -3,8 +3,7 @@
 	"services": {
 		"site": {
 			"root": ".",
-			"entrypoint": "site/Dockerfile.vercel",
-			"ignoreCommand": "node site/deployment/prepare-context.mjs; exit 1"
+			"entrypoint": "site/Dockerfile.vercel"
 		}
 	},
 	"redirects": [
