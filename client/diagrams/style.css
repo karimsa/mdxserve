@@ -1,16 +1,5 @@
 .diagram-dialog {
-	margin: auto;
-	padding: 0;
-	border: 1px solid var(--border-strong);
-	border-radius: 10px;
-	background: var(--surface-card);
-	color: var(--text-body);
 	font-family: var(--font-core);
-	box-shadow: 0 28px 100px #0006;
-}
-.diagram-dialog::backdrop {
-	background: #0008;
-	backdrop-filter: blur(4px);
 }
 .diagram-workspace[open] {
 	display: flex;

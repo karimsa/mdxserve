@@ -25,6 +25,9 @@ beforeEach(async () => {
 			: [{ id: "haiku", label: "Haiku" }],
 	);
 	rpc.save.mockResolvedValue({});
+	HTMLDialogElement.prototype.close = function () {
+		this.open = false;
+	};
 	HTMLDialogElement.prototype.showModal = function () {
 		this.open = true;
 	};

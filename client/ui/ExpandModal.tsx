@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useSpring } from "framer-motion";
+import { Modal } from "./Modal";
+import { useSpring } from "framer-motion";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
 import { Kbd } from "./Kbd";
-import { TRANSITIONS, VARIANTS } from "../motion";
+import { TRANSITIONS } from "../motion";
 
 export interface ExpandModalProps {
 	open: boolean;
@@ -120,7 +120,7 @@ export function ExpandModal({
 	actions,
 	children,
 }: ExpandModalProps) {
-	const panelRef = useRef<HTMLDivElement>(null);
+	const panelRef = useRef<HTMLDialogElement>(null);
 	// Whether the reader has taken over the size; the springs below hold it.
 	const [custom, setCustom] = useState(false);
 	const [dragging, setDragging] = useState<Edge | null>(null);
@@ -137,35 +137,14 @@ export function ExpandModal({
 		grab: Point;
 	} | null>(null);
 
-	// Document-level so Escape works wherever focus landed (a pan surface or
-	// chart is a plain element and never holds focus itself). A control in the
-	// header that already consumed the key (the layout menu closing itself)
-	// marks the event default-prevented, and that Escape must not also close
-	// the modal.
 	useEffect(() => {
 		if (!open) return;
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape" && !event.defaultPrevented) {
-				event.preventDefault();
-				onClose();
-			}
-		}
-		document.addEventListener("keydown", onKeyDown);
-		// Wheel-zooming the content must not also scroll the document behind the scrim.
-		const previousOverflow = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
 		return () => {
-			document.removeEventListener("keydown", onKeyDown);
-			document.body.style.overflow = previousOverflow;
-			// A drag interrupted by closing (Escape, scrim click, unmount) never sees
-			// pointerup, so release its global state here: otherwise text selection
-			// stays disabled page-wide and the next open treats a hover over a handle
-			// as an in-progress drag.
 			drag.current = null;
 			setDragging(null);
 			document.body.style.userSelect = "";
 		};
-	}, [open, onClose]);
+	}, [open]);
 
 	// A custom size lasts for one viewing: reopening starts from the default inset.
 	const resetSize = useCallback(() => {
@@ -260,83 +239,60 @@ export function ExpandModal({
 		document.body.style.userSelect = "";
 	}, []);
 
-	// The SSR entry renders the same component tree; never touch `document` at
-	// render time there (the modal is only ever opened client-side anyway).
-	if (typeof document === "undefined") return null;
-
-	// Portal to <body>: callers sit inside the route wrapper, whose fadeRise
-	// transform would otherwise turn `fixed` into "fixed to the column" and let
-	// the scrim miss the top bar and sidebar.
-	return createPortal(
-		<AnimatePresence>
-			{open ? (
-				<motion.div
-					key="scrim"
-					onClick={onClose}
-					{...VARIANTS.scrim}
-					className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-[var(--scrim)] p-4 backdrop-blur-sm sm:p-8"
+	return (
+		<Modal
+			open={open}
+			onClose={onClose}
+			panelRef={panelRef}
+			aria-label={`Expanded ${title.toLowerCase()}`}
+			// A dragged panel takes an explicit size; auto margins keep it centered.
+			style={
+				custom
+					? { width: widthSpring, height: heightSpring, maxWidth: "none", flex: "none" }
+					: undefined
+			}
+			className="flex h-[calc(100dvh-32px)] w-[min(1600px,calc(100vw-32px))] flex-col overflow-visible sm:h-[calc(100dvh-64px)] sm:w-[min(1600px,calc(100vw-64px))]"
+		>
+			<div className="flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border-subtle px-3 py-2">
+				<Icon name={icon} size="md" className="text-text-muted" />
+				<span className="font-sans font-semibold text-text-heading text-[length:var(--size-sm)]">
+					{title}
+				</span>
+				<span className="hidden items-center gap-1.5 font-sans text-[length:var(--size-xs)] text-text-subtle sm:flex">
+					{hint ? <>{hint} · </> : null}
+					drag an edge to resize · <Kbd>esc</Kbd> to close
+				</span>
+				<div className="ml-auto flex items-center gap-2">
+					{actions}
+					<IconButton icon="x" label="Close" size="md" autoFocus onClick={onClose} />
+				</div>
+			</div>
+			<div className="min-h-0 flex-1 overflow-hidden rounded-b-xl">{children}</div>
+			{EDGE_HANDLES.map(({ edge, className, bar }) => (
+				<div
+					key={edge}
+					role="separator"
+					aria-label={`Resize ${edge} edge`}
+					className={"group absolute z-10 " + className}
+					onPointerDown={(event) => onHandleDown(edge, event)}
+					onPointerMove={onHandleMove}
+					onPointerUp={onHandleUp}
+					onPointerCancel={onHandleUp}
+					onDoubleClick={resetSize}
 				>
-					<motion.div
-						ref={panelRef}
-						onClick={(event) => event.stopPropagation()}
-						{...VARIANTS.pop}
-						role="dialog"
-						aria-modal="true"
-						aria-label={`Expanded ${title.toLowerCase()}`}
-						// Once an edge has been dragged the panel takes an explicit size and stays
-						// centred by the scrim's flex box; until then it fills the padded area
-						// (capped for very wide windows).
-						style={
-							custom
-								? { width: widthSpring, height: heightSpring, maxWidth: "none", flex: "none" }
-								: undefined
-						}
-						className="relative flex h-full w-full max-w-[1600px] flex-col rounded-xl border border-border-default bg-surface-raised shadow-lg"
-					>
-						<div className="flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border-subtle px-3 py-2">
-							<Icon name={icon} size="md" className="text-text-muted" />
-							<span className="font-sans font-semibold text-text-heading text-[length:var(--size-sm)]">
-								{title}
-							</span>
-							<span className="hidden items-center gap-1.5 font-sans text-[length:var(--size-xs)] text-text-subtle sm:flex">
-								{hint ? <>{hint} · </> : null}
-								drag an edge to resize · <Kbd>esc</Kbd> to close
-							</span>
-							<div className="ml-auto flex items-center gap-2">
-								{actions}
-								<IconButton icon="x" label="Close" size="md" autoFocus onClick={onClose} />
-							</div>
-						</div>
-						<div className="min-h-0 flex-1 overflow-hidden rounded-b-xl">{children}</div>
-						{EDGE_HANDLES.map(({ edge, className, bar }) => (
-							<div
-								key={edge}
-								role="separator"
-								aria-label={`Resize ${edge} edge`}
-								className={"group absolute z-10 " + className}
-								onPointerDown={(event) => onHandleDown(edge, event)}
-								onPointerMove={onHandleMove}
-								onPointerUp={onHandleUp}
-								onPointerCancel={onHandleUp}
-								onDoubleClick={resetSize}
-							>
-								{bar ? (
-									<span
-										className={
-											"absolute rounded-full transition-opacity " +
-											bar +
-											(dragging === edge
-												? " bg-surface-accent opacity-100"
-												: " bg-border-default opacity-0 group-hover:opacity-100")
-										}
-									/>
-								) : null}
-							</div>
-						))}
-					</motion.div>
-				</motion.div>
-			) : null}
-		</AnimatePresence>,
-		document.body,
+					{bar ? (
+						<span
+							className={
+								"absolute rounded-full transition-opacity " +
+								bar +
+								(dragging === edge
+									? " bg-surface-accent opacity-100"
+									: " bg-border-default opacity-0 group-hover:opacity-100")
+							}
+						/>
+					) : null}
+				</div>
+			))}
+		</Modal>
 	);
 }

@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
+import { Modal } from "../ui/Modal";
 import { ChevronDown, Network, Settings, X } from "lucide-react";
 import { trpcClient } from "../api";
 export type AgentChoice = "codex" | "claude" | "disabled";
 export function DiagramPreferences({ onClose }: { onClose: () => void }) {
-	const dialog = useRef<HTMLDialogElement>(null);
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
 	const [models, setModels] = useState({ codex: "", claude: "" });
 	const [catalog, setCatalog] = useState<{ id: string; label: string }[]>([]);
@@ -17,7 +16,6 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 	const [checking, setChecking] = useState(false);
 	const [loaded, setLoaded] = useState(false);
 	useEffect(() => {
-		dialog.current?.showModal();
 		void trpcClient.getDiagramPreferences
 			.query({})
 			.then((result) => {
@@ -65,17 +63,13 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 			setPending(false);
 		}
 	}
-	return createPortal(
-		<dialog
-			ref={dialog}
+	return (
+		<Modal
+			open
+			onClose={onClose}
+			dismissOnBackdrop={false}
 			className="diagram-dialog diagram-settings"
 			aria-label="Settings"
-			onCancel={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				onClose();
-			}}
-			onKeyDown={(event) => event.stopPropagation()}
 		>
 			<header className="diagram-navbar">
 				<div className="diagram-title">
@@ -226,7 +220,6 @@ export function DiagramPreferences({ onClose }: { onClose: () => void }) {
 					Save settings
 				</button>
 			</footer>
-		</dialog>,
-		document.body,
+		</Modal>
 	);
 }

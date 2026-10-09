@@ -33,6 +33,7 @@
 @import "./design/base/reset.css";
 @import "./design/base/prose.css";
 @import "./design/base/editor.css";
+@import "./ui/modal.css";
 @import "./diagrams/style.css";
 
 /* `:root[...]` (not bare `[data-theme]`) because rehype-pretty-code stamps
