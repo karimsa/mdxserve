@@ -63,7 +63,7 @@ test("waits for the exact production deployment and checks API results independe
 	assert.equal(result, "dpl_Matching123");
 	assert.equal(fake.requests.length, 3);
 	for (const { url, request } of fake.requests) {
-		assert.equal(url.pathname, "/v6/deployments");
+		assert.equal(url.pathname, "/v7/deployments");
 		assert.equal(url.searchParams.get("sha"), commitSha);
 		assert.equal(url.searchParams.get("projectId"), options.projectId);
 		assert.equal(url.searchParams.get("teamId"), options.teamId);

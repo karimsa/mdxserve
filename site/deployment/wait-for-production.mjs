@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-const apiUrl = "https://api.vercel.com/v6/deployments";
+const apiUrl = "https://api.vercel.com/v7/deployments";
 const waitLimitMs = 15 * 60 * 1000;
 const pollIntervalMs = 10 * 1000;
 const requestTimeoutMs = 10 * 1000;
