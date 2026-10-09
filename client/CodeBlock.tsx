@@ -1,3 +1,4 @@
+import { DiagramEditContext } from "./diagrams/edit-context";
 import {
 	Children,
 	createContext,
@@ -241,6 +242,7 @@ function CodeFrame({
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isMermaid = language === "mermaid";
+	const editDiagram = useContext(DiagramEditContext);
 	const [view, setView] = useState<"diagram" | "code">("diagram");
 	const [source, setSource] = useState<string | null>(null);
 	const label = title ?? language;
@@ -294,6 +296,7 @@ function CodeFrame({
 	return (
 		<div
 			ref={containerRef}
+			data-mermaid-editable={isMermaid ? "" : undefined}
 			className="overflow-hidden rounded-lg border border-code-border bg-code-bg"
 		>
 			<CodeFrameHeader
@@ -302,6 +305,27 @@ function CodeFrame({
 					<>
 						{isMermaid ? <ViewToggle view={view} onChange={setView} toggleId={toggleId} /> : null}
 						{showDiagram ? directionMenu : null}
+						{isMermaid && editDiagram && (
+							<button
+								type="button"
+								aria-label="Edit diagram"
+								data-print-hide
+								className="inline-flex items-center gap-1.5 text-[length:var(--size-xs)] text-text-subtle hover:text-text-heading"
+								onClick={() => {
+									const frame = containerRef.current;
+									const section = frame?.closest("[data-md-section]");
+									if (!frame || !section) return;
+									const index = [...section.querySelectorAll("[data-mermaid-editable]")].indexOf(
+										frame,
+									);
+									if (index >= 0) editDiagram({ index, source: getCopyText() });
+								}}
+							>
+								<Icon name="pencil" size={12} />
+								Edit
+							</button>
+						)}
+
 						<CopyButton getText={getCopyText} />
 					</>
 				}

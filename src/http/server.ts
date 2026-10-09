@@ -1,3 +1,4 @@
+import type { DiagramsService } from "../diagrams/service.js";
 import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
@@ -32,6 +33,7 @@ function wantsHtml(req: http.IncomingMessage): boolean {
 }
 
 export interface RequestContext {
+	diagrams?: DiagramsService;
 	/** Per-process state, created once in startServer: owns the mutable set of mounted roots. */
 	roots: RootsService;
 	registry: Registry;
@@ -110,6 +112,7 @@ export async function handleRequest(
 			maxBodySize: 320 * 1024,
 			createContext: () => ({
 				rootInfos,
+				diagrams: ctx.diagrams,
 				roots: ctx.roots,
 				registry,
 				isLoopback,

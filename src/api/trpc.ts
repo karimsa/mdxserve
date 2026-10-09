@@ -1,3 +1,4 @@
+import type { DiagramsService } from "../diagrams/service.js";
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { Registry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
@@ -14,6 +15,7 @@ import type { DocsService } from "../docs/service.js";
  * so `dist/registry.json` may not exist yet.
  */
 export interface ApiContext {
+	diagrams?: DiagramsService;
 	/** The per-request snapshot of `roots.list()` at the time this request arrived. */
 	rootInfos: RootInfo[];
 	/** Per-process state, created once in startServer: owns the mutable set of mounted roots. */

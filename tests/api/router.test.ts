@@ -47,6 +47,17 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"addRoots",
 	"removeRoots",
 	"exportDoc",
+	"getDiagramPreferences",
+	"setDiagramPreferences",
+	"probeDiagramAgents",
+	"listDiagramModels",
+	"convertDiagram",
+	"cancelDiagramConversion",
+	"releaseDiagramSession",
+	"beginDiagramImageUpload",
+	"appendDiagramImageChunk",
+	"finishDiagramImageUpload",
+	"discardDiagramImage",
 ];
 
 describe("procedure descriptions", () => {

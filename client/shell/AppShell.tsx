@@ -1,3 +1,4 @@
+import { DiagramPreferences } from "../diagrams/Preferences";
 import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -132,6 +133,7 @@ function useListingMaxWidth(contentWidth: number, stored: number | null) {
 }
 
 export function AppShell({ route, navigate }: { route: Route; navigate: (path: string) => void }) {
+	const [diagramPreferences, setDiagramPreferences] = useState(false);
 	const { theme, toggle } = useTheme();
 	const { roots } = useTree();
 
@@ -301,7 +303,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	return (
 		<div className="min-h-screen bg-surface-page">
+			{diagramPreferences && <DiagramPreferences onClose={() => setDiagramPreferences(false)} />}
 			<TopBar
+				onDiagramPreferences={shellInfo.sameMachine ? () => setDiagramPreferences(true) : undefined}
 				homeHref="/"
 				hostLabel={location.host}
 				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}

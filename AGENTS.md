@@ -13,9 +13,10 @@ calling it.
 ### Domain modules
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
-`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`, `setup/`. `setup/` is
-CLI-only (no `controller.ts`), and its `runner.ts` is the only file under `src/` that spawns a
-process (through `zx`).
+`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`, `setup/`, `diagrams/`,
+and `preferences/`. `setup/` is
+CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
+adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
   `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules
@@ -44,6 +45,7 @@ genuinely per-process state is created once — in `startServer` (`src/http/star
 a CLI command — and carried through the request context: `DocCache`, `SearchService`,
 `DocsService` (it owns the per-file save lock), `RenderService` (it owns the render worker),
 `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
+`DiagramsService` (it owns conversion scheduling, sessions and temporary uploads),
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
 is on loopback, and so whether the render step may run (`allowRender`) or a root mutation may
 run (`allowMutation`) — is a method argument, not a constructor argument.

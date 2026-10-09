@@ -1,3 +1,8 @@
+import { DiagramsService } from "../diagrams/service.js";
+import { PreferencesService } from "../preferences/service.js";
+import { localAgentPort } from "../diagrams/adapters/agents.js";
+import { normalizeDiagramImage } from "../diagrams/adapters/image.js";
+import { validateDiagram } from "../diagrams/adapters/validate.js";
 import http from "node:http";
 import path from "node:path";
 import os from "node:os";
@@ -203,6 +208,18 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const docCache = new DocCache();
 	const search = new SearchService(docCache);
 	const docs = new DocsService(rootsService, registry);
+	const diagrams = new DiagramsService(
+		new PreferencesService(path.join(mdxserveHome(), "config.json")),
+		localAgentPort(),
+		validateDiagram,
+		normalizeDiagramImage,
+	);
+	const diagramWatch = setInterval(() => diagrams.stopIfDisabled(), 1000);
+	diagramWatch.unref();
+	httpServer.once("close", () => {
+		clearInterval(diagramWatch);
+		diagrams.dispose();
+	});
 
 	httpServer.on("request", (req, res) => {
 		handleRequest(req, res, {
@@ -216,6 +233,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			docCache,
 			search,
 			docs,
+			diagrams,
 		}).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {
@@ -338,6 +356,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	async function shutdown(): Promise<void> {
 		if (shuttingDown) return;
 		shuttingDown = true;
+		clearInterval(diagramWatch);
+		diagrams.dispose();
 		console.log("\n  Shutting down…");
 		try {
 			stopConfigWatch();

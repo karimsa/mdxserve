@@ -6,6 +6,7 @@ import { toString as mdastToString } from "mdast-util-to-string";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections.js";
+import { spliceLines } from "../../src/docs/edit.js";
 
 // Use the same syntax extensions as rendering and validation.
 function parse(src: string): Root {
@@ -31,6 +32,29 @@ function attrValue(section: MdxJsxFlowElement, name: string): string {
 	}
 	return found.value;
 }
+
+it.each(["", "\n", "\r\n"])(
+	"produces a saveable range for an EOF fence with %j ending",
+	(ending) => {
+		const source = "# Before\n\n```mermaid\nflowchart LR\n A --> B" + ending;
+		const sections = runPlugin(source).children.filter(isMdSection);
+		const diagram = sections[1];
+		expect(attrValue(diagram, "startLine")).toBe("3");
+		expect(attrValue(diagram, "endLine")).toBe("5");
+		const replacement = "```mermaid\nflowchart LR\n A --> C\n```";
+		const result = spliceLines(
+			source,
+			Number(attrValue(diagram, "startLine")),
+			Number(attrValue(diagram, "endLine")),
+			replacement,
+		);
+		const eol = ending === "\r\n" ? "\r\n" : "\n";
+		expect(result).toEqual({
+			ok: true,
+			text: ("# Before\n\n" + replacement).replaceAll("\n", eol) + ending,
+		});
+	},
+);
 
 function collectDescendants(node: RootContent): RootContent[] {
 	const acc: RootContent[] = [];
@@ -95,6 +119,7 @@ const blockArb = fc.oneof(
 	headingArb,
 	listArb,
 	fenceArb,
+	fc.constant("```mermaid\nflowchart LR\n A --> B\n```"),
 	tableArb,
 	thematicBreakArb,
 	jsxBlockArb,
@@ -151,7 +176,7 @@ describe("remarkSections — invariance", () => {
 		);
 	});
 
-	it("two MdSections are never adjacent unless the second starts with a heading of depth <= 2", () => {
+	it("adjacent sections are separated by a heading or a standalone Mermaid block", () => {
 		fc.assert(
 			fc.property(docArb, (src) => {
 				const tree = runPlugin(src);
@@ -161,7 +186,13 @@ describe("remarkSections — invariance", () => {
 					if (!isMdSection(current) || !isMdSection(next)) continue;
 					const firstChild = next.children[0] as RootContent | undefined;
 					const startsWithSmallHeading = firstChild?.type === "heading" && firstChild.depth <= 2;
-					expect(startsWithSmallHeading).toBe(true);
+					const isDiagram = (section: MdxJsxFlowElement) => {
+						const block = section.children[0];
+						return (
+							section.children.length === 1 && block?.type === "code" && block.lang === "mermaid"
+						);
+					};
+					expect(startsWithSmallHeading || isDiagram(current) || isDiagram(next)).toBe(true);
 				}
 			}),
 		);

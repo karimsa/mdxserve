@@ -1,4 +1,21 @@
-import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+	findDiagram,
+	replaceDiagram,
+	mermaidEditButtons,
+	type DiagramEditTarget,
+} from "./diagrams/edit-block";
+import type { ExistingDiagram } from "./diagrams/edit-context";
+import { mermaidSlash } from "./diagrams/slash";
+import { MermaidDialog } from "./diagrams/Dialog";
+import type { Range } from "@tiptap/core";
+import {
+	useEffect,
+	useState,
+	useRef,
+	useCallback,
+	type KeyboardEvent,
+	type MouseEvent,
+} from "react";
 import type { Editor } from "@tiptap/core";
 import type { Mark } from "@tiptap/pm/model";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -25,6 +42,7 @@ const hint = {
 };
 
 export interface MdSectionEditorProps {
+	initialDiagram?: ExistingDiagram;
 	/** Raw markdown for exactly [startLine, endLine], sliced by MdSection.tsx. */
 	source: string;
 	/** Version token for the whole file at the moment `source` was fetched — the save's stale-write guard. */
@@ -81,6 +99,7 @@ function unwrapSoftBreaks(editor: Editor): void {
  * `@tiptap/extension-link` install is needed to configure `link`.
  */
 export default function MdSectionEditor({
+	initialDiagram,
 	source,
 	version,
 	path,
@@ -89,6 +108,39 @@ export default function MdSectionEditor({
 	onDone,
 }: MdSectionEditorProps) {
 	const [saving, setSaving] = useState(false);
+	const diagramEnabled = useRef(false);
+	const [diagramReady, setDiagramReady] = useState(false);
+	const [editTarget, setEditTarget] = useState<DiagramEditTarget | null>(null);
+	const openedDiagram = useRef(false);
+	const [diagramRange, setDiagramRange] = useState<Range | null>(null);
+	const openDiagram = useRef<(range: Range) => void>(() => {});
+	openDiagram.current = setDiagramRange;
+	useEffect(() => {
+		let active = true;
+		const refresh = () => {
+			void trpcClient.getDiagramPreferences
+				.query({})
+				.then((settings) => {
+					if (active) {
+						diagramEnabled.current = settings.agent !== "disabled";
+						setDiagramReady(diagramEnabled.current);
+						if (!diagramEnabled.current) {
+							setDiagramRange(null);
+							setEditTarget(null);
+						}
+					}
+				})
+				.catch(() => {
+					diagramEnabled.current = false;
+				});
+		};
+		refresh();
+		window.addEventListener("mdxserve-diagram-preferences", refresh);
+		return () => {
+			active = false;
+			window.removeEventListener("mdxserve-diagram-preferences", refresh);
+		};
+	}, []);
 	// Drives the hints' entrance. Not framer's `initial`/`animate` on mount:
 	// this component mounts through Suspense inside a transition, and its
 	// first commit can happen while the subtree is still hidden, so a
@@ -99,6 +151,11 @@ export default function MdSectionEditor({
 
 	const editor = useEditor({
 		extensions: [
+			mermaidEditButtons(() => diagramEnabled.current, setEditTarget),
+			mermaidSlash(
+				() => diagramEnabled.current,
+				(range) => openDiagram.current(range),
+			),
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3, 4, 5, 6] },
 				link: { openOnClick: false },
@@ -129,6 +186,44 @@ export default function MdSectionEditor({
 		if (!editor || editor.isDestroyed) return;
 		editor.commands.focus("start");
 		setEntered(true);
+	}, [editor]);
+
+	useEffect(() => {
+		if (!editor || editor.isDestroyed || !initialDiagram || openedDiagram.current) return;
+		openedDiagram.current = true;
+		const target = findDiagram(editor, initialDiagram);
+		if (target) setEditTarget(target);
+		else
+			pushToast({
+				tone: "warn",
+				text: "Diagram changed on disk. Reopen the section before editing.",
+			});
+	}, [editor, initialDiagram]);
+
+	useEffect(() => {
+		if (!editor || editor.isDestroyed || !diagramReady || openedDiagram.current) return;
+		openedDiagram.current = true;
+		const document = editor.state.doc;
+		const block = document.firstChild;
+		// Tiptap adds an empty trailing paragraph after a code block.
+		const onlyDiagram =
+			document.childCount === 1 ||
+			(document.childCount === 2 &&
+				document.lastChild?.type.name === "paragraph" &&
+				document.lastChild.content.size === 0);
+		if (onlyDiagram && block?.type.name === "codeBlock" && block.attrs.language === "mermaid") {
+			setEditTarget({ range: { from: 0, to: block.nodeSize }, source: block.textContent });
+		}
+	}, [editor, diagramReady]);
+
+	useEffect(() => {
+		if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr);
+	}, [editor, diagramReady]);
+
+	const closeDiagram = useCallback(() => {
+		setDiagramRange(null);
+		setEditTarget(null);
+		editor?.commands.focus();
 	}, [editor]);
 
 	async function save() {
@@ -187,6 +282,7 @@ export default function MdSectionEditor({
 	}
 
 	function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		if (diagramRange || editTarget) return;
 		if ((event.metaKey || event.ctrlKey) && event.key === "s") {
 			event.preventDefault();
 			void save();
@@ -207,6 +303,55 @@ export default function MdSectionEditor({
 	return (
 		<div className="mdx-section" data-editing onClick={onClick} onKeyDown={onKeyDown}>
 			<EditorContent editor={editor} />
+			{(diagramRange || editTarget) && (
+				<MermaidDialog
+					initialSource={editTarget?.source}
+					onClose={closeDiagram}
+					onInsert={(source) => {
+						if (editTarget) {
+							if (!replaceDiagram(editor, editTarget, source)) {
+								pushToast({
+									tone: "warn",
+									text: "Diagram changed. Reopen it before applying changes.",
+								});
+								return;
+							}
+							closeDiagram();
+							return;
+						}
+						if (!diagramRange) return;
+						if (diagramRange.to > editor.state.doc.content.size) {
+							closeDiagram();
+							return;
+						}
+						const from = editor.state.doc.resolve(diagramRange.from);
+						if (
+							from.parent.type.name !== "paragraph" ||
+							from.parent.textContent !==
+								editor.state.doc.textBetween(diagramRange.from, diagramRange.to)
+						) {
+							pushToast({
+								tone: "warn",
+								text: "Insertion location changed. Close the dialog and choose a new block.",
+							});
+							return;
+						}
+						editor
+							.chain()
+							.focus()
+							.insertContentAt(
+								{ from: from.before(), to: from.after() },
+								{
+									type: "codeBlock",
+									attrs: { language: "mermaid" },
+									content: [{ type: "text", text: source }],
+								},
+							)
+							.run();
+						closeDiagram();
+					}}
+				/>
+			)}
 			{/* Keyboard is the only way out of edit mode (no buttons), so the hints
 			    float in the right gutter beside the frame, out of the text flow —
 			    the section keeps its read-mode box exactly. pointer-events-none so

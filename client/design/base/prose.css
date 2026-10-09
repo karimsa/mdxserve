@@ -20,6 +20,10 @@
 .mdx-section {
 	position: relative;
 }
+/* Standalone diagrams already provide Edit beside Copy in their toolbar. */
+.mdx-section:has(> [data-mermaid-editable]:first-child:nth-last-child(2)) > .mdx-section-edit {
+	display: none;
+}
 /* The direct-child rhythm rules below therefore have to reach three levels:
    `.mdx-prose` itself (docs with no sections, or content before the first
    one), `.mdx-section` (the normal wrapped case), and `.mdx-prose .ProseMirror`
