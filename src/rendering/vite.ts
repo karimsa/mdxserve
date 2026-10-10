@@ -13,6 +13,7 @@ import type { PluggableList } from "unified";
 import { escapeBareLt } from "./mdx/lenient-md.js";
 import { mdxCompileOptions } from "./mdx/mdx-options.js";
 import { remarkSections } from "./mdx/remark-sections.js";
+import { immutableClientPlugin } from "./immutable-client.js";
 import { dependencyRoots, getPackageRoot, packageDir, resolveFromPkg } from "../infra/pkg.js";
 
 export interface ViteAlias {
@@ -273,6 +274,7 @@ export interface CreateDevServerOptions {
 export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
 	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
 	const pkgRoot = getPackageRoot();
+	const immutableSite = process.env.MDXSERVE_IMMUTABLE_SITE === "1";
 
 	const shared = sharedViteConfig({ remarkPlugins: [remarkSections] });
 
@@ -290,7 +292,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 			middlewareMode: true,
 			// Vercel's container has a lower open-file limit. Eagerly traversing
 			// lucide's dynamic icon map can exhaust it before the page loads.
-			preTransformRequests: process.env.MDXSERVE_IMMUTABLE_SITE !== "1",
+			preTransformRequests: !immutableSite,
 			// Served roots can be large (a whole repo); keep the watcher away from
 			// dependency/venv/build trees and don't follow symlinks out of the root.
 			watch: {
@@ -325,11 +327,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					...extraFsAllow,
 				],
 			},
-			hmr: {
-				server: httpServer,
-			},
+			...(immutableSite ? { hmr: false, ws: false } : { hmr: { server: httpServer } }),
 		},
-		plugins: shared.plugins,
+		plugins: [...shared.plugins, ...(immutableSite ? [immutableClientPlugin()] : [])],
 		resolve: shared.resolve,
 		optimizeDeps: {
 			entries: [],
@@ -337,7 +337,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 			// An immutable server has no websocket to reload clients after Vite
 			// discovers new dependencies. Finish the explicit optimization set
 			// before accepting requests so all modules use one browser hash.
-			noDiscovery: process.env.MDXSERVE_IMMUTABLE_SITE === "1",
+			noDiscovery: immutableSite,
 			// client/ui/Icon.tsx imports chrome icons per file and author icons via
 			// lucide-react/dynamicIconImports; nothing imports the bare
 			// "lucide-react" entry any more. Excluding it stops Vite from
