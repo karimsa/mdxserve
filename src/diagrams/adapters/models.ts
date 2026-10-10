@@ -1,5 +1,6 @@
 import os from "node:os";
 import { z } from "zod";
+import { readPackageVersion } from "../../infra/pkg.js";
 import { runProcess } from "../../infra/process-runner.js";
 import { isDiagramModel } from "../../preferences/service.js";
 import type { AgentModel, Provider } from "../types.js";
@@ -61,7 +62,7 @@ export async function listAgentModels(
 			? {
 					id: "init",
 					method: "initialize",
-					params: { clientInfo: { name: "mdxserve", version: "0.3.0" } },
+					params: { clientInfo: { name: "mdxserve", version: readPackageVersion() } },
 				}
 			: { type: "control_request", request_id: "models", request: { subtype: "initialize" } };
 	const result = await runProcess(provider, args, {

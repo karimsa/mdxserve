@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { beforeEach, expect, it, vi } from "vitest";
 import { listAgentModels } from "../../src/diagrams/adapters/models.js";
 import type { ProcessOptions } from "../../src/infra/process-runner.js";
@@ -8,7 +9,12 @@ beforeEach(() => {
 });
 it("initializes Codex before listing all model pages without starting a thread", async () => {
 	processMock.mockImplementation(async (_command, _args, options: ProcessOptions) => {
-		expect(JSON.parse(options.input!).method).toBe("initialize");
+		const initialization = JSON.parse(options.input!);
+		expect(initialization.method).toBe("initialize");
+		const manifest = JSON.parse(
+			fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+		);
+		expect(initialization.params.clientInfo.version).toBe(manifest.version);
 		const actions = options.onLine!(JSON.stringify({ id: "init", result: {} }));
 		expect(actions?.write).toContain('"method":"model/list"');
 		const next = options.onLine!(

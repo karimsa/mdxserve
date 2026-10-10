@@ -1,6 +1,6 @@
 {
 	"name": "@karimsa/mdxserve",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "Serve a directory of Markdown/MDX files, like `serve` but for docs",
 	"license": "MIT",
 	"repository": {
