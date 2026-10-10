@@ -36,11 +36,18 @@ function deployment(overrides = {}) {
 
 function harness(responses) {
 	const requests = [];
+	const delays = [];
 	return {
 		requests,
+		delays,
+		sleep: async (milliseconds) => {
+			delays.push(milliseconds);
+		},
 		fetchImpl: async (url, request) => {
 			requests.push({ url: new URL(url), request });
-			return responses.shift() ?? reply(null, 500);
+			const response = responses.shift() ?? reply(null, 500);
+			if (response instanceof Error) throw response;
+			return response;
 		},
 	};
 }
@@ -107,6 +114,8 @@ test("fails closed when production is unrelated or has missing metadata", async 
 	);
 	const noAlias = harness([reply(null, 404)]);
 	await assert.rejects(shouldPromote({ ...options, ...noAlias }), /no current Vercel deployment/);
+	assert.equal(noAlias.requests.length, 1);
+	assert.deepEqual(noAlias.delays, []);
 	const wrongProject = harness([reply(alias({ projectId: "prj_other" }))]);
 	await assert.rejects(
 		shouldPromote({ ...options, ...wrongProject }),
@@ -114,6 +123,8 @@ test("fails closed when production is unrelated or has missing metadata", async 
 	);
 	const noCommit = harness([reply(alias()), reply(deployment({ gitSource: {} }))]);
 	await assert.rejects(shouldPromote({ ...options, ...noCommit }), /no trustworthy commit SHA/);
+	assert.equal(noCommit.requests.length, 2);
+	assert.deepEqual(noCommit.delays, []);
 	const conflictingCommit = harness([
 		reply(alias()),
 		reply(deployment({ meta: { githubCommitSha: candidateSha } })),
@@ -135,4 +146,62 @@ test("fails closed when production is unrelated or has missing metadata", async 
 test("rejects Vercel authorization failures", async () => {
 	const denied = harness([reply(null, 403)]);
 	await assert.rejects(shouldPromote({ ...options, ...denied }), /HTTP 403/);
+	assert.equal(denied.requests.length, 1);
+	assert.deepEqual(denied.delays, []);
+});
+
+test("recovers from rate limiting while looking up the production alias", async () => {
+	const fake = harness([reply(null, 429), reply(alias()), reply(deployment())]);
+	assert.equal(await shouldPromote({ ...options, ...fake, isAncestor: () => true }), true);
+	assert.deepEqual(
+		fake.requests.map(({ url }) => url.pathname),
+		[
+			"/v4/aliases/mdxserve.karim.build",
+			"/v4/aliases/mdxserve.karim.build",
+			"/v13/deployments/dpl_Current123",
+		],
+	);
+	assert.deepEqual(fake.delays, [5000]);
+});
+
+test("recovers from server and network failures while looking up the live deployment", async () => {
+	const fake = harness([
+		reply(alias()),
+		reply(null, 503),
+		new TypeError("network disconnected"),
+		reply(deployment()),
+	]);
+	assert.equal(await shouldPromote({ ...options, ...fake, isAncestor: () => true }), true);
+	assert.deepEqual(
+		fake.requests.map(({ url }) => url.pathname),
+		[
+			"/v4/aliases/mdxserve.karim.build",
+			"/v13/deployments/dpl_Current123",
+			"/v13/deployments/dpl_Current123",
+			"/v13/deployments/dpl_Current123",
+		],
+	);
+	assert.deepEqual(fake.delays, [5000, 10000]);
+});
+
+test("fails closed after bounded retries for either production lookup", async () => {
+	const rateLimited = harness(Array.from({ length: 4 }, () => reply(null, 429)));
+	await assert.rejects(shouldPromote({ ...options, ...rateLimited }), /HTTP 429 after retries/);
+	assert.equal(rateLimited.requests.length, 4);
+	assert.deepEqual(rateLimited.delays, [5000, 10000, 20000]);
+
+	const unavailable = harness([
+		reply(alias()),
+		...Array.from({ length: 4 }, () => reply(null, 503)),
+	]);
+	await assert.rejects(shouldPromote({ ...options, ...unavailable }), /HTTP 503 after retries/);
+	assert.equal(unavailable.requests.length, 5);
+	assert.deepEqual(unavailable.delays, [5000, 10000, 20000]);
+
+	const disconnected = harness(Array.from({ length: 4 }, () => new TypeError("offline")));
+	await assert.rejects(
+		shouldPromote({ ...options, ...disconnected }),
+		/Vercel production lookup failed after retries/,
+	);
+	assert.equal(disconnected.requests.length, 4);
 });
