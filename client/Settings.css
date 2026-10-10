@@ -1,0 +1,17 @@
+@media (max-width: 639px) {
+	.diagram-settings .diagram-settings-body section {
+		padding: 20px;
+	}
+
+	.diagram-settings .diagram-setting-row {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.diagram-settings .diagram-setting-row .diagram-agent-select,
+	.diagram-settings .diagram-setting-row select {
+		width: 100%;
+		min-width: 0;
+	}
+}

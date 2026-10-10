@@ -197,7 +197,14 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	// and fail startup fast, rather than only failing the first CLI call.
 	const registry = loadRegistry();
 
-	const cssDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));
+	// Vite hashes its root into optimized dependency URLs. Every immutable
+	// container instance must use the same root so a module from one instance
+	// can fetch its dependencies from another without an outdated-dep 504.
+	const cssDir =
+		process.env.MDXSERVE_IMMUTABLE_SITE === "1"
+			? path.join(os.tmpdir(), "mdxserve-immutable-site")
+			: await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));
+	await fsp.mkdir(cssDir, { recursive: true });
 	const cssFile = path.join(cssDir, "app.css");
 	await writeAppCss(
 		cssFile,

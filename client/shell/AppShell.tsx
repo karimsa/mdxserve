@@ -39,15 +39,18 @@ import {
 	listingWidthAtom,
 } from "../state";
 
-const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
+function sidebarStorageKey(): string {
+	// Keep hosted navigation preferences separate from local reader defaults.
+	return shellInfo.immutableSite ? "mdxserve-site-sidebar" : "mdxserve-sidebar";
+}
 const SEARCH_DEBOUNCE_MS = 120;
 
 function readStoredSidebarOpen(): boolean {
 	try {
-		const value = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-		return value === null ? true : value === "1";
+		const value = localStorage.getItem(sidebarStorageKey());
+		return value === null ? !shellInfo.immutableSite : value === "1";
 	} catch {
-		return true;
+		return !shellInfo.immutableSite;
 	}
 }
 
@@ -212,7 +215,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	useEffect(() => {
 		try {
-			localStorage.setItem(SIDEBAR_STORAGE_KEY, desktopOpen ? "1" : "0");
+			localStorage.setItem(sidebarStorageKey(), desktopOpen ? "1" : "0");
 		} catch {
 			// private mode / storage disabled: the choice just won't persist
 		}
@@ -322,7 +325,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				onDiagramPreferences={() => setDiagramPreferences(true)}
 				homeHref="/"
 				hostLabel={location.host}
-				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
+				sidebar={{ open: showSidebar || mobileOpen, onToggle: handleToggleSidebar }}
 				search={{ onOpen: () => setSearchOpen(true) }}
 				exportDoc={
 					route.kind === "doc" && shellInfo.permissions !== "restricted" && shellInfo.sameMachine
@@ -342,7 +345,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					mobileOpen={mobileOpen}
 					onCloseMobile={() => setMobileOpen(false)}
 				/>
-				<main className="flex flex-1 min-w-0 px-8 pt-10 pb-24">
+				<main className="flex flex-1 min-w-0 px-5 pt-6 pb-16 md:px-8 md:pt-10 md:pb-24">
 					{/* The resize handles clamp drags to this area, and the max-width
 					    springs track it, so content never runs under the toc rail. */}
 					<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">

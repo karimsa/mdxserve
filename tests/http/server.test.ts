@@ -252,6 +252,22 @@ describe("root count affects / and doc routing", () => {
 	});
 });
 
+describe("hosted site shell defaults", () => {
+	it.each([
+		["1", "1"],
+		["0", "0"],
+		[undefined, "0"],
+	])("advertises immutable-site mode only for MDXSERVE_IMMUTABLE_SITE=%s", (setting, expected) => {
+		vi.stubEnv("MDXSERVE_IMMUTABLE_SITE", setting);
+		try {
+			const html = renderShell({ kind: "notfound", path: "/x" });
+			expect(html).toContain(`data-immutable-site="${expected}"`);
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+});
+
 describe("data-same-machine on the shell", () => {
 	it('renderShell(route) defaults to data-same-machine="0"', () => {
 		const html = renderShell({ kind: "notfound", path: "/x" });

@@ -5,7 +5,12 @@ import { Modal } from "../ui/Modal";
 import { trpcClient } from "../api";
 import { MermaidDiagram } from "../Mermaid";
 import { DiagramPreferences } from "./Preferences";
-import { Braces, Network, Paperclip, Play, Settings, X } from "lucide-react";
+import Braces from "lucide-react/dist/esm/icons/braces.mjs";
+import Network from "lucide-react/dist/esm/icons/network.mjs";
+import Paperclip from "lucide-react/dist/esm/icons/paperclip.mjs";
+import Play from "lucide-react/dist/esm/icons/play.mjs";
+import Settings from "lucide-react/dist/esm/icons/settings.mjs";
+import CloseIcon from "lucide-react/dist/esm/icons/x.mjs";
 
 type Draft = { mermaid: string; assumptions: string[]; changes: string[] };
 function policy(source: string) {
@@ -353,7 +358,7 @@ export function MermaidDialog({
 						disabled={saving}
 						onClick={onClose}
 					>
-						<X size={18} />
+						<CloseIcon size={18} />
 					</button>
 				</div>
 			</header>
@@ -477,7 +482,7 @@ export function MermaidDialog({
 										setImage(null);
 									}}
 								>
-									<X size={15} />
+									<CloseIcon size={15} />
 								</button>
 							</div>
 						</details>

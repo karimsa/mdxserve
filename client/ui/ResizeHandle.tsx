@@ -178,7 +178,7 @@ export function ResizeHandle({
 			onPointerCancel={onPointerUp}
 			style={{ width: HANDLE_ZONE, ...zoneStyle }}
 			className={
-				"absolute inset-y-0 z-10 flex cursor-col-resize " +
+				"absolute inset-y-0 z-10 hidden md:flex cursor-col-resize " +
 				(anchored
 					? "items-center " + (side === "right" ? "justify-center" : "justify-end")
 					: // A column so the sticky pill can slide along the zone's full height.

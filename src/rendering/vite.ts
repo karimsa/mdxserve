@@ -195,6 +195,9 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		// as an unregistered component on every doc.
 		...mdx({
 			...mdxCompileOptions({ remarkPlugins, rehypePlugins }),
+			// The immutable site runs production React even though Vite is a dev
+			// server. Its MDX must use jsx/jsxs, not development-only jsxDEV.
+			...(process.env.MDXSERVE_IMMUTABLE_SITE === "1" ? { development: false } : {}),
 			mdxExtensions: [".mdx", ".md"],
 			mdExtensions: [],
 		}),
@@ -285,6 +288,9 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		appType: "custom",
 		server: {
 			middlewareMode: true,
+			// Vercel's container has a lower open-file limit. Eagerly traversing
+			// lucide's dynamic icon map can exhaust it before the page loads.
+			preTransformRequests: process.env.MDXSERVE_IMMUTABLE_SITE !== "1",
 			// Served roots can be large (a whole repo); keep the watcher away from
 			// dependency/venv/build trees and don't follow symlinks out of the root.
 			watch: {
@@ -328,6 +334,10 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 		optimizeDeps: {
 			entries: [],
 			include: shared.optimizeDepsInclude,
+			// An immutable server has no websocket to reload clients after Vite
+			// discovers new dependencies. Finish the explicit optimization set
+			// before accepting requests so all modules use one browser hash.
+			noDiscovery: process.env.MDXSERVE_IMMUTABLE_SITE === "1",
 			// client/ui/Icon.tsx imports chrome icons per file and author icons via
 			// lucide-react/dynamicIconImports; nothing imports the bare
 			// "lucide-react" entry any more. Excluding it stops Vite from

@@ -53,5 +53,60 @@ jobs:
       - name: Smoke test the packed tarball
         run: yarn smoke
 
+      - name: Check site deployment promotion safety
+        run: node --test site/deployment/*.test.mjs
+
       - name: Publish
         run: npm publish --provenance --access public
+
+  promote-site:
+    name: Promote site on Vercel
+    needs: publish
+    runs-on: ubuntu-latest
+    # Allow 15 minutes to find the deployment, 2.5 minutes for freshness retries, and CLI/setup time.
+    timeout-minutes: 30
+    concurrency:
+      group: site-production
+      cancel-in-progress: false
+      queue: max
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Verify Vercel credentials
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing $name; see site/DEPLOYMENT.md" >&2
+              exit 1
+            fi
+          done
+
+      - name: Find the tagged production deployment
+        id: deployment
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          deployment_id="$(node site/deployment/wait-for-production.mjs "$commit_sha")"
+          echo "id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+      - name: Check production commit freshness
+        id: freshness
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          promote="$(node site/deployment/check-promotion-freshness.mjs "$commit_sha")"
+          echo "promote=$promote" >> "$GITHUB_OUTPUT"
+
+      - name: Promote the tagged deployment
+        if: steps.freshness.outputs.promote == 'true'
+        run: npx --yes vercel@63.1.0 promote "${{ steps.deployment.outputs.id }}" --yes --token "$VERCEL_TOKEN"

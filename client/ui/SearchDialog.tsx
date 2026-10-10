@@ -102,7 +102,7 @@ export function SearchDialog({
 			onClose={onClose}
 			placement="top"
 			aria-label="Search docs"
-			className={"w-[560px] overflow-hidden " + (className ?? "")}
+			className={"w-[560px] max-w-[calc(100vw-2rem)] overflow-hidden " + (className ?? "")}
 			onKeyDown={handleKeyDown}
 			{...rest}
 		>
@@ -114,9 +114,20 @@ export function SearchDialog({
 					value={query}
 					onChange={(event) => onQueryChange?.(event.target.value)}
 					placeholder="Search docs"
-					className="flex-1 border-0 bg-transparent text-[18px] font-normal text-text-body outline-none placeholder:text-text-subtle"
+					aria-label="Search docs"
+					className="min-w-0 flex-1 border-0 bg-transparent text-[18px] font-normal text-text-body outline-none placeholder:text-text-subtle"
 				/>
-				<Kbd>esc</Kbd>
+				<button
+					type="button"
+					aria-label="Close search"
+					onClick={onClose}
+					className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-subtle md:hidden"
+				>
+					<Icon name="x" size="sm" />
+				</button>
+				<span className="hidden md:contents">
+					<Kbd>esc</Kbd>
+				</span>
 			</div>
 			<motion.div layout transition={TRANSITIONS.glide} className="max-h-80 overflow-y-auto p-2">
 				{results.length === 0 ? (

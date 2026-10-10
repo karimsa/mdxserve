@@ -1,0 +1,24 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"services": {
+		"site": {
+			"root": ".",
+			"entrypoint": "site/Dockerfile.vercel"
+		}
+	},
+	"redirects": [
+		{
+			"source": "/",
+			"destination": "/srv/docs/README.mdx",
+			"permanent": false
+		}
+	],
+	"rewrites": [
+		{
+			"source": "/(.*)",
+			"destination": {
+				"service": "site"
+			}
+		}
+	]
+}

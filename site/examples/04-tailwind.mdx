@@ -1,0 +1,72 @@
+# Tailwind in MDX
+
+Rendered pages sit inside an `mdx-prose` container that styles plain Markdown: headings,
+paragraphs, lists, tables, and code all look finished with no classes in the file. Tailwind
+utilities are still available in `.mdx` files for the occasional custom layout, and the design
+tokens are exposed as utilities so anything you build matches the site in both themes.
+
+## A token-styled grid
+
+<div className="not-prose grid grid-cols-1 gap-4 sm:grid-cols-3">
+	<div className="rounded-lg border border-border-default bg-surface-card p-5 shadow-xs">
+		<h3 className="font-sans font-semibold text-text-heading">Fast</h3>
+		<p className="mt-1 font-sans text-[length:var(--size-sm)] text-text-muted">
+			Vite dev server, instant reloads.
+		</p>
+	</div>
+	<div className="rounded-lg border border-border-default bg-surface-card p-5 shadow-xs">
+		<h3 className="font-sans font-semibold text-text-heading">Simple</h3>
+		<p className="mt-1 font-sans text-[length:var(--size-sm)] text-text-muted">
+			No config file required.
+		</p>
+	</div>
+	<div className="rounded-lg border border-border-default bg-surface-card p-5 shadow-xs">
+		<h3 className="font-sans font-semibold text-text-heading">Themed</h3>
+		<p className="mt-1 font-sans text-[length:var(--size-sm)] text-text-muted">
+			Light and dark from one set of tokens.
+		</p>
+	</div>
+</div>
+
+The cards above use `bg-surface-card`, `border-border-default`, `text-text-heading` and
+`text-text-muted`. Each of those resolves to a CSS variable that the dark theme remaps, so
+there is no `dark:` variant to write. For a card in a document, prefer the `Card` builtin; this
+grid is here to show the utilities.
+
+## Status tints
+
+<div className="not-prose flex flex-wrap gap-2">
+	<span className="rounded-pill bg-status-info-bg px-3 py-1 font-sans text-[length:var(--size-xs)] font-medium text-status-info-fg">
+		markdown
+	</span>
+	<span className="rounded-pill bg-status-ok-bg px-3 py-1 font-sans text-[length:var(--size-xs)] font-medium text-status-ok-fg">
+		mdx
+	</span>
+	<span className="rounded-pill bg-status-note-bg px-3 py-1 font-sans text-[length:var(--size-xs)] font-medium text-status-note-fg">
+		tailwind
+	</span>
+</div>
+
+The five support hues (`info`, `ok`, `warn`, `danger`, `note`) exist only as `bg-status-*-bg`
+and `text-status-*-fg` pairs. For a label in a document use `<Badge tone="ok">` instead.
+
+## When you do need `dark:`
+
+The `dark:` variant keys on the theme toggle in the topbar, not on the OS setting, so it stays in
+sync with the rest of the page:
+
+<div className="not-prose rounded-md border border-border-default px-4 py-3 font-sans text-[length:var(--size-sm)] text-text-body dark:border-border-strong">
+	This box draws a stronger border in dark mode only.
+</div>
+
+You rarely need it. Reach for a semantic token first; use `dark:` when a component needs a
+different treatment, not a different colour.
+
+## Opting out of prose
+
+Every block above carries `not-prose`. Without it, the prose container's text, spacing, and
+colour rules would apply to the grid and the chips as if they were paragraphs. `not-prose` tells
+those rules to leave the subtree alone, so your utilities are the only styles inside it.
+
+Everything else on this page, including this paragraph, is still inside the `mdx-prose`
+container.
