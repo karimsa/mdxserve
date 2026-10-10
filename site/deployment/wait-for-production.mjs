@@ -128,14 +128,14 @@ export async function waitForProductionDeployment({
 			process.stderr.write(`${error.message}; retrying\n`);
 			deployments = [];
 		}
-		const ready = deployments.find((deployment) => deployment.state === "READY");
+		const ready = deployments.find((deployment) => deployment.readyState === "READY");
 		if (ready) return validatedDeploymentId(ready);
 		if (
 			deployments.length > 0 &&
-			deployments.every((deployment) => terminalStates.has(deployment.state))
+			deployments.every((deployment) => terminalStates.has(deployment.readyState))
 		) {
 			throw new Error(
-				`Vercel production deployment for ${commitSha} ended in ${deployments[0].state}`,
+				`Vercel production deployment for ${commitSha} ended in ${deployments[0].readyState}`,
 			);
 		}
 		const remaining = deadline - now();

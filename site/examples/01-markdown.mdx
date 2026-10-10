@@ -1,8 +1,9 @@
 # Markdown tour
 
-This page is a plain `.md` file. It uses only standard Markdown plus the GitHub Flavored
-Markdown (GFM) extensions that `remark-gfm` adds: tables, task lists, and strikethrough. No
-JSX is allowed here — that's what `.mdx` files are for (see [`02-mdx-basics.mdx`](./02-mdx-basics.mdx)).
+This page focuses on standard Markdown plus the GitHub Flavored Markdown (GFM) extensions
+that `remark-gfm` adds: tables, task lists, and strikethrough. mdxserve supports the same
+syntax in `.md` and `.mdx` files, including JSX; the [next example](./02-mdx-basics.mdx)
+shows JSX in action.
 
 ## Headings go up to h3 on this page
 
@@ -161,7 +162,7 @@ instead of the page:
 npx @karimsa/mdxserve serve -w docs/ -p 5000
 
 # Or install it once and reuse it
-npm install -g mdxserve
+npm install -g @karimsa/mdxserve
 mdxserve serve -w docs/
 
 # A single very long command, to check the code block scrolls horizontally on its own rather than widening the page

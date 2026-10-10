@@ -65,6 +65,9 @@ jobs:
       - name: Test
         run: yarn test
 
+      - name: Test site deployment selection and promotion safety
+        run: node --test site/deployment/*.test.mjs
+
       - name: Test Codex review gate
         run: node --test tests/automation/codex-review-gate.test.cjs
 

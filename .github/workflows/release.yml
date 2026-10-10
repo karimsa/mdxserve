@@ -53,9 +53,8 @@ jobs:
       - name: Smoke test the packed tarball
         run: yarn smoke
 
-      - name: Check site deployment selection
-        run: |
-          node --test site/deployment/wait-for-production.test.mjs
+      - name: Check site deployment promotion safety
+        run: node --test site/deployment/*.test.mjs
 
       - name: Publish
         run: npm publish --provenance --access public
@@ -68,6 +67,7 @@ jobs:
     concurrency:
       group: site-production
       cancel-in-progress: false
+      queue: max
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -75,6 +75,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set Node version
         uses: actions/setup-node@v4
@@ -97,5 +99,13 @@ jobs:
           deployment_id="$(node site/deployment/wait-for-production.mjs "$commit_sha")"
           echo "id=$deployment_id" >> "$GITHUB_OUTPUT"
 
+      - name: Check production commit freshness
+        id: freshness
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          promote="$(node site/deployment/check-promotion-freshness.mjs "$commit_sha")"
+          echo "promote=$promote" >> "$GITHUB_OUTPUT"
+
       - name: Promote the tagged deployment
+        if: steps.freshness.outputs.promote == 'true'
         run: npx --yes vercel@63.1.0 promote "${{ steps.deployment.outputs.id }}" --yes --token "$VERCEL_TOKEN"

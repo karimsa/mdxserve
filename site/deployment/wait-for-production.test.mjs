@@ -12,7 +12,7 @@ function deployment(overrides = {}) {
 		projectId: options.projectId,
 		target: "production",
 		meta: { githubCommitSha: commitSha, githubCommitRef: "main" },
-		state: "READY",
+		readyState: "READY",
 		...overrides,
 	};
 }
@@ -55,7 +55,7 @@ test("waits for the exact production deployment and checks API results independe
 				meta: { githubCommitSha: commitSha, githubCommitRef: "feature" },
 			}),
 		]),
-		page([deployment({ state: "BUILDING" })]),
+		page([deployment({ readyState: "BUILDING" })]),
 		page([deployment()]),
 	];
 	const fake = harness(responses);
@@ -74,7 +74,10 @@ test("waits for the exact production deployment and checks API results independe
 });
 
 test("checks later pages before waiting for another poll", async () => {
-	const fake = harness([page([deployment({ state: "BUILDING" })], 12345), page([deployment()])]);
+	const fake = harness([
+		page([deployment({ readyState: "BUILDING" })], 12345),
+		page([deployment()]),
+	]);
 	const result = await waitForProductionDeployment({ ...options, ...fake });
 	assert.equal(result, "dpl_Matching123");
 	assert.equal(fake.requests[1].url.searchParams.get("until"), "12345");
@@ -82,9 +85,19 @@ test("checks later pages before waiting for another poll", async () => {
 
 test("fails for a terminal matching deployment", async () => {
 	for (const state of ["ERROR", "CANCELED", "BLOCKED"]) {
-		const fake = harness([page([deployment({ state })])]);
+		const fake = harness([page([deployment({ readyState: state })])]);
 		await assert.rejects(waitForProductionDeployment({ ...options, ...fake }), new RegExp(state));
 	}
+});
+
+test("ignores the optional legacy state when readyState reports readiness", async () => {
+	const fake = harness([page([deployment({ state: "BUILDING" })])]);
+	assert.equal(await waitForProductionDeployment({ ...options, ...fake }), "dpl_Matching123");
+});
+
+test("uses readyState for terminal failures even when legacy state is absent", async () => {
+	const fake = harness([page([deployment({ readyState: "ERROR", state: undefined })])]);
+	await assert.rejects(waitForProductionDeployment({ ...options, ...fake }), /ended in ERROR/);
 });
 
 test("times out without promoting an unrelated deployment", async () => {
