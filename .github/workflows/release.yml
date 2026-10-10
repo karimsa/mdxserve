@@ -63,7 +63,8 @@ jobs:
     name: Promote site on Vercel
     needs: publish
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Allow 15 minutes to find the deployment, 2.5 minutes for freshness retries, and CLI/setup time.
+    timeout-minutes: 30
     concurrency:
       group: site-production
       cancel-in-progress: false
