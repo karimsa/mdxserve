@@ -65,7 +65,7 @@ export function TopBar({
 	return (
 		<header
 			data-print-hide
-			className="sticky top-0 z-10 flex h-topbar shrink-0 items-center gap-3 border-b border-border-subtle px-4"
+			className="sticky top-0 z-10 flex h-topbar shrink-0 items-center gap-1 border-b border-border-subtle px-2 md:gap-3 md:px-4 [&>button]:max-md:h-11 [&>button]:max-md:w-11 [&>button]:shrink-0"
 			style={{
 				background: "color-mix(in oklab, var(--surface-page) 82%, transparent)",
 				backdropFilter: "var(--blur-chrome)",
@@ -82,7 +82,10 @@ export function TopBar({
 			) : null}
 			<Wordmark href={homeHref} />
 			{hostLabel ? (
-				<span className="rounded-sm border border-border-default px-1.5 py-0.5 font-mono text-[length:var(--size-2xs)] text-text-subtle">
+				<span
+					title={hostLabel}
+					className="hidden min-w-0 max-w-48 truncate md:block rounded-sm border border-border-default px-1.5 py-0.5 font-mono text-[length:var(--size-2xs)] text-text-subtle"
+				>
 					{hostLabel}
 				</span>
 			) : null}
@@ -91,11 +94,15 @@ export function TopBar({
 				<button
 					type="button"
 					onClick={search.onOpen}
-					className="flex h-[30px] w-60 items-center gap-2 rounded-md border border-border-default bg-surface-card px-2.5 text-[13px] text-text-subtle shadow-xs cursor-pointer"
+					aria-label="Search docs"
+					title="Search docs"
+					className="flex h-11 w-11 shrink-0 justify-center md:h-[30px] md:w-60 md:justify-start items-center gap-2 rounded-md border border-border-default bg-surface-card px-2.5 text-[13px] text-text-subtle shadow-xs cursor-pointer"
 				>
 					<Icon name="search" size="sm" />
-					<span className="flex-1 text-left">Search docs</span>
-					<Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
+					<span className="hidden md:block flex-1 text-left">Search docs</span>
+					<span className="hidden md:contents">
+						<Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
+					</span>
 				</button>
 			) : null}
 			{exportDoc ? (

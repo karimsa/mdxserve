@@ -322,7 +322,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				onDiagramPreferences={() => setDiagramPreferences(true)}
 				homeHref="/"
 				hostLabel={location.host}
-				sidebar={{ open: showSidebar, onToggle: handleToggleSidebar }}
+				sidebar={{ open: showSidebar || mobileOpen, onToggle: handleToggleSidebar }}
 				search={{ onOpen: () => setSearchOpen(true) }}
 				exportDoc={
 					route.kind === "doc" && shellInfo.permissions !== "restricted" && shellInfo.sameMachine
@@ -342,7 +342,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					mobileOpen={mobileOpen}
 					onCloseMobile={() => setMobileOpen(false)}
 				/>
-				<main className="flex flex-1 min-w-0 px-8 pt-10 pb-24">
+				<main className="flex flex-1 min-w-0 px-5 pt-6 pb-16 md:px-8 md:pt-10 md:pb-24">
 					{/* The resize handles clamp drags to this area, and the max-width
 					    springs track it, so content never runs under the toc rail. */}
 					<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">

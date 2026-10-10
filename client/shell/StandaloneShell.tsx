@@ -52,7 +52,7 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 				hostLabel={meta.label}
 				onDiagramPreferences={() => setSettingsOpen(true)}
 			/>
-			<main className="flex flex-1 min-w-0 px-8 pt-10 pb-24">
+			<main className="flex flex-1 min-w-0 px-5 pt-6 pb-16 md:px-8 md:pt-10 md:pb-24">
 				<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">
 					<motion.div
 						variants={fadeRise}

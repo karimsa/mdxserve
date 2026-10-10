@@ -1,8 +1,9 @@
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import { VARIANTS } from "../motion";
 import { Icon } from "../ui/Icon";
+import { IconButton } from "../ui/IconButton";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { ListingView } from "../ListingView";
 import { useFolderListing } from "../router";
@@ -95,6 +96,15 @@ export function Sidebar({
 	const [width, setWidth] = useAtom(sidebarWidthAtom);
 	const asideRef = useRef<HTMLDivElement>(null);
 
+	useEffect(() => {
+		if (!mobileOpen) return;
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") onCloseMobile();
+		}
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [mobileOpen, onCloseMobile]);
+
 	return (
 		<>
 			{/* Mobile overlay: fixed drawer + scrim, closed by default. */}
@@ -121,9 +131,17 @@ export function Sidebar({
 							if ((event.target as HTMLElement).closest("a[href]")) onCloseMobile();
 						}}
 						className={
-							"fixed inset-y-0 left-0 z-[var(--z-modal)] overflow-y-auto border-r border-border-subtle bg-surface-raised px-3 py-6 shadow-lg md:hidden w-sidebar"
+							"fixed inset-y-0 left-0 z-[var(--z-modal)] overflow-y-auto border-r border-border-subtle bg-surface-raised px-3 py-6 shadow-lg md:hidden w-sidebar max-w-[calc(100vw-3rem)]"
 						}
 					>
+						<div className="mb-3 flex justify-end">
+							<IconButton
+								icon="x"
+								label="Close navigation"
+								className="h-11 w-11"
+								onClick={onCloseMobile}
+							/>
+						</div>
 						<SidebarBody
 							rootDir={rootDir}
 							activePath={activePath}
