@@ -1,0 +1,30 @@
+[changelog]
+body = """
+{{ version }}
+
+What's new
+{% for commit in commits | filter(attribute="group", value="What's new") %}
+- {{ commit.message | split(pat="\n") | first }}
+{% endfor %}
+Bug fixes
+{% for commit in commits | filter(attribute="group", value="Bug fixes") %}
+- {{ commit.message | split(pat="\n") | first }}
+{% endfor %}
+"""
+trim = true
+postprocessors = [
+  { pattern = '\(#([0-9]+)\)', replace = '([#$1](https://github.com/karimsa/mdxserve/pull/$1))' },
+]
+
+[git]
+conventional_commits = false
+filter_commits = true
+tag_pattern = '^v[0-9]+\.[0-9]+\.[0-9]+$'
+sort_commits = "oldest"
+commit_parsers = [
+  { message = '^(?:feat|perf)(?:\([^)]*\))?!?:', group = "What's new" },
+  { message = '^(?:fix|revert)(?:\([^)]*\))?!?:', group = "Bug fixes" },
+  { message = '^(?:Add|Persist|Ignore)\b', group = "What's new" },
+  { message = '^(?:Fix|Prevent)\b', group = "Bug fixes" },
+  { message = '.*', skip = true },
+]
