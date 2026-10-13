@@ -1,3 +1,4 @@
+import type { MetadataPort } from "../../docs/metadata-port.js";
 import type { CompileOptions } from "@mdx-js/mdx";
 import type { PluggableList } from "unified";
 import remarkFrontmatter from "remark-frontmatter";
@@ -16,6 +17,7 @@ import { designTokenTheme } from "./shiki-theme.js";
  * the standalone build's image inliner).
  */
 export function mdxCompileOptions(
+	metadata: MetadataPort,
 	extra: { remarkPlugins?: PluggableList; rehypePlugins?: PluggableList } = {},
 ): CompileOptions {
 	return {
@@ -27,7 +29,7 @@ export function mdxCompileOptions(
 			remarkFrontmatter,
 			remarkGfm,
 			remarkTableIds,
-			remarkMetadata,
+			[remarkMetadata, metadata],
 			...(extra.remarkPlugins ?? []),
 		],
 		rehypePlugins: [

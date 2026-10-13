@@ -1,4 +1,4 @@
-import { DocsService } from "../../docs/service.js";
+import type { MetadataPort } from "../../docs/metadata-port.js";
 
 /**
  * `.md` files are compiled as MDX so builtin components work in both
@@ -7,9 +7,9 @@ import { DocsService } from "../../docs/service.js";
  * perfectly valid Markdown. Such a `<` can never start a JSX tag, so escape it
  * as `\<` — outside fenced and inline code, which MDX already treats literally.
  */
-export function escapeBareLt(source: string): string {
+export function escapeBareLt(source: string, metadata: MetadataPort): string {
 	const parts = source.split(/(\r\n|\r|\n)/);
-	const frontmatterEndLine = DocsService.leadingFrontmatter(source)?.endLine ?? 0;
+	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;

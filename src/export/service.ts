@@ -6,7 +6,7 @@ import { collectIconNames, listSourceFiles, loadLucideNames } from "../rendering
 import { resolveDocPath } from "../roots/paths.js";
 import type { BundlePort, MermaidMode } from "../rendering/protocol.js";
 import { exportHtml } from "./html.js";
-import { parseMetadata } from "../docs/metadata.js";
+import type { MetadataPort } from "../docs/metadata-port.js";
 
 export const EXPORT_FORMATS = ["html"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
@@ -77,6 +77,7 @@ function isExportFormat(format: string): format is ExportFormat {
 export class ExportService {
 	constructor(
 		private readonly bundle: BundlePort,
+		private readonly metadata: MetadataPort,
 		/**
 		 * Omitted: unscoped (the CLI — any absolute path). Given: only docs
 		 * inside one of these roots resolve; an empty list resolves nothing,
@@ -153,7 +154,7 @@ export class ExportService {
 					mtime: stat.mtimeMs,
 					bundle: bundleOutput,
 					pkgRoot,
-					metadata: parseMetadata(source).metadata,
+					metadata: this.metadata.parseMetadata(source).metadata,
 				});
 				break;
 		}

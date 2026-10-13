@@ -6,12 +6,12 @@ import type { Root, RootContent } from "mdast";
 // mdxJsxTextElement, mdxjsEsm, ... — so the `RootContent` union above includes them.
 import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from "mdast-util-mdx";
 import type { Pattern, Program } from "estree";
+import type { MetadataPort } from "../docs/metadata-port.js";
 import { mdxCompileOptions } from "../rendering/mdx/mdx-options.js";
 import { escapeBareLt } from "../rendering/mdx/lenient-md.js";
 import { suggest, suggestFrom, type Registry } from "../components/registry.js";
 import type { RenderOutcome } from "../rendering/protocol.js";
 import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
-import { parseMetadata } from "../docs/metadata.js";
 
 export type DiagnosticCode =
 	| "mdx-compile"
@@ -409,6 +409,7 @@ export function fromCompileError(error: unknown): Diagnostic {
 }
 
 export interface ValidateSourceInput {
+	metadata: MetadataPort;
 	source: string;
 	path: string;
 	registry: Registry;
@@ -432,7 +433,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 
 	// escapeBareLt never adds/removes lines, so `line` stays exact; `column`
 	// may drift by a character or two on a line where a `<` got escaped.
-	const value = /\.md$/i.test(filePath) ? escapeBareLt(input.source) : input.source;
+	const value = /\.md$/i.test(filePath) ? escapeBareLt(input.source, input.metadata) : input.source;
 
 	let captured: Root | undefined;
 	const captureTree = () => (tree: Root) => {
@@ -441,7 +442,10 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 
 	let diagnostics: Diagnostic[];
 	try {
-		await compile({ value, path: filePath }, mdxCompileOptions({ remarkPlugins: [captureTree] }));
+		await compile(
+			{ value, path: filePath },
+			mdxCompileOptions(input.metadata, { remarkPlugins: [captureTree] }),
+		);
 		diagnostics = captured ? analyzeTree(captured, registry) : [];
 	} catch (error) {
 		diagnostics = [fromCompileError(error)];
@@ -459,7 +463,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 			}
 		}
 	}
-	diagnostics.push(...parseMetadata(input.source).diagnostics);
+	diagnostics.push(...input.metadata.parseMetadata(input.source).diagnostics);
 
 	let rendered = false;
 	if (render && !diagnostics.some((diagnostic) => diagnostic.severity === "error")) {

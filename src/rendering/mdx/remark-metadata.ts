@@ -2,7 +2,7 @@ import type { Root, RootContent } from "mdast";
 import type { Pattern, Program, Declaration } from "estree";
 import type { VFile } from "vfile";
 import type { DocumentMetadata } from "../../docs/metadata.js";
-import { DocsService } from "../../docs/service.js";
+import type { MetadataPort } from "../../docs/metadata-port.js";
 
 const METADATA_EXPORT = "__mdxserveMetadata";
 
@@ -101,7 +101,7 @@ function metadataExpression(metadata: DocumentMetadata): Expression {
 }
 
 /** Add a static, browser-safe export derived from the same parser as the HTML shell. */
-export function remarkMetadata() {
+export function remarkMetadata(metadataPort: MetadataPort) {
 	return (tree: Root, file: VFile) => {
 		for (const node of tree.children) {
 			if (node.type !== "mdxjsEsm") continue;
@@ -115,7 +115,7 @@ export function remarkMetadata() {
 			}
 		}
 		const source = String(file.value);
-		const { metadata } = DocsService.parseMetadata(source);
+		const { metadata } = metadataPort.parseMetadata(source);
 		const declaration = {
 			type: "ExportNamedDeclaration",
 			declaration: {

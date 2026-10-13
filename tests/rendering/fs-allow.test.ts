@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -23,6 +24,7 @@ beforeAll(async () => {
 
 	httpServer = http.createServer();
 	vite = await createDevServer({
+		metadata: createMetadataPort(),
 		roots: [],
 		viteRoot,
 		cacheDir,

@@ -49,6 +49,7 @@ const validateDoc = procedure(
 		const outcome = await new ValidationService(
 			ctx.rootInfos,
 			ctx.registry,
+			ctx.docs,
 			ctx.render,
 		).validateDoc({
 			path: input.path,

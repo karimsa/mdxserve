@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -76,7 +77,10 @@ describe("ExportService.build", () => {
 				`---\ntitle: Export title\ncanonical: https://example.com/\nopenGraph:\n  - property: og:site_name\n    content: Example\n---\n# Body`,
 			);
 			const { port } = fakeBundle();
-			const result = await new ExportService(port, [rootA]).build({ docPath: doc, format: "html" });
+			const result = await new ExportService(port, createMetadataPort(), [rootA]).build({
+				docPath: doc,
+				format: "html",
+			});
 			expect(result.kind).toBe("ok");
 			if (result.kind !== "ok") return;
 			expect(result.contents).toContain("<title>Export title</title>");
@@ -88,7 +92,7 @@ describe("ExportService.build", () => {
 
 	it("builds an ok result from the fake bundle port", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootA, "plain.md"), format: "html" });
 		expect(result.kind).toBe("ok");
 		if (result.kind !== "ok") return;
@@ -105,7 +109,7 @@ describe("ExportService.build", () => {
 		const before = (await fs.readdir(rootA)).sort();
 		const beforeBytes = await fs.readFile(path.join(rootA, "plain.md"));
 		const { port } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		await service.build({ docPath: path.join(rootA, "plain.md"), format: "html" });
 		const after = (await fs.readdir(rootA)).sort();
 		expect(after).toEqual(before);
@@ -115,7 +119,7 @@ describe("ExportService.build", () => {
 
 	it("export writes outFile with bytes equal to build().contents", async () => {
 		const { port } = fakeBundle();
-		const buildService = new ExportService(port, [rootA]);
+		const buildService = new ExportService(port, createMetadataPort(), [rootA]);
 		const built = await buildService.build({
 			docPath: path.join(rootA, "plain.md"),
 			format: "html",
@@ -126,7 +130,7 @@ describe("ExportService.build", () => {
 		const outFile = path.join(rootA, "out.html");
 		cleanupFiles.push(outFile);
 		const { port: exportPort } = fakeBundle();
-		const exportService = new ExportService(exportPort, [rootA]);
+		const exportService = new ExportService(exportPort, createMetadataPort(), [rootA]);
 		const exported = await exportService.export({
 			docPath: path.join(rootA, "plain.md"),
 			outFile,
@@ -140,21 +144,21 @@ describe("ExportService.build", () => {
 
 	it("returns not-found for a missing file", async () => {
 		const { port } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootA, "missing.md"), format: "html" });
 		expect(result.kind).toBe("not-found");
 	});
 
 	it("returns not-a-doc for a non-markdown extension", async () => {
 		const { port } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootA, "notes.txt"), format: "html" });
 		expect(result.kind).toBe("not-a-doc");
 	});
 
 	it("returns unsupported-format for an unknown format", async () => {
 		const { port } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({
 			docPath: path.join(rootA, "plain.md"),
 			format: "pdf" as ExportFormat,
@@ -164,7 +168,7 @@ describe("ExportService.build", () => {
 
 	it("returns bundle-failed with the port's error message when the port rejects", async () => {
 		const { port } = rejectingBundle("boom");
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootA, "plain.md"), format: "html" });
 		expect(result.kind).toBe("bundle-failed");
 		if (result.kind !== "bundle-failed") return;
@@ -173,7 +177,7 @@ describe("ExportService.build", () => {
 
 	it("a doc in a different root than rootDirs is not-found and never calls the bundle port", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootB, "other.md"), format: "html" });
 		expect(result.kind).toBe("not-found");
 		expect(calls).toHaveLength(0);
@@ -181,7 +185,7 @@ describe("ExportService.build", () => {
 
 	it("an escaping symlink is not-found", async () => {
 		const { port } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({
 			docPath: path.join(rootA, "escape", "other.md"),
 			format: "html",
@@ -191,14 +195,14 @@ describe("ExportService.build", () => {
 
 	it("no rootDirs at all accepts an absolute path (CLI parity)", async () => {
 		const { port } = fakeBundle();
-		const service = new ExportService(port);
+		const service = new ExportService(port, createMetadataPort());
 		const result = await service.build({ docPath: path.join(rootA, "plain.md"), format: "html" });
 		expect(result.kind).toBe("ok");
 	});
 
 	it("an empty rootDirs list (no folders served) resolves nothing and never calls the bundle port", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, []);
+		const service = new ExportService(port, createMetadataPort(), []);
 		const result = await service.build({ docPath: path.join(rootA, "plain.md"), format: "html" });
 		expect(result.kind).toBe("not-found");
 		expect(calls).toHaveLength(0);
@@ -206,7 +210,7 @@ describe("ExportService.build", () => {
 
 	it("forces mermaid to none for a doc with no fence, even when bundle is requested", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({
 			docPath: path.join(rootA, "plain.md"),
 			format: "html",
@@ -220,7 +224,7 @@ describe("ExportService.build", () => {
 
 	it("forces mermaid to none for a pie-only doc, even when bundle is requested", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({
 			docPath: path.join(rootA, "pie.md"),
 			format: "html",
@@ -234,7 +238,7 @@ describe("ExportService.build", () => {
 
 	it("still bundles mermaid for a doc mixing a chart fence with a real diagram", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({
 			docPath: path.join(rootA, "pie-and-flow.md"),
 			format: "html",
@@ -248,7 +252,7 @@ describe("ExportService.build", () => {
 
 	it("passes the requested mermaid mode through for a doc with a fence, defaulting to cdn", async () => {
 		const { port, calls } = fakeBundle();
-		const service = new ExportService(port, [rootA]);
+		const service = new ExportService(port, createMetadataPort(), [rootA]);
 		const result = await service.build({ docPath: path.join(rootA, "fenced.md"), format: "html" });
 		expect(result.kind).toBe("ok");
 		if (result.kind !== "ok") return;
@@ -256,7 +260,7 @@ describe("ExportService.build", () => {
 		expect(calls[0]?.mermaid).toBe("cdn");
 
 		const { port: portBundle, calls: callsBundle } = fakeBundle();
-		const serviceBundle = new ExportService(portBundle, [rootA]);
+		const serviceBundle = new ExportService(portBundle, createMetadataPort(), [rootA]);
 		const resultBundle = await serviceBundle.build({
 			docPath: path.join(rootA, "fenced.md"),
 			format: "html",

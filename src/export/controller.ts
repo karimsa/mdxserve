@@ -28,6 +28,7 @@ const exportDoc = procedure(
 	.mutation(async ({ ctx, input }) => {
 		const service = new ExportService(
 			ctx.bundle,
+			ctx.docs,
 			ctx.rootInfos.map((rootInfo) => rootInfo.dir),
 		);
 		const result = await service.build({

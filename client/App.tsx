@@ -13,9 +13,7 @@ export function App({ initialRoute }: { initialRoute: Route }) {
 			route.kind === "doc"
 				? cached?.status === "ok"
 					? cached.metadata
-					: cached
-						? undefined
-						: route.metadata
+					: route.metadata
 				: undefined,
 		);
 	}, [route]);

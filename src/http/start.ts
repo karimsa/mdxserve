@@ -212,8 +212,10 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		pkgRoot,
 	);
 
+	const docs = new DocsService(rootsService, registry);
 	const httpServer = http.createServer();
 	const vite = await createDevServer({
+		metadata: docs,
 		roots: rootsService.list().map((info) => info.dir),
 		viteRoot: cssDir,
 		cacheDir: getViteCacheDir(),
@@ -233,14 +235,13 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	let exportChain: Promise<unknown> = Promise.resolve();
 	const bundle: BundlePort = (input) => {
 		if (restricted) throw new Error("Export is disabled with restricted permissions");
-		const next = exportChain.then(() => bundleStandalone(input));
+		const next = exportChain.then(() => bundleStandalone(input, docs));
 		exportChain = next.catch(() => undefined);
 		return next;
 	};
 
 	const docCache = new DocCache();
 	const search = new SearchService(docCache);
-	const docs = new DocsService(rootsService, registry);
 	const diagrams = restricted
 		? undefined
 		: new DiagramsService(

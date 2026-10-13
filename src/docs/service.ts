@@ -1,3 +1,4 @@
+import type { MetadataPort } from "./metadata-port.js";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -82,9 +83,9 @@ export type SaveSectionResult =
 	| { kind: "invalid-doc"; message: string; diagnostics: Diagnostic[] };
 
 /** Owns per-file save locks, so a `DocsService` is per-process state. */
-export class DocsService {
+export class DocsService implements MetadataPort {
 	/** Parse static metadata from source without reading files or evaluating document code. */
-	static parseMetadata(
+	parseMetadata(
 		source: string,
 		truncated = false,
 	): {
@@ -95,7 +96,7 @@ export class DocsService {
 	}
 
 	/** Locate the leading YAML block using the document's shared frontmatter syntax. */
-	static leadingFrontmatter(source: string): LeadingFrontmatter | undefined {
+	leadingFrontmatter(source: string): LeadingFrontmatter | undefined {
 		return leadingFrontmatter(source);
 	}
 
@@ -164,7 +165,7 @@ export class DocsService {
 			}
 			return {
 				kind: "ok",
-				...DocsService.parseMetadata(
+				...this.parseMetadata(
 					prefix.subarray(0, bytesRead).toString("utf8"),
 					bytesRead > MAX_METADATA_PREFIX_BYTES,
 				),
@@ -217,7 +218,7 @@ export class DocsService {
 				return { kind: "invalid-range", message: spliced.error };
 			}
 
-			const validation = await new ValidationService(rootInfos, registry).validateText({
+			const validation = await new ValidationService(rootInfos, registry, this).validateText({
 				source: spliced.text,
 				absPath: abs,
 			});

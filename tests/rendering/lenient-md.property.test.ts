@@ -1,6 +1,7 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { escapeBareLt } from "../../src/rendering/mdx/lenient-md.js";
+import { escapeBareLt as escapeWithMetadata } from "../../src/rendering/mdx/lenient-md.js";
 
 describe("escapeBareLt", () => {
 	it("is idempotent", () => {
@@ -85,3 +86,7 @@ describe("escapeBareLt", () => {
 		);
 	});
 });
+
+function escapeBareLt(source: string): string {
+	return escapeWithMetadata(source, createMetadataPort());
+}
