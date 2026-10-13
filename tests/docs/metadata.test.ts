@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMetadata } from "../../src/docs/metadata.js";
+import { MAX_METADATA_PREFIX_BYTES, parseMetadata } from "../../src/docs/metadata.js";
 import fc from "fast-check";
 
 describe("frontmatter metadata", () => {
@@ -74,6 +74,49 @@ openGraph:
 		const result = parseMetadata(`---\ntitle: ${"x".repeat(70_000)}\n---`);
 		expect(result.metadata).toEqual({ openGraph: [] });
 		expect(result.diagnostics).toHaveLength(1);
+	});
+
+	it("accepts a closing fence at EOF with BOM and CRLF", () => {
+		expect(parseMetadata("\uFEFF---\r\ntitle: At EOF\r\n---")).toEqual({
+			metadata: { title: "At EOF", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("accepts empty frontmatter before a large body", () => {
+		expect(parseMetadata(`---\n---\n${"x".repeat(100_000)}`)).toEqual({
+			metadata: { openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("accepts YAML at the 64 KiB boundary and warns above it", () => {
+		const titlePrefix = "title: ";
+		const withinLimit = `---\n${titlePrefix}${"a".repeat(64 * 1024 - titlePrefix.length)}\n---`;
+		const tooLarge = `---\n${titlePrefix}${"a".repeat(64 * 1024 - titlePrefix.length + 1)}\n---`;
+		expect(parseMetadata(withinLimit).metadata.title).toHaveLength(64 * 1024 - titlePrefix.length);
+		expect(parseMetadata(tooLarge).diagnostics[0]?.message).toContain("64 KiB");
+	});
+
+	it("stops scanning an oversized opening before the body", () => {
+		const oversized = `---\ntitle: ${"a".repeat(MAX_METADATA_PREFIX_BYTES)}\n---\n`;
+		expect(parseMetadata(oversized).diagnostics[0]?.message).toContain("64 KiB");
+		expect(
+			parseMetadata(`---\ntitle: ${"é".repeat(33_000)}\n---`).diagnostics[0]?.message,
+		).toContain("64 KiB");
+		expect(
+			parseMetadata(`---${" ".repeat(MAX_METADATA_PREFIX_BYTES)}`).diagnostics[0]?.message,
+		).toContain("64 KiB");
+		expect(
+			parseMetadata(`---\ntitle: fine\n---${" ".repeat(MAX_METADATA_PREFIX_BYTES)}`).metadata,
+		).toEqual({
+			openGraph: [],
+		});
+		expect(parseMetadata("--- invalid\ntitle: ignored\n---").diagnostics).toEqual([]);
+		expect(parseMetadata("---\ntitle: unclosed\n# body")).toEqual({
+			metadata: { openGraph: [] },
+			diagnostics: [],
+		});
 	});
 
 	it("preserves valid scalar titles without creating Open Graph defaults", () => {

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsService, versionOf, MAX_SOURCE_BYTES } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
@@ -66,6 +66,46 @@ describe("DocsService.readSource", () => {
 });
 
 describe("DocsService.readMetadata", () => {
+	it.each([
+		["metadata", "---\ntitle: Sparse document\n---\n", { title: "Sparse document", openGraph: [] }],
+		["plain body", "# Body\n", { openGraph: [] }],
+	])("reads a bounded prefix of a sparse document with %s", async (_name, source, metadata) => {
+		const large = path.join(root, "sparse.md");
+		await fs.writeFile(large, source as string);
+		await fs.truncate(large, 1024 * 1024 * 1024);
+		const actualOpen = fs.open.bind(fs);
+		const actualReadFile = fs.readFile.bind(fs);
+		const readFileSpy = vi.spyOn(fs, "readFile").mockImplementation((...arguments_) => {
+			if (arguments_[0] === large) throw new Error("Metadata must not read the entire file");
+			return actualReadFile(...arguments_);
+		});
+		const readSpies: ReturnType<typeof vi.spyOn>[] = [];
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			const handle = await actualOpen(filePath, flags, mode);
+			readSpies.push(vi.spyOn(handle, "read"));
+			return handle;
+		});
+		try {
+			expect(await service.readMetadata(large)).toEqual({
+				kind: "ok",
+				metadata,
+				diagnostics: [],
+			});
+			expect(readSpies).toHaveLength(1);
+			const reads = await Promise.all(
+				readSpies.flatMap((spy) =>
+					spy.mock.results.map((result: { value: Promise<{ bytesRead: number }> }) => result.value),
+				),
+			);
+			expect(reads.reduce((total, read) => total + read.bytesRead, 0)).toBeLessThanOrEqual(
+				64 * 1024 + 33,
+			);
+		} finally {
+			openSpy.mockRestore();
+			readFileSpy.mockRestore();
+		}
+	});
+
 	it("reads metadata above the editor limit while readSource keeps its cap", async () => {
 		const large = path.join(root, "large.md");
 		await fs.writeFile(large, `---\ntitle: Large document\n---\n${"x".repeat(MAX_SOURCE_BYTES)}`);
@@ -75,6 +115,16 @@ describe("DocsService.readMetadata", () => {
 			metadata: { title: "Large document", openGraph: [] },
 			diagnostics: [],
 		});
+	});
+
+	it("warns when multibyte YAML exceeds the byte limit", async () => {
+		const large = path.join(root, "multibyte.md");
+		await fs.writeFile(large, `---\ntitle: ${"é".repeat(33_000)}\n---`);
+		const result = await service.readMetadata(large);
+		expect(result.kind).toBe("ok");
+		if (result.kind !== "ok") return;
+		expect(result.metadata).toEqual({ openGraph: [] });
+		expect(result.diagnostics[0]?.message).toContain("64 KiB");
 	});
 
 	it("applies root containment and public path rules", async () => {

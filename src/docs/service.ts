@@ -7,7 +7,12 @@ import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
 import type { Diagnostic } from "../validation/validate.js";
-import { parseMetadata, type DocumentMetadata, type MetadataDiagnostic } from "./metadata.js";
+import {
+	MAX_METADATA_PREFIX_BYTES,
+	parseMetadata,
+	type DocumentMetadata,
+	type MetadataDiagnostic,
+} from "./metadata.js";
 
 // A doc above this size isn't a "quick prose fix" candidate; refuse to load
 // it into the (in-memory, un-virtualized) Tiptap editor at all.
@@ -113,8 +118,25 @@ export class DocsService {
 		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
 		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
-		const source = await fsp.readFile(resolved.abs, "utf8");
-		return { kind: "ok", ...parseMetadata(source) };
+		const handle = await fsp.open(resolved.abs, "r");
+		try {
+			const prefix = Buffer.alloc(MAX_METADATA_PREFIX_BYTES + 1);
+			let bytesRead = 0;
+			while (bytesRead < prefix.length) {
+				const result = await handle.read(prefix, bytesRead, prefix.length - bytesRead, bytesRead);
+				if (!result.bytesRead) break;
+				bytesRead += result.bytesRead;
+			}
+			return {
+				kind: "ok",
+				...parseMetadata(
+					prefix.subarray(0, bytesRead).toString("utf8"),
+					bytesRead > MAX_METADATA_PREFIX_BYTES,
+				),
+			};
+		} finally {
+			await handle.close();
+		}
 	}
 
 	/**

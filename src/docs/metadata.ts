@@ -25,19 +25,54 @@ const propertyField = z.string().regex(/^og:[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)*
 const contentField = z.union([z.string(), z.number().finite()]).transform(String);
 const graphItem = z.object({ property: propertyField, content: contentField });
 const MAX_YAML_BYTES = 64 * 1024;
+// Allow room for the opening/closing fences, BOM, and line endings around 64 KiB of YAML.
+// Disk reads use this prefix plus one sentinel byte to detect truncation.
+export const MAX_METADATA_PREFIX_BYTES = MAX_YAML_BYTES + 32;
+
+function boundedFrontmatter(
+	source: string,
+	truncated: boolean,
+): { source?: string; oversized: boolean } {
+	// Encode only a bounded slice. UTF-8 bytes, rather than UTF-16 length, set the limit.
+	const initial = source.slice(0, MAX_METADATA_PREFIX_BYTES + 1);
+	const encoded = Buffer.from(initial);
+	const clipped =
+		truncated || source.length > initial.length || encoded.length > MAX_METADATA_PREFIX_BYTES;
+	const decoded = clipped
+		? encoded.subarray(0, MAX_METADATA_PREFIX_BYTES).toString("utf8")
+		: initial;
+	const prefix = clipped ? decoded.slice(0, decoded.lastIndexOf("\n") + 1) : decoded;
+	const opening = /^\uFEFF?---[\t ]*(?:\r?\n|$)/.exec(prefix);
+	if (!opening) return { oversized: clipped && /^\uFEFF?---[\t ]*$/.test(decoded) };
+	const closing = /(?:^|\n)---[\t ]*(?:\r?\n|$)/g;
+	closing.lastIndex = opening[0].length - 1;
+	const match = closing.exec(prefix);
+	if (match) {
+		const end = match.index + match[0].length;
+		return { source: prefix.slice(0, end), oversized: false };
+	}
+	return {
+		oversized:
+			clipped || Buffer.byteLength(prefix.slice(opening[0].length), "utf8") > MAX_YAML_BYTES,
+	};
+}
 
 function needsAbsoluteUrl(property: string): boolean {
 	return /^og:(?:url|image|audio|video)(?::(?:url|secure_url))?$/i.test(property);
 }
 
 /** Parse static page metadata from the leading YAML node without evaluating document code. */
-export function parseMetadata(source: string): {
+export function parseMetadata(
+	source: string,
+	truncated = false,
+): {
 	metadata: DocumentMetadata;
 	diagnostics: MetadataDiagnostic[];
 } {
 	const empty: DocumentMetadata = { openGraph: [] };
-	const frontmatter = leadingFrontmatter(source);
-	if (!frontmatter) return { metadata: empty, diagnostics: [] };
+	const bounded = boundedFrontmatter(source, truncated);
+	const frontmatter = bounded.source ? leadingFrontmatter(bounded.source) : undefined;
+	if (!frontmatter && !bounded.oversized) return { metadata: empty, diagnostics: [] };
 
 	const diagnostics: MetadataDiagnostic[] = [];
 	const warn = (message: string, node?: Node | null) => {
@@ -48,11 +83,16 @@ export function parseMetadata(source: string): {
 			code: "frontmatter-metadata",
 			message,
 			...(position
-				? { line: frontmatter.startLine + position.line - 1, column: position.col }
+				? { line: (frontmatter?.startLine ?? 2) + position.line - 1, column: position.col }
 				: {}),
 		});
 	};
 	const counter = new LineCounter();
+	if (bounded.oversized) {
+		warn("Frontmatter exceeds the 64 KiB metadata parsing limit.");
+		return { metadata: empty, diagnostics };
+	}
+	if (!frontmatter) return { metadata: empty, diagnostics: [] };
 	if (Buffer.byteLength(frontmatter.value, "utf8") > MAX_YAML_BYTES) {
 		warn("Frontmatter exceeds the 64 KiB metadata parsing limit.");
 		return { metadata: empty, diagnostics };
