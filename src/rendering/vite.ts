@@ -1,3 +1,4 @@
+import type { MetadataPort } from "../docs/metadata-port.js";
 import path from "node:path";
 import type { Server as HttpServer } from "node:http";
 import {
@@ -22,6 +23,7 @@ export interface ViteAlias {
 }
 
 export interface SharedViteConfigOptions {
+	metadata: MetadataPort;
 	/** Appended after remarkGfm in mdxCompileOptions (e.g. remarkSections for the dev server). */
 	remarkPlugins?: PluggableList;
 	/** Appended after rehypePrettyCode in mdxCompileOptions (e.g. rehypeInlineImages for the standalone build). */
@@ -50,7 +52,7 @@ export interface SharedViteConfig {
  * (`createDevServer`) and the standalone build (`src/rendering/bundle.ts`),
  * so the two never drift.
  */
-export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedViteConfig {
+export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteConfig {
 	const { remarkPlugins, rehypePlugins, extraPlugins = [], omitAliases = [] } = options;
 	const omit = new Set(omitAliases);
 
@@ -195,7 +197,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		// validator must never see an MdSection wrapper, or it would report it
 		// as an unregistered component on every doc.
 		...mdx({
-			...mdxCompileOptions({ remarkPlugins, rehypePlugins }),
+			...mdxCompileOptions(options.metadata, { remarkPlugins, rehypePlugins }),
 			// The immutable site runs production React even though Vite is a dev
 			// server. Its MDX must use jsx/jsxs, not development-only jsxDEV.
 			...(process.env.MDXSERVE_IMMUTABLE_SITE === "1" ? { development: false } : {}),
@@ -211,7 +213,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 		enforce: "pre" as const,
 		transform(code: string, id: string) {
 			if (!/\.md(\?|$)/.test(id)) return null;
-			const escaped = escapeBareLt(code);
+			const escaped = escapeBareLt(code, options.metadata);
 			return escaped === code ? null : { code: escaped, map: null };
 		},
 	};
@@ -258,6 +260,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions = {}): SharedV
 }
 
 export interface CreateDevServerOptions {
+	metadata: MetadataPort;
 	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
 	roots: string[];
 	/**
@@ -276,7 +279,7 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 	const pkgRoot = getPackageRoot();
 	const immutableSite = process.env.MDXSERVE_IMMUTABLE_SITE === "1";
 
-	const shared = sharedViteConfig({ remarkPlugins: [remarkSections] });
+	const shared = sharedViteConfig({ metadata: options.metadata, remarkPlugins: [remarkSections] });
 
 	const vite = await createViteServer({
 		root: viteRoot,

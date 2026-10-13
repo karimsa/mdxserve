@@ -1,3 +1,4 @@
+import { DocsService } from "./docs/service.js";
 import { setupDiagrams } from "./cli/setup-diagrams.js";
 import os from "node:os";
 import path from "node:path";
@@ -151,7 +152,8 @@ program
 		// `export` is independent of the one-server-per-user model: it never
 		// acquires ServerLock and never reads ServerRegistry, so it runs
 		// whether or not `mdxserve serve` is up.
-		const exportService = new ExportService(bundleStandalone);
+		const docs = new DocsService(new RootsService(process.cwd(), os.homedir(), []), loadRegistry());
+		const exportService = new ExportService((input) => bundleStandalone(input, docs), docs);
 		const result = await exportService.export({
 			docPath,
 			outFile,

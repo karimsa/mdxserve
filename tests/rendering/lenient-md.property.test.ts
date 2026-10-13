@@ -1,6 +1,7 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { escapeBareLt } from "../../src/rendering/mdx/lenient-md.js";
+import { escapeBareLt as escapeWithMetadata } from "../../src/rendering/mdx/lenient-md.js";
 
 describe("escapeBareLt", () => {
 	it("is idempotent", () => {
@@ -19,6 +20,32 @@ describe("escapeBareLt", () => {
 				expect(escapeBareLt(source).split("\n").length).toBe(source.split("\n").length);
 			}),
 		);
+	});
+
+	it("preserves recognized frontmatter exactly while escaping body prose", () => {
+		fc.assert(
+			fc.property(
+				fc.constantFrom("", "\uFEFF"),
+				fc.constantFrom("\n", "\r\n", "\r"),
+				fc.integer({ min: 0, max: 999 }),
+				(bom, newline, limit) => {
+					const frontmatter = `${bom}---${newline}description: Value < ${limit}${newline}---${newline}`;
+					const body = `Body < ${limit}${newline}`;
+					expect(escapeBareLt(frontmatter + body)).toBe(
+						`${frontmatter}Body \\< ${limit}${newline}`,
+					);
+				},
+			),
+		);
+	});
+
+	it("preserves a mixed-newline header and escapes CR-delimited body lines", () => {
+		const header = "---\rdescription: Value < 10\n---\r\n";
+		expect(escapeBareLt(`${header}Body < 10\rNext < 20`)).toBe(`${header}Body \\< 10\rNext \\< 20`);
+	});
+
+	it("escapes an unclosed frontmatter-like block as ordinary body text", () => {
+		expect(escapeBareLt("---\ndescription: Value < 10\n")).toBe("---\ndescription: Value \\< 10\n");
 	});
 
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
@@ -59,3 +86,7 @@ describe("escapeBareLt", () => {
 		);
 	});
 });
+
+function escapeBareLt(source: string): string {
+	return escapeWithMetadata(source, createMetadataPort());
+}

@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -36,7 +37,12 @@ describe("ValidationService — allowRender: false", () => {
 					const { root, abs } = await mkTmpDoc(content);
 					try {
 						const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-						const service = new ValidationService([{ name: "docs", dir: root }], registry, render);
+						const service = new ValidationService(
+							[{ name: "docs", dir: root }],
+							registry,
+							createMetadataPort(),
+							render,
+						);
 						const result = await service.validateDoc({ path: abs, allowRender: false });
 						expect(result.kind).toBe("ok");
 						if (result.kind !== "ok") return;
@@ -62,7 +68,12 @@ describe("ValidationService — allowRender: true", () => {
 					const { root, abs } = await mkTmpDoc(content);
 					try {
 						const render = vi.fn(async (): Promise<RenderOutcome> => outcome);
-						const service = new ValidationService([{ name: "docs", dir: root }], registry, render);
+						const service = new ValidationService(
+							[{ name: "docs", dir: root }],
+							registry,
+							createMetadataPort(),
+							render,
+						);
 						const result = await service.validateDoc({ path: abs, allowRender: true });
 						expect(result.kind).toBe("ok");
 						if (result.kind !== "ok") return;
@@ -95,7 +106,12 @@ describe("ValidationService — validateDoc agrees with validateText", () => {
 					const { root, abs } = await mkTmpDoc(content);
 					try {
 						const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-						const service = new ValidationService([{ name: "docs", dir: root }], registry, render);
+						const service = new ValidationService(
+							[{ name: "docs", dir: root }],
+							registry,
+							createMetadataPort(),
+							render,
+						);
 
 						const viaDoc = await service.validateDoc({ path: abs, allowRender });
 						expect(viaDoc.kind).toBe("ok");

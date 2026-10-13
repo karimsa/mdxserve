@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -36,7 +37,12 @@ async function writeDoc(name: string, content: string): Promise<string> {
 }
 
 function serviceWith(render?: (absPath: string) => Promise<RenderOutcome>): ValidationService {
-	return new ValidationService([{ name: "docs", dir: root }], registry, render);
+	return new ValidationService(
+		[{ name: "docs", dir: root }],
+		registry,
+		createMetadataPort(),
+		render,
+	);
 }
 
 describe("ValidationService.validateDoc", () => {

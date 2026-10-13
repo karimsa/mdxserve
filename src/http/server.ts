@@ -314,6 +314,8 @@ export async function handleRequest(
 
 	if (stat?.isFile() && isDocFile(abs)) {
 		if (wantsHtml(req)) {
+			const metadataResult = await docs.readMetadata(abs, restricted);
+			const metadata = metadataResult.kind === "ok" ? metadataResult.metadata : undefined;
 			const route: Route = {
 				kind: "doc",
 				path: abs,
@@ -326,7 +328,7 @@ export async function handleRequest(
 			res.end(
 				await vite.transformIndexHtml(
 					pathname,
-					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
+					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions, metadata),
 				),
 			);
 			return;

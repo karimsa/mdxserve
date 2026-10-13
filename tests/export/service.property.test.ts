@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -56,7 +57,7 @@ describe("ExportService.build — properties", () => {
 							await fs.writeFile(docPath, source, "utf8");
 
 							const { port, calls } = fakeBundle();
-							const service = new ExportService(port, [root]);
+							const service = new ExportService(port, createMetadataPort(), [root]);
 							const result = await service.build({
 								docPath,
 								format: "html",
@@ -103,7 +104,7 @@ describe("ExportService.build — properties", () => {
 							const beforeBytes = await fs.readFile(docPath);
 
 							const { port } = fakeBundle();
-							const service = new ExportService(port, [root]);
+							const service = new ExportService(port, createMetadataPort(), [root]);
 							await service.build({ docPath, format: "html", mermaid: requestedMode });
 
 							const after = (await fs.readdir(root)).sort();
@@ -142,7 +143,7 @@ describe("ExportService.build — properties", () => {
 							await fs.writeFile(docPath, source, "utf8");
 
 							const { port } = fakeBundle();
-							const service = new ExportService(port, [root]);
+							const service = new ExportService(port, createMetadataPort(), [root]);
 							const result = await service.build({
 								docPath,
 								format: "html",
@@ -188,7 +189,7 @@ describe("ExportService.build — properties", () => {
 							await fs.writeFile(docPath, source, "utf8");
 
 							const { port: buildPort } = fakeBundle();
-							const buildService = new ExportService(buildPort, [root]);
+							const buildService = new ExportService(buildPort, createMetadataPort(), [root]);
 							const built = await buildService.build({
 								docPath,
 								format: "html",
@@ -199,7 +200,7 @@ describe("ExportService.build — properties", () => {
 
 							const outFile = path.join(root, "out.html");
 							const { port: exportPort } = fakeBundle();
-							const exportService = new ExportService(exportPort, [root]);
+							const exportService = new ExportService(exportPort, createMetadataPort(), [root]);
 							const exported = await exportService.export({
 								docPath,
 								outFile,
@@ -242,7 +243,7 @@ describe("ExportService.build — properties", () => {
 								: outsideDoc;
 
 							const { port, calls } = fakeBundle();
-							const service = new ExportService(port, [root]);
+							const service = new ExportService(port, createMetadataPort(), [root]);
 							const result = await service.build({ docPath, format: "html" });
 
 							expect(result.kind).toBe("not-found");
@@ -291,7 +292,7 @@ describe("ExportService.build — properties", () => {
 							}
 
 							const { port } = fakeBundle();
-							const service = new ExportService(port, [root]);
+							const service = new ExportService(port, createMetadataPort(), [root]);
 							let result;
 							try {
 								result = await service.build({

@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import { evaluate } from "@mdx-js/mdx";
 import { createElement } from "react";
@@ -15,7 +16,9 @@ async function render(source: string, extension: string, sections = false): Prom
 	const compiled = await evaluate(
 		{ value: source, path: `frontmatter.${extension}` },
 		{
-			...mdxCompileOptions({ remarkPlugins: sections ? [remarkSections] : [] }),
+			...mdxCompileOptions(createMetadataPort(), {
+				remarkPlugins: sections ? [remarkSections] : [],
+			}),
 			...runtime,
 			useMDXComponents: () => ({}),
 		},
@@ -52,12 +55,14 @@ describe.each(["md", "mdx"])("frontmatter in .%s documents", (extension) => {
 
 	it("ignores metadata during validation but still diagnoses the body at its original line", async () => {
 		const valid = await validateSource({
+			metadata: createMetadataPort(),
 			source: `${metadata}\n# Body\n`,
 			path: `doc.${extension}`,
 			registry: fixtureRegistry,
 		});
 		expect(valid.diagnostics).toEqual([]);
 		const invalid = await validateSource({
+			metadata: createMetadataPort(),
 			source: `${metadata}\n<Unregistered />\n`,
 			path: `doc.${extension}`,
 			registry: fixtureRegistry,

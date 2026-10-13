@@ -46,6 +46,7 @@ beforeEach(() => {
 	docModuleCache.set("guide.md", {
 		status: "ok",
 		Component: () => createElement("h2", { id: "overview" }, "Overview"),
+		metadata: { openGraph: [] },
 	});
 	host = document.createElement("div");
 	document.body.append(host);

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsService, versionOf, MAX_SOURCE_BYTES } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
@@ -35,6 +35,35 @@ async function currentVersion(): Promise<string> {
 	return read.source.version;
 }
 
+describe("DocsService source parsing", () => {
+	it("parses static metadata without evaluating document code", () => {
+		const source =
+			'---\ntitle: Public title\n---\nexport const title = (() => { throw new Error("must not run"); })();';
+		expect(service.parseMetadata(source)).toEqual({
+			metadata: { title: "Public title", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("reports invalid and truncated metadata without exposing partial values", () => {
+		const invalid = service.parseMetadata("---\ntitle: Valid\ncanonical: /relative\n---\n");
+		expect(invalid.metadata).toEqual({ openGraph: [] });
+		expect(invalid.diagnostics).not.toHaveLength(0);
+		const truncated = service.parseMetadata("---\ntitle: Partial", true);
+		expect(truncated.metadata).toEqual({ openGraph: [] });
+		expect(truncated.diagnostics[0]?.message).toContain("64 KiB");
+	});
+
+	it("locates only leading YAML and preserves its original value", () => {
+		expect(service.leadingFrontmatter("---\r\ntitle: 'Public title'\r\n---\r\nBody")).toEqual({
+			value: "title: 'Public title'",
+			startLine: 2,
+			endLine: 3,
+		});
+		expect(service.leadingFrontmatter("Body\n---\ntitle: Later\n---")).toBeUndefined();
+	});
+});
+
 describe("DocsService.readSource", () => {
 	it("returns the raw on-disk text with a version token for those bytes", async () => {
 		const result = await service.readSource(abs);
@@ -65,7 +94,149 @@ describe("DocsService.readSource", () => {
 	});
 });
 
+describe("DocsService.readMetadata", () => {
+	it("reports a file removed after path resolution as not-found", async () => {
+		const actualOpen = fs.open.bind(fs);
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			if (filePath === abs) await fs.unlink(abs);
+			return actualOpen(filePath, flags, mode);
+		});
+		try {
+			expect(await service.readMetadata(abs)).toEqual({
+				kind: "not-found",
+				message: `${abs} not found`,
+			});
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
+	it.each([
+		["EACCES", "not-found"],
+		["EIO", "error"],
+	] as const)("closes the handle when reading fails with %s", async (code, outcome) => {
+		const actualOpen = fs.open.bind(fs);
+		let closeSpy: ReturnType<typeof vi.spyOn> | undefined;
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			const handle = await actualOpen(filePath, flags, mode);
+			if (filePath === abs) {
+				vi.spyOn(handle, "read").mockRejectedValue(Object.assign(new Error(code), { code }));
+				closeSpy = vi.spyOn(handle, "close");
+			}
+			return handle;
+		});
+		try {
+			if (outcome === "not-found") {
+				expect(await service.readMetadata(abs)).toEqual({
+					kind: "not-found",
+					message: `${abs} not found`,
+				});
+			} else {
+				await expect(service.readMetadata(abs)).rejects.toMatchObject({ code });
+			}
+			expect(closeSpy).toHaveBeenCalledOnce();
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
+	it.each([
+		["metadata", "---\ntitle: Sparse document\n---\n", { title: "Sparse document", openGraph: [] }],
+		["plain body", "# Body\n", { openGraph: [] }],
+	])("reads a bounded prefix of a sparse document with %s", async (_name, source, metadata) => {
+		const large = path.join(root, "sparse.md");
+		await fs.writeFile(large, source as string);
+		await fs.truncate(large, 1024 * 1024 * 1024);
+		const actualOpen = fs.open.bind(fs);
+		const actualReadFile = fs.readFile.bind(fs);
+		const readFileSpy = vi.spyOn(fs, "readFile").mockImplementation((...arguments_) => {
+			if (arguments_[0] === large) throw new Error("Metadata must not read the entire file");
+			return actualReadFile(...arguments_);
+		});
+		const readSpies: ReturnType<typeof vi.spyOn>[] = [];
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			const handle = await actualOpen(filePath, flags, mode);
+			readSpies.push(vi.spyOn(handle, "read"));
+			return handle;
+		});
+		try {
+			expect(await service.readMetadata(large)).toEqual({
+				kind: "ok",
+				metadata,
+				diagnostics: [],
+			});
+			expect(readSpies).toHaveLength(1);
+			const reads = await Promise.all(
+				readSpies.flatMap((spy) =>
+					spy.mock.results.map((result: { value: Promise<{ bytesRead: number }> }) => result.value),
+				),
+			);
+			expect(reads.reduce((total, read) => total + read.bytesRead, 0)).toBeLessThanOrEqual(
+				64 * 1024 + 33,
+			);
+		} finally {
+			openSpy.mockRestore();
+			readFileSpy.mockRestore();
+		}
+	});
+
+	it("reads metadata above the editor limit while readSource keeps its cap", async () => {
+		const large = path.join(root, "large.md");
+		await fs.writeFile(large, `---\ntitle: Large document\n---\n${"x".repeat(MAX_SOURCE_BYTES)}`);
+		expect((await service.readSource(large)).kind).toBe("too-large");
+		expect(await service.readMetadata(large)).toEqual({
+			kind: "ok",
+			metadata: { title: "Large document", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("warns when multibyte YAML exceeds the byte limit", async () => {
+		const large = path.join(root, "multibyte.md");
+		await fs.writeFile(large, `---\ntitle: ${"é".repeat(33_000)}\n---`);
+		const result = await service.readMetadata(large);
+		expect(result.kind).toBe("ok");
+		if (result.kind !== "ok") return;
+		expect(result.metadata).toEqual({ openGraph: [] });
+		expect(result.diagnostics[0]?.message).toContain("64 KiB");
+	});
+
+	it("applies root containment and public path rules", async () => {
+		const outsideFile = path.join(outside, "secret.md");
+		const hiddenFile = path.join(root, ".hidden.md");
+		await fs.writeFile(outsideFile, "---\ntitle: Secret\n---\n");
+		await fs.writeFile(hiddenFile, "---\ntitle: Hidden\n---\n");
+		await fs.symlink(outsideFile, path.join(root, "linked.md"));
+		expect((await service.readMetadata(outsideFile)).kind).toBe("not-found");
+		expect((await service.readMetadata(path.join(root, "linked.md"), true)).kind).toBe("not-found");
+		expect((await service.readMetadata(hiddenFile, true)).kind).toBe("not-found");
+		expect((await service.readMetadata(hiddenFile)).kind).toBe("not-found");
+		expect((await service.readMetadata(abs, true)).kind).toBe("ok");
+	});
+});
+
 describe("DocsService.saveSection", () => {
+	it.each(["md", "mdx"])(
+		"preserves frontmatter bytes while saving a .%s body section",
+		async (extension) => {
+			const file = path.join(root, `metadata.${extension}`);
+			const frontmatter =
+				"---\r\ntitle: 'Public title'\r\n# Keep this comment\r\nopenGraph:\r\n  - property: og:title\r\n    content: Public title\r\n---\r\n";
+			const source = `${frontmatter}\r\n# Heading\r\n\r\nOriginal body.\r\n`;
+			await fs.writeFile(file, source);
+			const result = await service.saveSection({
+				path: file,
+				startLine: 11,
+				endLine: 11,
+				version: versionOf(source),
+				markdown: "Changed body.",
+			});
+			expect(result.kind).toBe("ok");
+			const saved = await fs.readFile(file, "utf8");
+			expect(saved).toBe(source.replace("Original body.", "Changed body."));
+		},
+	);
+
 	it.each([".md", ".mdx"])(
 		"saves an inserted Mermaid block in %s with the normal version guard",
 		async (extension) => {

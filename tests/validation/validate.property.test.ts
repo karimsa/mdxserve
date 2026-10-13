@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -90,6 +91,7 @@ describe("analyzeTree / validateSource — GFM invariance", () => {
 		await fc.assert(
 			fc.asyncProperty(docArb, async (doc) => {
 				const result = await validateSource({
+					metadata: createMetadataPort(),
 					source: doc,
 					path: "x.mdx",
 					registry: fixtureRegistry,
@@ -227,6 +229,7 @@ describe("analyzeTree — lowercase tags", () => {
 describe("validateSource — examples", () => {
 	it("an unclosed <Callout> is a single mdx-compile error with a numeric line", async () => {
 		const result = await validateSource({
+			metadata: createMetadataPort(),
 			source: "<Callout>\n\nhi",
 			path: "x.mdx",
 			registry: fixtureRegistry,
@@ -243,6 +246,7 @@ describe("validateSource — examples", () => {
 		// it as a tag name. `.md` gets escapeBareLt run on it first; `.mdx` does
 		// not.
 		const md = await validateSource({
+			metadata: createMetadataPort(),
 			source: "(<800px)\n",
 			path: "x.md",
 			registry: fixtureRegistry,
@@ -250,6 +254,7 @@ describe("validateSource — examples", () => {
 		expect(md.ok).toBe(true);
 
 		const mdx = await validateSource({
+			metadata: createMetadataPort(),
 			source: "(<800px)\n",
 			path: "x.mdx",
 			registry: fixtureRegistry,
@@ -336,6 +341,7 @@ const plainDocArb = fc
 describe("validateSource — render step", () => {
 	it("a render failure yields exactly one render-error diagnostic, ok:false, rendered:true", async () => {
 		const result = await validateSource({
+			metadata: createMetadataPort(),
 			source: "# Fine\n\nSome plain content.\n",
 			path: "x.mdx",
 			registry: fixtureRegistry,
@@ -359,6 +365,7 @@ describe("validateSource — render step", () => {
 	it("render is not called when a static error already exists", async () => {
 		let called = false;
 		const result = await validateSource({
+			metadata: createMetadataPort(),
 			source: "<Calout />\n",
 			path: "x.mdx",
 			registry: fixtureRegistry,
@@ -379,6 +386,7 @@ describe("validateSource — render step", () => {
 					? { ok: true }
 					: { ok: false, message: "render failed" };
 				const result = await validateSource({
+					metadata: createMetadataPort(),
 					source: doc,
 					path: "x.mdx",
 					registry: fixtureRegistry,
@@ -400,6 +408,7 @@ describe("validateSource — render step", () => {
 
 	it("no render-error diagnostic is ever present when rendered is false", async () => {
 		const result = await validateSource({
+			metadata: createMetadataPort(),
 			source: "# No render configured\n",
 			path: "x.mdx",
 			registry: fixtureRegistry,
@@ -412,6 +421,7 @@ describe("validateSource — render step", () => {
 describe("unresolved-import positions", () => {
 	it("points at the import statement", async () => {
 		const result = await validateSource({
+			metadata: createMetadataPort(),
 			source: '# T\n\nimport Missing from "./missing"\n\n<Missing />\n',
 			path: "/x/doc.mdx",
 			registry: fixtureRegistry,
@@ -574,6 +584,7 @@ describe("collectHints — screenshot images", () => {
 				async (doc, screenshots) => {
 					const full = (doc ? [doc, ...screenshots] : screenshots).join("\n\n");
 					const result = await validateSource({
+						metadata: createMetadataPort(),
 						source: full,
 						path: "/tmp/hints.mdx",
 						registry: fixtureRegistry,

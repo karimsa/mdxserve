@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -37,6 +38,7 @@ beforeAll(async () => {
 	});
 	const httpServer = http.createServer();
 	vite = await createDevServer({
+		metadata: createMetadataPort(),
 		roots: [fixtureDir],
 		viteRoot,
 		cacheDir,
@@ -58,6 +60,18 @@ afterAll(async () => {
 });
 
 describe("RenderService#render", () => {
+	it("preserves Markdown frontmatter metadata through the Vite transform", async () => {
+		const frontmatter = "---\ndescription: Value < 10\n---\n\n";
+		const markdownPath = await writeDoc("metadata-lt.md", `${frontmatter}Body < 10\n`);
+		const mdxPath = await writeDoc("metadata-lt.mdx", `${frontmatter}Body \\< 10\n`);
+		const [markdownModule, mdxModule] = await Promise.all([
+			vite.ssrLoadModule(markdownPath),
+			vite.ssrLoadModule(mdxPath),
+		]);
+		expect(markdownModule.__mdxserveMetadata.description).toBe("Value < 10");
+		expect(markdownModule.__mdxserveMetadata).toEqual(mdxModule.__mdxserveMetadata);
+	});
+
 	it("reports a render-time ReferenceError with a matching line number", async () => {
 		const abs = await writeDoc(
 			"bare-identifier.md",

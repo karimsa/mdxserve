@@ -1,3 +1,5 @@
+import { DocsService } from "../docs/service.js";
+import { RootsService } from "../roots/service.js";
 import path from "node:path";
 import type { Registry } from "../components/registry.js";
 import { expandHome } from "../roots/paths.js";
@@ -26,7 +28,15 @@ export async function runValidate(
 	// An absolute path needs no root to resolve against, so the static checks
 	// still run with no server (or no roots) at all.
 	const roots = mounted.kind === "ok" ? mounted.roots : [];
-	const staticService = new ValidationService(roots, deps.registry);
+	const docs = new DocsService(
+		new RootsService(
+			deps.cwd,
+			deps.home,
+			roots.map((rootInfo) => rootInfo.dir),
+		),
+		deps.registry,
+	);
+	const staticService = new ValidationService(roots, deps.registry, docs);
 	const serverRegistered = mounted.kind === "ok";
 
 	const entries: ValidateJsonEntry[] = [];

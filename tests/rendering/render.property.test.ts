@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -36,7 +37,13 @@ describe.skipIf(!workerBuilt)("RenderService#render — concurrency property", (
 		const viteRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-render-prop-viteroot-"));
 		const cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-render-prop-cache-"));
 		const httpServer = http.createServer();
-		vite = await createDevServer({ roots: [fixtureDir], viteRoot, cacheDir, httpServer });
+		vite = await createDevServer({
+			metadata: createMetadataPort(),
+			roots: [fixtureDir],
+			viteRoot,
+			cacheDir,
+			httpServer,
+		});
 		renderer = new RenderService(vite);
 		// First render on a fresh server spawns the worker and runs its warm-up;
 		// give it a generous budget so the property's own renders only ever

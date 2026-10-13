@@ -4,6 +4,49 @@ The [README](../README.md) gets you serving a folder. This page is what sits und
 the single server is found and shared, what the rules for roots and URLs are, what changes
 when you expose it on a network, and the full story on exports, the agent CLI, and the cache.
 
+## Page metadata
+
+Leading YAML frontmatter can declare `title`, `description`, `canonical`, and `openGraph`. The server reads these fields as data and places them in the initial HTML head. Metadata extraction does not execute document JavaScript, including on restricted servers. The same metadata is available in the browser and in HTML exports.
+
+`title` sets the browser title, `description` emits a description meta tag, and `canonical` emits a canonical link. They do not generate Open Graph tags automatically. Declare sharing values explicitly in an ordered `openGraph` list:
+
+```yaml
+---
+title: A project guide
+description: Setup and usage for the project.
+canonical: https://docs.example.com/guide
+openGraph:
+  - property: og:title
+    content: A project guide
+  - property: og:description
+    content: Setup and usage for the project.
+  - property: og:type
+    content: article
+  - property: og:url
+    content: https://docs.example.com/guide
+  - property: og:image
+    content: https://docs.example.com/overview.png
+  - property: og:image:width
+    content: 1200
+  - property: og:image:height
+    content: 630
+  - property: og:image:alt
+    content: Project architecture diagram
+  - property: og:image
+    content: https://docs.example.com/details.png
+  - property: og:image:alt
+    content: Detailed component diagram
+---
+```
+
+Each list entry has a `property` beginning with `og:` and a string or finite numeric `content`. Entries retain their order, including repeated properties. Put an image's width, height, and alt text immediately after that image. Other frontmatter fields remain available for your own metadata and stay hidden from the visible body.
+
+Canonical links and Open Graph URL values must use absolute HTTP or HTTPS URLs. Use public URLs for shared pages. mdxserve does not infer a production hostname or rewrite local filesystem paths into public URLs. Exported files retain the URLs you declared.
+
+Malformed metadata produces `frontmatter-metadata` warnings from `mdxserve validate`. Invalid metadata falls back to the filename title and omits the declared head metadata, while the document body can still render. YAML aliases, duplicate keys, oversized metadata, and unsupported tags are rejected for metadata extraction. Edit metadata in the source file; saving a body section preserves the leading YAML block.
+
+The frontmatter block must be at the beginning of the document. A YAML example in a code fence or a later thematic break does not declare page metadata. Expressions and imported React components do not compute frontmatter values. Native JSX head tags can still render in the browser, but they are not extracted into the initial response by this feature. Avoid mixing native head declarations with frontmatter for the same fields.
+
 ## One server per user
 
 Only one `mdxserve serve` runs per user at a time. On start it takes a pid lockfile at

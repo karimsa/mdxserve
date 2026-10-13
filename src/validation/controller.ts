@@ -18,6 +18,7 @@ export const diagnosticSchema = z.object({
 		"unresolved-import",
 		"render-error",
 		"mermaid-chart",
+		"frontmatter-metadata",
 	]),
 	message: z.string(),
 	line: z.number().optional(),
@@ -48,6 +49,7 @@ const validateDoc = procedure(
 		const outcome = await new ValidationService(
 			ctx.rootInfos,
 			ctx.registry,
+			ctx.docs,
 			ctx.render,
 		).validateDoc({
 			path: input.path,

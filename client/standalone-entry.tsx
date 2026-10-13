@@ -5,6 +5,8 @@ import type { ComponentType } from "react";
 import { mdxComponentsBase } from "./mdx-components-base";
 import { docModuleCache } from "./doc-module-cache";
 import { StandaloneShell } from "./shell/StandaloneShell";
+import { applyHeadMetadata } from "./head-metadata";
+import type { DocumentMetadata } from "../src/docs/metadata";
 
 /**
  * What `mdxserve export` embeds as `#__mdxserve_route` JSON, read back by
@@ -16,6 +18,7 @@ export interface StandaloneMeta {
 	path: string;
 	label: string;
 	mtime?: number;
+	metadata?: DocumentMetadata;
 }
 
 /** Parses the `#__mdxserve_route` script tag the same way entry.tsx does. */
@@ -35,12 +38,18 @@ export function readMeta(): StandaloneMeta {
  * export names and this signature stable, since that generated import is not
  * type-checked against this file.
  */
-export function mount(Doc: ComponentType, meta: StandaloneMeta): void {
+export function mount(
+	Doc: ComponentType,
+	meta: StandaloneMeta,
+	moduleMetadata?: DocumentMetadata,
+): void {
 	const rootEl = document.getElementById("root");
 	if (!rootEl) return;
 	// DocView reads the module from the router's cache; seed it with the doc
 	// that was compiled into this file so it renders synchronously.
-	docModuleCache.set(meta.path, { status: "ok", Component: Doc });
+	const metadata = moduleMetadata ?? meta.metadata ?? { openGraph: [] };
+	docModuleCache.set(meta.path, { status: "ok", Component: Doc, metadata });
+	applyHeadMetadata(meta.label, metadata);
 	createRoot(rootEl).render(
 		<MotionConfig reducedMotion="user">
 			<MDXProvider components={mdxComponentsBase}>

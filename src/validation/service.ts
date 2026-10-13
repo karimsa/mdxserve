@@ -1,3 +1,4 @@
+import type { MetadataPort } from "../docs/metadata-port.js";
 import fsp from "node:fs/promises";
 import { validateSource, type ValidationResult } from "./validate.js";
 import { resolveDocPath, importResolves } from "../roots/paths.js";
@@ -25,6 +26,7 @@ export class ValidationService {
 	constructor(
 		private readonly rootInfos: RootInfo[],
 		private readonly registry: Registry,
+		private readonly metadata: MetadataPort,
 		private readonly render?: RenderPort,
 	) {}
 
@@ -57,6 +59,7 @@ export class ValidationService {
 	/** Validate already-read `source` for `absPath`; render only when `allowRender` is true. */
 	async validateText(input: ValidateTextInput): Promise<ValidationResult> {
 		return validateSource({
+			metadata: this.metadata,
 			source: input.source,
 			path: input.absPath,
 			registry: this.registry,

@@ -1,3 +1,4 @@
+import { createMetadataPort } from "../helpers/metadata.js";
 import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -20,6 +21,7 @@ beforeAll(async () => {
 	temporaryDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-immutable-site-"));
 	server = http.createServer();
 	vite = await createDevServer({
+		metadata: createMetadataPort(),
 		roots: [path.join(getPackageRoot(), "site")],
 		viteRoot: temporaryDir,
 		cacheDir: path.join(temporaryDir, "cache"),

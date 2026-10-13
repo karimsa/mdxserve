@@ -1,12 +1,20 @@
+import type { MetadataPort } from "./metadata-port.js";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { spliceLines } from "./edit.js";
+import { leadingFrontmatter, type LeadingFrontmatter } from "./frontmatter.js";
 import { resolveDocPath } from "../roots/paths.js";
 import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
 import type { Diagnostic } from "../validation/validate.js";
+import {
+	MAX_METADATA_PREFIX_BYTES,
+	parseMetadata,
+	type DocumentMetadata,
+	type MetadataDiagnostic,
+} from "./metadata.js";
 
 // A doc above this size isn't a "quick prose fix" candidate; refuse to load
 // it into the (in-memory, un-virtualized) Tiptap editor at all.
@@ -40,6 +48,21 @@ export type ReadSourceResult =
 	| { kind: "not-found"; message: string }
 	| { kind: "too-large"; size: number };
 
+export type ReadMetadataResult =
+	| { kind: "ok"; metadata: DocumentMetadata; diagnostics: MetadataDiagnostic[] }
+	| { kind: "not-found"; message: string };
+
+function isUnavailableFile(error: unknown): boolean {
+	const code = (error as NodeJS.ErrnoException | null)?.code;
+	return (
+		code === "ENOENT" ||
+		code === "ENOTDIR" ||
+		code === "EISDIR" ||
+		code === "EACCES" ||
+		code === "EPERM"
+	);
+}
+
 export interface SaveSectionInput {
 	path: string;
 	startLine: number;
@@ -60,7 +83,23 @@ export type SaveSectionResult =
 	| { kind: "invalid-doc"; message: string; diagnostics: Diagnostic[] };
 
 /** Owns per-file save locks, so a `DocsService` is per-process state. */
-export class DocsService {
+export class DocsService implements MetadataPort {
+	/** Parse static metadata from source without reading files or evaluating document code. */
+	parseMetadata(
+		source: string,
+		truncated = false,
+	): {
+		metadata: DocumentMetadata;
+		diagnostics: MetadataDiagnostic[];
+	} {
+		return parseMetadata(source, truncated);
+	}
+
+	/** Locate the leading YAML block using the document's shared frontmatter syntax. */
+	leadingFrontmatter(source: string): LeadingFrontmatter | undefined {
+		return leadingFrontmatter(source);
+	}
+
 	// Saves to the same file run one at a time. Two overlapping saves that both
 	// passed the mtime check could otherwise each read the pre-edit file and
 	// each write, the second silently discarding the first; chaining them means
@@ -103,6 +142,43 @@ export class DocsService {
 		return { kind: "ok", source: { text, version: versionOf(text) } };
 	}
 
+	/** Read static page metadata without the editor's source-size limit or version hash. */
+	async readMetadata(inputPath: string, publicOnly = false): Promise<ReadMetadataResult> {
+		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
+		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
+		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
+		let handle;
+		try {
+			handle = await fsp.open(resolved.abs, "r");
+		} catch (error) {
+			if (isUnavailableFile(error))
+				return { kind: "not-found", message: `${resolved.abs} not found` };
+			throw error;
+		}
+		try {
+			const prefix = Buffer.alloc(MAX_METADATA_PREFIX_BYTES + 1);
+			let bytesRead = 0;
+			while (bytesRead < prefix.length) {
+				const result = await handle.read(prefix, bytesRead, prefix.length - bytesRead, bytesRead);
+				if (!result.bytesRead) break;
+				bytesRead += result.bytesRead;
+			}
+			return {
+				kind: "ok",
+				...this.parseMetadata(
+					prefix.subarray(0, bytesRead).toString("utf8"),
+					bytesRead > MAX_METADATA_PREFIX_BYTES,
+				),
+			};
+		} catch (error) {
+			if (isUnavailableFile(error))
+				return { kind: "not-found", message: `${resolved.abs} not found` };
+			throw error;
+		} finally {
+			await handle.close();
+		}
+	}
+
 	/**
 	 * Write back exactly the line range a section editor was seeded from. The
 	 * version token is checked against the file the client actually read (not
@@ -142,7 +218,7 @@ export class DocsService {
 				return { kind: "invalid-range", message: spliced.error };
 			}
 
-			const validation = await new ValidationService(rootInfos, registry).validateText({
+			const validation = await new ValidationService(rootInfos, registry, this).validateText({
 				source: spliced.text,
 				absPath: abs,
 			});

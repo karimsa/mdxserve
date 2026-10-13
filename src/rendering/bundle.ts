@@ -1,3 +1,4 @@
+import type { MetadataPort } from "../docs/metadata-port.js";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
@@ -42,8 +43,8 @@ function standaloneEntryPlugin(options: {
 			return [
 				`import ${JSON.stringify(cssFile)};`,
 				`import { mount, readMeta } from ${JSON.stringify(path.join(pkgRoot, "client", "standalone-entry.tsx"))};`,
-				`import Doc from ${JSON.stringify(docPath)};`,
-				`mount(Doc, readMeta());`,
+				`import Doc, { __mdxserveMetadata } from ${JSON.stringify(docPath)};`,
+				`mount(Doc, readMeta(), __mdxserveMetadata);`,
 			].join("\n");
 		},
 	};
@@ -235,7 +236,10 @@ function isUnder(file: string, dir: string): boolean {
 	return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-export async function bundleStandalone(input: BundleInput): Promise<BundleOutput> {
+export async function bundleStandalone(
+	input: BundleInput,
+	metadata: MetadataPort,
+): Promise<BundleOutput> {
 	const pkgRoot = getPackageRoot();
 	const docDir = path.dirname(input.docPath);
 	const warnings: string[] = [];
@@ -280,6 +284,7 @@ export async function bundleStandalone(input: BundleInput): Promise<BundleOutput
 				"utf8",
 			);
 			const shared = sharedViteConfig({
+				metadata,
 				// remarkSections deliberately omitted → no <MdSection> in the output.
 				rehypePlugins: [
 					rehypeInlineImages({ base: docDir, onWarning: (message) => warnings.push(message) }),

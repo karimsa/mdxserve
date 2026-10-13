@@ -1,3 +1,5 @@
+import type { MetadataPort } from "../../docs/metadata-port.js";
+
 /**
  * `.md` files are compiled as MDX so builtin components work in both
  * extensions, but that makes a bare `<` followed by a digit, whitespace or
@@ -5,11 +7,13 @@
  * perfectly valid Markdown. Such a `<` can never start a JSX tag, so escape it
  * as `\<` — outside fenced and inline code, which MDX already treats literally.
  */
-export function escapeBareLt(source: string): string {
-	const lines = source.split("\n");
+export function escapeBareLt(source: string, metadata: MetadataPort): string {
+	const parts = source.split(/(\r\n|\r|\n)/);
+	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
-	for (let index = 0; index < lines.length; index++) {
-		const line = lines[index];
+	for (let index = 0; index < parts.length; index += 2) {
+		if (index / 2 < frontmatterEndLine) continue;
+		const line = parts[index];
 		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
 			const marker = match[1];
@@ -18,9 +22,9 @@ export function escapeBareLt(source: string): string {
 			continue;
 		}
 		if (fence) continue;
-		lines[index] = escapeOutsideInlineCode(line);
+		parts[index] = escapeOutsideInlineCode(line);
 	}
-	return lines.join("\n");
+	return parts.join("");
 }
 
 function escapeOutsideInlineCode(line: string): string {

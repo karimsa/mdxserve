@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { createMetadataPort } from "../helpers/metadata.js";
 import { Table } from "../../client/Table";
 import { MarkdownTable } from "../../client/MarkdownTable";
 import DataTable from "../../client/builtins/DataTable";
@@ -93,7 +94,7 @@ describe("typed table values", () => {
 	});
 });
 async function renderMarkdown(source: string, extension = "md") {
-	const { providerImportSource: _, ...options } = mdxCompileOptions();
+	const { providerImportSource: _, ...options } = mdxCompileOptions(createMetadataPort());
 	const result = await evaluate(
 		{ value: source, path: `table.${extension}` },
 		{ ...options, ...runtime },
