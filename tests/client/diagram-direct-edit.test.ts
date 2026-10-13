@@ -5,6 +5,7 @@ import { Provider } from "jotai";
 import { expect, it, vi } from "vitest";
 import { createProcessor } from "@mdx-js/mdx";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { createMetadataPort } from "../helpers/metadata.js";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
@@ -88,7 +89,9 @@ it("hides direct editing inside JSX while the following blockquote diagram still
 		">  A --> B",
 		"> ```",
 	].join("\n");
-	const tree = createProcessor({ ...mdxCompileOptions(), format: "mdx" }).parse(markdown) as Root;
+	const tree = createProcessor({ ...mdxCompileOptions(createMetadataPort()), format: "mdx" }).parse(
+		markdown,
+	) as Root;
 	remarkSections()(tree);
 	const sections = tree.children.filter(
 		(node: RootContent): node is MdxJsxFlowElement =>

@@ -4,6 +4,7 @@ import { builtins } from "../../client/builtins";
 import { slashBlocks } from "../../client/editor/blocks";
 import { validateSource } from "../../src/validation/validate";
 import type { Registry } from "../../src/components/registry";
+import { createMetadataPort } from "../helpers/metadata.js";
 
 const registry: Registry = {
 	version: 1,
@@ -23,6 +24,7 @@ describe("component slash templates", () => {
 	it.each(["md", "mdx"])("compile and pass builtin validation in .%s", async (extension) => {
 		for (const block of slashBlocks.filter((item) => item.kind === "component")) {
 			const result = await validateSource({
+				metadata: createMetadataPort(),
 				source: block.template!,
 				path: `example.${extension}`,
 				registry,
