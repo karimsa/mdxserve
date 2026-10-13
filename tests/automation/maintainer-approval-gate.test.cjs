@@ -41,7 +41,12 @@ function harness({
 	pullRequests = [{ number: 2, head: { sha: headSha }, user: { login: "contributor" } }],
 	reviews = [review(1, "APPROVED")],
 	existingChecks = [
-		{ id: 99, external_id: "maintainer-approval-gate:2", app: { slug: "github-actions" } },
+		{
+			id: 99,
+			status: "in_progress",
+			external_id: "maintainer-approval-gate:2",
+			app: { slug: "github-actions" },
+		},
 	],
 	currentHead = headSha,
 	currentAuthor = "contributor",
@@ -120,6 +125,48 @@ test("accepts current-head approval and resets the check before reading reviews"
 	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
 	assert.equal(fixture.writes[1].conclusion, "success");
 	assert.match(fixture.writes[1].output.summary, new RegExp(headSha));
+});
+
+test("creates a new failing run when a completed approval is invalidated", async () => {
+	const fixture = harness({
+		existingChecks: [
+			{
+				id: 99,
+				status: "completed",
+				conclusion: "success",
+				external_id: "maintainer-approval-gate:2",
+				app: { slug: "github-actions" },
+			},
+		],
+		reviews: [review(1, "APPROVED"), review(2, "DISMISSED")],
+	});
+	await fixture.run();
+	assert.equal(fixture.writes[0].head_sha, headSha);
+	assert.equal(fixture.writes[0].external_id, "maintainer-approval-gate:2");
+	assert.equal(fixture.writes[0].check_run_id, undefined);
+	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
+	assert.equal(fixture.writes[1].check_run_id, 100);
+	assert.equal(fixture.writes[1].conclusion, "failure");
+});
+
+test("creates a new successful run when a completed failure receives approval", async () => {
+	const fixture = harness({
+		existingChecks: [
+			{
+				id: 99,
+				status: "completed",
+				conclusion: "failure",
+				external_id: "maintainer-approval-gate:2",
+				app: { slug: "github-actions" },
+			},
+		],
+	});
+	await fixture.run();
+	assert.equal(fixture.writes[0].head_sha, headSha);
+	assert.equal(fixture.writes[0].check_run_id, undefined);
+	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
+	assert.equal(fixture.writes[1].check_run_id, 100);
+	assert.equal(fixture.writes[1].conclusion, "success");
 });
 
 test("fails after dismissal, changed decision, old approval, or no review", async () => {

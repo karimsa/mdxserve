@@ -30,7 +30,10 @@ async function reconcile({ github, context, core }) {
 			per_page: 100,
 		});
 		const previous = existing.find(
-			(check) => check.app?.slug === "github-actions" && check.external_id === externalId,
+			(check) =>
+				check.app?.slug === "github-actions" &&
+				check.external_id === externalId &&
+				check.status !== "completed",
 		);
 		const pending = {
 			...repo,
@@ -41,7 +44,8 @@ async function reconcile({ github, context, core }) {
 				summary: `PR #${pullRequest.number} needs approval from ${MAINTAINER_LOGIN} for commit ${headSha}, unless ${MAINTAINER_LOGIN} authored it.`,
 			},
 		};
-		// Reset before reading review evidence so API errors cannot preserve a stale pass.
+		// Create a fresh evaluation after a completed check. Start it before reading
+		// evidence so API errors cannot leave the old result as the latest one.
 		const { data: check } = previous
 			? await github.rest.checks.update({ ...pending, check_run_id: previous.id })
 			: await github.rest.checks.create({
