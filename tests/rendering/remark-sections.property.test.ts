@@ -174,7 +174,7 @@ describe("remarkSections — invariance", () => {
 		);
 	});
 
-	it("adjacent sections are separated by a heading or a standalone Mermaid block", () => {
+	it("adjacent sections are separated by a heading, standalone Mermaid block, or raw JSX", () => {
 		fc.assert(
 			fc.property(docArb, (src) => {
 				const tree = runPlugin(src);
@@ -190,7 +190,15 @@ describe("remarkSections — invariance", () => {
 							section.children.length === 1 && block?.type === "code" && block.lang === "mermaid"
 						);
 					};
-					expect(startsWithSmallHeading || isDiagram(current) || isDiagram(next)).toBe(true);
+					const isRawJsx = (section: MdxJsxFlowElement) =>
+						section.children.length === 1 && section.children[0]?.type === "mdxJsxFlowElement";
+					expect(
+						startsWithSmallHeading ||
+							isDiagram(current) ||
+							isDiagram(next) ||
+							isRawJsx(current) ||
+							isRawJsx(next),
+					).toBe(true);
 				}
 			}),
 		);
@@ -289,14 +297,17 @@ describe("remarkSections — examples", () => {
 		);
 	});
 
-	it("heading, JSX block and trailing paragraph share an editable source range", () => {
+	it("isolates a JSX block from surrounding Markdown for safe diagram editing", () => {
 		const src = "# T\n\npara\n\n<Callout>\n\nx\n\n</Callout>\n\npara2\n";
 		const tree = runPlugin(src);
 		const sections = tree.children.filter(isMdSection);
-		expect(sections).toHaveLength(1);
+		expect(sections).toHaveLength(3);
 		expect(attrValue(sections[0], "startLine")).toBe("1");
-		expect(attrValue(sections[0], "endLine")).toBe("11");
-		expect(sections[0].children.some((child) => child.type === "mdxJsxFlowElement")).toBe(true);
+		expect(attrValue(sections[1], "startLine")).toBe("5");
+		expect(attrValue(sections[1], "endLine")).toBe("9");
+		expect(attrValue(sections[1], "rawJsx")).toBe("true");
+		expect(sections[1].children).toHaveLength(1);
+		expect(attrValue(sections[2], "startLine")).toBe("11");
 	});
 
 	it("nested component expressions remain inside the range without covering following ESM", () => {
@@ -313,9 +324,10 @@ describe("remarkSections — examples", () => {
 		].join("\n");
 		const tree = runPlugin(src);
 		const sections = tree.children.filter(isMdSection);
-		expect(sections).toHaveLength(1);
+		expect(sections).toHaveLength(3);
 		expect(attrValue(sections[0], "startLine")).toBe("1");
-		expect(attrValue(sections[0], "endLine")).toBe("7");
+		expect(attrValue(sections[1], "rawJsx")).toBe("true");
+		expect(attrValue(sections[2], "endLine")).toBe("7");
 		expect(tree.children.at(-1)?.type).toBe("mdxjsEsm");
 	});
 });
