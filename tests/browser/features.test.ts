@@ -111,7 +111,7 @@ beforeAll(async () => {
 		);
 		await fs.writeFile(
 			path.join(fixtureDir, `literal-comparison.${extension}`),
-			"export const count = 2\nexport const value = '}'\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\nUnmatched ` marker\n\nWidth < 10\n",
+			"export let count = 2\nexport const value = '}'\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\n{count++ / 2 < 10 ? 'Division works' : 'Division failed'}\n\nUnmatched ` marker\n\n```text\n`\n```\n\nWidth < 10\n",
 		);
 	}
 	await fs.writeFile(
@@ -224,13 +224,14 @@ describe("browser feature journeys", () => {
 		}
 	}, 90_000);
 
-	it("renders regex comparisons and prose after an unmatched backtick in both extensions", async () => {
+	it("renders regex, division, and prose around unmatched backticks in both extensions", async () => {
 		const { context, page } = await openPage();
 		try {
 			for (const extension of ["md", "mdx"]) {
 				await page.goto(docUrl(`literal-comparison.${extension}`));
 				await page.getByRole("heading", { name: "Literal comparison" }).waitFor();
 				await page.getByText("Expression works").waitFor();
+				await page.getByText("Division works").waitFor();
 				await page.getByText("Width < 10").waitFor();
 			}
 		} finally {

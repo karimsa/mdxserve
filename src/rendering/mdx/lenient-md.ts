@@ -59,8 +59,20 @@ interface EscapeState {
 }
 
 function hasClosingTicks(remaining: string, ticks: string): boolean {
-	for (const match of remaining.matchAll(/`+/g)) {
-		if (match[0].length === ticks.length) return true;
+	let fence: string | null = null;
+	for (const [lineIndex, line] of remaining.split(/\r\n|\r|\n/).entries()) {
+		if (lineIndex > 0) {
+			const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1];
+			if (marker) {
+				if (!fence) fence = marker;
+				else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+				continue;
+			}
+		}
+		if (fence) continue;
+		for (const match of line.matchAll(/`+/g)) {
+			if (match[0].length === ticks.length) return true;
+		}
 	}
 	return false;
 }
@@ -112,6 +124,10 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 			if (char === "/" && state.regexAllowed && escaped.at(-1) !== "<") {
 				state.regex = true;
 				state.regexClass = false;
+			} else if ((char === "+" || char === "-") && next === char) {
+				escaped += char + char;
+				index++;
+				continue;
 			} else if (char === "'" || char === '"' || char === "`") state.quote = char;
 			else if (char === "{") {
 				state.expressionDepth++;

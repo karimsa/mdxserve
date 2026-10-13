@@ -65,9 +65,20 @@ describe("escapeBareLt", () => {
 		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
 	});
 
+	it("preserves division after a postfix operator in an expression", () => {
+		const expression = "{ count++ / 2 < 10 }";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
 	it("escapes prose after an unmatched backtick", () => {
 		expect(escapeBareLt("An unmatched ` marker\nWidth < 10")).toBe(
 			"An unmatched ` marker\nWidth \\< 10",
+		);
+	});
+
+	it("does not use backticks inside a fence as an inline-code closer", () => {
+		expect(escapeBareLt("Unmatched ` marker\n```text\n`\n```\nWidth < 10")).toBe(
+			"Unmatched ` marker\n```text\n`\n```\nWidth \\< 10",
 		);
 	});
 
