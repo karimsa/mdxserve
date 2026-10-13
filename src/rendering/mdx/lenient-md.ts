@@ -71,7 +71,8 @@ function hasClosingTicks(remaining: string, ticks: string): boolean {
 		}
 		if (fence) continue;
 		for (const match of line.matchAll(/`+/g)) {
-			if (match[0].length === ticks.length) return true;
+			const precedingSlashes = line.slice(0, match.index).match(/\\+$/)?.[0].length ?? 0;
+			if (precedingSlashes % 2 === 0 && match[0].length === ticks.length) return true;
 		}
 	}
 	return false;
@@ -150,7 +151,7 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 			continue;
 		}
 
-		if (char === "`") {
+		if (char === "`" && !alreadyEscaped) {
 			const ticks = line.slice(index).match(/^`+/)?.[0] ?? "`";
 			if (
 				state.inlineTicks === 0 &&

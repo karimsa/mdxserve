@@ -113,6 +113,10 @@ beforeAll(async () => {
 			path.join(fixtureDir, `literal-comparison.${extension}`),
 			"export let count = 2\nexport const value = '}'\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\n{count++ / 2 < 10 ? 'Division works' : 'Division failed'}\n\nUnmatched ` marker\n\n```text\n`\n```\n\nWidth < 10\n",
 		);
+		await fs.writeFile(
+			path.join(fixtureDir, `escaped-backtick.${extension}`),
+			"# Escaped backtick\n\nEscaped \\` marker\n\nWidth < 10\n\nclosing ` marker\n",
+		);
 	}
 	await fs.writeFile(
 		path.join(fixtureDir, "metadata.md"),
@@ -224,7 +228,7 @@ describe("browser feature journeys", () => {
 		}
 	}, 90_000);
 
-	it("renders regex, division, and prose around unmatched backticks in both extensions", async () => {
+	it("renders expressions and prose around unmatched or escaped backticks in both extensions", async () => {
 		const { context, page } = await openPage();
 		try {
 			for (const extension of ["md", "mdx"]) {
@@ -232,6 +236,9 @@ describe("browser feature journeys", () => {
 				await page.getByRole("heading", { name: "Literal comparison" }).waitFor();
 				await page.getByText("Expression works").waitFor();
 				await page.getByText("Division works").waitFor();
+				await page.getByText("Width < 10").waitFor();
+				await page.goto(docUrl(`escaped-backtick.${extension}`));
+				await page.getByRole("heading", { name: "Escaped backtick" }).waitFor();
 				await page.getByText("Width < 10").waitFor();
 			}
 		} finally {

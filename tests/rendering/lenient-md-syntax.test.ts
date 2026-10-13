@@ -82,6 +82,12 @@ describe("escapeBareLt", () => {
 		);
 	});
 
+	it("does not use escaped backticks as inline-code delimiters", () => {
+		expect(escapeBareLt("Escaped \\` marker\nWidth < 10\nclosing ` marker")).toBe(
+			"Escaped \\` marker\nWidth \\< 10\nclosing ` marker",
+		);
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.
