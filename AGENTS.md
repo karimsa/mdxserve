@@ -94,3 +94,42 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 ## Creating PRs
 
 - You must take screenshots of the working functionality and upload them into the PR description
+
+### PR titles and changelog entries
+
+- Squash-merge PRs using the PR title as the commit subject and preserve GitHub's
+  appended PR reference (`(#123)`). `yarn changelog` uses these subjects as release
+  notes and turns the references into PR links.
+- Use `feat: <change>` for new features and improvements, and `fix: <change>` for
+  bug fixes. An optional scope is allowed, for example,
+  `feat(editor): Add slash commands for document blocks` or
+  `fix(network): Prevent hosted sites from connecting to localhost`.
+- Describe the resulting behavior in a concise, standalone title that makes sense
+  to someone reading the changelog. Keep implementation details in the PR body.
+- Use `docs:`, `chore:`, `build:`, `ci:`, `refactor:`, `style:`, or `test:` for
+  maintenance without a user-visible feature or fix. These are omitted from the
+  changelog. `perf:` appears under What's new and `revert:` under Bug fixes.
+- Mark breaking changes with `!` before the colon and explain the migration in the
+  PR body. Choose the release version explicitly, including any breaking changes.
+- Title release PRs with only the version number, for example `0.5.0`. The
+  changelog generator omits these version commits.
+
+## Releasing
+
+1. Create a release branch from the latest `origin/main`. Run
+   `npm version minor --no-git-tag-version` (or the requested version bump),
+   commit only the version change with the required `Co-authored-by` trailer,
+   and open a PR titled only with the version number. `main` requires a PR and
+   passing status checks.
+2. Wait for the version PR to merge, then fetch and check out the merged commit on `main`.
+   Confirm `package.json` contains the intended release version.
+3. Create an annotated tag on that merged commit matching the package version
+   (for example, `git tag -a v0.5.0 -m 'Release 0.5.0'`), then push that tag
+   (`git push origin v0.5.0`). Create and push the release tag only after the PR merges.
+4. Verify the tag-triggered Release workflow succeeds. It publishes the package to
+   npm and then promotes the site deployment.
+5. Fetch tags, run `yarn changelog`, and review the generated `CHANGELOG.md`.
+   It lists released versions only, with commit subjects and PR links under
+   What's new and Bug fixes. Open a separate changelog PR after the release and
+   merge it through the usual checks and review. Review PR title wording before
+   merging feature PRs because the notes preserve commit subjects.

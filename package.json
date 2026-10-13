@@ -35,7 +35,8 @@
 		"lint": "oxlint",
 		"test": "vitest run",
 		"prepack": "yarn build",
-		"smoke": "bash scripts/smoke-pack.sh"
+		"smoke": "bash scripts/smoke-pack.sh",
+		"changelog": "tsx scripts/changelog.ts"
 	},
 	"packageManager": "yarn@4.18.0",
 	"engines": {
@@ -147,6 +148,7 @@
 		"@yarnpkg/types": "4.0.1",
 		"esbuild": "0.28.2",
 		"fast-check": "4.9.0",
+		"git-cliff": "2.14.2",
 		"oxlint": "1.77.0",
 		"prettier": "3.9.6",
 		"tsx": "4.23.12",
