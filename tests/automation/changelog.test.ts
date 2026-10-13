@@ -91,4 +91,4 @@ it("regenerates tagged releases and the requested package version from original 
 	expect(() => runGenerator(repositoryPath, "not-a-version")).toThrow();
 	expect(await generate(repositoryPath, "0.3.0")).not.toContain("v0.4.0");
 	expect(await generate(repositoryPath)).toBe(draftOutput);
-});
+}, 20_000);

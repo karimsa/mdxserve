@@ -433,7 +433,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 
 	// escapeBareLt never adds/removes lines, so `line` stays exact; `column`
 	// may drift by a character or two on a line where a `<` got escaped.
-	const value = /\.md$/i.test(filePath) ? escapeBareLt(input.source, input.metadata) : input.source;
+	const value = escapeBareLt(input.source, input.metadata);
 
 	let captured: Root | undefined;
 	const captureTree = () => (tree: Root) => {

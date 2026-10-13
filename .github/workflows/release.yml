@@ -47,6 +47,12 @@ jobs:
       - name: Checks
         run: yarn constraints && yarn format:check && yarn lint && yarn typecheck && yarn test
 
+      - name: Install browser
+        run: yarn playwright install --with-deps chromium
+
+      - name: Test browser features
+        run: yarn test:browser
+
       - name: Build
         run: yarn build
 

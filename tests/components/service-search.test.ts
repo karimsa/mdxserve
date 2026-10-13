@@ -3,7 +3,7 @@ import fc from "fast-check";
 import { ComponentsService } from "../../src/components/service.js";
 import type { Registry } from "../../src/components/registry.js";
 
-// Reused from tests/components/registry.property.test.ts (copied, not
+// Reused from tests/components/registry-search.test.ts (copied, not
 // imported — arbitraries stay local to each test file).
 const nameArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,9}$/);
 

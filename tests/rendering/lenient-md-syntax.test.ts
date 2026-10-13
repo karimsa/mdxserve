@@ -48,6 +48,66 @@ describe("escapeBareLt", () => {
 		expect(escapeBareLt("---\ndescription: Value < 10\n")).toBe("---\ndescription: Value \\< 10\n");
 	});
 
+	it("preserves nested and multiline MDX expressions while escaping neighboring prose", () => {
+		const expression = [
+			"{(() => {",
+			'  const label = "}";',
+			"  return [1, 2].filter(",
+			"    (value) => value < 10",
+			"  ).map((value) => `${label}${value}`).join(',');",
+			"})()}",
+		].join("\n");
+		expect(escapeBareLt(`${expression}\nWidth < 10\n`)).toBe(`${expression}\nWidth \\< 10\n`);
+	});
+
+	it("preserves comparisons after regex braces inside an MDX expression", () => {
+		const expression = "{ /}/.test(value) && count < 10 }";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
+	it("preserves regex literals after a control-flow condition", () => {
+		const expression = "{(() => { if (ok) /}/.test(value) })() && count < 10}";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
+	it("preserves quoted JSX attribute values", () => {
+		const tag = '<Callout title="width < 10">Value</Callout>';
+		expect(escapeBareLt(`${tag}\nWidth < 10`)).toBe(`${tag}\nWidth \\< 10`);
+	});
+
+	it("preserves division after a postfix operator in an expression", () => {
+		const expression = "{ count++ / 2 < 10 }";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
+	it("escapes prose after an unmatched backtick", () => {
+		expect(escapeBareLt("An unmatched ` marker\nWidth < 10")).toBe(
+			"An unmatched ` marker\nWidth \\< 10",
+		);
+	});
+
+	it("does not use backticks inside a fence as an inline-code closer", () => {
+		expect(escapeBareLt("Unmatched ` marker\n```text\n`\n```\nWidth < 10")).toBe(
+			"Unmatched ` marker\n```text\n`\n```\nWidth \\< 10",
+		);
+	});
+
+	it("does not use escaped backticks as inline-code delimiters", () => {
+		expect(escapeBareLt("Escaped \\` marker\nWidth < 10\nclosing ` marker")).toBe(
+			"Escaped \\` marker\nWidth \\< 10\nclosing ` marker",
+		);
+	});
+
+	it("keeps comparisons in ESM declarations and escapes following prose", () => {
+		const source = "export const small = 1 < 10\n\nWidth < 10";
+		expect(escapeBareLt(source)).toBe("export const small = 1 < 10\n\nWidth \\< 10");
+	});
+
+	it("does not close a fence on a line with trailing content", () => {
+		const source = "```text\n```not-a-closer\nWidth < 10\n```\nOutside < 10";
+		expect(escapeBareLt(source)).toBe("```text\n```not-a-closer\nWidth < 10\n```\nOutside \\< 10");
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.

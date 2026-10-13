@@ -16,6 +16,7 @@ describe("TrashService", () => {
 		await fs.writeFile(path.join(trashDir, "delete-me.md"), "# Bye\n", "utf8");
 		await fs.mkdir(path.join(trashDir, "adir"));
 		await fs.writeFile(path.join(trashDir, ".dotfile.md"), "# Dot\n", "utf8");
+		await fs.writeFile(path.join(trashDir, "notes.txt"), "not a doc\n", "utf8");
 		await fs.symlink(escapeOutside, path.join(trashDir, "escape"), "dir");
 		await fs.writeFile(path.join(escapeOutside, "outside.md"), "# Outside\n", "utf8");
 	});
@@ -64,6 +65,17 @@ describe("TrashService", () => {
 		]);
 		expect(result.failed).toEqual([{ path: target, error: "Invalid path" }]);
 		expect(spy).not.toHaveBeenCalled();
+	});
+
+	it("never trashes a non-document file", async () => {
+		const trashFile = vi.fn(async () => {});
+		const target = path.join(trashDir, "notes.txt");
+		const result = await new TrashService([{ name: "docs", dir: trashDir }], trashFile).moveToTrash(
+			[target],
+		);
+		expect(result.failed).toEqual([{ path: target, error: "Invalid path" }]);
+		expect(trashFile).not.toHaveBeenCalled();
+		expect(await fs.readFile(target, "utf8")).toBe("not a doc\n");
 	});
 
 	it("fails a path through a symlink that escapes the root with 'Invalid path'", async () => {

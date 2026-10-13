@@ -281,7 +281,7 @@ function SelectMenu({
 							}
 							className={menuItemClass(fileEntries.length > 0)}
 						>
-							<span>All files</span>
+							<span>All documents</span>
 							<span className="font-mono text-[length:var(--size-xs)] text-text-subtle tabular-nums">
 								{fileEntries.length}
 							</span>
@@ -402,7 +402,7 @@ export function ListingView({
 		setConfirmOpen(false);
 	}, [path]);
 
-	const fileEntries = useMemo(() => entries.filter((entry) => !entry.isDir), [entries]);
+	const fileEntries = useMemo(() => entries.filter((entry) => entry.isDoc), [entries]);
 	// Drop names that left the listing (watcher push, external deletes) from the
 	// set itself — otherwise a file recreated with the same name would come back
 	// already checked.
@@ -612,14 +612,15 @@ export function ListingView({
 							/>
 						);
 					}
-					const selection = !canDelete
-						? {}
-						: {
-								selectable: true,
-								checked: selectedNames.has(entry.name),
-								selectionActive,
-								onToggle: () => toggleSelected(entry.name),
-							};
+					const selection =
+						!canDelete || !entry.isDoc
+							? {}
+							: {
+									selectable: true,
+									checked: selectedNames.has(entry.name),
+									selectionActive,
+									onToggle: () => toggleSelected(entry.name),
+								};
 					if (entry.isDoc) {
 						return (
 							<Row

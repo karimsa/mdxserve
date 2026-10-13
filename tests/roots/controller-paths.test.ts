@@ -42,7 +42,7 @@ const relativeStringArb = fc
 	.map((segments) => segments.join("/"))
 	.filter((value) => value.length > 0 && !path.isAbsolute(value));
 
-describe("addRoots property: not-found", () => {
+describe("addRoots missing paths", () => {
 	it("a random absolute path under a directory that doesn't exist is always NOT_FOUND", async () => {
 		await fc.assert(
 			fc.asyncProperty(missingAbsPathArb, async (absent) => {
@@ -62,7 +62,7 @@ describe("addRoots property: not-found", () => {
 	});
 });
 
-describe("addRoots/removeRoots property: relative inputs never reach the service", () => {
+describe("addRoots/removeRoots relative paths", () => {
 	it("a relative dirs entry is rejected by the schema before RootsService sees it", async () => {
 		await fc.assert(
 			fc.asyncProperty(relativeStringArb, async (relative) => {
