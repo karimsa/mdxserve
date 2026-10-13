@@ -93,7 +93,7 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## Creating PRs
 
-- You must take screenshots of the working functionality and upload them into the PR description
+- Take screenshots of working functionality and upload them directly to GitHub in the PR description. Do not commit screenshots to the repository.
 
 ### PR titles and changelog entries
 
