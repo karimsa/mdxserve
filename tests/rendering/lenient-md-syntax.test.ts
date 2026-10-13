@@ -65,6 +65,16 @@ describe("escapeBareLt", () => {
 		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
 	});
 
+	it("preserves regex literals after a control-flow condition", () => {
+		const expression = "{(() => { if (ok) /}/.test(value) })() && count < 10}";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
+	it("preserves quoted JSX attribute values", () => {
+		const tag = '<Callout title="width < 10">Value</Callout>';
+		expect(escapeBareLt(`${tag}\nWidth < 10`)).toBe(`${tag}\nWidth \\< 10`);
+	});
+
 	it("preserves division after a postfix operator in an expression", () => {
 		const expression = "{ count++ / 2 < 10 }";
 		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);

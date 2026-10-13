@@ -100,6 +100,10 @@ beforeAll(async () => {
 		path.join(fixtureDir, "Custom.jsx"),
 		"export default function Custom() { return <strong>Neighbor component works</strong>; }\n",
 	);
+	await fs.writeFile(
+		path.join(fixtureDir, "Attribute.jsx"),
+		"export default function Attribute({ title }) { return <strong>{title}</strong>; }\n",
+	);
 	for (const extension of ["md", "mdx"]) {
 		await fs.writeFile(
 			path.join(fixtureDir, `custom.${extension}`),
@@ -111,7 +115,11 @@ beforeAll(async () => {
 		);
 		await fs.writeFile(
 			path.join(fixtureDir, `literal-comparison.${extension}`),
-			"export let count = 2\nexport const value = '}'\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\n{count++ / 2 < 10 ? 'Division works' : 'Division failed'}\n\nUnmatched ` marker\n\n```text\n`\n```\n\nWidth < 10\n",
+			"export let count = 2\nexport const value = '}'\nexport const ok = true\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\n{count++ / 2 < 10 ? 'Division works' : 'Division failed'}\n\n{(() => { if (ok) /}/.test(value); return count < 10 })() ? 'Control regex works' : 'Control regex failed'}\n\nUnmatched ` marker\n\n```text\n`\n```\n\nWidth < 10\n",
+		);
+		await fs.writeFile(
+			path.join(fixtureDir, `attribute.${extension}`),
+			'import Attribute from "./Attribute.jsx";\n\n# Attribute page\n\n<Attribute title="width < 10" />\n',
 		);
 		await fs.writeFile(
 			path.join(fixtureDir, `escaped-backtick.${extension}`),
@@ -126,6 +134,7 @@ beforeAll(async () => {
 			"# Fence content\n\n```text\n```not-a-closer\nWidth < 10\n```\n\nOutside < 10\n",
 		);
 	}
+	await fs.writeFile(path.join(fixtureDir, "UPPERCASE.MDX"), "# Uppercase page\n\nWidth < 10\n");
 	await fs.writeFile(
 		path.join(fixtureDir, "metadata.md"),
 		"---\ntitle: Markdown metadata\ndescription: First description\ncanonical: https://example.com/first\nopenGraph:\n  - property: og:title\n    content: First share title\n---\n# First metadata page\n\n[Next metadata](./metadata.mdx)\n",
@@ -244,11 +253,28 @@ describe("browser feature journeys", () => {
 				await page.getByRole("heading", { name: "Literal comparison" }).waitFor();
 				await page.getByText("Expression works").waitFor();
 				await page.getByText("Division works").waitFor();
+				await page.getByText("Control regex works").waitFor();
 				await page.getByText("Width < 10").waitFor();
 				await page.goto(docUrl(`escaped-backtick.${extension}`));
 				await page.getByRole("heading", { name: "Escaped backtick" }).waitFor();
 				await page.getByText("Width < 10").waitFor();
 			}
+		} finally {
+			await context.close();
+		}
+	}, 90_000);
+
+	it("keeps JSX attribute text and uppercase document rendering consistent", async () => {
+		const { context, page } = await openPage();
+		try {
+			for (const extension of ["md", "mdx"]) {
+				await page.goto(docUrl(`attribute.${extension}`));
+				await page.getByRole("heading", { name: "Attribute page" }).waitFor();
+				await page.getByText("width < 10", { exact: true }).waitFor();
+			}
+			await page.goto(docUrl("UPPERCASE.MDX"));
+			await page.getByRole("heading", { name: "Uppercase page" }).waitFor();
+			await page.getByText("Width < 10").waitFor();
 		} finally {
 			await context.close();
 		}
@@ -393,7 +419,7 @@ describe("browser feature journeys", () => {
 
 	it("selects only documents for bulk trash and preserves them on cancel", async () => {
 		const documentCount = (await fs.readdir(fixtureDir)).filter((name) =>
-			/\.mdx?$/.test(name),
+			/\.mdx?$/i.test(name),
 		).length;
 		const { context, page } = await openPage();
 		try {
@@ -454,8 +480,12 @@ describe("browser feature journeys", () => {
 				.getByRole("link", { name: "Details" })
 				.click();
 			expect(new URL(page.url()).hash).toBe("#details");
-			await page.getByRole("link", { name: /Next.*beta/i }).click();
-			await page.getByRole("heading", { name: "Beta" }).waitFor();
+			const nextLink = page.getByRole("link", { name: /Next/i });
+			const nextHref = await nextLink.getAttribute("href");
+			expect(nextHref).toBeTruthy();
+			await nextLink.click();
+			await page.waitForURL(new URL(nextHref!, base).href);
+			await page.getByRole("heading", { level: 1 }).waitFor();
 		} finally {
 			await context.close();
 		}

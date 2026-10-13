@@ -201,7 +201,20 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 			// The immutable site runs production React even though Vite is a dev
 			// server. Its MDX must use jsx/jsxs, not development-only jsxDEV.
 			...(process.env.MDXSERVE_IMMUTABLE_SITE === "1" ? { development: false } : {}),
-			mdxExtensions: [".mdx", ".md"],
+			mdxExtensions: [
+				".md",
+				".mD",
+				".Md",
+				".MD",
+				".mdx",
+				".mdX",
+				".mDx",
+				".mDX",
+				".Mdx",
+				".MdX",
+				".MDx",
+				".MDX",
+			],
 			mdExtensions: [],
 		}),
 		enforce: "pre" as const,
@@ -212,7 +225,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		name: "mdxserve:lenient-md",
 		enforce: "pre" as const,
 		transform(code: string, id: string) {
-			if (!/\.mdx?(\?|$)/.test(id)) return null;
+			if (!/\.mdx?(\?|$)/i.test(id)) return null;
 			const escaped = escapeBareLt(code, options.metadata);
 			return escaped === code ? null : { code: escaped, map: null };
 		},
@@ -221,7 +234,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 	const plugins: PluginOption[] = [
 		lenientMdPlugin,
 		mdxPlugin,
-		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
+		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/i }),
 		tailwindcss(),
 		...extraPlugins,
 	];

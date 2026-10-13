@@ -27,6 +27,11 @@ export function escapeBareLt(source: string, metadata: MetadataPort): string {
 		regex: false,
 		regexClass: false,
 		regexAllowed: true,
+		pendingControlParen: false,
+		parenStack: [],
+		jsxTag: false,
+		jsxQuote: null,
+		jsxExpressionDepth: 0,
 	};
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
@@ -74,6 +79,11 @@ interface EscapeState {
 	regex: boolean;
 	regexClass: boolean;
 	regexAllowed: boolean;
+	pendingControlParen: boolean;
+	parenStack: boolean[];
+	jsxTag: boolean;
+	jsxQuote: "'" | '"' | null;
+	jsxExpressionDepth: number;
 }
 
 function hasClosingTicks(remaining: string, ticks: string): boolean {
@@ -108,6 +118,17 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 		const next = line[index + 1];
 		const precedingSlashes = escaped.match(/\\+$/)?.[0].length ?? 0;
 		const alreadyEscaped = precedingSlashes % 2 === 1;
+		if (state.jsxTag) {
+			escaped += char;
+			if (state.jsxQuote) {
+				if (char === "\\") escaped += line[++index] ?? "";
+				else if (char === state.jsxQuote) state.jsxQuote = null;
+			} else if (char === '"' || char === "'") state.jsxQuote = char;
+			else if (char === "{") state.jsxExpressionDepth++;
+			else if (char === "}") state.jsxExpressionDepth--;
+			else if (char === ">" && state.jsxExpressionDepth === 0) state.jsxTag = false;
+			continue;
+		}
 
 		if (state.expressionDepth > 0) {
 			if (state.regex) {
@@ -159,8 +180,16 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 			} else if (char === "}") {
 				state.expressionDepth--;
 				state.regexAllowed = false;
+			} else if (char === "(") {
+				state.parenStack.push(state.pendingControlParen);
+				state.pendingControlParen = false;
+				state.regexAllowed = true;
+			} else if (char === ")") {
+				state.regexAllowed = state.parenStack.pop() ?? false;
 			} else if (/[A-Za-z_$]/.test(char)) {
 				const identifier = line.slice(index).match(/^[A-Za-z_$][\w$]*/)?.[0] ?? char;
+				state.pendingControlParen =
+					escaped.at(-1) !== "." && /^(?:if|while|for|with|switch|catch)$/.test(identifier);
 				escaped += identifier;
 				index += identifier.length - 1;
 				state.regexAllowed =
@@ -168,7 +197,7 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 						identifier,
 					);
 				continue;
-			} else if (/\d/.test(char) || char === ")" || char === "]") state.regexAllowed = false;
+			} else if (/\d/.test(char) || char === "]") state.regexAllowed = false;
 			else if (!/\s/.test(char)) state.regexAllowed = true;
 			escaped += char;
 			continue;
@@ -186,7 +215,22 @@ function escapeLine(line: string, state: EscapeState, source: string, lineOffset
 			index += ticks.length - 1;
 			continue;
 		}
-		if (state.inlineTicks === 0 && char === "{" && !alreadyEscaped) state.expressionDepth = 1;
+		if (
+			state.inlineTicks === 0 &&
+			char === "<" &&
+			!alreadyEscaped &&
+			/[A-Za-z/]/.test(next ?? "")
+		) {
+			state.jsxTag = true;
+			state.jsxQuote = null;
+			state.jsxExpressionDepth = 0;
+		}
+		if (state.inlineTicks === 0 && char === "{" && !alreadyEscaped) {
+			state.expressionDepth = 1;
+			state.parenStack = [];
+			state.pendingControlParen = false;
+			state.regexAllowed = true;
+		}
 		if (state.inlineTicks === 0 && char === "<" && !alreadyEscaped && /[\d\s=]/.test(next ?? ""))
 			escaped += "\\";
 		escaped += char;
