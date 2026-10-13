@@ -116,22 +116,20 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 
 ## Releasing
 
-1. Fetch the latest `origin/main` and tags. On a separate branch, run
-   `yarn changelog <next-version>` (for example, `yarn changelog 0.5.0`). Review
-   `CHANGELOG.md`, which lists commit subjects and PR links under What's new and
-   Bug fixes. Open a changelog PR and merge it before the version bump. The
-   changelog starts at `v0.5.0`, using `v0.4.0` as its history boundary. Review
-   PR title wording before merging, since the notes preserve commit subjects.
-2. Create a release branch from the latest `origin/main`. Run
+1. Create a release branch from the latest `origin/main`. Run
    `npm version minor --no-git-tag-version` (or the requested version bump),
    commit only the version change with the required `Co-authored-by` trailer,
    and open a PR titled only with the version number. `main` requires a PR and
-   passing status checks. If more changes merge before this PR, update the
-   changelog in its own PR first.
-3. Wait for the version PR to merge, then fetch and check out the merged commit on `main`.
+   passing status checks.
+2. Wait for the version PR to merge, then fetch and check out the merged commit on `main`.
    Confirm `package.json` contains the intended release version.
-4. Create an annotated tag on that merged commit matching the package version
+3. Create an annotated tag on that merged commit matching the package version
    (for example, `git tag -a v0.5.0 -m 'Release 0.5.0'`), then push that tag
    (`git push origin v0.5.0`). Create and push the release tag only after the PR merges.
-5. Verify the tag-triggered Release workflow succeeds. It publishes the package to
+4. Verify the tag-triggered Release workflow succeeds. It publishes the package to
    npm and then promotes the site deployment.
+5. Fetch tags, run `yarn changelog`, and review the generated `CHANGELOG.md`.
+   It lists released versions only, with commit subjects and PR links under
+   What's new and Bug fixes. Open a separate changelog PR after the release and
+   merge it through the usual checks and review. Review PR title wording before
+   merging feature PRs because the notes preserve commit subjects.
