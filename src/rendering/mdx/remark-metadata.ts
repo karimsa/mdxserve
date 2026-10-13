@@ -1,6 +1,6 @@
 import type { Root, RootContent } from "mdast";
 import type { DocumentMetadata } from "../../docs/metadata.js";
-import { parseMetadata } from "../../docs/metadata.js";
+import { DocsService } from "../../docs/service.js";
 
 type Expression = { type: string; [key: string]: unknown };
 
@@ -47,7 +47,7 @@ function metadataExpression(metadata: DocumentMetadata): Expression {
 export function remarkMetadata() {
 	return (tree: Root, file: { value: unknown }) => {
 		const source = String(file.value);
-		const { metadata } = parseMetadata(source);
+		const { metadata } = DocsService.parseMetadata(source);
 		const declaration = {
 			type: "ExportNamedDeclaration",
 			declaration: {

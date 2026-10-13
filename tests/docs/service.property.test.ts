@@ -217,3 +217,22 @@ describe("DocsService — concurrent saves", () => {
 		PROPERTY_TIMEOUT_MS,
 	);
 });
+
+describe("DocsService source metadata", () => {
+	it("keeps metadata and YAML boundaries independent of the document body and newline style", () => {
+		fc.assert(
+			fc.property(proseLineArb, eolArb, fc.string(), (title, eol, body) => {
+				const source = ["---", `title: ${title}`, "---", body].join(eol);
+				expect(DocsService.parseMetadata(source)).toEqual({
+					metadata: { title, openGraph: [] },
+					diagnostics: [],
+				});
+				expect(DocsService.leadingFrontmatter(source)).toEqual({
+					value: `title: ${title}`,
+					startLine: 2,
+					endLine: 3,
+				});
+			}),
+		);
+	});
+});

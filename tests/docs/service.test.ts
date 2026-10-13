@@ -35,6 +35,35 @@ async function currentVersion(): Promise<string> {
 	return read.source.version;
 }
 
+describe("DocsService source parsing", () => {
+	it("parses static metadata without evaluating document code", () => {
+		const source =
+			'---\ntitle: Public title\n---\nexport const title = (() => { throw new Error("must not run"); })();';
+		expect(DocsService.parseMetadata(source)).toEqual({
+			metadata: { title: "Public title", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("reports invalid and truncated metadata without exposing partial values", () => {
+		const invalid = DocsService.parseMetadata("---\ntitle: Valid\ncanonical: /relative\n---\n");
+		expect(invalid.metadata).toEqual({ openGraph: [] });
+		expect(invalid.diagnostics).not.toHaveLength(0);
+		const truncated = DocsService.parseMetadata("---\ntitle: Partial", true);
+		expect(truncated.metadata).toEqual({ openGraph: [] });
+		expect(truncated.diagnostics[0]?.message).toContain("64 KiB");
+	});
+
+	it("locates only leading YAML and preserves its original value", () => {
+		expect(DocsService.leadingFrontmatter("---\r\ntitle: 'Public title'\r\n---\r\nBody")).toEqual({
+			value: "title: 'Public title'",
+			startLine: 2,
+			endLine: 3,
+		});
+		expect(DocsService.leadingFrontmatter("Body\n---\ntitle: Later\n---")).toBeUndefined();
+	});
+});
+
 describe("DocsService.readSource", () => {
 	it("returns the raw on-disk text with a version token for those bytes", async () => {
 		const result = await service.readSource(abs);

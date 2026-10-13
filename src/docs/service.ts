@@ -2,6 +2,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { spliceLines } from "./edit.js";
+import { leadingFrontmatter, type LeadingFrontmatter } from "./frontmatter.js";
 import { resolveDocPath } from "../roots/paths.js";
 import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
@@ -82,6 +83,22 @@ export type SaveSectionResult =
 
 /** Owns per-file save locks, so a `DocsService` is per-process state. */
 export class DocsService {
+	/** Parse static metadata from source without reading files or evaluating document code. */
+	static parseMetadata(
+		source: string,
+		truncated = false,
+	): {
+		metadata: DocumentMetadata;
+		diagnostics: MetadataDiagnostic[];
+	} {
+		return parseMetadata(source, truncated);
+	}
+
+	/** Locate the leading YAML block using the document's shared frontmatter syntax. */
+	static leadingFrontmatter(source: string): LeadingFrontmatter | undefined {
+		return leadingFrontmatter(source);
+	}
+
 	// Saves to the same file run one at a time. Two overlapping saves that both
 	// passed the mtime check could otherwise each read the pre-edit file and
 	// each write, the second silently discarding the first; chaining them means
@@ -147,7 +164,7 @@ export class DocsService {
 			}
 			return {
 				kind: "ok",
-				...parseMetadata(
+				...DocsService.parseMetadata(
 					prefix.subarray(0, bytesRead).toString("utf8"),
 					bytesRead > MAX_METADATA_PREFIX_BYTES,
 				),

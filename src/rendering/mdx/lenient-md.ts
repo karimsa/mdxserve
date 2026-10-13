@@ -1,4 +1,4 @@
-import { leadingFrontmatter } from "../../docs/frontmatter.js";
+import { DocsService } from "../../docs/service.js";
 
 /**
  * `.md` files are compiled as MDX so builtin components work in both
@@ -9,7 +9,7 @@ import { leadingFrontmatter } from "../../docs/frontmatter.js";
  */
 export function escapeBareLt(source: string): string {
 	const parts = source.split(/(\r\n|\r|\n)/);
-	const frontmatterEndLine = leadingFrontmatter(source)?.endLine ?? 0;
+	const frontmatterEndLine = DocsService.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
