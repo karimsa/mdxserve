@@ -117,6 +117,14 @@ beforeAll(async () => {
 			path.join(fixtureDir, `escaped-backtick.${extension}`),
 			"# Escaped backtick\n\nEscaped \\` marker\n\nWidth < 10\n\nclosing ` marker\n",
 		);
+		await fs.writeFile(
+			path.join(fixtureDir, `esm-comparison.${extension}`),
+			"export const small = 1 < 10\n\n# ESM comparison\n\n{small ? 'ESM works' : 'ESM failed'}\n\nWidth < 10\n",
+		);
+		await fs.writeFile(
+			path.join(fixtureDir, `fence-content.${extension}`),
+			"# Fence content\n\n```text\n```not-a-closer\nWidth < 10\n```\n\nOutside < 10\n",
+		);
 	}
 	await fs.writeFile(
 		path.join(fixtureDir, "metadata.md"),
@@ -240,6 +248,24 @@ describe("browser feature journeys", () => {
 				await page.goto(docUrl(`escaped-backtick.${extension}`));
 				await page.getByRole("heading", { name: "Escaped backtick" }).waitFor();
 				await page.getByText("Width < 10").waitFor();
+			}
+		} finally {
+			await context.close();
+		}
+	}, 90_000);
+
+	it("renders ESM comparisons and code fences consistently in both extensions", async () => {
+		const { context, page } = await openPage();
+		try {
+			for (const extension of ["md", "mdx"]) {
+				await page.goto(docUrl(`esm-comparison.${extension}`));
+				await page.getByRole("heading", { name: "ESM comparison" }).waitFor();
+				await page.getByText("ESM works").waitFor();
+				await page.getByText("Width < 10").waitFor();
+				await page.goto(docUrl(`fence-content.${extension}`));
+				await page.getByRole("heading", { name: "Fence content" }).waitFor();
+				await page.locator("pre").filter({ hasText: "Width < 10" }).waitFor();
+				await page.getByText("Outside < 10").waitFor();
 			}
 		} finally {
 			await context.close();

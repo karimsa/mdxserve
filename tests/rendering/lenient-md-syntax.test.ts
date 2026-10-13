@@ -88,6 +88,16 @@ describe("escapeBareLt", () => {
 		);
 	});
 
+	it("keeps comparisons in ESM declarations and escapes following prose", () => {
+		const source = "export const small = 1 < 10\n\nWidth < 10";
+		expect(escapeBareLt(source)).toBe("export const small = 1 < 10\n\nWidth \\< 10");
+	});
+
+	it("does not close a fence on a line with trailing content", () => {
+		const source = "```text\n```not-a-closer\nWidth < 10\n```\nOutside < 10";
+		expect(escapeBareLt(source)).toBe("```text\n```not-a-closer\nWidth < 10\n```\nOutside \\< 10");
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.

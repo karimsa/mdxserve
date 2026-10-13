@@ -18,6 +18,7 @@ export function escapeBareLt(source: string, metadata: MetadataPort): string {
 	});
 	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
+	let esm = false;
 	const state: EscapeState = {
 		expressionDepth: 0,
 		quote: null,
@@ -30,16 +31,33 @@ export function escapeBareLt(source: string, metadata: MetadataPort): string {
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
 		const line = parts[index];
+		if (esm) {
+			if (line.trim() === "") esm = false;
+			else continue;
+		}
 		if (state.expressionDepth === 0 && state.inlineTicks === 0) {
 			const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 			if (match) {
 				const marker = match[1];
 				if (!fence) fence = marker;
-				else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+				else if (
+					marker[0] === fence[0] &&
+					marker.length >= fence.length &&
+					line.slice(match[0].length).trim() === ""
+				)
+					fence = null;
 				continue;
 			}
 		}
 		if (fence) continue;
+		if (
+			state.expressionDepth === 0 &&
+			state.inlineTicks === 0 &&
+			/^\s{0,3}(?:import|export)\s/.test(line)
+		) {
+			esm = true;
+			continue;
+		}
 		// Indented code blocks are literal too, unless an expression began above.
 		if (state.expressionDepth === 0 && state.inlineTicks === 0 && /^(?: {4}|\t)/.test(line))
 			continue;
@@ -65,7 +83,12 @@ function hasClosingTicks(remaining: string, ticks: string): boolean {
 			const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1];
 			if (marker) {
 				if (!fence) fence = marker;
-				else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+				else if (
+					marker[0] === fence[0] &&
+					marker.length >= fence.length &&
+					line.slice(line.indexOf(marker) + marker.length).trim() === ""
+				)
+					fence = null;
 				continue;
 			}
 		}
