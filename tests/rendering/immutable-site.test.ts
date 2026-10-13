@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import type { ViteDevServer } from "vite";
 import { getPackageRoot } from "../../src/infra/pkg.js";
 import { createDevServer } from "../../src/rendering/vite.js";
@@ -68,4 +68,47 @@ it("serves the app and every site document with one optimized dependency version
 		for (const match of body.matchAll(/\/deps\/[^"']+\?v=([a-f0-9]+)/g)) versions.add(match[1]);
 	}
 	expect(versions.size).toBe(1);
+});
+
+it("serves CSS helpers without starting a browser WebSocket", async () => {
+	expect(vite.config.server.hmr).toBe(false);
+	expect(vite.config.server.ws).toBe(false);
+
+	const cssResponse = await fetch(
+		`${baseUrl}/@fs${encodeURI(path.join(getPackageRoot(), "client", "app.css"))}`,
+	);
+	expect(cssResponse.status).toBe(200);
+	expect(await cssResponse.text()).toContain('from "/@vite/client"');
+
+	const clientResponse = await fetch(`${baseUrl}/@vite/client`);
+	expect(clientResponse.status).toBe(200);
+	const clientSource = await clientResponse.text();
+	const openWebSocket = vi.fn(() => {
+		throw new Error("immutable site attempted a WebSocket connection");
+	});
+	const removeStyle = vi.fn();
+	const style = { setAttribute: vi.fn(), remove: removeStyle, textContent: "" };
+	const appendChild = vi.fn();
+	vi.stubGlobal("WebSocket", openWebSocket);
+	vi.stubGlobal("document", {
+		createElement: () => style,
+		head: { appendChild },
+	});
+	try {
+		const client = await import(
+			/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(clientSource)}`
+		);
+		expect(openWebSocket).not.toHaveBeenCalled();
+		client.updateStyle("app.css", "body { color: red; }");
+		expect(appendChild).toHaveBeenCalledWith(style);
+		expect(style.textContent).toBe("body { color: red; }");
+		client.removeStyle("app.css");
+		expect(removeStyle).toHaveBeenCalledOnce();
+		expect(client.createHotContext().accept).toBeTypeOf("function");
+		expect(client.injectQuery("/doc.mdx?raw#heading", "import")).toBe(
+			"/doc.mdx?import&raw#heading",
+		);
+	} finally {
+		vi.unstubAllGlobals();
+	}
 });
