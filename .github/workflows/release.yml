@@ -109,4 +109,4 @@ jobs:
 
       - name: Promote the tagged deployment
         if: steps.freshness.outputs.promote == 'true'
-        run: npx --yes vercel@63.1.0 promote "${{ steps.deployment.outputs.id }}" --yes --token "$VERCEL_TOKEN"
+        run: node site/deployment/promote-production.mjs "${{ steps.deployment.outputs.id }}"

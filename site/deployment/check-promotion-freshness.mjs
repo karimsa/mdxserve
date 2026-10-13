@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const apiOrigin = "https://api.vercel.com";
-const productionDomain = "mdxserve.karim.build";
+export const productionDomain = "mdxserve.karim.build";
 const commitPattern = /^[0-9a-f]{40}$/i;
 const deploymentPattern = /^dpl_[A-Za-z0-9]+$/;
 const lookupAttempts = 4;
