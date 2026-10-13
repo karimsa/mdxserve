@@ -17,4 +17,5 @@ yarn-error.log*
 
 # mdxserve per-directory cache
 .mdxserve/
+.github/screenshots/
 client/design-ref/
