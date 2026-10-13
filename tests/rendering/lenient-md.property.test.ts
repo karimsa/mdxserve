@@ -21,6 +21,27 @@ describe("escapeBareLt", () => {
 		);
 	});
 
+	it("preserves recognized frontmatter exactly while escaping body prose", () => {
+		fc.assert(
+			fc.property(
+				fc.constantFrom("", "\uFEFF"),
+				fc.constantFrom("\n", "\r\n"),
+				fc.integer({ min: 0, max: 999 }),
+				(bom, newline, limit) => {
+					const frontmatter = `${bom}---${newline}description: Value < ${limit}${newline}---${newline}`;
+					const body = `Body < ${limit}${newline}`;
+					expect(escapeBareLt(frontmatter + body)).toBe(
+						`${frontmatter}Body \\< ${limit}${newline}`,
+					);
+				},
+			),
+		);
+	});
+
+	it("escapes an unclosed frontmatter-like block as ordinary body text", () => {
+		expect(escapeBareLt("---\ndescription: Value < 10\n")).toBe("---\ndescription: Value \\< 10\n");
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.

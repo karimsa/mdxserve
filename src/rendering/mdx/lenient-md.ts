@@ -1,3 +1,5 @@
+import { leadingFrontmatter } from "../../docs/frontmatter.js";
+
 /**
  * `.md` files are compiled as MDX so builtin components work in both
  * extensions, but that makes a bare `<` followed by a digit, whitespace or
@@ -7,8 +9,10 @@
  */
 export function escapeBareLt(source: string): string {
 	const lines = source.split("\n");
+	const frontmatterEndLine = leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
 	for (let index = 0; index < lines.length; index++) {
+		if (index < frontmatterEndLine) continue;
 		const line = lines[index];
 		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
