@@ -476,25 +476,6 @@
 		flex-wrap: wrap;
 	}
 }
-.diagram-slash-menu {
-	position: fixed;
-	z-index: 100;
-	background: var(--surface-raised);
-	border: 1px solid var(--border-default);
-	padding: 6px;
-	box-shadow: 0 6px 20px #0002;
-	border-radius: 8px;
-	width: 250px;
-}
-.diagram-slash-menu button {
-	padding: 12px;
-	text-align: left;
-	width: 100%;
-	background: var(--surface-accent-soft);
-	color: var(--text-accent);
-	border-radius: 5px;
-}
-
 .diagram-statusbar[data-error="true"] > :first-child {
 	color: var(--status-danger-fg);
 }

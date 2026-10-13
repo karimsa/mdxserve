@@ -5,7 +5,10 @@ import {
 	type DiagramEditTarget,
 } from "./diagrams/edit-block";
 import type { ExistingDiagram } from "./diagrams/edit-context";
-import { mermaidSlash } from "./diagrams/slash";
+import { blockSlash } from "./editor/slash";
+import { MdxBlock } from "./editor/mdx-block";
+import { ImageDialog } from "./editor/ImageDialog";
+import { LinkDialog } from "./editor/LinkDialog";
 import { MermaidDialog } from "./diagrams/Dialog";
 import type { Range } from "@tiptap/core";
 import {
@@ -113,6 +116,8 @@ export default function MdSectionEditor({
 	const [editTarget, setEditTarget] = useState<DiagramEditTarget | null>(null);
 	const openedDiagram = useRef(false);
 	const [diagramRange, setDiagramRange] = useState<Range | null>(null);
+	const [imageRange, setImageRange] = useState<Range | null>(null);
+	const [linkRange, setLinkRange] = useState<Range | null>(null);
 	const openDiagram = useRef<(range: Range) => void>(() => {});
 	openDiagram.current = setDiagramRange;
 	useEffect(() => {
@@ -152,10 +157,13 @@ export default function MdSectionEditor({
 	const editor = useEditor({
 		extensions: [
 			mermaidEditButtons(() => diagramEnabled.current, setEditTarget),
-			mermaidSlash(
+			blockSlash(
 				() => diagramEnabled.current,
 				(range) => openDiagram.current(range),
+				setImageRange,
+				setLinkRange,
 			),
+			MdxBlock,
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3, 4, 5, 6] },
 				link: { openOnClick: false },
@@ -282,7 +290,7 @@ export default function MdSectionEditor({
 	}
 
 	function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (diagramRange || editTarget) return;
+		if (diagramRange || editTarget || imageRange || linkRange) return;
 		if ((event.metaKey || event.ctrlKey) && event.key === "s") {
 			event.preventDefault();
 			void save();
@@ -303,6 +311,54 @@ export default function MdSectionEditor({
 	return (
 		<div className="mdx-section" data-editing onClick={onClick} onKeyDown={onKeyDown}>
 			<EditorContent editor={editor} />
+			{linkRange && (
+				<LinkDialog
+					onClose={() => {
+						setLinkRange(null);
+						editor.commands.focus();
+					}}
+					onInsert={({ href, text }) => {
+						if (linkRange.to > editor.state.doc.content.size) return;
+						editor
+							.chain()
+							.focus()
+							.insertContentAt(linkRange, {
+								type: "text",
+								text,
+								marks: [{ type: "link", attrs: { href } }],
+							})
+							.run();
+						setLinkRange(null);
+					}}
+				/>
+			)}
+			{imageRange && (
+				<ImageDialog
+					onClose={() => {
+						setImageRange(null);
+						editor.commands.focus();
+					}}
+					onInsert={(attrs) => {
+						if (imageRange.to > editor.state.doc.content.size) return;
+						const position = editor.state.doc.resolve(imageRange.from);
+						if (
+							position.parent.type.name !== "paragraph" ||
+							position.parent.textContent !==
+								editor.state.doc.textBetween(imageRange.from, imageRange.to)
+						)
+							return;
+						editor
+							.chain()
+							.focus()
+							.insertContentAt({ from: position.before(), to: position.after() }, [
+								{ type: "image", attrs },
+								{ type: "paragraph" },
+							])
+							.run();
+						setImageRange(null);
+					}}
+				/>
+			)}
 			<AnimatePresence>
 				{(diagramRange || editTarget) && (
 					<MermaidDialog
@@ -365,6 +421,9 @@ export default function MdSectionEditor({
 				initial="initial"
 				animate={entered ? "animate" : "initial"}
 			>
+				<motion.span variants={hint} className="flex items-center gap-1.5">
+					<Kbd>/</Kbd> to add a block
+				</motion.span>
 				<motion.span variants={hint} className="flex items-center gap-1.5">
 					<Kbd>{isApplePlatform() ? "⌘S" : "Ctrl S"}</Kbd> to save
 				</motion.span>

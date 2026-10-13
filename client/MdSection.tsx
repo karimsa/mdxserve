@@ -52,7 +52,7 @@ export interface MdSectionProps {
 /**
  * MDXProvider registration (see client/mdx-components.ts) for the synthetic
  * `<MdSection>` element the server's remark-sections compiler plugin wraps
- * around every maximal run of pure-markdown top-level nodes. In read mode
+ * around editable top-level Markdown and JSX blocks. In read mode
  * it's invisible — same children, same DOM — until hovered, when a pencil
  * appears to swap it into an inline Tiptap editor seeded from the raw file.
  *

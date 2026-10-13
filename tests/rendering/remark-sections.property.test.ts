@@ -78,11 +78,8 @@ const FORBIDDEN_TYPES = new Set([
 ]);
 
 // ---- Block vocabulary ---------------------------------------------------
-// A small mix of pure-markdown blocks (editable) and MDX-flavoured blocks
-// (never editable), joined with blank lines like tests/validate.property.test.ts's
-// docArb, but broader: it must also reach JSX flow blocks, ESM, and inline
-// JSX/expressions inside a paragraph, since those are exactly what the
-// allow-list is supposed to exclude.
+// A mix of Markdown and MDX blocks. Top-level JSX is editable as a raw block;
+// ESM and MDX nested in Markdown still stay outside editable sections.
 
 const words = fc
 	.array(fc.stringMatching(/^[a-z]{1,8}$/), { minLength: 1, maxLength: 6 })
@@ -159,13 +156,14 @@ describe("remarkSections — invariance", () => {
 		);
 	});
 
-	it("no MdSection subtree contains an mdx* node, html, definition, footnote*, linkReference, or imageReference", () => {
+	it("only direct flow JSX may enter a section; other unsupported nodes stay outside", () => {
 		fc.assert(
 			fc.property(docArb, (src) => {
 				const tree = runPlugin(src);
 				for (const node of tree.children) {
 					if (!isMdSection(node)) continue;
 					for (const child of node.children as RootContent[]) {
+						if (child.type === "mdxJsxFlowElement") continue;
 						for (const descendant of collectDescendants(child)) {
 							expect(descendant.type.startsWith("mdx")).toBe(false);
 							expect(FORBIDDEN_TYPES.has(descendant.type)).toBe(false);
@@ -291,14 +289,33 @@ describe("remarkSections — examples", () => {
 		);
 	});
 
-	it("heading+paragraph, then a JSX block, then a trailing paragraph yields exactly two sections", () => {
+	it("heading, JSX block and trailing paragraph share an editable source range", () => {
 		const src = "# T\n\npara\n\n<Callout>\n\nx\n\n</Callout>\n\npara2\n";
 		const tree = runPlugin(src);
 		const sections = tree.children.filter(isMdSection);
-		expect(sections).toHaveLength(2);
+		expect(sections).toHaveLength(1);
 		expect(attrValue(sections[0], "startLine")).toBe("1");
-		expect(attrValue(sections[0], "endLine")).toBe("3");
-		expect(attrValue(sections[1], "startLine")).toBe("11");
-		expect(attrValue(sections[1], "endLine")).toBe("11");
+		expect(attrValue(sections[0], "endLine")).toBe("11");
+		expect(sections[0].children.some((child) => child.type === "mdxJsxFlowElement")).toBe(true);
+	});
+
+	it("nested component expressions remain inside the range without covering following ESM", () => {
+		const src = [
+			"Intro",
+			"",
+			"<Callout tone={settings.tone}>",
+			"  <Badge>{count + 1}</Badge>",
+			"</Callout>",
+			"",
+			"After component",
+			"",
+			'import Widget from "./Widget"',
+		].join("\n");
+		const tree = runPlugin(src);
+		const sections = tree.children.filter(isMdSection);
+		expect(sections).toHaveLength(1);
+		expect(attrValue(sections[0], "startLine")).toBe("1");
+		expect(attrValue(sections[0], "endLine")).toBe("7");
+		expect(tree.children.at(-1)?.type).toBe("mdxjsEsm");
 	});
 });
