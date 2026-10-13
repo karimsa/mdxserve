@@ -41,10 +41,11 @@ function boundedFrontmatter(
 	const decoded = clipped
 		? encoded.subarray(0, MAX_METADATA_PREFIX_BYTES).toString("utf8")
 		: initial;
-	const prefix = clipped ? decoded.slice(0, decoded.lastIndexOf("\n") + 1) : decoded;
-	const opening = /^\uFEFF?---[\t ]*(?:\r?\n|$)/.exec(prefix);
+	const lastLineEnding = Math.max(decoded.lastIndexOf("\r"), decoded.lastIndexOf("\n"));
+	const prefix = clipped ? decoded.slice(0, lastLineEnding + 1) : decoded;
+	const opening = /^\uFEFF?---[\t ]*(?:\r\n|\r|\n|$)/.exec(prefix);
 	if (!opening) return { oversized: clipped && /^\uFEFF?---[\t ]*$/.test(decoded) };
-	const closing = /(?:^|\n)---[\t ]*(?:\r?\n|$)/g;
+	const closing = /(?:^|\r\n|\r|\n)---[\t ]*(?:\r\n|\r|\n|$)/g;
 	closing.lastIndex = opening[0].length - 1;
 	const match = closing.exec(prefix);
 	if (match) {

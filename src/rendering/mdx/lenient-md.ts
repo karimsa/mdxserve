@@ -8,12 +8,12 @@ import { leadingFrontmatter } from "../../docs/frontmatter.js";
  * as `\<` — outside fenced and inline code, which MDX already treats literally.
  */
 export function escapeBareLt(source: string): string {
-	const lines = source.split("\n");
+	const parts = source.split(/(\r\n|\r|\n)/);
 	const frontmatterEndLine = leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
-	for (let index = 0; index < lines.length; index++) {
-		if (index < frontmatterEndLine) continue;
-		const line = lines[index];
+	for (let index = 0; index < parts.length; index += 2) {
+		if (index / 2 < frontmatterEndLine) continue;
+		const line = parts[index];
 		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
 			const marker = match[1];
@@ -22,9 +22,9 @@ export function escapeBareLt(source: string): string {
 			continue;
 		}
 		if (fence) continue;
-		lines[index] = escapeOutsideInlineCode(line);
+		parts[index] = escapeOutsideInlineCode(line);
 	}
-	return lines.join("\n");
+	return parts.join("");
 }
 
 function escapeOutsideInlineCode(line: string): string {

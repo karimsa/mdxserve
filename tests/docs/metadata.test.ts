@@ -83,6 +83,26 @@ openGraph:
 		});
 	});
 
+	it.each([
+		"\uFEFF---\rtitle: CR only\r---\r# Body",
+		"\uFEFF---\r\ntitle: CR only\r---\n# Body",
+		"\uFEFF---\ntitle: CR only\r\n---\r# Body",
+		"\uFEFF---\rtitle: CR only\r---",
+	])("parses CR and mixed-newline frontmatter: %j", (source) => {
+		expect(parseMetadata(source)).toEqual({
+			metadata: { title: "CR only", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("finds a CR closing fence in a truncated metadata prefix", () => {
+		const source = `---\rtitle: In prefix\r---\r${"x".repeat(MAX_METADATA_PREFIX_BYTES)}`;
+		expect(parseMetadata(source, true)).toEqual({
+			metadata: { title: "In prefix", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
 	it("accepts empty frontmatter before a large body", () => {
 		expect(parseMetadata(`---\n---\n${"x".repeat(100_000)}`)).toEqual({
 			metadata: { openGraph: [] },

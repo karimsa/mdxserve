@@ -42,4 +42,12 @@ describe.each(["md", "mdx"])("metadata compiler for .%s", (extension) => {
 		);
 		expect(compiled.__mdxserveMetadata).toEqual({ openGraph: [] });
 	});
+
+	it("exports metadata from CR-only frontmatter", async () => {
+		const compiled = await evaluate(
+			{ value: "---\rtitle: CR title\r---\r# Body", path: `document.${extension}` },
+			{ ...mdxCompileOptions(), ...runtime, useMDXComponents: () => ({}) },
+		);
+		expect(compiled.__mdxserveMetadata).toEqual({ title: "CR title", openGraph: [] });
+	});
 });

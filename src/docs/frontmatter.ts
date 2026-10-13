@@ -10,7 +10,7 @@ export interface LeadingFrontmatter {
 
 /** The same leading YAML node recognized by remark-frontmatter. */
 export function leadingFrontmatter(source: string): LeadingFrontmatter | undefined {
-	if (!/^\uFEFF?---[\t ]*(?:\r?\n|$)/.test(source)) return undefined;
+	if (!/^\uFEFF?---[\t ]*(?:\r\n|\r|\n|$)/.test(source)) return undefined;
 	const tree = fromMarkdown(source, {
 		extensions: [frontmatter("yaml")],
 		mdastExtensions: [frontmatterFromMarkdown("yaml")],
@@ -27,9 +27,9 @@ export function leadingFrontmatter(source: string): LeadingFrontmatter | undefin
 
 /** Body lines using the same YAML syntax extensions as remark-frontmatter. */
 export function bodyLines(source: string): string[] {
-	const lines = source.split(/\r?\n/);
+	const lines = source.split(/\r\n|\r|\n/);
 	// Avoid parsing ordinary documents just to establish that they have no metadata.
-	if (!/^\uFEFF?---[\t ]*(?:\r?\n|$)/.test(source)) return lines;
+	if (!/^\uFEFF?---[\t ]*(?:\r\n|\r|\n|$)/.test(source)) return lines;
 	const frontmatter = leadingFrontmatter(source);
 	return frontmatter ? lines.slice(frontmatter.endLine) : lines;
 }

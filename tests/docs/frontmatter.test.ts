@@ -6,6 +6,8 @@ describe("frontmatter body extraction", () => {
 		["---\n---\nBody", ["Body"]],
 		["\uFEFF--- \r\n# Metadata\r\n---\r\n# Body", ["# Body"]],
 		["---\ntitle: only metadata\n---", []],
+		["\uFEFF---\rtitle: Hidden\r---\r# Body", ["# Body"]],
+		["---\rtitle: Hidden\n---\r\n# Body", ["# Body"]],
 	])("skips only a complete leading YAML block: %j", (source, expected) => {
 		expect(bodyLines(source)).toEqual(expected);
 	});
@@ -15,7 +17,8 @@ describe("frontmatter body extraction", () => {
 		"# Body\n\n---\n\nVisible",
 		"```yaml\n---\n# Example\n---\n```",
 		"\n---\n# Not leading metadata\n---",
+		"---\rtitle: unclosed\r# Body",
 	])("preserves body rules, examples, and unclosed blocks: %j", (source) => {
-		expect(bodyLines(source)).toEqual(source.split("\n"));
+		expect(bodyLines(source)).toEqual(source.split(/\r\n|\r|\n/));
 	});
 });
