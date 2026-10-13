@@ -1,6 +1,6 @@
 # Test inventory and feature coverage
 
-This audit covers **133 test files and 868 declared cases** across `tests/` and `site/deployment/` on main 0.5.0 plus this PR. A generated or parameterized declaration may run many examples; `yarn test` currently runs over a thousand Vitest examples. Filenames describe the behavior under test, including generated cases, instead of labeling a testing technique. Run the service suite with `yarn test`, the browser journeys with `yarn test:browser` after installing Chromium, and the Node deployment and review-gate tests through the PR workflow.
+This audit covers **135 test files and 884 declared cases** across `tests/` and `site/deployment/` on main 0.5.0 plus this PR. A generated or parameterized declaration may run many examples; `yarn test` currently runs over a thousand Vitest examples. Filenames describe the behavior under test, including generated cases, instead of labeling a testing technique. Run the service suite with `yarn test`, the browser journeys with `yarn test:browser` after installing Chromium, and the Node deployment and review-gate tests through the PR workflow.
 
 ## Assessment
 
@@ -27,35 +27,36 @@ This PR removes checks tied to CSS directive counts, a Vite config array, punctu
 
 Each row names a user-visible behavior and the evidence for it. **Partial** identifies an acceptance journey still worth testing. Private state, CSS structure, hook calls, and helper call order are not feature guarantees.
 
-| ID  | Feature                               | Current acceptance coverage                                                                                                                                                  | Remaining surface                                                                          |
-| --- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| F01 | Starting and finding a server         | Browser suite starts the CLI, reads `status` and `status --json`, rejects a duplicate, and confirms the first server responds.                                               | Zero-root startup and busy-port fallback through the CLI.                                  |
-| F02 | Live root changes                     | Browser suite adds a root, sees it in the viewer, removes the open document's root, and reaches the remaining root.                                                          | Initial zero-root viewer becoming populated.                                               |
-| F03 | Browser navigation                    | Browser suite follows document links, Back/Forward, table of contents, and next-page link.                                                                                   | —                                                                                          |
-| F04 | Live file changes                     | Browser suite sees an external edit and folder add/rename without reload.                                                                                                    | Removal from an open folder and change toast.                                              |
-| F05 | In-place section editing              | Browser suite saves with the keyboard, checks disk bytes, and cancels with Escape; service tests cover stale versions and invalid content.                                   | Browser feedback for concurrent and invalid saves.                                         |
-| F06 | Recoverable bulk trash                | Browser suite selects documents and cancels without a write; service/controller tests partition failures and retain moved bytes.                                             | Real OS Trash recovery and mixed-result UI.                                                |
-| F07 | `.md` and `.mdx` parity               | Paired validation covers GFM, JSX, imports, multiline expressions, literal `<`, and malformed source; browser suite renders components and expressions from both extensions. | Paired edit and export journey.                                                            |
-| F08 | Standalone export                     | Browser suite runs the CLI without a server and opens `file://` HTML with a table and working Tabs.                                                                          | Relative images, code styling, Mermaid modes, and layout settings in the exported file.    |
-| F09 | Viewer export                         | Browser suite downloads from the top bar and opens saved HTML.                                                                                                               | Native picker cancellation and failed-build destination preservation.                      |
-| F10 | LAN read and local privileges         | HTTP/controller tests cover origin, host, caller locality, and permission policy.                                                                                            | Real remote-interface connection with reads allowed and mutations/render denied.           |
-| F11 | Viewer search                         | Browser suite filters body text and opens a result with Enter; service tests cover indexing and excerpts.                                                                    | Arrow/Escape keys and across-root results.                                                 |
-| F12 | Folder listing                        | Browser suite proves non-doc files cannot be selected for trash and cancellation preserves bytes.                                                                            | Visible sort and age selection journey.                                                    |
-| F13 | Reader navigation                     | Browser suite follows table of contents and next-page card.                                                                                                                  | Breadcrumb and active-heading scroll tracking.                                             |
-| F14 | Rich document display                 | Browser suite checks a table and Callout in live reader and standalone file.                                                                                                 | Syntax highlighting, images, and visible error states.                                     |
-| F15 | Custom components                     | Browser suite imports a neighboring component in both extensions.                                                                                                            | Local name overriding a builtin.                                                           |
-| F16 | Interactive builtins and diagrams     | Browser suite switches Tabs in live and standalone readers; diagram rendering has service/component tests.                                                                   | Mermaid fullscreen, code, and direction controls in a browser.                             |
-| F17 | Reader preferences and print          | Browser suite persists dark mode and checks print media; preference and standalone settings tests cover stored choices.                                                      | Reader width, layout persistence across navigation/restart, and reduced-motion navigation. |
-| F18 | Agent-facing commands                 | Browser suite runs `cache clean` twice; package smoke runs installed commands.                                                                                               | Safe real `setup` rerun in a controlled tool environment.                                  |
-| F19 | Persistent roots                      | Root config tests cover read/write validation and watched updates to mounted roots.                                                                                          | CLI restart retaining mounted roots and an external config edit in an open viewer.         |
-| F20 | Frontmatter and page metadata         | Docs, HTTP, rendering, search, client-head, and export tests cover YAML and metadata; a browser journey checks initial HTML and `.md` to `.mdx` navigation.                  | Standalone metadata in an opened `file://` export.                                         |
-| F21 | Typed interactive tables              | Client tests cover numeric ranges, sorting/filtering, column configuration, server markup, and saved table state.                                                            | Browser sort/filter and persistence journey.                                               |
-| F22 | Diagram authoring                     | Dialog, diagram service/controller, and adapter tests cover provider selection, revisions, cancellation, validation, and image ownership.                                    | Browser conversion, preview, insertion, and direct edit with a controlled provider.        |
-| F23 | Layout preferences                    | Preference and standalone settings tests cover saved width/layout choices and export initialization.                                                                         | Browser setting controls, persistence, and standalone presentation.                        |
-| F24 | Restricted reader mode                | HTTP/controller and client tests cover blocked writes and a read-only UI even for a loopback caller.                                                                         | Start a restricted instance and prove read/search access and denied actions in a browser.  |
-| F25 | Hosted site and deployment safety     | Immutable-site rendering and Node deployment tests cover site assets, promotion selection, and current production detection.                                                 | Hosted navigation and localhost denial through a running site container.                   |
-| F26 | Slash insertion and component editing | Client editor tests cover template insertion, component fields, source round trip, and edit controls.                                                                        | Browser insertion, save, reload, and component edit journey.                               |
-| F27 | CLI update notices                    | CLI tests cover cached notice display, command flags, noninteractive and environment suppression, and optional notifier failure.                                             | End-to-end installed CLI behavior without registry access.                                 |
+| ID  | Feature                               | Current acceptance coverage                                                                                                                                                                     | Remaining surface                                                                          |
+| --- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| F01 | Starting and finding a server         | Browser suite starts the CLI, reads `status` and `status --json`, rejects a duplicate, and confirms the first server responds.                                                                  | Zero-root startup and busy-port fallback through the CLI.                                  |
+| F02 | Live root changes                     | Browser suite adds a root, sees it in the viewer, removes the open document's root, and reaches the remaining root.                                                                             | Initial zero-root viewer becoming populated.                                               |
+| F03 | Browser navigation                    | Browser suite follows document links, Back/Forward, table of contents, and next-page link.                                                                                                      | —                                                                                          |
+| F04 | Live file changes                     | Browser suite sees an external edit and folder add/rename without reload.                                                                                                                       | Removal from an open folder and change toast.                                              |
+| F05 | In-place section editing              | Browser suite saves with the keyboard, checks disk bytes, and cancels with Escape; service tests cover stale versions and invalid content.                                                      | Browser feedback for concurrent and invalid saves.                                         |
+| F06 | Recoverable bulk trash                | Browser suite selects documents and cancels without a write; service/controller tests partition failures and retain moved bytes.                                                                | Real OS Trash recovery and mixed-result UI.                                                |
+| F07 | `.md` and `.mdx` parity               | Paired validation covers GFM, JSX, imports, multiline expressions, literal `<`, regex expressions, unmatched backticks, and malformed source; browser suite renders these from both extensions. | Paired edit and export journey.                                                            |
+| F08 | Standalone export                     | Browser suite runs the CLI without a server and opens `file://` HTML with a table and working Tabs.                                                                                             | Relative images, code styling, Mermaid modes, and layout settings in the exported file.    |
+| F09 | Viewer export                         | Browser suite downloads from the top bar and opens saved HTML.                                                                                                                                  | Native picker cancellation and failed-build destination preservation.                      |
+| F10 | LAN read and local privileges         | HTTP/controller tests cover origin, host, caller locality, and permission policy.                                                                                                               | Real remote-interface connection with reads allowed and mutations/render denied.           |
+| F11 | Viewer search                         | Browser suite filters body text and opens a result with Enter; service tests cover indexing and excerpts.                                                                                       | Arrow/Escape keys and across-root results.                                                 |
+| F12 | Folder listing                        | Browser suite proves non-doc files cannot be selected for trash and cancellation preserves bytes.                                                                                               | Visible sort and age selection journey.                                                    |
+| F13 | Reader navigation                     | Browser suite follows table of contents and next-page card.                                                                                                                                     | Breadcrumb and active-heading scroll tracking.                                             |
+| F14 | Rich document display                 | Browser suite checks a table and Callout in live reader and standalone file.                                                                                                                    | Syntax highlighting, images, and visible error states.                                     |
+| F15 | Custom components                     | Browser suite imports a neighboring component in both extensions.                                                                                                                               | Local name overriding a builtin.                                                           |
+| F16 | Interactive builtins and diagrams     | Browser suite switches Tabs in live and standalone readers; diagram rendering has service/component tests.                                                                                      | Mermaid fullscreen, code, and direction controls in a browser.                             |
+| F17 | Reader preferences and print          | Browser suite persists dark mode and checks print media; preference and standalone settings tests cover stored choices.                                                                         | Reader width, layout persistence across navigation/restart, and reduced-motion navigation. |
+| F18 | Agent-facing commands                 | Browser suite runs `cache clean` twice; package smoke runs installed commands.                                                                                                                  | Safe real `setup` rerun in a controlled tool environment.                                  |
+| F19 | Persistent roots                      | Root config tests cover read/write validation and watched updates to mounted roots.                                                                                                             | CLI restart retaining mounted roots and an external config edit in an open viewer.         |
+| F20 | Frontmatter and page metadata         | Docs, HTTP, rendering, search, client-head, and export tests cover YAML and metadata; a browser journey checks initial HTML and `.md` to `.mdx` navigation.                                     | Standalone metadata in an opened `file://` export.                                         |
+| F21 | Typed interactive tables              | Client tests cover numeric ranges, sorting/filtering, column configuration, server markup, and saved table state.                                                                               | Browser sort/filter and persistence journey.                                               |
+| F22 | Diagram authoring                     | Dialog, diagram service/controller, and adapter tests cover provider selection, revisions, cancellation, validation, and image ownership.                                                       | Browser conversion, preview, insertion, and direct edit with a controlled provider.        |
+| F23 | Layout preferences                    | Preference and standalone settings tests cover saved width/layout choices and export initialization.                                                                                            | Browser setting controls, persistence, and standalone presentation.                        |
+| F24 | Restricted reader mode                | HTTP/controller and client tests cover blocked writes and a read-only UI even for a loopback caller.                                                                                            | Start a restricted instance and prove read/search access and denied actions in a browser.  |
+| F25 | Hosted site and deployment safety     | Immutable-site rendering and Node deployment tests cover site assets, project-token promotion, alias selection, and current production detection.                                               | Hosted navigation and localhost denial through a running site container.                   |
+| F26 | Slash insertion and component editing | Client editor tests cover template insertion, component fields, source round trip, and edit controls.                                                                                           | Browser insertion, save, reload, and component edit journey.                               |
+| F27 | CLI update notices                    | CLI tests cover cached notice display, command flags, noninteractive and environment suppression, and optional notifier failure.                                                                | End-to-end installed CLI behavior without registry access.                                 |
+| F28 | PR approval and review gates          | Node tests cover maintainer decisions and current-head Codex review evidence before checks pass.                                                                                                | GitHub workflow behavior when reviews or the PR head change mid-run.                       |
 
 ## Complete case inventory
 
@@ -73,6 +74,13 @@ Each bullet links to its declaration in the current source. Parameterized and ge
 - [recovers from rate limiting while looking up the production alias](site/deployment/check-promotion-freshness.test.mjs#L153)
 - [recovers from server and network failures while looking up the live deployment](site/deployment/check-promotion-freshness.test.mjs#L167)
 - [fails closed after bounded retries for either production lookup](site/deployment/check-promotion-freshness.test.mjs#L187)
+
+#### [promote-production.test.mjs](site/deployment/promote-production.test.mjs) (4 declarations)
+
+- [promotes with the project token and waits until the production domain moves](site/deployment/promote-production.test.mjs#L42)
+- [fails before alias polling when promotion is denied](site/deployment/promote-production.test.mjs#L64)
+- [fails closed on a mismatched production alias](site/deployment/promote-production.test.mjs#L73)
+- [bounds alias polling and never retries the promotion request](site/deployment/promote-production.test.mjs#L82)
 
 #### [wait-for-production.test.mjs](site/deployment/wait-for-production.test.mjs) (7 declarations)
 
@@ -108,28 +116,41 @@ Each bullet links to its declaration in the current source. Parameterized and ge
 - [stays pending on missing evidence or a concurrent push](tests/automation/codex-review-gate.test.cjs#L108)
 - [clears a previous pass before a failed API read](tests/automation/codex-review-gate.test.cjs#L117)
 
+#### [maintainer-approval-gate.test.cjs](tests/automation/maintainer-approval-gate.test.cjs) (9 declarations)
+
+- [requires the latest decisive maintainer review on the exact head](tests/automation/maintainer-approval-gate.test.cjs#L21)
+- [accepts the PR author and does not require a review API read](tests/automation/maintainer-approval-gate.test.cjs#L108)
+- [accepts current-head approval and resets the check before reading reviews](tests/automation/maintainer-approval-gate.test.cjs#L120)
+- [creates a new failing run when a completed approval is invalidated](tests/automation/maintainer-approval-gate.test.cjs#L130)
+- [creates a new successful run when a completed failure receives approval](tests/automation/maintainer-approval-gate.test.cjs#L152)
+- [fails after dismissal, changed decision, old approval, or no review](tests/automation/maintainer-approval-gate.test.cjs#L172)
+- [ignores a check from another app or PR and creates one on the original head](tests/automation/maintainer-approval-gate.test.cjs#L188)
+- [clears an old pass before review API failure and does not publish for a moved head](tests/automation/maintainer-approval-gate.test.cjs#L201)
+- [checks every open PR serially](tests/automation/maintainer-approval-gate.test.cjs#L213)
+
 ### browser
 
-#### [features.test.ts](tests/browser/features.test.ts) (18 declarations)
+#### [features.test.ts](tests/browser/features.test.ts) (19 declarations)
 
-- [serves and updates frontmatter metadata across Markdown extensions](tests/browser/features.test.ts#L163)
-- [renders a neighboring component from both Markdown extensions](tests/browser/features.test.ts#L195)
-- [renders multiline comparisons in MDX expressions from both Markdown extensions](tests/browser/features.test.ts#L208)
-- [updates mounted roots in an open viewer and leaves removed documents](tests/browser/features.test.ts#L223)
-- [reports the live server through the executable and refuses a duplicate](tests/browser/features.test.ts#L246)
-- [cleans a populated cache through the executable and can be repeated](tests/browser/features.test.ts#L256)
-- [renders rich content and switches an interactive tab](tests/browser/features.test.ts#L266)
-- [opens a CLI standalone export as a local HTML page](tests/browser/features.test.ts#L287)
-- [downloads a viewer export that opens as a local HTML page](tests/browser/features.test.ts#L321)
-- [selects only documents for bulk trash and preserves them on cancel](tests/browser/features.test.ts#L348)
-- [navigates folders and documents with browser history](tests/browser/features.test.ts#L372)
-- [shows a usable route back from a missing document](tests/browser/features.test.ts#L388)
-- [uses the table of contents and next page link](tests/browser/features.test.ts#L400)
-- [searches by body text and opens the selected result](tests/browser/features.test.ts#L418)
-- [saves and cancels an in-place section edit](tests/browser/features.test.ts#L435)
-- [updates an open document after an external save](tests/browser/features.test.ts#L467)
-- [updates an open folder when a document is added and renamed](tests/browser/features.test.ts#L482)
-- [persists a selected theme and hides controls for print](tests/browser/features.test.ts#L503)
+- [serves and updates frontmatter metadata across Markdown extensions](tests/browser/features.test.ts#L167)
+- [renders a neighboring component from both Markdown extensions](tests/browser/features.test.ts#L199)
+- [renders multiline comparisons in MDX expressions from both Markdown extensions](tests/browser/features.test.ts#L212)
+- [renders regex comparisons and prose after an unmatched backtick in both extensions](tests/browser/features.test.ts#L227)
+- [updates mounted roots in an open viewer and leaves removed documents](tests/browser/features.test.ts#L241)
+- [reports the live server through the executable and refuses a duplicate](tests/browser/features.test.ts#L264)
+- [cleans a populated cache through the executable and can be repeated](tests/browser/features.test.ts#L274)
+- [renders rich content and switches an interactive tab](tests/browser/features.test.ts#L284)
+- [opens a CLI standalone export as a local HTML page](tests/browser/features.test.ts#L299)
+- [downloads a viewer export that opens as a local HTML page](tests/browser/features.test.ts#L333)
+- [selects only documents for bulk trash and preserves them on cancel](tests/browser/features.test.ts#L360)
+- [navigates folders and documents with browser history](tests/browser/features.test.ts#L384)
+- [shows a usable route back from a missing document](tests/browser/features.test.ts#L400)
+- [uses the table of contents and next page link](tests/browser/features.test.ts#L412)
+- [searches by body text and opens the selected result](tests/browser/features.test.ts#L430)
+- [saves and cancels an in-place section edit](tests/browser/features.test.ts#L447)
+- [updates an open document after an external save](tests/browser/features.test.ts#L479)
+- [updates an open folder when a document is added and renamed](tests/browser/features.test.ts#L494)
+- [persists a selected theme and hides controls for print](tests/browser/features.test.ts#L515)
 
 ### cli
 
@@ -963,7 +984,7 @@ Each bullet links to its declaration in the current source. Parameterized and ge
 - [leaves a src on any other component alone](tests/rendering/inline-images.test.ts#L57)
 - [keeps an absolute or remote Screenshot src as is, and warns on a missing file](tests/rendering/inline-images.test.ts#L63)
 
-#### [lenient-md-syntax.test.ts](tests/rendering/lenient-md-syntax.test.ts) (8 declarations)
+#### [lenient-md-syntax.test.ts](tests/rendering/lenient-md-syntax.test.ts) (10 declarations)
 
 - [is idempotent](tests/rendering/lenient-md-syntax.test.ts#L7)
 - [preserves line count](tests/rendering/lenient-md-syntax.test.ts#L17)
@@ -971,8 +992,10 @@ Each bullet links to its declaration in the current source. Parameterized and ge
 - [preserves a mixed-newline header and escapes CR-delimited body lines](tests/rendering/lenient-md-syntax.test.ts#L42)
 - [escapes an unclosed frontmatter-like block as ordinary body text](tests/rendering/lenient-md-syntax.test.ts#L47)
 - [preserves nested and multiline MDX expressions while escaping neighboring prose](tests/rendering/lenient-md-syntax.test.ts#L51)
-- [leaves text inside fenced code blocks unchanged](tests/rendering/lenient-md-syntax.test.ts#L69)
-- [leaves text inside inline code spans unchanged](tests/rendering/lenient-md-syntax.test.ts#L85)
+- [preserves comparisons after regex braces inside an MDX expression](tests/rendering/lenient-md-syntax.test.ts#L63)
+- [escapes prose after an unmatched backtick](tests/rendering/lenient-md-syntax.test.ts#L68)
+- [leaves text inside fenced code blocks unchanged](tests/rendering/lenient-md-syntax.test.ts#L80)
+- [leaves text inside inline code spans unchanged](tests/rendering/lenient-md-syntax.test.ts#L96)
 
 #### [metadata-compiler.test.ts](tests/rendering/metadata-compiler.test.ts) (6 declarations)
 

@@ -109,6 +109,10 @@ beforeAll(async () => {
 			path.join(fixtureDir, `expression.${extension}`),
 			"export const values = [1, 2]\n\n# Expression page\n\n{values.filter(\n  (value) => value < 10\n).map((value) => <span key={value}>Match {value}</span>)}\n\nWidth < 10\n",
 		);
+		await fs.writeFile(
+			path.join(fixtureDir, `literal-comparison.${extension}`),
+			"export const count = 2\nexport const value = '}'\n\n# Literal comparison\n\n{ /}/.test(value) && count < 10 ? 'Expression works' : 'Expression failed' }\n\nUnmatched ` marker\n\nWidth < 10\n",
+		);
 	}
 	await fs.writeFile(
 		path.join(fixtureDir, "metadata.md"),
@@ -220,6 +224,20 @@ describe("browser feature journeys", () => {
 		}
 	}, 90_000);
 
+	it("renders regex comparisons and prose after an unmatched backtick in both extensions", async () => {
+		const { context, page } = await openPage();
+		try {
+			for (const extension of ["md", "mdx"]) {
+				await page.goto(docUrl(`literal-comparison.${extension}`));
+				await page.getByRole("heading", { name: "Literal comparison" }).waitFor();
+				await page.getByText("Expression works").waitFor();
+				await page.getByText("Width < 10").waitFor();
+			}
+		} finally {
+			await context.close();
+		}
+	}, 90_000);
+
 	it("updates mounted roots in an open viewer and leaves removed documents", async () => {
 		const otherRoot = await fs.realpath(
 			await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-browser-second-root-")),
@@ -273,12 +291,6 @@ describe("browser feature journeys", () => {
 			await page.getByRole("tab", { name: "Second" }).click();
 			await page.getByRole("tabpanel").getByText("Second panel").waitFor();
 			expect(await page.getByRole("tabpanel").getByText("First panel").count()).toBe(0);
-			if (process.env.MDXSERVE_CAPTURE_SCREENSHOT) {
-				const screenshot = path.join(repoRoot, "docs", "screenshots", "test-surface.png");
-				await fs.mkdir(path.dirname(screenshot), { recursive: true });
-				await page.waitForTimeout(700);
-				await page.screenshot({ path: screenshot, fullPage: true });
-			}
 		} finally {
 			await context.close();
 		}

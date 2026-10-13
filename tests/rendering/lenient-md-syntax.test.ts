@@ -60,6 +60,17 @@ describe("escapeBareLt", () => {
 		expect(escapeBareLt(`${expression}\nWidth < 10\n`)).toBe(`${expression}\nWidth \\< 10\n`);
 	});
 
+	it("preserves comparisons after regex braces inside an MDX expression", () => {
+		const expression = "{ /}/.test(value) && count < 10 }";
+		expect(escapeBareLt(`${expression}\nWidth < 10`)).toBe(`${expression}\nWidth \\< 10`);
+	});
+
+	it("escapes prose after an unmatched backtick", () => {
+		expect(escapeBareLt("An unmatched ` marker\nWidth < 10")).toBe(
+			"An unmatched ` marker\nWidth \\< 10",
+		);
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.
