@@ -35,6 +35,8 @@
 @import "./design/base/editor.css";
 @import "./ui/modal.css";
 @import "./Settings.css";
+@import "./editor/image-dialog.css";
+@import "./editor/component-fields.css";
 @import "./diagrams/style.css";
 
 /* `:root[...]` (not bare `[data-theme]`) because rehype-pretty-code stamps

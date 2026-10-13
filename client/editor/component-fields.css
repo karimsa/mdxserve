@@ -1,0 +1,57 @@
+.mdx-source-block {
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface-card);
+	padding: var(--space-4);
+	margin-block: var(--space-4);
+	white-space: normal;
+}
+.mdx-component-name {
+	display: block;
+	margin-bottom: var(--space-3);
+	color: var(--text-heading);
+}
+.mdx-component-fields {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+	gap: var(--space-3);
+}
+.mdx-component-fields label {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	font-size: var(--size-sm);
+	color: var(--text-muted);
+}
+.mdx-component-fields input:not([type="checkbox"]),
+.mdx-component-fields textarea,
+.mdx-component-source {
+	width: 100%;
+	padding: var(--space-2);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-body);
+}
+.mdx-component-fields input[type="checkbox"] {
+	align-self: start;
+}
+.mdx-component-fields textarea {
+	resize: vertical;
+	min-height: 80px;
+}
+.mdx-source-block details {
+	margin-top: var(--space-3);
+	font-size: var(--size-sm);
+	color: var(--text-muted);
+}
+.mdx-source-block summary {
+	cursor: pointer;
+}
+.mdx-component-source {
+	margin-top: var(--space-2);
+	min-height: 160px;
+	font-family: var(--font-mono);
+	resize: vertical;
+	white-space: pre;
+}

@@ -3,7 +3,13 @@ import { act, createElement, useContext } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "jotai";
 import { expect, it, vi } from "vitest";
-import { MdSection } from "../../client/MdSection";
+import { createProcessor } from "@mdx-js/mdx";
+import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { remarkSections } from "../../src/rendering/mdx/remark-sections";
+import type { Root, RootContent } from "mdast";
+import type { MdxJsxFlowElement } from "mdast-util-mdx";
+import { Pre } from "../../client/CodeBlock";
+import { MdSection, type MdSectionProps } from "../../client/MdSection";
 import { DiagramEditContext } from "../../client/diagrams/edit-context";
 const rpc = vi.hoisted(() => ({ save: vi.fn(), source: vi.fn() }));
 vi.mock("../../client/api", () => ({
@@ -18,6 +24,7 @@ vi.mock("../../client/MdSectionEditor", () => ({
 		throw new Error("Direct diagram editing must not mount Tiptap");
 	},
 }));
+vi.mock("../../client/Mermaid", () => ({ MermaidDiagram: () => null }));
 vi.mock("../../client/diagrams/Dialog", () => ({
 	MermaidDialog: ({
 		initialSource,
@@ -52,9 +59,95 @@ function Diagram() {
 		"div",
 		null,
 		"Rendered diagram",
-		createElement("button", { onClick: () => edit?.({ index: 0, source }) }, "Edit"),
+		edit && createElement("button", { onClick: () => edit({ index: 0, source }) }, "Edit"),
 	);
 }
+it("hides direct editing inside JSX while the following blockquote diagram still opens", async () => {
+	vi.stubGlobal("matchMedia", () => ({
+		matches: true,
+		addEventListener() {},
+		removeEventListener() {},
+	}));
+	vi.stubGlobal(
+		"ResizeObserver",
+		class {
+			observe() {}
+			disconnect() {}
+		},
+	);
+	const nestedSource = "flowchart LR\n N --> X";
+	const markdown = [
+		"<Callout>",
+		"```mermaid",
+		nestedSource,
+		"```",
+		"</Callout>",
+		"",
+		"> ```mermaid",
+		"> flowchart LR",
+		">  A --> B",
+		"> ```",
+	].join("\n");
+	const tree = createProcessor({ ...mdxCompileOptions(), format: "mdx" }).parse(markdown) as Root;
+	remarkSections()(tree);
+	const sections = tree.children.filter(
+		(node: RootContent): node is MdxJsxFlowElement =>
+			node.type === "mdxJsxFlowElement" && node.name === "MdSection",
+	);
+	const props = (section: MdxJsxFlowElement) =>
+		Object.fromEntries(
+			section.attributes
+				.filter((attribute) => attribute.type === "mdxJsxAttribute")
+				.map((attribute) => [attribute.name, attribute.value]),
+		) as unknown as Pick<MdSectionProps, "index" | "startLine" | "endLine" | "rawJsx">;
+	expect(sections).toHaveLength(2);
+	expect(props(sections[0]).rawJsx).toBe("true");
+	expect(props(sections[1]).rawJsx).toBeUndefined();
+	rpc.source.mockResolvedValue({ text: markdown, version: "original-version" });
+	const host = document.createElement("div");
+	document.body.append(host);
+	const root = createRoot(host);
+	try {
+		await act(async () =>
+			root.render(
+				createElement(
+					Provider,
+					null,
+					createElement(
+						"div",
+						null,
+						createElement(MdSection, {
+							...props(sections[0]),
+							// oxlint-disable-next-line react/no-children-prop
+							children: createElement(Pre, { "data-language": "mermaid" }, nestedSource),
+						}),
+						createElement(MdSection, {
+							...props(sections[1]),
+							// oxlint-disable-next-line react/no-children-prop
+							children: createElement(Pre, { "data-language": "mermaid" }, source),
+						}),
+					),
+				),
+			),
+		);
+		const editButtons = host.querySelectorAll<HTMLButtonElement>(
+			'button[aria-label="Edit diagram"]',
+		);
+		expect(editButtons).toHaveLength(1);
+		expect(editButtons[0].closest("[data-md-section]")?.getAttribute("data-md-section")).toBe("1");
+		await act(async () => editButtons[0].click());
+		await vi.waitFor(async () => {
+			await act(async () => {});
+			expect(host.querySelector("dialog")).not.toBeNull();
+		});
+		expect(host.querySelector("dialog")?.textContent).toContain(source);
+		expect(host.querySelector("dialog")?.textContent).not.toContain("Diagram changed on disk");
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+		vi.unstubAllGlobals();
+	}
+});
 it.each(["save", "cancel", "failure"])(
 	"edits from the rendered page without Tiptap: %s",
 	async (action) => {

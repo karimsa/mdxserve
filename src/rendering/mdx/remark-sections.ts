@@ -1,9 +1,8 @@
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxFlowElement } from "mdast-util-mdx";
 
-// Every node type a section is allowed to contain, recursively. Deliberately
-// excludes anything MDX-flavoured (mdxJsxFlowElement, mdxJsxTextElement,
-// mdxjsEsm, mdxFlowExpression, mdxTextExpression) and the handful of mdast
+// Every Markdown node type a section is allowed to contain, recursively. Excludes
+// inline MDX, ESM, flow expressions and the handful of mdast
 // node types Tiptap/the round-trip serializer has no story for (raw `html`,
 // `definition`/`*Reference` link and footnote plumbing). A single paragraph
 // containing an inline `<Badge/>` or `{expr}` is therefore never editable,
@@ -32,10 +31,14 @@ const EDITABLE_TYPES = new Set([
 // Mirrors the recursive shape of `hasMdxNode` in src/docs/doc-cache.ts:22-24, but as an
 // allow-list walk instead of a deny-list one: a node qualifies only if its
 // own type is editable *and* every descendant (recursively) also is.
-function isEditable(node: RootContent): boolean {
+function isEditable(node: RootContent, topLevel = false): boolean {
+	// The editor's MDX block keeps this entire source range as one raw atom.
+	// JSX nested inside Markdown cannot become a block in its parent, so leave
+	// those parents out of the editable section.
+	if (node.type === "mdxJsxFlowElement") return topLevel;
 	if (!EDITABLE_TYPES.has(node.type)) return false;
 	if ("children" in node && Array.isArray(node.children)) {
-		return (node.children as RootContent[]).every(isEditable);
+		return (node.children as RootContent[]).every((child) => isEditable(child));
 	}
 	return true;
 }
@@ -45,13 +48,15 @@ function attr(name: string, value: string): MdxJsxAttribute {
 }
 
 /**
- * Wrap every maximal run of pure-markdown top-level nodes in a synthetic
+ * Wrap every maximal run of supported top-level nodes in a synthetic
  * `<MdSection index startLine endLine>` element, so the client can offer
- * per-section Tiptap editing without ever exposing JSX/ESM to a WYSIWYG
- * editor. Runs are split before any non-editable node and before any `h1`/`h2`
+ * per-section Tiptap editing. Flow JSX is preserved as an editable raw-source
+ * block; ESM and unsupported inline MDX stay outside editable sections.
+ * Runs are split before any non-editable node and before any `h1`/`h2`
  * heading (so sections line up with the document's visual section
  * boundaries and stay reasonably small). Mermaid blocks get their own section
- * so its Edit action can open the diagram dialog directly.
+ * so its Edit action can open the diagram dialog directly. Flow JSX also gets
+ * its own section: nested rendered diagrams have no editable Markdown fence.
  *
  * This is a *user* remark plugin (registered only in src/rendering/vite.ts, never in
  * src/rendering/mdx/mdx-options.ts): it runs after remarkMarkAndUnravel, so MDX node types
@@ -95,6 +100,7 @@ export function remarkSections() {
 					attr("index", String(sectionIndex)),
 					attr("startLine", String(first.position.start.line)),
 					attr("endLine", String(endLine)),
+					...(first.type === "mdxJsxFlowElement" ? [attr("rawJsx", "true")] : []),
 				],
 				children: run as MdxJsxFlowElement["children"],
 				position: { start: first.position.start, end: last.position.end },
@@ -105,7 +111,7 @@ export function remarkSections() {
 		}
 
 		children.forEach((node) => {
-			const editable = isEditable(node);
+			const editable = isEditable(node, true);
 			if (!editable) {
 				flush();
 				result.push(node);
@@ -115,9 +121,10 @@ export function remarkSections() {
 			// still editable, so sections track the document's h1/h2 structure.
 			if (node.type === "heading" && node.depth <= 2) flush();
 			const diagram = node.type === "code" && node.lang === "mermaid";
-			if (diagram) flush();
+			const rawJsx = node.type === "mdxJsxFlowElement";
+			if (diagram || rawJsx) flush();
 			run.push(node);
-			if (diagram) flush();
+			if (diagram || rawJsx) flush();
 		});
 		flush();
 

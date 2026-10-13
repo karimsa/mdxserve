@@ -46,13 +46,15 @@ export interface MdSectionProps {
 	/** 1-based, inclusive source line numbers, as strings. */
 	startLine: string;
 	endLine: string;
+	/** Raw JSX renders nested diagrams whose source cannot be edited as a Markdown fence. */
+	rawJsx?: string;
 	children: ReactNode;
 }
 
 /**
  * MDXProvider registration (see client/mdx-components.ts) for the synthetic
  * `<MdSection>` element the server's remark-sections compiler plugin wraps
- * around every maximal run of pure-markdown top-level nodes. In read mode
+ * around editable top-level Markdown and JSX blocks. In read mode
  * it's invisible — same children, same DOM — until hovered, when a pencil
  * appears to swap it into an inline Tiptap editor seeded from the raw file.
  *
@@ -65,7 +67,7 @@ export interface MdSectionProps {
  * now-stale line numbers; keying on the range forces a clean remount back to
  * read mode instead.
  */
-export function MdSection({ index, startLine, endLine, children }: MdSectionProps) {
+export function MdSection({ index, startLine, endLine, rawJsx, children }: MdSectionProps) {
 	const ctxPath = useContext(DocContext)?.path;
 	// MdSection also renders inside the SSR worker (client/ssr-entry.tsx, used
 	// by the `mdxserve validate` render check via renderToString), which has no
@@ -81,6 +83,7 @@ export function MdSection({ index, startLine, endLine, children }: MdSectionProp
 			index={index}
 			startLine={Number(startLine)}
 			endLine={Number(endLine)}
+			rawJsx={rawJsx === "true"}
 		>
 			{children}
 		</Section>
@@ -92,12 +95,14 @@ function Section({
 	index,
 	startLine,
 	endLine,
+	rawJsx,
 	children,
 }: {
 	path: string;
 	index: string;
 	startLine: number;
 	endLine: number;
+	rawJsx: boolean;
 	children: ReactNode;
 }) {
 	const [mode, setMode] = useState<"read" | "loading" | "edit" | "diagram">("read");
@@ -221,7 +226,7 @@ function Section({
 	return (
 		<DiagramEditContext.Provider
 			value={
-				shellInfo.permissions !== "restricted" && mode === "read"
+				shellInfo.permissions !== "restricted" && mode === "read" && !rawJsx
 					? (target) => void startEdit(target)
 					: null
 			}
