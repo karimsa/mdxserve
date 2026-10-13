@@ -1,3 +1,15 @@
+v0.5.0
+
+What's new
+
+- Add slash commands for document blocks and built-in components ([#16](https://github.com/karimsa/mdxserve/pull/16))
+
+- feat: Add frontmatter page metadata and Open Graph tags ([#15](https://github.com/karimsa/mdxserve/pull/15))
+
+Bug fixes
+
+- Prevent hosted sites from connecting to localhost ([#14](https://github.com/karimsa/mdxserve/pull/14))
+
 v0.4.0
 
 What's new
