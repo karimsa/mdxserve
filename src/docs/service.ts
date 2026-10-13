@@ -50,6 +50,17 @@ export type ReadMetadataResult =
 	| { kind: "ok"; metadata: DocumentMetadata; diagnostics: MetadataDiagnostic[] }
 	| { kind: "not-found"; message: string };
 
+function isUnavailableFile(error: unknown): boolean {
+	const code = (error as NodeJS.ErrnoException | null)?.code;
+	return (
+		code === "ENOENT" ||
+		code === "ENOTDIR" ||
+		code === "EISDIR" ||
+		code === "EACCES" ||
+		code === "EPERM"
+	);
+}
+
 export interface SaveSectionInput {
 	path: string;
 	startLine: number;
@@ -118,7 +129,14 @@ export class DocsService {
 		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
 		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
-		const handle = await fsp.open(resolved.abs, "r");
+		let handle;
+		try {
+			handle = await fsp.open(resolved.abs, "r");
+		} catch (error) {
+			if (isUnavailableFile(error))
+				return { kind: "not-found", message: `${resolved.abs} not found` };
+			throw error;
+		}
 		try {
 			const prefix = Buffer.alloc(MAX_METADATA_PREFIX_BYTES + 1);
 			let bytesRead = 0;
@@ -134,6 +152,10 @@ export class DocsService {
 					bytesRead > MAX_METADATA_PREFIX_BYTES,
 				),
 			};
+		} catch (error) {
+			if (isUnavailableFile(error))
+				return { kind: "not-found", message: `${resolved.abs} not found` };
+			throw error;
 		} finally {
 			await handle.close();
 		}

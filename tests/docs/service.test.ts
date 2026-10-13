@@ -66,6 +66,51 @@ describe("DocsService.readSource", () => {
 });
 
 describe("DocsService.readMetadata", () => {
+	it("reports a file removed after path resolution as not-found", async () => {
+		const actualOpen = fs.open.bind(fs);
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			if (filePath === abs) await fs.unlink(abs);
+			return actualOpen(filePath, flags, mode);
+		});
+		try {
+			expect(await service.readMetadata(abs)).toEqual({
+				kind: "not-found",
+				message: `${abs} not found`,
+			});
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
+	it.each([
+		["EACCES", "not-found"],
+		["EIO", "error"],
+	] as const)("closes the handle when reading fails with %s", async (code, outcome) => {
+		const actualOpen = fs.open.bind(fs);
+		let closeSpy: ReturnType<typeof vi.spyOn> | undefined;
+		const openSpy = vi.spyOn(fs, "open").mockImplementation(async (filePath, flags, mode) => {
+			const handle = await actualOpen(filePath, flags, mode);
+			if (filePath === abs) {
+				vi.spyOn(handle, "read").mockRejectedValue(Object.assign(new Error(code), { code }));
+				closeSpy = vi.spyOn(handle, "close");
+			}
+			return handle;
+		});
+		try {
+			if (outcome === "not-found") {
+				expect(await service.readMetadata(abs)).toEqual({
+					kind: "not-found",
+					message: `${abs} not found`,
+				});
+			} else {
+				await expect(service.readMetadata(abs)).rejects.toMatchObject({ code });
+			}
+			expect(closeSpy).toHaveBeenCalledOnce();
+		} finally {
+			openSpy.mockRestore();
+		}
+	});
+
 	it.each([
 		["metadata", "---\ntitle: Sparse document\n---\n", { title: "Sparse document", openGraph: [] }],
 		["plain body", "# Body\n", { openGraph: [] }],
