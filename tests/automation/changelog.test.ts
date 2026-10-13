@@ -39,7 +39,7 @@ afterEach(async () => {
 	);
 });
 
-it("regenerates only tagged releases from original subjects", async () => {
+it("regenerates tagged releases and the requested package version from original subjects", async () => {
 	const repositoryPath = await mkdtemp(resolve(tmpdir(), "mdxserve-changelog-"));
 	temporaryRepositories.push(repositoryPath);
 	git(repositoryPath, "init", "-q");
@@ -78,8 +78,17 @@ it("regenerates only tagged releases from original subjects", async () => {
 		/0\.5\.0|unreleased speedup|Body text|More body text|build:|Release v|CODEOWNERS/,
 	);
 	expect(await generate(repositoryPath)).toBe(firstOutput);
-	expect(() => runGenerator(repositoryPath, "0.5.0")).toThrow();
+	const draftOutput = await generate(repositoryPath, "0.5.0");
+	expect(draftOutput).toMatch(/^v0\.5\.0\n\nWhat's new/m);
+	expect(draftOutput).toContain(
+		"perf: unreleased speedup ([#44](https://github.com/karimsa/mdxserve/pull/44))",
+	);
+	expect(draftOutput).toContain(firstOutput);
+	expect(await generate(repositoryPath, "0.5.0")).toBe(draftOutput);
+	expect(() => runGenerator(repositoryPath, "0.6.0")).toThrow();
+	git(repositoryPath, "tag", "v0.5.0");
+	expect(await generate(repositoryPath)).toBe(draftOutput);
 	expect(() => runGenerator(repositoryPath, "not-a-version")).toThrow();
 	expect(await generate(repositoryPath, "0.3.0")).not.toContain("v0.4.0");
-	expect(await generate(repositoryPath)).toBe(firstOutput);
+	expect(await generate(repositoryPath)).toBe(draftOutput);
 });

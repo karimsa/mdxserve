@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { runGitCliff } from "git-cliff";
 
@@ -31,14 +31,30 @@ if (
 	process.argv.length > 3 ||
 	(requestedVersion && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(requestedVersion))
 ) {
-	throw new Error("Pass a tagged release version such as 0.4.0.");
+	throw new Error("Pass a release version such as 0.5.0.");
 }
 
 const targetTag = requestedVersion ? `v${requestedVersion}` : releaseTags.at(-1);
-if (!targetTag || !releaseTags.includes(targetTag)) {
-	throw new Error(`Release ${targetTag ?? "tag"} does not exist on this branch.`);
+if (!targetTag) {
+	throw new Error("No release tag exists on this branch.");
 }
-const rootCommit = execFileSync("git", ["rev-list", "--max-parents=0", targetTag], {
+const isDraft = !releaseTags.includes(targetTag);
+if (isDraft) {
+	const packageJson = JSON.parse(
+		await readFile(resolve(repositoryPath, "package.json"), "utf8"),
+	) as {
+		version?: string;
+	};
+	if (
+		packageJson.version !== requestedVersion ||
+		!releaseTags.length ||
+		compareTags(targetTag, releaseTags.at(-1)!) <= 0
+	) {
+		throw new Error(`Release ${targetTag} is neither a tag nor the next package version.`);
+	}
+}
+const targetRef = isDraft ? "HEAD" : targetTag;
+const rootCommit = execFileSync("git", ["rev-list", "--max-parents=0", targetRef], {
 	cwd: repositoryPath,
 	encoding: "utf8",
 })
@@ -52,7 +68,8 @@ const changelogResult = await runGitCliff(
 		"--repository",
 		repositoryPath,
 		"--offline",
-		`${rootCommit}..${targetTag}`,
+		...(isDraft ? ["--tag", targetTag] : []),
+		`${rootCommit}..${targetRef}`,
 	],
 	{ cwd: repositoryPath, stdio: "pipe" },
 );
@@ -68,7 +85,7 @@ const generatedSections = changelogResult.stdout
 const notesByTag = new Map(
 	generatedSections.map((section) => [section.split("\n", 1)[0], section]),
 );
-const output = releaseTags
+const output = [...releaseTags, ...(isDraft ? [targetTag] : [])]
 	.filter((tag) => compareTags(tag, targetTag) <= 0)
 	.reverse()
 	.map((tag) => {
