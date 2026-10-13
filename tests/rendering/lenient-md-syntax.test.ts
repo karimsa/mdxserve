@@ -48,6 +48,18 @@ describe("escapeBareLt", () => {
 		expect(escapeBareLt("---\ndescription: Value < 10\n")).toBe("---\ndescription: Value \\< 10\n");
 	});
 
+	it("preserves nested and multiline MDX expressions while escaping neighboring prose", () => {
+		const expression = [
+			"{(() => {",
+			'  const label = "}";',
+			"  return [1, 2].filter(",
+			"    (value) => value < 10",
+			"  ).map((value) => `${label}${value}`).join(',');",
+			"})()}",
+		].join("\n");
+		expect(escapeBareLt(`${expression}\nWidth < 10\n`)).toBe(`${expression}\nWidth \\< 10\n`);
+	});
+
 	// A bare `<` followed by a digit, whitespace, or `=` is exactly what
 	// escapeBareLt targets outside of code — use it inside fences/inline code
 	// to prove those regions are left alone.

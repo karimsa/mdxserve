@@ -25,7 +25,7 @@ async function waitForServer(child: ChildProcessWithoutNullStreams): Promise<str
 		);
 		child.stdout.on("data", (chunk: Buffer) => {
 			output += chunk.toString();
-			const match = output.match(/http:\/\/localhost:(\d+)/);
+			const match = output.match(/http:\/\/(?:localhost|127\.0\.0\.1):(\d+)/);
 			if (match) {
 				clearTimeout(timeout);
 				resolve(`http://127.0.0.1:${match[1]}`);
@@ -105,7 +105,19 @@ beforeAll(async () => {
 			path.join(fixtureDir, `custom.${extension}`),
 			'import Custom from "./Custom.jsx";\n\n# Custom page\n\n<Custom />\n',
 		);
+		await fs.writeFile(
+			path.join(fixtureDir, `expression.${extension}`),
+			"export const values = [1, 2]\n\n# Expression page\n\n{values.filter(\n  (value) => value < 10\n).map((value) => <span key={value}>Match {value}</span>)}\n\nWidth < 10\n",
+		);
 	}
+	await fs.writeFile(
+		path.join(fixtureDir, "metadata.md"),
+		"---\ntitle: Markdown metadata\ndescription: First description\ncanonical: https://example.com/first\nopenGraph:\n  - property: og:title\n    content: First share title\n---\n# First metadata page\n\n[Next metadata](./metadata.mdx)\n",
+	);
+	await fs.writeFile(
+		path.join(fixtureDir, "metadata.mdx"),
+		"---\ntitle: MDX metadata\ndescription: Second description\ncanonical: https://example.com/second\nopenGraph:\n  - property: og:title\n    content: Second share title\n---\n# Second metadata page\n",
+	);
 	await fs.mkdir(path.join(fixtureDir, "nested"));
 	await fs.writeFile(path.join(fixtureDir, "nested", "gamma.md"), "# Gamma\n\nNested page.\n");
 
@@ -148,6 +160,38 @@ afterAll(async () => {
 }, 30_000);
 
 describe("browser feature journeys", () => {
+	it("serves and updates frontmatter metadata across Markdown extensions", async () => {
+		const initialResponse = await fetch(docUrl("metadata.md"), {
+			headers: { Accept: "text/html" },
+		});
+		expect(initialResponse.status).toBe(200);
+		expect(await initialResponse.text()).toContain("<title>Markdown metadata</title>");
+		const { context, page } = await openPage();
+		try {
+			await page.goto(docUrl("metadata.md"));
+			await page.getByRole("heading", { name: "First metadata page" }).waitFor();
+			expect(await page.title()).toBe("Markdown metadata");
+			expect(await page.locator('meta[name="description"]').getAttribute("content")).toBe(
+				"First description",
+			);
+			await page
+				.getByRole("link", { name: /Second metadata page/ })
+				.first()
+				.click();
+			await page.getByRole("heading", { name: "Second metadata page" }).waitFor();
+			expect(await page.title()).toBe("MDX metadata");
+			expect(await page.locator('meta[name="description"]').getAttribute("content")).toBe(
+				"Second description",
+			);
+			expect(await page.locator('link[rel="canonical"]').getAttribute("href")).toBe(
+				"https://example.com/second",
+			);
+			expect(await page.locator('meta[property="og:title"]').allTextContents()).toHaveLength(1);
+		} finally {
+			await context.close();
+		}
+	}, 90_000);
+
 	it("renders a neighboring component from both Markdown extensions", async () => {
 		const { context, page } = await openPage();
 		try {
@@ -155,6 +199,21 @@ describe("browser feature journeys", () => {
 				await page.goto(docUrl(`custom.${extension}`));
 				await page.getByRole("heading", { name: "Custom page" }).waitFor();
 				await page.getByText("Neighbor component works").waitFor();
+			}
+		} finally {
+			await context.close();
+		}
+	}, 90_000);
+
+	it("renders multiline comparisons in MDX expressions from both Markdown extensions", async () => {
+		const { context, page } = await openPage();
+		try {
+			for (const extension of ["md", "mdx"]) {
+				await page.goto(docUrl(`expression.${extension}`));
+				await page.getByRole("heading", { name: "Expression page" }).waitFor();
+				await page.getByText("Match 1").waitFor();
+				await page.getByText("Match 2").waitFor();
+				await page.getByText("Width < 10").waitFor();
 			}
 		} finally {
 			await context.close();
@@ -287,15 +346,18 @@ describe("browser feature journeys", () => {
 	}, 180_000);
 
 	it("selects only documents for bulk trash and preserves them on cancel", async () => {
+		const documentCount = (await fs.readdir(fixtureDir)).filter((name) =>
+			/\.mdx?$/.test(name),
+		).length;
 		const { context, page } = await openPage();
 		try {
 			await page.goto(`${base}${encodeURI(fixtureDir)}/`);
 			await page.getByRole("button", { name: "Select" }).click();
 			await page.getByRole("button", { name: /All documents/ }).click();
-			await page.getByText("5 selected").waitFor();
+			await page.getByText(`${documentCount} selected`).waitFor();
 			expect(await page.getByRole("checkbox", { name: /Select notes.txt/ }).count()).toBe(0);
 			await page.getByRole("button", { name: /Delete/ }).click();
-			await page.getByRole("alertdialog").getByText("Delete 5 files?").waitFor();
+			await page.getByRole("alertdialog").getByText(`Delete ${documentCount} files?`).waitFor();
 			await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
 			expect(await fs.readFile(path.join(fixtureDir, "alpha.md"), "utf8")).toContain("# Alpha");
 			expect(await fs.readFile(path.join(fixtureDir, "beta.mdx"), "utf8")).toContain("# Beta");
