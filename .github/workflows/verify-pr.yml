@@ -71,6 +71,9 @@ jobs:
       - name: Test Codex review gate
         run: node --test tests/automation/codex-review-gate.test.cjs
 
+      - name: Test maintainer approval gate
+        run: node --test tests/automation/maintainer-approval-gate.test.cjs
+
       - name: Build
         run: yarn build
 

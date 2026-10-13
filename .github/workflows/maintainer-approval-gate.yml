@@ -1,0 +1,37 @@
+name: Update maintainer approval gate
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Verify PR, PR review changed]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+# Read fresh API state for every open PR, one run at a time.
+concurrency:
+  group: maintainer-approval-gate
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      # pull_request_target runs in a privileged context: only execute trusted
+      # default-branch workflow code, never a PR head or triggering artifact.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { reconcile } = require('./.github/scripts/maintainer-approval-gate.cjs');
+            await reconcile({ github, context, core });
