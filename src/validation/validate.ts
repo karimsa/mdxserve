@@ -11,6 +11,7 @@ import { escapeBareLt } from "../rendering/mdx/lenient-md.js";
 import { suggest, suggestFrom, type Registry } from "../components/registry.js";
 import type { RenderOutcome } from "../rendering/protocol.js";
 import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
+import { parseMetadata } from "../docs/metadata.js";
 
 export type DiagnosticCode =
 	| "mdx-compile"
@@ -18,7 +19,8 @@ export type DiagnosticCode =
 	| "unknown-prop"
 	| "unresolved-import"
 	| "render-error"
-	| "mermaid-chart";
+	| "mermaid-chart"
+	| "frontmatter-metadata";
 
 export interface Diagnostic {
 	severity: "error" | "warning";
@@ -457,6 +459,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 			}
 		}
 	}
+	diagnostics.push(...parseMetadata(input.source).diagnostics);
 
 	let rendered = false;
 	if (render && !diagnostics.some((diagnostic) => diagnostic.severity === "error")) {

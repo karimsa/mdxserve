@@ -6,6 +6,7 @@ import { collectIconNames, listSourceFiles, loadLucideNames } from "../rendering
 import { resolveDocPath } from "../roots/paths.js";
 import type { BundlePort, MermaidMode } from "../rendering/protocol.js";
 import { exportHtml } from "./html.js";
+import { parseMetadata } from "../docs/metadata.js";
 
 export const EXPORT_FORMATS = ["html"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
@@ -152,6 +153,7 @@ export class ExportService {
 					mtime: stat.mtimeMs,
 					bundle: bundleOutput,
 					pkgRoot,
+					metadata: parseMetadata(source).metadata,
 				});
 				break;
 		}

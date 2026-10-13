@@ -66,6 +66,26 @@ afterEach(async () => {
 });
 
 describe("ExportService.build", () => {
+	it.each(["md", "mdx"])(
+		"embeds frontmatter metadata in exported .%s initial HTML",
+		async (extension) => {
+			const doc = path.join(rootA, `metadata.${extension}`);
+			cleanupFiles.push(doc);
+			await fs.writeFile(
+				doc,
+				`---\ntitle: Export title\ncanonical: https://example.com/\nopenGraph:\n  - property: og:site_name\n    content: Example\n---\n# Body`,
+			);
+			const { port } = fakeBundle();
+			const result = await new ExportService(port, [rootA]).build({ docPath: doc, format: "html" });
+			expect(result.kind).toBe("ok");
+			if (result.kind !== "ok") return;
+			expect(result.contents).toContain("<title>Export title</title>");
+			expect(result.contents).toContain('href="https://example.com/"');
+			expect(result.contents).toContain('property="og:site_name" content="Example"');
+			expect(result.contents).toContain('"metadata":');
+		},
+	);
+
 	it("builds an ok result from the fake bundle port", async () => {
 		const { port, calls } = fakeBundle();
 		const service = new ExportService(port, [rootA]);

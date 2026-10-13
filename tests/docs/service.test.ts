@@ -65,7 +65,54 @@ describe("DocsService.readSource", () => {
 	});
 });
 
+describe("DocsService.readMetadata", () => {
+	it("reads metadata above the editor limit while readSource keeps its cap", async () => {
+		const large = path.join(root, "large.md");
+		await fs.writeFile(large, `---\ntitle: Large document\n---\n${"x".repeat(MAX_SOURCE_BYTES)}`);
+		expect((await service.readSource(large)).kind).toBe("too-large");
+		expect(await service.readMetadata(large)).toEqual({
+			kind: "ok",
+			metadata: { title: "Large document", openGraph: [] },
+			diagnostics: [],
+		});
+	});
+
+	it("applies root containment and public path rules", async () => {
+		const outsideFile = path.join(outside, "secret.md");
+		const hiddenFile = path.join(root, ".hidden.md");
+		await fs.writeFile(outsideFile, "---\ntitle: Secret\n---\n");
+		await fs.writeFile(hiddenFile, "---\ntitle: Hidden\n---\n");
+		await fs.symlink(outsideFile, path.join(root, "linked.md"));
+		expect((await service.readMetadata(outsideFile)).kind).toBe("not-found");
+		expect((await service.readMetadata(path.join(root, "linked.md"), true)).kind).toBe("not-found");
+		expect((await service.readMetadata(hiddenFile, true)).kind).toBe("not-found");
+		expect((await service.readMetadata(hiddenFile)).kind).toBe("not-found");
+		expect((await service.readMetadata(abs, true)).kind).toBe("ok");
+	});
+});
+
 describe("DocsService.saveSection", () => {
+	it.each(["md", "mdx"])(
+		"preserves frontmatter bytes while saving a .%s body section",
+		async (extension) => {
+			const file = path.join(root, `metadata.${extension}`);
+			const frontmatter =
+				"---\r\ntitle: 'Public title'\r\n# Keep this comment\r\nopenGraph:\r\n  - property: og:title\r\n    content: Public title\r\n---\r\n";
+			const source = `${frontmatter}\r\n# Heading\r\n\r\nOriginal body.\r\n`;
+			await fs.writeFile(file, source);
+			const result = await service.saveSection({
+				path: file,
+				startLine: 11,
+				endLine: 11,
+				version: versionOf(source),
+				markdown: "Changed body.",
+			});
+			expect(result.kind).toBe("ok");
+			const saved = await fs.readFile(file, "utf8");
+			expect(saved).toBe(source.replace("Original body.", "Changed body."));
+		},
+	);
+
 	it.each([".md", ".mdx"])(
 		"saves an inserted Mermaid block in %s with the normal version guard",
 		async (extension) => {

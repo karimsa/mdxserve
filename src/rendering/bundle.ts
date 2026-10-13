@@ -42,8 +42,8 @@ function standaloneEntryPlugin(options: {
 			return [
 				`import ${JSON.stringify(cssFile)};`,
 				`import { mount, readMeta } from ${JSON.stringify(path.join(pkgRoot, "client", "standalone-entry.tsx"))};`,
-				`import Doc from ${JSON.stringify(docPath)};`,
-				`mount(Doc, readMeta());`,
+				`import Doc, { __mdxserveMetadata } from ${JSON.stringify(docPath)};`,
+				`mount(Doc, readMeta(), __mdxserveMetadata);`,
 			].join("\n");
 		},
 	};

@@ -3,6 +3,7 @@ import type { PluggableList } from "unified";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import { remarkTableIds } from "./remark-table-ids.js";
+import { remarkMetadata } from "./remark-metadata.js";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import { designTokenTheme } from "./shiki-theme.js";
@@ -22,7 +23,13 @@ export function mdxCompileOptions(
 		// (The default "detect" mode parses .md as plain Markdown and silently
 		// drops unknown tags.)
 		format: "mdx",
-		remarkPlugins: [remarkFrontmatter, remarkGfm, remarkTableIds, ...(extra.remarkPlugins ?? [])],
+		remarkPlugins: [
+			remarkFrontmatter,
+			remarkGfm,
+			remarkTableIds,
+			remarkMetadata,
+			...(extra.remarkPlugins ?? []),
+		],
 		rehypePlugins: [
 			// Stable heading ids for the TOC rail and `.mdx-anchor` links.
 			rehypeSlug,

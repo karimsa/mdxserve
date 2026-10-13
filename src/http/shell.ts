@@ -3,11 +3,19 @@ import { renderDocument, escapeHtml } from "./html.js";
 import type { FolderListing } from "../listing/folder.js";
 import type { RootInfo } from "../roots/root-info.js";
 import type { PermissionMode } from "../servers/bind-host.js";
+import type { DocumentMetadata } from "../docs/metadata.js";
 
 export type Route =
 	| { kind: "home"; roots: RootInfo[] }
 	| ({ kind: "listing" } & FolderListing)
-	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
+	| {
+			kind: "doc";
+			path: string;
+			rootName: string;
+			rootDir: string;
+			mtime?: number;
+			metadata?: DocumentMetadata;
+	  }
 	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
 // Route JSON is embedded inside an inline <script type="application/json">.
@@ -44,8 +52,11 @@ export function renderShell(
 	rootCount = 1,
 	sameMachine = false,
 	permissions: PermissionMode = "full",
+	metadata?: DocumentMetadata,
 ): string {
-	const routeJson = escapeForInlineScript(JSON.stringify(route));
+	const routeJson = escapeForInlineScript(
+		JSON.stringify(route.kind === "doc" && metadata ? { ...route, metadata } : route),
+	);
 	const immutableSite = process.env.MDXSERVE_IMMUTABLE_SITE === "1";
 
 	// The root count rides along so the client knows whether to show
@@ -55,5 +66,5 @@ export function renderShell(
     <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}" data-permissions="${permissions}" data-immutable-site="${immutableSite ? "1" : "0"}">${routeJson}</script>
     <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
-	return renderDocument({ title: titleFor(route), body });
+	return renderDocument({ title: titleFor(route), body, metadata });
 }

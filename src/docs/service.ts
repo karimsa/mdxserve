@@ -7,6 +7,7 @@ import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
 import type { Diagnostic } from "../validation/validate.js";
+import { parseMetadata, type DocumentMetadata, type MetadataDiagnostic } from "./metadata.js";
 
 // A doc above this size isn't a "quick prose fix" candidate; refuse to load
 // it into the (in-memory, un-virtualized) Tiptap editor at all.
@@ -39,6 +40,10 @@ export type ReadSourceResult =
 	| { kind: "ok"; source: DocSource }
 	| { kind: "not-found"; message: string }
 	| { kind: "too-large"; size: number };
+
+export type ReadMetadataResult =
+	| { kind: "ok"; metadata: DocumentMetadata; diagnostics: MetadataDiagnostic[] }
+	| { kind: "not-found"; message: string };
 
 export interface SaveSectionInput {
 	path: string;
@@ -101,6 +106,15 @@ export class DocsService {
 		if (stat.size > MAX_SOURCE_BYTES) return { kind: "too-large", size: stat.size };
 		const text = await fsp.readFile(resolved.abs, "utf8");
 		return { kind: "ok", source: { text, version: versionOf(text) } };
+	}
+
+	/** Read static page metadata without the editor's source-size limit or version hash. */
+	async readMetadata(inputPath: string, publicOnly = false): Promise<ReadMetadataResult> {
+		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
+		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
+		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
+		const source = await fsp.readFile(resolved.abs, "utf8");
+		return { kind: "ok", ...parseMetadata(source) };
 	}
 
 	/**

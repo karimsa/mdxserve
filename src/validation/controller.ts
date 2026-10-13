@@ -18,6 +18,7 @@ export const diagnosticSchema = z.object({
 		"unresolved-import",
 		"render-error",
 		"mermaid-chart",
+		"frontmatter-metadata",
 	]),
 	message: z.string(),
 	line: z.number().optional(),

@@ -1,3 +1,5 @@
+import type { DocumentMetadata } from "../docs/metadata.js";
+
 export function escapeHtml(input: string): string {
 	return input
 		.replaceAll("&", "&amp;")
@@ -24,6 +26,7 @@ export function renderDocument(options: {
 	inlineCss?: string;
 	/** Overrides the `/__mdxserve/favicon.svg` icon href — `mdxserve export` passes a data URI since there is no server to serve the file from. */
 	faviconHref?: string;
+	metadata?: DocumentMetadata;
 }): string {
 	const {
 		title,
@@ -31,7 +34,24 @@ export function renderDocument(options: {
 		bodyClass = BODY_CLASS,
 		inlineCss,
 		faviconHref = "/__mdxserve/favicon.svg",
+		metadata,
 	} = options;
+	const metadataTags = metadata
+		? [
+				metadata.description === undefined
+					? ""
+					: `<meta data-mdxserve-metadata name="description" content="${escapeHtml(metadata.description)}" />`,
+				metadata.canonical === undefined
+					? ""
+					: `<link data-mdxserve-metadata rel="canonical" href="${escapeHtml(metadata.canonical)}" />`,
+				...metadata.openGraph.map(
+					({ property, content }) =>
+						`<meta data-mdxserve-metadata property="${escapeHtml(property)}" content="${escapeHtml(content)}" />`,
+				),
+			]
+				.filter(Boolean)
+				.join("\n    ")
+		: "";
 	const styleTag =
 		inlineCss === undefined
 			? `<link rel="stylesheet" href="/__mdxserve/app.css" />`
@@ -41,7 +61,8 @@ export function renderDocument(options: {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(title)}</title>
+    <title>${escapeHtml(metadata?.title ?? title)}</title>
+    ${metadataTags}
     <link rel="icon" type="image/svg+xml" href="${faviconHref}" />
     <script>${THEME_SCRIPT}</script>
     ${styleTag}

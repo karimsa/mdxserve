@@ -149,6 +149,31 @@ flowchart LR
 
 ![Mermaid diagrams rendered in the dark theme](docs/screenshots/diagrams-dark.jpg)
 
+### Page metadata
+
+Add YAML frontmatter to set a page title, description, canonical URL, and Open Graph sharing tags. Metadata appears in the initial HTML response and in HTML exports, and updates as you navigate between documents. `.md` and `.mdx` use the same fields.
+
+```yaml
+---
+title: My guide
+description: How to get started.
+canonical: https://docs.example.com/guide
+openGraph:
+  - property: og:title
+    content: My guide
+  - property: og:type
+    content: article
+  - property: og:url
+    content: https://docs.example.com/guide
+  - property: og:image
+    content: https://docs.example.com/guide.png
+  - property: og:image:alt
+    content: A diagram from the guide
+---
+```
+
+Use absolute public URLs for canonical links and sharing images. Open Graph values are explicit, so the sharing title can differ from the browser title. The list preserves repeated images and their attributes. See [metadata rules and validation](docs/advanced.md#page-metadata).
+
 ### Builtin components
 
 A small set of components is available in every file, `.md` included, with no import:

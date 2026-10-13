@@ -5,6 +5,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { queryClient, trpc } from "./api";
 // Type-only: see the comment in client/api.ts — src/ is not served by Vite.
 import type { AppRouter } from "../src/api/router";
+import type { DocumentMetadata } from "../src/docs/metadata";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type DocTreeOutput = RouterOutputs["getDocTree"];
@@ -23,7 +24,14 @@ export interface RootInfo {
 export type Route =
 	| { kind: "home"; roots: RootInfo[] }
 	| { kind: "listing"; path: string; rootName: string; rootDir: string; entries: ListingEntry[] }
-	| { kind: "doc"; path: string; rootName: string; rootDir: string; mtime?: number }
+	| {
+			kind: "doc";
+			path: string;
+			rootName: string;
+			rootDir: string;
+			mtime?: number;
+			metadata?: DocumentMetadata;
+	  }
 	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
 // Derived from the router's own output schema (src/listing/controller.ts's
@@ -39,31 +47,40 @@ export interface RootTree extends RootInfo {
 // The doc-module cache lives in client/doc-module-cache.ts (so an exported
 // file can use it without this module's tRPC graph); re-exported here for the
 // live viewer's callers.
-import { docModuleCache, type DocModuleState } from "./doc-module-cache";
+import { docModuleCache, docModuleUrl, type DocModuleState } from "./doc-module-cache";
 import { decodeRoutePath } from "./route-path";
 export { docModuleCache, type DocModuleState };
 const docModulePromises = new Map<string, Promise<void>>();
+const docModuleGenerations = new Map<string, number>();
 
-function ensureDocModule(path: string): Promise<void> {
-	if (docModuleCache.has(path)) return Promise.resolve();
+function ensureDocModule(path: string, refresh = false): Promise<void> {
+	if (!refresh && docModuleCache.has(path)) return Promise.resolve();
 	const pending = docModulePromises.get(path);
-	if (pending) return pending;
+	if (pending && !refresh) return pending;
+	const generation = (docModuleGenerations.get(path) ?? 0) + 1;
+	docModuleGenerations.set(path, generation);
 
-	// Vite serves absolute filesystem paths through its /@fs/ scheme.
-	const promise = import(/* @vite-ignore */ "/@fs" + path)
-		.then((mod: { default?: ComponentType }) => {
+	const moduleUrl = docModuleUrl(path, refresh ? `${Date.now()}-${generation}` : undefined);
+	const promise = import(/* @vite-ignore */ moduleUrl)
+		.then((mod: { default?: ComponentType; __mdxserveMetadata?: DocumentMetadata }) => {
+			if (docModuleGenerations.get(path) !== generation) return;
 			if (!mod.default) {
 				docModuleCache.set(path, { status: "error", message: `${path} has no default export.` });
 			} else {
-				docModuleCache.set(path, { status: "ok", Component: mod.default });
+				docModuleCache.set(path, {
+					status: "ok",
+					Component: mod.default,
+					metadata: mod.__mdxserveMetadata ?? { openGraph: [] },
+				});
 			}
 		})
 		.catch((error: unknown) => {
+			if (docModuleGenerations.get(path) !== generation) return;
 			const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
 			docModuleCache.set(path, { status: "error", message });
 		})
 		.finally(() => {
-			docModulePromises.delete(path);
+			if (docModulePromises.get(path) === promise) docModulePromises.delete(path);
 		});
 
 	docModulePromises.set(path, promise);
@@ -222,7 +239,7 @@ export function useFolderListing(folder: string): FolderListing {
 	return { entries: data?.entries ?? null, error: isError && !data, notFound };
 }
 
-function titleFor(route: Route): string {
+export function titleFor(route: Route): string {
 	if (route.kind === "home") return "mdxserve";
 	if (route.kind === "listing") return `${route.rootName}${route.path.slice(route.rootDir.length)}`;
 	if (route.kind === "doc") {
@@ -306,7 +323,6 @@ export function useRouter(initialRoute: Route) {
 				// "/" resolves to that root's listing (mirroring the server's 302),
 				// and the address bar should say so.
 				history.pushState({}, "", next.kind === "home" ? "/" : next.path);
-				document.title = titleFor(next);
 				setRoute(next);
 			});
 		},
@@ -333,7 +349,6 @@ export function useRouter(initialRoute: Route) {
 	}, []);
 
 	useEffect(() => {
-		document.title = titleFor(initialRoute);
 		// The server embeds the initial listing's entries straight into the page,
 		// but useFolderListing consumers still need them in the shared cache.
 		if (initialRoute.kind === "listing") {
@@ -351,7 +366,6 @@ export function useRouter(initialRoute: Route) {
 		function onPopState() {
 			loadRoute(location.pathname).then((next) => {
 				if (!next) return;
-				document.title = titleFor(next);
 				setRoute(next);
 			});
 		}
@@ -361,6 +375,25 @@ export function useRouter(initialRoute: Route) {
 		window.addEventListener("popstate", onPopState);
 		return () => window.removeEventListener("popstate", onPopState);
 	}, [loadRoute]);
+
+	// The file watcher names the changed source even when Vite attributes its
+	// HMR update to an importer. Re-import with a new URL so metadata removals
+	// replace the cached module as well as changes to the visible document.
+	useEffect(() => {
+		if (!import.meta.hot) return;
+		const handleDocChanged = (data: { files?: Array<{ path: string }> }) => {
+			for (const file of data?.files ?? []) {
+				if (!docModuleCache.has(file.path)) continue;
+				void ensureDocModule(file.path, true).then(() => {
+					setRoute((current) =>
+						current.kind === "doc" && current.path === file.path ? { ...current } : current,
+					);
+				});
+			}
+		};
+		import.meta.hot.on("mdxserve:doc-changed", handleDocChanged);
+		return () => import.meta.hot?.off?.("mdxserve:doc-changed", handleDocChanged);
+	}, []);
 
 	useEffect(() => {
 		function onClick(event: MouseEvent) {
@@ -448,7 +481,6 @@ export function useRouter(initialRoute: Route) {
 				roots: remaining.map((info) => ({ name: info.name, dir: info.dir })),
 			};
 			history.pushState({}, "", "/");
-			document.title = titleFor(homeRoute);
 			setRoute(homeRoute);
 		}
 		window.addEventListener("mdxserve:roots-changed", onRootsChanged);
