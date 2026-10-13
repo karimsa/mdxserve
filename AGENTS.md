@@ -94,3 +94,17 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
 ## Creating PRs
 
 - You must take screenshots of the working functionality and upload them into the PR description
+
+## Releasing
+
+1. Create a release branch from the latest `origin/main`.
+2. Run `npm version minor --no-git-tag-version` (or the requested version bump),
+   commit the version change with the required `Co-authored-by` trailer, and open a PR.
+   `main` requires a PR and passing status checks.
+3. Wait for the PR to merge, then fetch and check out the merged commit on `main`.
+   Confirm `package.json` contains the intended release version.
+4. Create an annotated tag on that merged commit matching the package version
+   (for example, `git tag -a v0.5.0 -m 'Release 0.5.0'`), then push that tag
+   (`git push origin v0.5.0`). Create and push the release tag only after the PR merges.
+5. Verify the tag-triggered Release workflow succeeds. It publishes the package to
+   npm and then promotes the site deployment.
