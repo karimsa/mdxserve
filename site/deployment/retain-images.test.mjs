@@ -49,8 +49,19 @@ function harness(startingImages = inventory()) {
 			return images.map((entry) => entry.id);
 		},
 		checkRelease: async () => false,
-		fetchImpl: async (url) => {
-			const pathname = new URL(url).pathname;
+		fetchImpl: async (url, request = {}) => {
+			const parsed = new URL(url);
+			const pathname = parsed.pathname;
+			if (pathname.startsWith("/v1/vcr/repository/site/images")) {
+				calls.push({ url: parsed, method: request.method ?? "GET", headers: request.headers });
+				if (request.method === "DELETE") {
+					const id = decodeURIComponent(pathname.split("/").at(-1));
+					deleted.push(id);
+					images = images.filter((entry) => entry.id !== id);
+					return { ok: true, status: 204 };
+				}
+				return reply({ images });
+			}
 			if (pathname.includes("/aliases/")) {
 				return reply({
 					alias: "mdxserve.karim.build",
@@ -65,14 +76,6 @@ function harness(startingImages = inventory()) {
 				gitSource: { sha: currentSha },
 				meta: { githubCommitSha: currentSha },
 			});
-		},
-		runCli: async (args) => {
-			calls.push(args);
-			if (args[0] === "ls") return JSON.stringify({ images });
-			const id = args[2];
-			deleted.push(id);
-			images = images.filter((entry) => entry.id !== id);
-			return JSON.stringify({ imageId: id, repository: "site", deleted: true });
 		},
 	};
 }
@@ -121,22 +124,78 @@ test("fails closed on missing or ambiguous production images and unexpected tags
 	);
 });
 
-test("previews without deleting and scopes registry commands to the project", async () => {
+test("previews without deleting and scopes registry requests to the project", async () => {
 	const fake = harness();
 	const result = await retainImages({ ...options, ...fake });
 	assert.equal(result.deleteIds.length, 2);
 	assert.deepEqual(fake.deleted, []);
 	assert.equal(fake.calls.length, 1);
-	assert.deepEqual(fake.calls[0].slice(0, 4), ["ls", "site", "--project", options.projectId]);
-	assert.ok(fake.calls[0].includes(options.teamId));
+	assert.equal(fake.calls[0].method, "GET");
+	assert.equal(fake.calls[0].url.pathname, "/v1/vcr/repository/site/images");
+	assert.equal(fake.calls[0].url.searchParams.get("teamId"), options.teamId);
+	assert.equal(fake.calls[0].url.searchParams.get("projectId"), options.projectId);
+	assert.equal(fake.calls[0].url.searchParams.get("limit"), "100");
+	assert.equal(fake.calls[0].headers.Authorization, "Bearer project-token");
+});
+
+test("reads every registry page before planning deletions", async () => {
+	const fake = harness();
+	const fetchImpl = fake.fetchImpl;
+	const cursors = [];
+	fake.fetchImpl = async (url, request) => {
+		const parsed = new URL(url);
+		if (parsed.pathname === "/v1/vcr/repository/site/images") {
+			cursors.push(parsed.searchParams.get("cursor"));
+			return parsed.searchParams.has("cursor")
+				? reply({ images: inventory().slice(2) })
+				: reply({ images: inventory().slice(0, 2), nextCursor: "page-two" });
+		}
+		return fetchImpl(url, request);
+	};
+	const result = await retainImages({ ...options, ...fake });
+	assert.deepEqual(cursors, [null, "page-two"]);
+	assert.deepEqual(result.deleteIds, ["image_untagged", "image_older"]);
+	assert.deepEqual(fake.deleted, []);
+});
+
+test("fails closed on registry HTTP errors, invalid JSON and incomplete pages", async () => {
+	for (const [response, message] of [
+		[{ ok: false, status: 403 }, /inventory returned HTTP 403/],
+		[
+			{
+				ok: true,
+				json: async () => {
+					throw new SyntaxError("bad JSON");
+				},
+			},
+			/not valid JSON/,
+		],
+		[reply({ images: "invalid" }), /unexpected shape/],
+		[reply({ images: inventory(), nextCursor: "again" }), /invalid cursor/],
+		[reply({ images: Array.from({ length: 100 }, () => inventory()[0]) }), /may be truncated/],
+	]) {
+		const fake = harness();
+		const fetchImpl = fake.fetchImpl;
+		let calls = 0;
+		fake.fetchImpl = async (url, request) => {
+			if (new URL(url).pathname === "/v1/vcr/repository/site/images") {
+				calls += 1;
+				return response;
+			}
+			return fetchImpl(url, request);
+		};
+		await assert.rejects(retainImages({ ...options, ...fake, apply: true }), message);
+		assert.deepEqual(fake.deleted, []);
+		assert.ok(calls >= 1);
+	}
 });
 
 test("rechecks the live alias and inventory before each deletion", async () => {
 	const fake = harness();
-	const runCli = fake.runCli;
-	fake.runCli = async (args) => {
-		const result = await runCli(args);
-		if (args[0] === "rm" && fake.deleted.length === 1) {
+	const fetchImpl = fake.fetchImpl;
+	fake.fetchImpl = async (url, request) => {
+		const result = await fetchImpl(url, request);
+		if (request?.method === "DELETE" && fake.deleted.length === 1) {
 			fake.setProduction("c".repeat(40), "dpl_Promoted");
 			fake.addImage(image("incoming", "e".repeat(12), 5));
 		}
@@ -147,8 +206,12 @@ test("rechecks the live alias and inventory before each deletion", async () => {
 	assert.deepEqual(fake.remaining().sort(), ["image_incoming", "image_older"].sort());
 	assert.ok(!fake.deleted.includes("image_older"));
 	assert.ok(!fake.deleted.includes("image_incoming"));
-	assert.equal(fake.calls.filter((args) => args[0] === "ls").length, result.deleted + 1);
-	assert.ok(fake.calls.filter((args) => args[0] === "rm").every((args) => args.includes("--yes")));
+	assert.equal(fake.calls.filter((call) => call.method === "GET").length, result.deleted + 1);
+	assert.ok(
+		fake.calls
+			.filter((call) => call.method === "DELETE")
+			.every((call) => call.headers.Authorization === "Bearer project-token"),
+	);
 });
 
 test("does not delete if the live production alias or SHA is untrustworthy", async () => {
@@ -177,12 +240,15 @@ test("does not delete if the live production alias or SHA is untrustworthy", asy
 	assert.deepEqual(fake.deleted, []);
 });
 
-test("stops when the CLI does not confirm deletion", async () => {
+test("stops when Vercel rejects deletion", async () => {
 	const fake = harness();
-	const runCli = fake.runCli;
-	fake.runCli = async (args) =>
-		args[0] === "rm" ? JSON.stringify({ deleted: false }) : runCli(args);
-	await assert.rejects(retainImages({ ...options, ...fake, apply: true }), /did not confirm/);
+	const fetchImpl = fake.fetchImpl;
+	fake.fetchImpl = async (url, request) =>
+		request?.method === "DELETE" ? { ok: false, status: 403 } : fetchImpl(url, request);
+	await assert.rejects(
+		retainImages({ ...options, ...fake, apply: true }),
+		/deletion returned HTTP 403/,
+	);
 	assert.deepEqual(fake.deleted, []);
 });
 
