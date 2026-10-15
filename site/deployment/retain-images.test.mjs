@@ -138,6 +138,22 @@ test("previews without deleting and scopes registry requests to the project", as
 	assert.equal(fake.calls[0].headers.Authorization, "Bearer project-token");
 });
 
+test("uses separate tokens for registry mutations and production metadata", async () => {
+	const fake = harness();
+	const fetchImpl = fake.fetchImpl;
+	const requests = [];
+	fake.fetchImpl = async (url, request) => {
+		requests.push({ pathname: new URL(url).pathname, request });
+		return fetchImpl(url, request);
+	};
+	await retainImages({ ...options, registryToken: "vcr-token", ...fake, apply: true });
+	for (const { pathname, request } of requests) {
+		const expected = pathname.startsWith("/v1/vcr/") ? "Bearer vcr-token" : "Bearer project-token";
+		assert.equal(request.headers.Authorization, expected);
+	}
+	assert.ok(requests.some(({ request }) => request.method === "DELETE"));
+});
+
 test("reads every registry page before planning deletions", async () => {
 	const fake = harness();
 	const fetchImpl = fake.fetchImpl;
