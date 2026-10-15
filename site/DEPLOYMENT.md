@@ -6,7 +6,7 @@ Each pushed `v*` tag first runs the npm release job. Once npm publish succeeds, 
 
 The Site deployment signal workflow has no checkout or secrets. Its successful completion starts retention from the trusted workflow revision. Retention also runs after Release completes, every six hours, and on manual dispatch.
 
-Retention keeps the image serving `mdxserve.karim.build` and the newest other tagged image, then deletes older and untagged images. The full Release workflow shares the `site-production` queue with retention. Before each deletion, retention checks the live production alias, image inventory, and active Release runs. A queued or running release defers cleanup until its completion event. Run `node site/deployment/retain-images.mjs` to preview the count; add `--apply` to delete with a GitHub Actions token in `GH_TOKEN`. Once deployments settle, the registry holds at most two images. A build or release in progress can temporarily add another.
+Retention keeps the image serving `mdxserve.karim.build` and the newest other tagged image, then deletes older and untagged images. It uses project-scoped Vercel REST requests so the project token does not need account-wide CLI lookup access. The full Release workflow shares the `site-production` queue with retention. Before each deletion, retention checks the live production alias, image inventory, and active Release runs. A queued or running release defers cleanup until its completion event. Run `node site/deployment/retain-images.mjs` to preview the count; add `--apply` to delete with a GitHub Actions token in `GH_TOKEN`. Once deployments settle, the registry holds at most two images. A build or release in progress can temporarily add another.
 
 ## One-time Vercel setup
 

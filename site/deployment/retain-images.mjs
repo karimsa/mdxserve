@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { productionDomain } from "./check-promotion-freshness.mjs";
 
@@ -14,17 +13,6 @@ const releaseStatuses = ["queued", "in_progress", "pending", "waiting", "request
 
 function isRecord(value) {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function runVercel(args) {
-	const result = spawnSync("npx", ["--yes", "vercel@63.1.0", "vcr", "image", ...args], {
-		encoding: "utf8",
-		maxBuffer: 10 * 1024 * 1024,
-	});
-	if (result.error || result.status !== 0) {
-		throw new Error(`Vercel image command failed (exit ${result.status ?? "unknown"})`);
-	}
-	return result.stdout;
 }
 
 /** Queued and running releases must finish before their candidate images can be pruned. */
@@ -100,28 +88,32 @@ async function getProductionSha({ fetchImpl, token, teamId, projectId }) {
 	return sha.toLowerCase();
 }
 
-async function listImages({ runCli, token, teamId, projectId }) {
+function imageUrl(teamId, projectId, imageId) {
+	const pathname = imageId
+		? `/v1/vcr/repository/site/images/${encodeURIComponent(imageId)}`
+		: "/v1/vcr/repository/site/images";
+	const url = new URL(pathname, apiOrigin);
+	url.searchParams.set("teamId", teamId);
+	url.searchParams.set("projectId", projectId);
+	return url;
+}
+
+async function listImages({ fetchImpl, token, teamId, projectId }) {
 	const images = [];
 	let cursor;
 	const seenCursors = new Set();
 	for (;;) {
-		const args = [
-			"ls",
-			"site",
-			"--project",
-			projectId,
-			"--scope",
-			teamId,
-			"--limit",
-			String(maxPageSize),
-			"--json",
-			"--token",
-			token,
-		];
-		if (cursor) args.push("--next", cursor);
+		const url = imageUrl(teamId, projectId);
+		url.searchParams.set("limit", String(maxPageSize));
+		if (cursor) url.searchParams.set("cursor", cursor);
+		const response = await fetchImpl(url, {
+			headers: { Authorization: `Bearer ${token}` },
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!response.ok) throw new Error(`Vercel image inventory returned HTTP ${response.status}`);
 		let page;
 		try {
-			page = JSON.parse(await runCli(args));
+			page = await response.json();
 		} catch (error) {
 			throw new Error("Vercel image inventory is not valid JSON", { cause: error });
 		}
@@ -206,7 +198,6 @@ export async function retainImages({
 	githubToken,
 	apply = false,
 	fetchImpl = fetch,
-	runCli = runVercel,
 	checkRelease = hasPendingRelease,
 }) {
 	if (!token || !/^team_[A-Za-z0-9]+$/.test(teamId) || !/^prj_[A-Za-z0-9]+$/.test(projectId)) {
@@ -215,7 +206,7 @@ export async function retainImages({
 	let deleted = 0;
 	const deletedIds = new Set();
 	for (;;) {
-		const images = await listImages({ runCli, token, teamId, projectId });
+		const images = await listImages({ fetchImpl, token, teamId, projectId });
 		if (images.some((image) => deletedIds.has(image.id))) {
 			throw new Error("Vercel image inventory still lists an image already deleted");
 		}
@@ -228,34 +219,12 @@ export async function retainImages({
 		}
 		if (deleted >= maxDeletes) throw new Error("Image cleanup exceeded its delete limit");
 		const imageId = plan.deleteIds[0];
-		let removal;
-		try {
-			removal = JSON.parse(
-				await runCli([
-					"rm",
-					"site",
-					imageId,
-					"--project",
-					projectId,
-					"--scope",
-					teamId,
-					"--yes",
-					"--json",
-					"--token",
-					token,
-				]),
-			);
-		} catch (error) {
-			throw new Error("Vercel image deletion did not return valid JSON", { cause: error });
-		}
-		if (
-			!isRecord(removal) ||
-			removal.imageId !== imageId ||
-			removal.repository !== "site" ||
-			removal.deleted !== true
-		) {
-			throw new Error("Vercel did not confirm the requested image deletion");
-		}
+		const response = await fetchImpl(imageUrl(teamId, projectId, imageId), {
+			method: "DELETE",
+			headers: { Authorization: `Bearer ${token}` },
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!response.ok) throw new Error(`Vercel image deletion returned HTTP ${response.status}`);
 		deletedIds.add(imageId);
 		deleted += 1;
 	}
