@@ -7,6 +7,7 @@ const {
 
 const headSha = "f813ba871764ed9a5bf316400d6367dd666da5dc";
 const oldSha = "e6a662aff04ddc24c28e9aab7a92d32ad6fe8560";
+const workflowUrl = "https://github.com/karimsa/mdxserve/actions/runs/456";
 
 function review(id, state, overrides = {}) {
 	return {
@@ -37,29 +38,41 @@ test("requires the latest decisive maintainer review on the exact head", () => {
 	assert.equal(approvedForHead([], headSha), false);
 });
 
+function gateStatus(state, description, creator = { login: "github-actions[bot]", type: "Bot" }) {
+	return { context: "Maintainer approval", state, description, creator };
+}
+
 function harness({
 	pullRequests = [{ number: 2, head: { sha: headSha }, user: { login: "contributor" } }],
 	reviews = [review(1, "APPROVED")],
-	existingChecks = [
-		{
-			id: 99,
-			status: "in_progress",
-			external_id: "maintainer-approval-gate:2",
-			app: { slug: "github-actions" },
-		},
-	],
 	currentHead = headSha,
 	currentAuthor = "contributor",
 	currentState = "open",
+	initialStatuses = [],
+	eventName = "workflow_run",
+	eventPayload = { workflow_run: { name: "Verify PR" } },
 	failReviews = false,
+	holdReviews = false,
+	failStatuses = false,
+	failWrite = false,
 } = {}) {
 	const writes = [];
-	const reads = [];
+	const events = [];
+	let currentReviews = reviews;
+	let currentEventName = eventName;
+	let currentPayload = eventPayload;
+	let releaseReviews;
+	const heldReviews = holdReviews
+		? new Promise((resolve) => {
+				releaseReviews = resolve;
+			})
+		: undefined;
+	let statuses = initialStatuses;
 	const pulls = {
 		list() {},
 		listReviews() {},
 		async get() {
-			reads.push("get");
+			events.push("get");
 			return {
 				data: {
 					head: { sha: currentHead },
@@ -69,107 +82,131 @@ function harness({
 			};
 		},
 	};
-	const checks = {
-		listForRef() {},
-		async create(payload) {
+	const repos = {
+		listCommitStatusesForRef() {},
+		async createCommitStatus(payload) {
+			if (failWrite) throw new Error("Status API unavailable");
 			writes.push(payload);
-			return { data: { id: 100 } };
-		},
-		async update(payload) {
-			writes.push(payload);
-			return { data: { id: payload.check_run_id } };
+			events.push(payload.state);
+			statuses = [gateStatus(payload.state, payload.description), ...statuses];
 		},
 	};
 	const github = {
-		rest: { pulls, checks },
+		rest: { pulls, repos },
 		async paginate(method, options) {
 			if (method === pulls.list) return pullRequests;
-			if (method === checks.listForRef) return existingChecks;
+			if (method === repos.listCommitStatusesForRef) {
+				events.push("statuses");
+				assert.equal(options.ref, headSha);
+				if (failStatuses) throw new Error("Status list unavailable");
+				return statuses;
+			}
 			if (method === pulls.listReviews) {
-				reads.push(`reviews:${options.pull_number}:${options.per_page}`);
+				events.push("reviews");
+				assert.equal(options.pull_number, 2);
+				if (heldReviews) await heldReviews;
 				if (failReviews) throw new Error("API unavailable");
-				return reviews;
+				return currentReviews;
 			}
 			throw new Error("Unexpected API call");
 		},
 	};
 	return {
 		writes,
-		reads,
+		events,
+		releaseReviews: () => releaseReviews?.(),
+		setReviews(next) {
+			currentReviews = next;
+		},
+		setEvent(nextName, nextPayload) {
+			currentEventName = nextName;
+			currentPayload = nextPayload;
+		},
 		run: () =>
 			reconcile({
 				github,
-				context: { repo: { owner: "karimsa", repo: "mdxserve" } },
+				context: {
+					eventName: currentEventName,
+					payload: currentPayload,
+					repo: { owner: "karimsa", repo: "mdxserve" },
+					serverUrl: "https://github.com",
+					runId: 456,
+				},
 				core: { info() {} },
 			}),
 	};
 }
 
-test("accepts the PR author and does not require a review API read", async () => {
+function assertStatus(write, state) {
+	assert.equal(write.sha, headSha);
+	assert.equal(write.context, "Maintainer approval");
+	assert.equal(write.state, state);
+	assert.equal(write.target_url, workflowUrl);
+	assert.ok(write.description.length <= 140);
+}
+
+test("accepts the PR author without reading reviews", async () => {
 	const fixture = harness({
 		pullRequests: [{ number: 2, head: { sha: headSha }, user: { login: "karimsa" } }],
 		currentAuthor: "karimsa",
 		failReviews: true,
 	});
 	await fixture.run();
-	assert.deepEqual(fixture.reads, ["get"]);
-	assert.equal(fixture.writes[0].status, "in_progress");
-	assert.equal(fixture.writes[1].conclusion, "success");
+	assert.deepEqual(fixture.events, ["statuses", "get", "success"]);
+	assertStatus(fixture.writes[0], "success");
 });
 
-test("accepts current-head approval and resets the check before reading reviews", async () => {
+test("accepts current-head approval and skips unchanged repeats", async () => {
 	const fixture = harness();
-	await fixture.run();
-	assert.equal(fixture.writes[0].check_run_id, 99);
-	assert.equal(fixture.writes[0].status, "in_progress");
-	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
-	assert.equal(fixture.writes[1].conclusion, "success");
-	assert.match(fixture.writes[1].output.summary, new RegExp(headSha));
+	for (let count = 0; count < 501; count += 1) await fixture.run();
+	assert.equal(fixture.events.filter((event) => event === "reviews").length, 1);
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["success"],
+	);
+	assertStatus(fixture.writes[0], "success");
 });
 
-test("creates a new failing run when a completed approval is invalidated", async () => {
+test("review changes, branch pushes and synchronization clear success before reads", async () => {
+	for (const event of [
+		{
+			eventName: "workflow_run",
+			eventPayload: { workflow_run: { name: "PR review changed", pull_requests: [] } },
+		},
+		{ eventName: "push", eventPayload: { ref: "refs/heads/main" } },
+		{
+			eventName: "pull_request_target",
+			eventPayload: { action: "synchronize", pull_request: { number: 2 } },
+		},
+	]) {
+		const fixture = harness({
+			...event,
+			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+			holdReviews: true,
+		});
+		const running = fixture.run();
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(fixture.events, ["statuses", "pending", "reviews"]);
+		fixture.releaseReviews();
+		await running;
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending", "success"],
+		);
+	}
+});
+
+test("review change for another PR does not refresh an existing success", async () => {
 	const fixture = harness({
-		existingChecks: [
-			{
-				id: 99,
-				status: "completed",
-				conclusion: "success",
-				external_id: "maintainer-approval-gate:2",
-				app: { slug: "github-actions" },
-			},
-		],
-		reviews: [review(1, "APPROVED"), review(2, "DISMISSED")],
+		initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+		eventName: "workflow_run",
+		eventPayload: { workflow_run: { name: "PR review changed", pull_requests: [{ number: 3 }] } },
 	});
 	await fixture.run();
-	assert.equal(fixture.writes[0].head_sha, headSha);
-	assert.equal(fixture.writes[0].external_id, "maintainer-approval-gate:2");
-	assert.equal(fixture.writes[0].check_run_id, undefined);
-	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
-	assert.equal(fixture.writes[1].check_run_id, 100);
-	assert.equal(fixture.writes[1].conclusion, "failure");
+	assert.deepEqual(fixture.events, ["statuses"]);
 });
 
-test("creates a new successful run when a completed failure receives approval", async () => {
-	const fixture = harness({
-		existingChecks: [
-			{
-				id: 99,
-				status: "completed",
-				conclusion: "failure",
-				external_id: "maintainer-approval-gate:2",
-				app: { slug: "github-actions" },
-			},
-		],
-	});
-	await fixture.run();
-	assert.equal(fixture.writes[0].head_sha, headSha);
-	assert.equal(fixture.writes[0].check_run_id, undefined);
-	assert.deepEqual(fixture.reads, ["reviews:2:100", "get"]);
-	assert.equal(fixture.writes[1].check_run_id, 100);
-	assert.equal(fixture.writes[1].conclusion, "success");
-});
-
-test("fails after dismissal, changed decision, old approval, or no review", async () => {
+test("writes failure once while approval is missing", async () => {
 	for (const reviews of [
 		[review(1, "APPROVED"), review(2, "DISMISSED")],
 		[review(1, "APPROVED"), review(2, "CHANGES_REQUESTED")],
@@ -178,46 +215,79 @@ test("fails after dismissal, changed decision, old approval, or no review", asyn
 	]) {
 		const fixture = harness({ reviews });
 		await fixture.run();
-		assert.equal(fixture.writes.length, 2);
-		assert.equal(fixture.writes[0].status, "in_progress");
-		assert.equal(fixture.writes[1].conclusion, "failure");
-		assert.match(fixture.writes[1].output.summary, /must approve the current head commit/);
+		await fixture.run();
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["failure"],
+		);
+		assertStatus(fixture.writes[0], "failure");
 	}
 });
 
-test("ignores a check from another app or PR and creates one on the original head", async () => {
+test("updates a status when approval is invalidated or restored", async () => {
+	const fixture = harness();
+	await fixture.run();
+	fixture.setReviews([review(1, "APPROVED"), review(2, "DISMISSED")]);
+	fixture.setEvent("workflow_run", {
+		workflow_run: { name: "PR review changed", pull_requests: [] },
+	});
+	await fixture.run();
+	await fixture.run();
+	fixture.setReviews([review(1, "APPROVED"), review(2, "DISMISSED"), review(3, "APPROVED")]);
+	await fixture.run();
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["success", "pending", "failure", "success"],
+	);
+});
+
+test("does not trust a same-context status from another creator", async () => {
 	const fixture = harness({
-		existingChecks: [
-			{ id: 1, external_id: "maintainer-approval-gate:2", app: { slug: "other-app" } },
-			{ id: 2, external_id: "maintainer-approval-gate:3", app: { slug: "github-actions" } },
+		initialStatuses: [
+			gateStatus("success", "Maintainer approved this head", { login: "other-user", type: "User" }),
+			gateStatus("success", "Maintainer approved this head"),
 		],
 	});
 	await fixture.run();
-	assert.equal(fixture.writes[0].head_sha, headSha);
-	assert.equal(fixture.writes[0].external_id, "maintainer-approval-gate:2");
-	assert.equal(fixture.writes[1].check_run_id, 100);
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["success"],
+	);
 });
 
-test("clears an old pass before review API failure and does not publish for a moved head", async () => {
-	const failed = harness({ failReviews: true });
-	await assert.rejects(failed.run(), /API unavailable/);
-	assert.equal(failed.writes.length, 1);
-	assert.equal(failed.writes[0].status, "in_progress");
-
-	const moved = harness({ currentHead: oldSha });
-	await moved.run();
-	assert.equal(moved.writes.length, 1);
-	assert.equal(moved.writes[0].status, "in_progress");
+test("moves an old pass to pending for a moved or closed PR", async () => {
+	for (const options of [{ currentHead: oldSha }, { currentState: "closed" }]) {
+		const fixture = harness({
+			...options,
+			eventName: "workflow_dispatch",
+			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+		});
+		await fixture.run();
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending"],
+		);
+	}
 });
 
-test("checks every open PR serially", async () => {
-	const fixture = harness({
-		pullRequests: [
-			{ number: 2, head: { sha: headSha }, user: { login: "contributor" } },
-			{ number: 3, head: { sha: headSha }, user: { login: "contributor" } },
-		],
-	});
-	await fixture.run();
-	assert.deepEqual(fixture.reads, ["reviews:2:100", "get", "reviews:3:100", "get"]);
-	assert.equal(fixture.writes.length, 4);
+test("publishes pending on evidence or status-list API errors after success", async () => {
+	for (const options of [{ failReviews: true }, { failStatuses: true }]) {
+		const fixture = harness({
+			...options,
+			eventName: "workflow_dispatch",
+			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+		});
+		await assert.rejects(fixture.run(), /unavailable/);
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending"],
+		);
+	}
+});
+
+test("does not read evidence when the status-list fallback write fails", async () => {
+	const fixture = harness({ failStatuses: true, failWrite: true });
+	await assert.rejects(fixture.run(), /Status API unavailable/);
+	assert.deepEqual(fixture.writes, []);
+	assert.deepEqual(fixture.events, ["statuses"]);
 });

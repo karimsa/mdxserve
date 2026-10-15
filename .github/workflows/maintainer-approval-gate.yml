@@ -13,9 +13,10 @@ on:
 permissions:
   contents: read
   pull-requests: read
-  checks: write
+  statuses: write
 
-# Read fresh API state for every open PR, one run at a time.
+# Reconcile one run at a time. A completed gate is refreshed only when the
+# event can change its approval evidence.
 concurrency:
   group: maintainer-approval-gate
   cancel-in-progress: false

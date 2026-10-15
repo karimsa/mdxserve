@@ -12,10 +12,10 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-  checks: write
+  statuses: write
 
-# Reconcile from fresh API state, serially, so an older event cannot overwrite
-# a newer result. Every run checks all open PRs, including on manual dispatch.
+# Reconcile serially so an older event cannot overwrite a newer result. A
+# completed gate is refreshed only when the event can change its evidence.
 concurrency:
   group: codex-review-gate
   cancel-in-progress: false

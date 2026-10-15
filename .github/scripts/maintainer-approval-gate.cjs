@@ -1,5 +1,30 @@
 const CHECK_NAME = "Maintainer approval";
 const MAINTAINER_LOGIN = "karimsa";
+const { createGateStatusPublisher } = require("./gate-status.cjs");
+
+function isIrrelevantEvent(context, pullRequestNumber) {
+	if (context.eventName === "push") return false;
+	if (context.eventName === "workflow_run") {
+		const workflow = context.payload?.workflow_run;
+		if (workflow?.name === "Verify PR") return true;
+		if (workflow?.name === "PR review changed") {
+			const affected = workflow.pull_requests;
+			return (
+				Array.isArray(affected) &&
+				affected.length > 0 &&
+				!affected.some((pullRequest) => pullRequest.number === pullRequestNumber)
+			);
+		}
+		return false;
+	}
+	if (context.eventName === "pull_request_target") {
+		const eventNumber = context.payload?.pull_request?.number;
+		if (!Number.isInteger(eventNumber)) return false;
+		if (eventNumber !== pullRequestNumber) return true;
+		return context.payload?.action === "edited";
+	}
+	return false;
+}
 
 // A comment or pending review does not change the most recent decision.
 function approvedForHead(reviews, headSha) {
@@ -22,70 +47,60 @@ async function reconcile({ github, context, core }) {
 	});
 	for (const pullRequest of pullRequests) {
 		const headSha = pullRequest.head.sha;
-		const externalId = `maintainer-approval-gate:${pullRequest.number}`;
-		const existing = await github.paginate(github.rest.checks.listForRef, {
-			...repo,
-			ref: headSha,
-			check_name: CHECK_NAME,
-			per_page: 100,
+		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+		const pendingDescription = "Checking current-head maintainer approval";
+		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
+		const { publish, previousState } = await createGateStatusPublisher({
+			github,
+			repo,
+			sha: headSha,
+			context: CHECK_NAME,
+			pendingDescription,
+			pendingUrl: workflowUrl,
 		});
-		const previous = existing.find(
-			(check) =>
-				check.app?.slug === "github-actions" &&
-				check.external_id === externalId &&
-				check.status !== "completed",
-		);
-		const pending = {
-			...repo,
-			name: CHECK_NAME,
-			status: "in_progress",
-			output: {
-				title: "Waiting for maintainer approval",
-				summary: `PR #${pullRequest.number} needs approval from ${MAINTAINER_LOGIN} for commit ${headSha}, unless ${MAINTAINER_LOGIN} authored it.`,
-			},
-		};
-		// Create a fresh evaluation after a completed check. Start it before reading
-		// evidence so API errors cannot leave the old result as the latest one.
-		const { data: check } = previous
-			? await github.rest.checks.update({ ...pending, check_run_id: previous.id })
-			: await github.rest.checks.create({
-					...pending,
-					head_sha: headSha,
-					external_id: externalId,
-				});
-		const reviews =
-			pullRequest.user?.login === MAINTAINER_LOGIN
-				? []
-				: await github.paginate(github.rest.pulls.listReviews, {
-						...repo,
-						pull_number: pullRequest.number,
-						per_page: 100,
-					});
-		// The list can go stale while reviews load. Publish only for its original head.
-		const { data: current } = await github.rest.pulls.get({
-			...repo,
-			pull_number: pullRequest.number,
-		});
-		if (current.head.sha !== headSha || current.state !== "open") continue;
-		const isAuthor = current.user?.login === MAINTAINER_LOGIN;
-		const approved = isAuthor || approvedForHead(reviews, headSha);
-		await github.rest.checks.update({
-			...repo,
-			check_run_id: check.id,
-			status: "completed",
-			conclusion: approved ? "success" : "failure",
-			output: {
-				title: approved ? "Maintainer approval confirmed" : "Maintainer approval required",
-				summary: isAuthor
-					? `${MAINTAINER_LOGIN} authored PR #${pullRequest.number} at ${headSha}.`
+		if (
+			previousState === "success" &&
+			(pullRequest.user?.login === MAINTAINER_LOGIN ||
+				isIrrelevantEvent(context, pullRequest.number))
+		)
+			continue;
+		if (previousState === "success") await publish("pending", pendingDescription, workflowUrl);
+		try {
+			const reviews =
+				pullRequest.user?.login === MAINTAINER_LOGIN
+					? []
+					: await github.paginate(github.rest.pulls.listReviews, {
+							...repo,
+							pull_number: pullRequest.number,
+							per_page: 100,
+						});
+			// The list can go stale while reviews load. Publish only for its original head.
+			const { data: current } = await github.rest.pulls.get({
+				...repo,
+				pull_number: pullRequest.number,
+			});
+			if (current.head.sha !== headSha || current.state !== "open") {
+				await publish("pending", pendingDescription, workflowUrl);
+				continue;
+			}
+			const isAuthor = current.user?.login === MAINTAINER_LOGIN;
+			const approved = isAuthor || approvedForHead(reviews, headSha);
+			await publish(
+				approved ? "success" : "failure",
+				isAuthor
+					? "Maintainer authored this PR"
 					: approved
-						? `${MAINTAINER_LOGIN} approved commit ${headSha}.`
-						: `${MAINTAINER_LOGIN} must approve the current head commit ${headSha}. A dismissed review or request for changes removes an earlier approval.`,
-			},
-		});
-		core.info(
-			`PR #${pullRequest.number}: maintainer approval ${approved ? "confirmed" : "required"} for ${headSha}`,
-		);
+						? "Maintainer approved this head"
+						: "Maintainer approval required for this head",
+				workflowUrl,
+			);
+			core.info(
+				`PR #${pullRequest.number}: maintainer approval ${approved ? "confirmed" : "required"} for ${headSha}`,
+			);
+		} catch (error) {
+			await publish("pending", pendingDescription, workflowUrl);
+			throw error;
+		}
 	}
 }
 
