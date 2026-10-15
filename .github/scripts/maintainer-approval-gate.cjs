@@ -2,6 +2,30 @@ const CHECK_NAME = "Maintainer approval";
 const MAINTAINER_LOGIN = "karimsa";
 const { createGateStatusPublisher } = require("./gate-status.cjs");
 
+function isIrrelevantEvent(context, pullRequestNumber) {
+	if (context.eventName === "push") return false;
+	if (context.eventName === "workflow_run") {
+		const workflow = context.payload?.workflow_run;
+		if (workflow?.name === "Verify PR") return true;
+		if (workflow?.name === "PR review changed") {
+			const affected = workflow.pull_requests;
+			return (
+				Array.isArray(affected) &&
+				affected.length > 0 &&
+				!affected.some((pullRequest) => pullRequest.number === pullRequestNumber)
+			);
+		}
+		return false;
+	}
+	if (context.eventName === "pull_request_target") {
+		const eventNumber = context.payload?.pull_request?.number;
+		if (!Number.isInteger(eventNumber)) return false;
+		if (eventNumber !== pullRequestNumber) return true;
+		return context.payload?.action === "edited";
+	}
+	return false;
+}
+
 // A comment or pending review does not change the most recent decision.
 function approvedForHead(reviews, headSha) {
 	const decisive = reviews
@@ -26,7 +50,7 @@ async function reconcile({ github, context, core }) {
 		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
 		const pendingDescription = "Checking current-head maintainer approval";
 		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
-		const publish = await createGateStatusPublisher({
+		const { publish, previousState } = await createGateStatusPublisher({
 			github,
 			repo,
 			sha: headSha,
@@ -34,6 +58,13 @@ async function reconcile({ github, context, core }) {
 			pendingDescription,
 			pendingUrl: workflowUrl,
 		});
+		if (
+			previousState === "success" &&
+			(pullRequest.user?.login === MAINTAINER_LOGIN ||
+				isIrrelevantEvent(context, pullRequest.number))
+		)
+			continue;
+		if (previousState === "success") await publish("pending", pendingDescription, workflowUrl);
 		try {
 			const reviews =
 				pullRequest.user?.login === MAINTAINER_LOGIN

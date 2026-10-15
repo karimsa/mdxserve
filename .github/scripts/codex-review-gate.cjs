@@ -3,6 +3,16 @@ const CODEX_LOGIN = "chatgpt-codex-connector[bot]";
 const SUMMARY_MARKER = "<!-- codex-pull-request-review-summary -->";
 const { createGateStatusPublisher } = require("./gate-status.cjs");
 
+function isIrrelevantEvent(context, pullRequestNumber) {
+	if (context.eventName === "workflow_run")
+		return context.payload?.workflow_run?.name === "Verify PR";
+	if (context.eventName === "issue_comment") {
+		const issueNumber = context.payload?.issue?.number;
+		return Number.isInteger(issueNumber) && issueNumber !== pullRequestNumber;
+	}
+	return false;
+}
+
 // The summary also covers clean reviews, which may only produce a thumbs-up
 // rather than a submitted GitHub review. Never trust a PR author's own text or
 // an emoji alone. Unknown formats and ambiguous commit prefixes stay pending.
@@ -44,7 +54,7 @@ async function reconcile({ github, context, core }) {
 		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
 		const pendingDescription = "Waiting for Codex review of this head";
 		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
-		const publish = await createGateStatusPublisher({
+		const { publish, previousState } = await createGateStatusPublisher({
 			github,
 			repo,
 			sha: headSha,
@@ -52,6 +62,8 @@ async function reconcile({ github, context, core }) {
 			pendingDescription,
 			pendingUrl: workflowUrl,
 		});
+		if (previousState === "success" && isIrrelevantEvent(context, pullRequest.number)) continue;
+		if (previousState === "success") await publish("pending", pendingDescription, workflowUrl);
 		try {
 			const comments = await github.paginate(github.rest.issues.listComments, {
 				...repo,

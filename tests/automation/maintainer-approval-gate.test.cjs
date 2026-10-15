@@ -49,13 +49,24 @@ function harness({
 	currentAuthor = "contributor",
 	currentState = "open",
 	initialStatuses = [],
+	eventName = "workflow_run",
+	eventPayload = { workflow_run: { name: "Verify PR" } },
 	failReviews = false,
+	holdReviews = false,
 	failStatuses = false,
 	failWrite = false,
 } = {}) {
 	const writes = [];
 	const events = [];
 	let currentReviews = reviews;
+	let currentEventName = eventName;
+	let currentPayload = eventPayload;
+	let releaseReviews;
+	const heldReviews = holdReviews
+		? new Promise((resolve) => {
+				releaseReviews = resolve;
+			})
+		: undefined;
 	let statuses = initialStatuses;
 	const pulls = {
 		list() {},
@@ -93,6 +104,7 @@ function harness({
 			if (method === pulls.listReviews) {
 				events.push("reviews");
 				assert.equal(options.pull_number, 2);
+				if (heldReviews) await heldReviews;
 				if (failReviews) throw new Error("API unavailable");
 				return currentReviews;
 			}
@@ -102,13 +114,20 @@ function harness({
 	return {
 		writes,
 		events,
+		releaseReviews: () => releaseReviews?.(),
 		setReviews(next) {
 			currentReviews = next;
+		},
+		setEvent(nextName, nextPayload) {
+			currentEventName = nextName;
+			currentPayload = nextPayload;
 		},
 		run: () =>
 			reconcile({
 				github,
 				context: {
+					eventName: currentEventName,
+					payload: currentPayload,
 					repo: { owner: "karimsa", repo: "mdxserve" },
 					serverUrl: "https://github.com",
 					runId: 456,
@@ -140,12 +159,51 @@ test("accepts the PR author without reading reviews", async () => {
 test("accepts current-head approval and skips unchanged repeats", async () => {
 	const fixture = harness();
 	for (let count = 0; count < 501; count += 1) await fixture.run();
-	assert.equal(fixture.events.filter((event) => event === "reviews").length, 501);
+	assert.equal(fixture.events.filter((event) => event === "reviews").length, 1);
 	assert.deepEqual(
 		fixture.writes.map((write) => write.state),
 		["success"],
 	);
 	assertStatus(fixture.writes[0], "success");
+});
+
+test("review changes, branch pushes and synchronization clear success before reads", async () => {
+	for (const event of [
+		{
+			eventName: "workflow_run",
+			eventPayload: { workflow_run: { name: "PR review changed", pull_requests: [] } },
+		},
+		{ eventName: "push", eventPayload: { ref: "refs/heads/main" } },
+		{
+			eventName: "pull_request_target",
+			eventPayload: { action: "synchronize", pull_request: { number: 2 } },
+		},
+	]) {
+		const fixture = harness({
+			...event,
+			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+			holdReviews: true,
+		});
+		const running = fixture.run();
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(fixture.events, ["statuses", "pending", "reviews"]);
+		fixture.releaseReviews();
+		await running;
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending", "success"],
+		);
+	}
+});
+
+test("review change for another PR does not refresh an existing success", async () => {
+	const fixture = harness({
+		initialStatuses: [gateStatus("success", "Maintainer approved this head")],
+		eventName: "workflow_run",
+		eventPayload: { workflow_run: { name: "PR review changed", pull_requests: [{ number: 3 }] } },
+	});
+	await fixture.run();
+	assert.deepEqual(fixture.events, ["statuses"]);
 });
 
 test("writes failure once while approval is missing", async () => {
@@ -170,13 +228,16 @@ test("updates a status when approval is invalidated or restored", async () => {
 	const fixture = harness();
 	await fixture.run();
 	fixture.setReviews([review(1, "APPROVED"), review(2, "DISMISSED")]);
+	fixture.setEvent("workflow_run", {
+		workflow_run: { name: "PR review changed", pull_requests: [] },
+	});
 	await fixture.run();
 	await fixture.run();
 	fixture.setReviews([review(1, "APPROVED"), review(2, "DISMISSED"), review(3, "APPROVED")]);
 	await fixture.run();
 	assert.deepEqual(
 		fixture.writes.map((write) => write.state),
-		["success", "failure", "success"],
+		["success", "pending", "failure", "success"],
 	);
 });
 
@@ -198,6 +259,7 @@ test("moves an old pass to pending for a moved or closed PR", async () => {
 	for (const options of [{ currentHead: oldSha }, { currentState: "closed" }]) {
 		const fixture = harness({
 			...options,
+			eventName: "workflow_dispatch",
 			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
 		});
 		await fixture.run();
@@ -212,6 +274,7 @@ test("publishes pending on evidence or status-list API errors after success", as
 	for (const options of [{ failReviews: true }, { failStatuses: true }]) {
 		const fixture = harness({
 			...options,
+			eventName: "workflow_dispatch",
 			initialStatuses: [gateStatus("success", "Maintainer approved this head")],
 		});
 		await assert.rejects(fixture.run(), /unavailable/);

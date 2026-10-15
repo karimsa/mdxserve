@@ -39,7 +39,7 @@ async function createGateStatusPublisher({
 		await publish("pending", pendingDescription, pendingUrl);
 		throw error;
 	}
-	return publish;
+	return { publish, previousState: state };
 }
 
 module.exports = { createGateStatusPublisher };

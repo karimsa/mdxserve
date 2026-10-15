@@ -57,13 +57,24 @@ function harness({
 	currentState = "open",
 	currentCommits = 1,
 	initialStatuses = [],
+	eventName = "workflow_run",
+	eventPayload = { workflow_run: { name: "Verify PR" } },
 	failComments = false,
+	holdComments = false,
 	failStatuses = false,
 	failWrite = false,
 } = {}) {
 	const writes = [];
 	const events = [];
 	let currentComments = comments;
+	let currentEventName = eventName;
+	let currentPayload = eventPayload;
+	let releaseComments;
+	const heldComments = holdComments
+		? new Promise((resolve) => {
+				releaseComments = resolve;
+			})
+		: undefined;
 	let statuses = initialStatuses;
 	const pulls = {
 		list() {},
@@ -107,6 +118,7 @@ function harness({
 			}
 			if (method === issues.listComments) {
 				events.push("comments");
+				if (heldComments) await heldComments;
 				if (failComments) throw new Error("API unavailable");
 				return currentComments;
 			}
@@ -116,13 +128,20 @@ function harness({
 	return {
 		writes,
 		events,
+		releaseComments: () => releaseComments?.(),
 		setComments(next) {
 			currentComments = next;
+		},
+		setEvent(nextName, nextPayload) {
+			currentEventName = nextName;
+			currentPayload = nextPayload;
 		},
 		run: () =>
 			reconcile({
 				github,
 				context: {
+					eventName: currentEventName,
+					payload: currentPayload,
 					repo: { owner: "karimsa", repo: "mdxserve" },
 					serverUrl: "https://github.com",
 					runId: 456,
@@ -149,10 +168,39 @@ test("writes success for current evidence and skips unchanged repeats", async ()
 	assert.equal(fixture.writes[0].target_url, summary().html_url);
 	assert.ok(fixture.writes[0].description.length <= 140);
 	for (let count = 0; count < 501; count += 1) await fixture.run();
+	assert.equal(fixture.events.filter((event) => event === "comments").length, 1);
 	assert.deepEqual(
 		fixture.writes.map((write) => write.state),
 		["success"],
 	);
+});
+
+test("invalidating comment clears success before a slow evidence read", async () => {
+	const fixture = harness({
+		initialStatuses: [gateStatus("success", "Codex review completed for this head")],
+		eventName: "issue_comment",
+		eventPayload: { issue: { number: 2 } },
+		holdComments: true,
+	});
+	const running = fixture.run();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(fixture.events, ["statuses", "pending", "comments"]);
+	fixture.releaseComments();
+	await running;
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["pending", "success"],
+	);
+});
+
+test("comment for another PR does not refresh an existing success", async () => {
+	const fixture = harness({
+		initialStatuses: [gateStatus("success", "Codex review completed for this head")],
+		eventName: "issue_comment",
+		eventPayload: { issue: { number: 3 } },
+	});
+	await fixture.run();
+	assert.deepEqual(fixture.events, ["statuses"]);
 });
 
 test("writes pending once for missing evidence and after invalidation", async () => {
@@ -174,6 +222,7 @@ test("writes pending once for missing evidence and after invalidation", async ()
 		summary(),
 		summary({ id: 124, body: summary().body.replace("Completed", "Running") }),
 	]);
+	invalidated.setEvent("issue_comment", { issue: { number: 2 } });
 	await invalidated.run();
 	await invalidated.run();
 	assert.deepEqual(
@@ -207,6 +256,7 @@ test("moves an old pass to pending for stale, closed, or incomplete PR state", a
 	]) {
 		const fixture = harness({
 			...options,
+			eventName: "workflow_dispatch",
 			initialStatuses: [gateStatus("success", "Codex review completed for this head")],
 		});
 		await fixture.run();
@@ -221,6 +271,7 @@ test("publishes pending on evidence or status-list API errors after success", as
 	for (const options of [{ failComments: true }, { failStatuses: true }]) {
 		const fixture = harness({
 			...options,
+			eventName: "workflow_dispatch",
 			initialStatuses: [gateStatus("success", "Codex review completed for this head")],
 		});
 		await assert.rejects(fixture.run(), /unavailable/);
