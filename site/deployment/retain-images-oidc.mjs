@@ -6,12 +6,52 @@ const apiOrigin = "https://api.vercel.com";
 const audience = "https://github.com/karimsa";
 // Public OAuth client used by vercel/vcr-action for registry token exchange.
 const vcrClientId = "cl_inrfNy8noLlhRrGbPEm0z47woXNcJVZ0";
+const oauthErrors = new Set([
+	"invalid_request",
+	"invalid_client",
+	"invalid_grant",
+	"unauthorized_client",
+	"unsupported_grant_type",
+	"invalid_scope",
+	"access_denied",
+]);
 
 function validToken(value) {
 	return typeof value === "string" && /^[A-Za-z0-9._~-]+$/.test(value);
 }
 
-async function request(fetchImpl, url, options, label, { retries = 0, sleep = delay } = {}) {
+async function exchangeDiagnostic(response, secrets) {
+	let body;
+	try {
+		body = await response.json();
+	} catch {
+		return "";
+	}
+	if (!body || typeof body !== "object" || Array.isArray(body)) return "";
+	const code = oauthErrors.has(body.error) ? body.error : "unknown_error";
+	if (typeof body.error_description !== "string") return ` (${code})`;
+	let description = body.error_description;
+	for (const secret of [...secrets, body.access_token]) {
+		if (typeof secret === "string" && secret)
+			description = description.replaceAll(secret, "redacted");
+	}
+	description = description
+		.replace(/[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]{8,}){2,}/g, "redacted")
+		.replace(/[A-Za-z0-9_-]{24,}/g, "redacted")
+		.replace(/[^A-Za-z0-9 .,;:'"()/_=-]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, 160);
+	return description ? ` (${code}: ${description})` : ` (${code})`;
+}
+
+async function request(
+	fetchImpl,
+	url,
+	options,
+	label,
+	{ retries = 0, sleep = delay, diagnose } = {},
+) {
 	for (let attempt = 0; attempt <= retries; attempt += 1) {
 		let response;
 		try {
@@ -28,7 +68,8 @@ async function request(fetchImpl, url, options, label, { retries = 0, sleep = de
 			await sleep(1000 * (attempt + 1));
 			continue;
 		}
-		throw new Error(`${label} returned HTTP ${response.status}`);
+		const detail = diagnose ? await diagnose(response) : "";
+		throw new Error(`${label} returned HTTP ${response.status}${detail}`);
 	}
 }
 
@@ -101,7 +142,17 @@ export async function retainImagesWithOidc({
 			body: exchangeBody,
 		},
 		"Vercel VCR token exchange",
-		{ retries: 2, sleep },
+		{
+			retries: 2,
+			sleep,
+			diagnose: (response) =>
+				exchangeDiagnostic(response, [
+					oidcToken,
+					env.VERCEL_TOKEN,
+					env.GH_TOKEN,
+					env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+				]),
+		},
 	);
 	const registryToken = await tokenJson(
 		exchangeResponse,
