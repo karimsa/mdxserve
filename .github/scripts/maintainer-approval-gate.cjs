@@ -22,37 +22,17 @@ async function reconcile({ github, context, core }) {
 	});
 	for (const pullRequest of pullRequests) {
 		const headSha = pullRequest.head.sha;
-		const externalId = `maintainer-approval-gate:${pullRequest.number}`;
-		const existing = await github.paginate(github.rest.checks.listForRef, {
+		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
+		// Start a new evaluation before evidence reads so errors clear an old pass.
+		await github.rest.repos.createCommitStatus({
 			...repo,
-			ref: headSha,
-			check_name: CHECK_NAME,
-			per_page: 100,
+			sha: headSha,
+			context: CHECK_NAME,
+			state: "pending",
+			target_url: workflowUrl,
+			description: "Checking current-head maintainer approval",
 		});
-		const previous = existing.find(
-			(check) =>
-				check.app?.slug === "github-actions" &&
-				check.external_id === externalId &&
-				check.status !== "completed",
-		);
-		const pending = {
-			...repo,
-			name: CHECK_NAME,
-			status: "in_progress",
-			output: {
-				title: "Waiting for maintainer approval",
-				summary: `PR #${pullRequest.number} needs approval from ${MAINTAINER_LOGIN} for commit ${headSha}, unless ${MAINTAINER_LOGIN} authored it.`,
-			},
-		};
-		// Create a fresh evaluation after a completed check. Start it before reading
-		// evidence so API errors cannot leave the old result as the latest one.
-		const { data: check } = previous
-			? await github.rest.checks.update({ ...pending, check_run_id: previous.id })
-			: await github.rest.checks.create({
-					...pending,
-					head_sha: headSha,
-					external_id: externalId,
-				});
 		const reviews =
 			pullRequest.user?.login === MAINTAINER_LOGIN
 				? []
@@ -69,19 +49,17 @@ async function reconcile({ github, context, core }) {
 		if (current.head.sha !== headSha || current.state !== "open") continue;
 		const isAuthor = current.user?.login === MAINTAINER_LOGIN;
 		const approved = isAuthor || approvedForHead(reviews, headSha);
-		await github.rest.checks.update({
+		await github.rest.repos.createCommitStatus({
 			...repo,
-			check_run_id: check.id,
-			status: "completed",
-			conclusion: approved ? "success" : "failure",
-			output: {
-				title: approved ? "Maintainer approval confirmed" : "Maintainer approval required",
-				summary: isAuthor
-					? `${MAINTAINER_LOGIN} authored PR #${pullRequest.number} at ${headSha}.`
-					: approved
-						? `${MAINTAINER_LOGIN} approved commit ${headSha}.`
-						: `${MAINTAINER_LOGIN} must approve the current head commit ${headSha}. A dismissed review or request for changes removes an earlier approval.`,
-			},
+			sha: headSha,
+			context: CHECK_NAME,
+			state: approved ? "success" : "failure",
+			target_url: workflowUrl,
+			description: isAuthor
+				? "Maintainer authored this PR"
+				: approved
+					? "Maintainer approved this head"
+					: "Maintainer approval required for this head",
 		});
 		core.info(
 			`PR #${pullRequest.number}: maintainer approval ${approved ? "confirmed" : "required"} for ${headSha}`,

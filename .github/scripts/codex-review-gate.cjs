@@ -40,33 +40,17 @@ async function reconcile({ github, context, core }) {
 	});
 	for (const pullRequest of pullRequests) {
 		const headSha = pullRequest.head.sha;
-		const externalId = `codex-review-gate:${pullRequest.number}`;
-		const existing = await github.paginate(github.rest.checks.listForRef, {
-			...repo,
-			ref: headSha,
-			check_name: CHECK_NAME,
-			per_page: 100,
-		});
-		const previous = existing.find(
-			(check) => check.app?.slug === "github-actions" && check.external_id === externalId,
-		);
-		const pending = {
-			...repo,
-			name: CHECK_NAME,
-			status: "in_progress",
-			output: {
-				title: "Waiting for a completed Codex code review",
-				summary: `Codex must finish reviewing commit ${headSha}. Request a new review with @codex review. Findings do not fail this completion gate.`,
-			},
-		};
+		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
 		// Reset before reading evidence: API errors must not preserve a stale pass.
-		const { data: check } = previous
-			? await github.rest.checks.update({ ...pending, check_run_id: previous.id })
-			: await github.rest.checks.create({
-					...pending,
-					head_sha: headSha,
-					external_id: externalId,
-				});
+		await github.rest.repos.createCommitStatus({
+			...repo,
+			sha: headSha,
+			context: CHECK_NAME,
+			state: "pending",
+			target_url: workflowUrl,
+			description: "Waiting for Codex review of this head",
+		});
 		const comments = await github.paginate(github.rest.issues.listComments, {
 			...repo,
 			issue_number: pullRequest.number,
@@ -83,23 +67,25 @@ async function reconcile({ github, context, core }) {
 			...repo,
 			pull_number: pullRequest.number,
 		});
-		if (current.head.sha !== headSha || current.commits > commits.length) continue;
+		if (
+			current.head.sha !== headSha ||
+			current.state !== "open" ||
+			current.commits > commits.length
+		)
+			continue;
 		const summary = completedReview(
 			comments,
 			headSha,
 			commits.map((commit) => commit.sha),
 		);
 		if (!summary) continue;
-		await github.rest.checks.update({
+		await github.rest.repos.createCommitStatus({
 			...repo,
-			check_run_id: check.id,
-			status: "completed",
-			conclusion: "success",
-			details_url: summary.html_url,
-			output: {
-				title: "Codex code review completed",
-				summary: `Codex completed a code review of ${headSha}. This confirms review completion, not approval or absence of findings.`,
-			},
+			sha: headSha,
+			context: CHECK_NAME,
+			state: "success",
+			target_url: summary.html_url,
+			description: "Codex review completed for this head",
 		});
 		core.info(`PR #${pullRequest.number}: completed Codex review for ${headSha}`);
 	}
