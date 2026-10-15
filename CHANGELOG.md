@@ -1,3 +1,11 @@
+v0.5.1
+
+Bug fixes
+
+- Restore section editing in installed packages ([#25](https://github.com/karimsa/mdxserve/pull/25)).
+- Promote site releases using project-scoped Vercel credentials ([#21](https://github.com/karimsa/mdxserve/pull/21)).
+- Retain production and the newest other site image using short-lived registry credentials, with safe authentication diagnostics ([#26](https://github.com/karimsa/mdxserve/pull/26), [#27](https://github.com/karimsa/mdxserve/pull/27), [#28](https://github.com/karimsa/mdxserve/pull/28)).
+
 v0.5.0
 
 What's new
