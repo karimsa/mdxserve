@@ -56,51 +56,69 @@ function harness({
 	currentHead = headSha,
 	currentState = "open",
 	currentCommits = 1,
+	initialStatuses = [],
 	failComments = false,
-	failPending = false,
+	failStatuses = false,
+	failWrite = false,
 } = {}) {
 	const writes = [];
-	const reads = [];
 	const events = [];
+	let currentComments = comments;
+	let statuses = initialStatuses;
 	const pulls = {
 		list() {},
 		listCommits() {},
 		async get() {
-			reads.push("get");
 			events.push("get");
 			return { data: { head: { sha: currentHead }, state: currentState, commits: currentCommits } };
 		},
 	};
 	const issues = { listComments() {} };
 	const repos = {
+		listCommitStatusesForRef() {},
 		async createCommitStatus(payload) {
-			if (failPending && payload.state === "pending") throw new Error("Status API unavailable");
+			if (failWrite) throw new Error("Status API unavailable");
 			writes.push(payload);
 			events.push(payload.state);
+			statuses = [
+				{
+					context: payload.context,
+					state: payload.state,
+					description: payload.description,
+					creator: { login: "github-actions[bot]", type: "Bot" },
+				},
+				...statuses,
+			];
 		},
 	};
 	const github = {
 		rest: { pulls, issues, repos },
-		async paginate(method) {
+		async paginate(method, options) {
 			if (method === pulls.list) return [{ number: 2, head: { sha: headSha } }];
+			if (method === repos.listCommitStatusesForRef) {
+				events.push("statuses");
+				assert.equal(options.ref, headSha);
+				if (failStatuses) throw new Error("Status list unavailable");
+				return statuses;
+			}
 			if (method === pulls.listCommits) {
-				reads.push("commits");
 				events.push("commits");
 				return [{ sha: headSha }];
 			}
 			if (method === issues.listComments) {
-				reads.push("comments");
 				events.push("comments");
 				if (failComments) throw new Error("API unavailable");
-				return comments;
+				return currentComments;
 			}
 			throw new Error("Unexpected API call");
 		},
 	};
 	return {
 		writes,
-		reads,
 		events,
+		setComments(next) {
+			currentComments = next;
+		},
 		run: () =>
 			reconcile({
 				github,
@@ -114,59 +132,108 @@ function harness({
 	};
 }
 
-test("publishes success only after checking evidence for the current head", async () => {
+function gateStatus(state, description, creator = { login: "github-actions[bot]", type: "Bot" }) {
+	return { context: "Codex review completed", state, description, creator };
+}
+
+test("writes success for current evidence and skips unchanged repeats", async () => {
 	const fixture = harness();
 	await fixture.run();
-	assert.deepEqual(fixture.reads, ["comments", "commits", "get"]);
-	assert.deepEqual(fixture.events, ["pending", "comments", "commits", "get", "success"]);
+	assert.deepEqual(fixture.events, ["statuses", "comments", "commits", "get", "success"]);
 	assert.deepEqual(
 		fixture.writes.map((write) => write.state),
-		["pending", "success"],
+		["success"],
 	);
-	for (const write of fixture.writes) {
-		assert.equal(write.sha, headSha);
-		assert.equal(write.context, "Codex review completed");
-		assert.ok(write.description.length <= 140);
-	}
-	assert.equal(
-		fixture.writes[0].target_url,
-		"https://github.com/karimsa/mdxserve/actions/runs/456",
+	assert.equal(fixture.writes[0].sha, headSha);
+	assert.equal(fixture.writes[0].context, "Codex review completed");
+	assert.equal(fixture.writes[0].target_url, summary().html_url);
+	assert.ok(fixture.writes[0].description.length <= 140);
+	for (let count = 0; count < 501; count += 1) await fixture.run();
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["success"],
 	);
-	assert.equal(fixture.writes[1].target_url, summary().html_url);
 });
 
-test("stays pending on missing, invalidated, moved, closed, or incomplete evidence", async () => {
+test("writes pending once for missing evidence and after invalidation", async () => {
+	const missing = harness({ comments: [] });
+	await missing.run();
+	await missing.run();
+	assert.deepEqual(
+		missing.writes.map((write) => write.state),
+		["pending"],
+	);
+	assert.equal(
+		missing.writes[0].target_url,
+		"https://github.com/karimsa/mdxserve/actions/runs/456",
+	);
+
+	const invalidated = harness();
+	await invalidated.run();
+	invalidated.setComments([
+		summary(),
+		summary({ id: 124, body: summary().body.replace("Completed", "Running") }),
+	]);
+	await invalidated.run();
+	await invalidated.run();
+	assert.deepEqual(
+		invalidated.writes.map((write) => write.state),
+		["success", "pending"],
+	);
+});
+
+test("does not trust a same-context status from another creator", async () => {
+	const fixture = harness({
+		initialStatuses: [
+			gateStatus("success", "Codex review completed for this head", {
+				login: "other-user",
+				type: "User",
+			}),
+			gateStatus("success", "Codex review completed for this head"),
+		],
+	});
+	await fixture.run();
+	assert.deepEqual(
+		fixture.writes.map((write) => write.state),
+		["success"],
+	);
+});
+
+test("moves an old pass to pending for stale, closed, or incomplete PR state", async () => {
 	for (const options of [
-		{ comments: [] },
-		{
-			comments: [
-				summary(),
-				summary({ id: 124, body: summary().body.replace("Completed", "Running") }),
-			],
-		},
 		{ currentHead: "abc1234" },
 		{ currentState: "closed" },
 		{ currentCommits: 2 },
 	]) {
-		const fixture = harness(options);
+		const fixture = harness({
+			...options,
+			initialStatuses: [gateStatus("success", "Codex review completed for this head")],
+		});
 		await fixture.run();
-		assert.equal(fixture.writes.length, 1);
-		assert.equal(fixture.writes[0].state, "pending");
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending"],
+		);
 	}
 });
 
-test("clears a previous pass before a failed API read", async () => {
-	const fixture = harness({ failComments: true });
-	await assert.rejects(fixture.run(), /API unavailable/);
-	assert.equal(fixture.writes.length, 1);
-	assert.equal(fixture.writes[0].state, "pending");
-	assert.deepEqual(fixture.events, ["pending", "comments"]);
-	assert.deepEqual(fixture.reads, ["comments"]);
+test("publishes pending on evidence or status-list API errors after success", async () => {
+	for (const options of [{ failComments: true }, { failStatuses: true }]) {
+		const fixture = harness({
+			...options,
+			initialStatuses: [gateStatus("success", "Codex review completed for this head")],
+		});
+		await assert.rejects(fixture.run(), /unavailable/);
+		assert.deepEqual(
+			fixture.writes.map((write) => write.state),
+			["pending"],
+		);
+	}
 });
 
-test("does not read evidence when the pending status write fails", async () => {
-	const fixture = harness({ failPending: true });
+test("does not read evidence when the status-list fallback write fails", async () => {
+	const fixture = harness({ failStatuses: true, failWrite: true });
 	await assert.rejects(fixture.run(), /Status API unavailable/);
 	assert.deepEqual(fixture.writes, []);
-	assert.deepEqual(fixture.reads, []);
+	assert.deepEqual(fixture.events, ["statuses"]);
 });

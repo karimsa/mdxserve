@@ -1,6 +1,7 @@
 const CHECK_NAME = "Codex review completed";
 const CODEX_LOGIN = "chatgpt-codex-connector[bot]";
 const SUMMARY_MARKER = "<!-- codex-pull-request-review-summary -->";
+const { createGateStatusPublisher } = require("./gate-status.cjs");
 
 // The summary also covers clean reviews, which may only produce a thumbs-up
 // rather than a submitted GitHub review. Never trust a PR author's own text or
@@ -41,53 +42,56 @@ async function reconcile({ github, context, core }) {
 	for (const pullRequest of pullRequests) {
 		const headSha = pullRequest.head.sha;
 		const workflowUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+		const pendingDescription = "Waiting for Codex review of this head";
 		// An asynchronous gate needs a commit status; an API-created check is not an Actions job.
-		// Reset before reading evidence: API errors must not preserve a stale pass.
-		await github.rest.repos.createCommitStatus({
-			...repo,
+		const publish = await createGateStatusPublisher({
+			github,
+			repo,
 			sha: headSha,
 			context: CHECK_NAME,
-			state: "pending",
-			target_url: workflowUrl,
-			description: "Waiting for Codex review of this head",
+			pendingDescription,
+			pendingUrl: workflowUrl,
 		});
-		const comments = await github.paginate(github.rest.issues.listComments, {
-			...repo,
-			issue_number: pullRequest.number,
-			per_page: 100,
-		});
-		const commits = await github.paginate(github.rest.pulls.listCommits, {
-			...repo,
-			pull_number: pullRequest.number,
-			per_page: 100,
-		});
-		// GitHub caps this endpoint at 250 commits; don't trust a shortened SHA
-		// if we cannot inspect the complete PR history for an ambiguous prefix.
-		const { data: current } = await github.rest.pulls.get({
-			...repo,
-			pull_number: pullRequest.number,
-		});
-		if (
-			current.head.sha !== headSha ||
-			current.state !== "open" ||
-			current.commits > commits.length
-		)
-			continue;
-		const summary = completedReview(
-			comments,
-			headSha,
-			commits.map((commit) => commit.sha),
-		);
-		if (!summary) continue;
-		await github.rest.repos.createCommitStatus({
-			...repo,
-			sha: headSha,
-			context: CHECK_NAME,
-			state: "success",
-			target_url: summary.html_url,
-			description: "Codex review completed for this head",
-		});
-		core.info(`PR #${pullRequest.number}: completed Codex review for ${headSha}`);
+		try {
+			const comments = await github.paginate(github.rest.issues.listComments, {
+				...repo,
+				issue_number: pullRequest.number,
+				per_page: 100,
+			});
+			const commits = await github.paginate(github.rest.pulls.listCommits, {
+				...repo,
+				pull_number: pullRequest.number,
+				per_page: 100,
+			});
+			// GitHub caps this endpoint at 250 commits; don't trust a shortened SHA
+			// if we cannot inspect the complete PR history for an ambiguous prefix.
+			const { data: current } = await github.rest.pulls.get({
+				...repo,
+				pull_number: pullRequest.number,
+			});
+			if (
+				current.head.sha !== headSha ||
+				current.state !== "open" ||
+				current.commits > commits.length
+			) {
+				await publish("pending", pendingDescription, workflowUrl);
+				continue;
+			}
+			const summary = completedReview(
+				comments,
+				headSha,
+				commits.map((commit) => commit.sha),
+			);
+			if (!summary) {
+				await publish("pending", pendingDescription, workflowUrl);
+				continue;
+			}
+			await publish("success", "Codex review completed for this head", summary.html_url);
+			core.info(`PR #${pullRequest.number}: completed Codex review for ${headSha}`);
+		} catch (error) {
+			await publish("pending", pendingDescription, workflowUrl);
+			throw error;
+		}
 	}
 }
 
