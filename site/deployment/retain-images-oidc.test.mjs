@@ -18,11 +18,16 @@ function reply(body, status = 200) {
 
 function harness({
 	exchangeStatus = 200,
+	exchangeOutcomes,
 	exchangeBody = { access_token: "vcr.access.token" },
 	oidcBody = { value: "github.oidc.token" },
+	revokeStatus = 204,
 } = {}) {
 	const calls = [];
 	const masks = [];
+	const warnings = [];
+	const delays = [];
+	let exchangeAttempts = 0;
 	const fetchImpl = async (url, request) => {
 		const parsed = new URL(url);
 		calls.push({ url: parsed, request });
@@ -30,12 +35,23 @@ function harness({
 			return reply(oidcBody);
 		}
 		if (parsed.pathname === "/login/oauth/token") {
-			return reply(exchangeBody, exchangeStatus);
+			const outcome = exchangeOutcomes?.[exchangeAttempts++] ?? exchangeStatus;
+			if (outcome instanceof Error) throw outcome;
+			return reply(exchangeBody, outcome);
 		}
-		if (parsed.pathname === "/login/oauth/token/revoke") return reply(undefined, 204);
+		if (parsed.pathname === "/login/oauth/token/revoke") return reply(undefined, revokeStatus);
 		throw new Error("Unexpected request");
 	};
-	return { calls, masks, fetchImpl, maskToken: (token) => masks.push(token) };
+	return {
+		calls,
+		masks,
+		warnings,
+		delays,
+		fetchImpl,
+		maskToken: (token) => masks.push(token),
+		warn: (message) => warnings.push(message),
+		sleep: async (milliseconds) => delays.push(milliseconds),
+	};
 }
 
 test("exchanges GitHub OIDC for VCR access and revokes it after retention", async () => {
@@ -99,6 +115,67 @@ test("revokes VCR access even when retention fails", async () => {
 	assert.deepEqual(fake.masks, ["vcr.access.token"]);
 });
 
+test("retries transient token exchange failures at most three times", async () => {
+	const recovered = harness({ exchangeOutcomes: [new Error("secret network detail"), 429, 200] });
+	await retainImagesWithOidc({ env, ...recovered, retain: async () => ({ deleted: 0 }) });
+	assert.equal(
+		recovered.calls.filter(({ url }) => url.pathname === "/login/oauth/token").length,
+		3,
+	);
+	assert.deepEqual(recovered.delays, [1000, 2000]);
+	assert.equal(recovered.calls.at(-1).url.pathname, "/login/oauth/token/revoke");
+
+	for (const outcomes of [
+		[503, 502, 503],
+		[new Error("secret"), new Error("secret"), new Error("secret")],
+	]) {
+		const exhausted = harness({ exchangeOutcomes: outcomes });
+		await assert.rejects(
+			retainImagesWithOidc({
+				env,
+				...exhausted,
+				retain: async () => {
+					throw new Error("Should not run");
+				},
+			}),
+			(error) => {
+				assert.ok(!error.message.includes("secret"));
+				return /HTTP 503|request failed/.test(error.message);
+			},
+		);
+		assert.equal(
+			exhausted.calls.filter(({ url }) => url.pathname === "/login/oauth/token").length,
+			3,
+		);
+		assert.deepEqual(exhausted.delays, [1000, 2000]);
+		assert.deepEqual(exhausted.masks, []);
+	}
+});
+
+test("revocation failure warns without changing a successful retention result", async () => {
+	const fake = harness({ revokeStatus: 503 });
+	const result = { deleted: 2 };
+	assert.equal(await retainImagesWithOidc({ env, ...fake, retain: async () => result }), result);
+	assert.deepEqual(fake.warnings, ["Vercel VCR token revocation returned HTTP 503"]);
+	assert.ok(!fake.warnings[0].includes("vcr.access.token"));
+});
+
+test("revocation failure preserves the original retention error", async () => {
+	const fake = harness({ revokeStatus: 503 });
+	const failure = new Error("Retention failed");
+	await assert.rejects(
+		retainImagesWithOidc({
+			env,
+			...fake,
+			retain: async () => {
+				throw failure;
+			},
+		}),
+		(error) => error === failure,
+	);
+	assert.deepEqual(fake.warnings, ["Vercel VCR token revocation returned HTTP 503"]);
+});
+
 test("rejects unauthorized exchange and malformed tokens without starting retention", async () => {
 	for (const options of [
 		{ exchangeStatus: 403 },
@@ -123,6 +200,7 @@ test("rejects unauthorized exchange and malformed tokens without starting retent
 		);
 		assert.equal(retained, false);
 		assert.deepEqual(fake.masks, []);
+		assert.deepEqual(fake.delays, []);
 	}
 });
 

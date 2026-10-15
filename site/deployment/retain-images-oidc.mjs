@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import { retainImages } from "./retain-images.mjs";
 
 const apiOrigin = "https://api.vercel.com";
@@ -10,15 +11,25 @@ function validToken(value) {
 	return typeof value === "string" && /^[A-Za-z0-9._~-]+$/.test(value);
 }
 
-async function request(fetchImpl, url, options, label) {
-	let response;
-	try {
-		response = await fetchImpl(url, { ...options, signal: AbortSignal.timeout(10_000) });
-	} catch {
-		throw new Error(`${label} request failed`);
+async function request(fetchImpl, url, options, label, { retries = 0, sleep = delay } = {}) {
+	for (let attempt = 0; attempt <= retries; attempt += 1) {
+		let response;
+		try {
+			response = await fetchImpl(url, { ...options, signal: AbortSignal.timeout(10_000) });
+		} catch {
+			if (attempt < retries) {
+				await sleep(1000 * (attempt + 1));
+				continue;
+			}
+			throw new Error(`${label} request failed`);
+		}
+		if (response.ok) return response;
+		if (attempt < retries && (response.status === 429 || response.status >= 500)) {
+			await sleep(1000 * (attempt + 1));
+			continue;
+		}
+		throw new Error(`${label} returned HTTP ${response.status}`);
 	}
-	if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}`);
-	return response;
 }
 
 async function tokenJson(response, field, label) {
@@ -38,6 +49,8 @@ export async function retainImagesWithOidc({
 	fetchImpl = fetch,
 	retain = retainImages,
 	maskToken = (token) => process.stdout.write(`::add-mask::${token}\n`),
+	warn = (message) => process.stderr.write(`::warning::${message}\n`),
+	sleep = delay,
 }) {
 	if (
 		!env.VERCEL_TOKEN ||
@@ -88,6 +101,7 @@ export async function retainImagesWithOidc({
 			body: exchangeBody,
 		},
 		"Vercel VCR token exchange",
+		{ retries: 2, sleep },
 	);
 	const registryToken = await tokenJson(
 		exchangeResponse,
@@ -106,20 +120,24 @@ export async function retainImagesWithOidc({
 			fetchImpl,
 		});
 	} finally {
-		await request(
-			fetchImpl,
-			new URL("/login/oauth/token/revoke", apiOrigin),
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams({
-					client_id: vcrClientId,
-					token: registryToken,
-					token_type_hint: "access_token",
-				}),
-			},
-			"Vercel VCR token revocation",
-		);
+		try {
+			await request(
+				fetchImpl,
+				new URL("/login/oauth/token/revoke", apiOrigin),
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+					body: new URLSearchParams({
+						client_id: vcrClientId,
+						token: registryToken,
+						token_type_hint: "access_token",
+					}),
+				},
+				"Vercel VCR token revocation",
+			);
+		} catch (error) {
+			warn(error.message);
+		}
 	}
 }
 
