@@ -123,18 +123,34 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 	// first edit — then re-optimise ~50 packages and full-reload the page
 	// mid-edit. And because Vite's root here is a fresh temp dir per start, the
 	// dep cache never survives a restart, so that stall would recur every
-	// launch. Pre-bundle the six directly-imported packages at startup instead;
-	// @tiptap/core, @tiptap/pm/* and marked come along transitively. Their
-	// package.json isn't in their "exports" map, hence packageDir().
+	// launch. Pre-bundle the directly-imported packages at startup instead.
+	// Their package.json isn't in their "exports" map, hence packageDir().
 	const tiptapPackages = [
+		"@tiptap/core",
 		"@tiptap/react",
 		"@tiptap/starter-kit",
 		"@tiptap/markdown",
 		"@tiptap/extension-list",
 		"@tiptap/extension-table",
 		"@tiptap/extension-image",
+		"@tiptap/suggestion",
 	];
 	const tiptapAliases = tiptapPackages.map((name) => ({
+		find: name,
+		replacement: packageDir(name),
+	}));
+	// @tiptap/pm has no bare export; resolve a subpath to locate its package
+	// directory so its state, view and history imports share the optimizer.
+	const tiptapPmEntry = path.resolve(resolveFromPkg("@tiptap/pm/state"), "../../..");
+	// The lazy editor also imports these parsers directly. When mdxserve is
+	// installed under node_modules, Vite skips dependency discovery for its
+	// client files, so they must be resolved and optimized explicitly.
+	const editorParserPackages = [
+		"mdast-util-from-markdown",
+		"mdast-util-mdx",
+		"micromark-extension-mdxjs",
+	];
+	const editorParserAliases = editorParserPackages.map((name) => ({
 		find: name,
 		replacement: packageDir(name),
 	}));
@@ -180,6 +196,8 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		{ find: "bytes", replacement: resolveFromPkg("bytes") },
 		{ find: "jotai", replacement: jotaiEntry },
 		...tiptapAliases,
+		{ find: "@tiptap/pm", replacement: tiptapPmEntry },
+		...editorParserAliases,
 		{ find: "@tanstack/react-query", replacement: reactQueryEntry },
 		{ find: "@trpc/client", replacement: trpcClientEntry },
 		{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
@@ -250,6 +268,10 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		"jotai",
 		"jotai/utils",
 		...tiptapPackages,
+		"@tiptap/pm/state",
+		"@tiptap/pm/view",
+		"@tiptap/pm/history",
+		...editorParserPackages,
 		"@tanstack/react-query",
 		"@trpc/client",
 		"@trpc/tanstack-react-query",
