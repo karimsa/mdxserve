@@ -1,0 +1,38 @@
+name: Retain site images
+
+on:
+  deployment_status:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-production
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  retain:
+    if: github.event_name != 'deployment_status' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Retain production and newest other image
+        run: node site/deployment/retain-images.mjs --apply

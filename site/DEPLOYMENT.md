@@ -4,6 +4,8 @@ Vercel builds the site from the connected Git repository. The project Root Direc
 
 Each pushed `v*` tag first runs the npm release job. Once npm publish succeeds, the workflow waits up to 15 minutes for a `READY` Vercel production deployment with the tag's exact commit SHA. Promotion jobs queue one at a time. Before promoting, each job checks the commit currently serving `mdxserve.karim.build` and skips an older or already-current tag; missing or unrelated commit metadata fails the job. The tag must point to a commit on the configured production branch. A failed publish, failed build, mismatched commit, or missing deployment prevents promotion. The workflow does not upload a second copy of the site.
 
+The image retention workflow runs after successful deployment status events, every six hours, and on manual dispatch. It keeps the image serving `mdxserve.karim.build` and the newest other tagged image, then deletes older and untagged images. It checks the live production alias and image inventory before each deletion and shares the `site-production` queue with release promotion, so those jobs cannot move the alias during cleanup. Run `node site/deployment/retain-images.mjs` to preview the count; add `--apply` to delete. Once deployments settle, the registry holds at most two images. A build in progress can temporarily add another.
+
 ## One-time Vercel setup
 
 1. Connect this Git repository to a Vercel project. Set its Framework Preset to **Services**, Root Directory to `.`, and production branch to `main`. Keep Git deployments enabled.
