@@ -65,8 +65,8 @@ jobs:
     name: Promote site on Vercel
     needs: publish
     runs-on: ubuntu-latest
-    # Allow 15 minutes to find the deployment, 2.5 minutes for freshness retries, and CLI/setup time.
-    timeout-minutes: 30
+    # Allow 15 minutes to find the deployment, 15 minutes to rebuild it, and freshness/promotion time.
+    timeout-minutes: 45
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -105,6 +105,22 @@ jobs:
           promote="$(node site/deployment/check-promotion-freshness.mjs "$commit_sha")"
           echo "promote=$promote" >> "$GITHUB_OUTPUT"
 
-      - name: Promote the tagged deployment
+      - name: Rebuild the tagged deployment under the production lock
         if: steps.freshness.outputs.promote == 'true'
-        run: node site/deployment/promote-production.mjs "${{ steps.deployment.outputs.id }}"
+        id: recovered
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          deployment_id="$(node site/deployment/recover-production.mjs "${{ steps.deployment.outputs.id }}" "$commit_sha")"
+          echo "id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+      - name: Recheck production commit freshness
+        if: steps.freshness.outputs.promote == 'true'
+        id: final-freshness
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          promote="$(node site/deployment/check-promotion-freshness.mjs "$commit_sha")"
+          echo "promote=$promote" >> "$GITHUB_OUTPUT"
+
+      - name: Promote the tagged deployment
+        if: steps.freshness.outputs.promote == 'true' && steps.final-freshness.outputs.promote == 'true'
+        run: node site/deployment/promote-production.mjs "${{ steps.recovered.outputs.id }}"
