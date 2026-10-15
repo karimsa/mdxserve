@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planImageRetention, retainImages } from "./retain-images.mjs";
+import { hasPendingRelease, planImageRetention, retainImages } from "./retain-images.mjs";
 
 const productionSha = "a".repeat(40);
 const options = { token: "project-token", teamId: "team_123", projectId: "prj_123" };
@@ -48,6 +48,7 @@ function harness(startingImages = inventory()) {
 		remaining() {
 			return images.map((entry) => entry.id);
 		},
+		checkRelease: async () => false,
 		fetchImpl: async (url) => {
 			const pathname = new URL(url).pathname;
 			if (pathname.includes("/aliases/")) {
@@ -183,4 +184,57 @@ test("stops when the CLI does not confirm deletion", async () => {
 		args[0] === "rm" ? JSON.stringify({ deleted: false }) : runCli(args);
 	await assert.rejects(retainImages({ ...options, ...fake, apply: true }), /did not confirm/);
 	assert.deepEqual(fake.deleted, []);
+});
+
+test("defers all deletions while a release is pending", async () => {
+	const fake = harness();
+	fake.checkRelease = async () => true;
+	const result = await retainImages({ ...options, ...fake, apply: true });
+	assert.equal(result.deferred, true);
+	assert.equal(result.deleted, 0);
+	assert.deepEqual(fake.deleted, []);
+});
+
+test("stops before the next deletion when a release begins during cleanup", async () => {
+	const fake = harness();
+	let checks = 0;
+	fake.checkRelease = async () => ++checks > 1;
+	const result = await retainImages({ ...options, ...fake, apply: true });
+	assert.equal(result.deferred, true);
+	assert.equal(result.deleted, 1);
+	assert.deepEqual(fake.deleted, ["image_untagged"]);
+});
+
+test("fails closed when the GitHub release check fails", async () => {
+	const fake = harness();
+	fake.checkRelease = async () => {
+		throw new Error("GitHub unavailable");
+	};
+	await assert.rejects(retainImages({ ...options, ...fake, apply: true }), /GitHub unavailable/);
+	assert.deepEqual(fake.deleted, []);
+});
+
+test("checks active Release runs with the GitHub Actions API", async () => {
+	const statuses = [];
+	const pending = await hasPendingRelease({
+		token: "github-token",
+		fetchImpl: async (url, request) => {
+			assert.equal(request.headers.Authorization, "Bearer github-token");
+			statuses.push(new URL(url).searchParams.get("status"));
+			return reply({ total_count: statuses.length === 3 ? 1 : 0, workflow_runs: [] });
+		},
+	});
+	assert.equal(pending, true);
+	assert.deepEqual(statuses, ["queued", "in_progress", "pending"]);
+	await assert.rejects(
+		hasPendingRelease({ token: "github-token", fetchImpl: async () => reply({}) }),
+		/invalid run metadata/,
+	);
+	await assert.rejects(
+		hasPendingRelease({
+			token: "github-token",
+			fetchImpl: async () => ({ ok: false, status: 403 }),
+		}),
+		/HTTP 403/,
+	);
 });

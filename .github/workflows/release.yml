@@ -9,7 +9,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: site-production
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   publish:
@@ -65,10 +67,6 @@ jobs:
     runs-on: ubuntu-latest
     # Allow 15 minutes to find the deployment, 2.5 minutes for freshness retries, and CLI/setup time.
     timeout-minutes: 30
-    concurrency:
-      group: site-production
-      cancel-in-progress: false
-      queue: max
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}

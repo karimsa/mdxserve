@@ -10,6 +10,7 @@ const commitPattern = /^[0-9a-f]{40}$/i;
 const imageTagPattern = /^[0-9a-f]{12}$/i;
 const maxPageSize = 100;
 const maxDeletes = 100;
+const releaseStatuses = ["queued", "in_progress", "pending", "waiting", "requested"];
 
 function isRecord(value) {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -24,6 +25,38 @@ function runVercel(args) {
 		throw new Error(`Vercel image command failed (exit ${result.status ?? "unknown"})`);
 	}
 	return result.stdout;
+}
+
+/** Queued and running releases must finish before their candidate images can be pruned. */
+export async function hasPendingRelease({ token, fetchImpl = fetch }) {
+	if (!token) throw new Error("A GitHub Actions token is required to check release runs");
+	for (const status of releaseStatuses) {
+		const url = new URL(
+			"https://api.github.com/repos/karimsa/mdxserve/actions/workflows/release.yml/runs",
+		);
+		url.searchParams.set("status", status);
+		url.searchParams.set("per_page", "1");
+		const response = await fetchImpl(url, {
+			headers: {
+				Accept: "application/vnd.github+json",
+				Authorization: `Bearer ${token}`,
+				"X-GitHub-Api-Version": "2022-11-28",
+			},
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!response.ok) throw new Error(`GitHub release lookup returned HTTP ${response.status}`);
+		const runs = await response.json();
+		if (
+			!isRecord(runs) ||
+			!Number.isSafeInteger(runs.total_count) ||
+			runs.total_count < 0 ||
+			!Array.isArray(runs.workflow_runs)
+		) {
+			throw new Error("GitHub release lookup returned invalid run metadata");
+		}
+		if (runs.total_count > 0) return true;
+	}
+	return false;
 }
 
 async function getProductionSha({ fetchImpl, token, teamId, projectId }) {
@@ -170,9 +203,11 @@ export async function retainImages({
 	token,
 	teamId,
 	projectId,
+	githubToken,
 	apply = false,
 	fetchImpl = fetch,
 	runCli = runVercel,
+	checkRelease = hasPendingRelease,
 }) {
 	if (!token || !/^team_[A-Za-z0-9]+$/.test(teamId) || !/^prj_[A-Za-z0-9]+$/.test(projectId)) {
 		throw new Error("Vercel token, team ID, and project ID are required");
@@ -188,6 +223,9 @@ export async function retainImages({
 		const plan = planImageRetention(images, productionSha);
 		if (!apply) return { ...plan, deleted: 0 };
 		if (plan.deleteIds.length === 0) return { ...plan, deleted };
+		if (await checkRelease({ token: githubToken, fetchImpl })) {
+			return { ...plan, deleted, deferred: true };
+		}
 		if (deleted >= maxDeletes) throw new Error("Image cleanup exceeded its delete limit");
 		const imageId = plan.deleteIds[0];
 		let removal;
@@ -232,11 +270,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		token: process.env.VERCEL_TOKEN,
 		teamId: process.env.VERCEL_ORG_ID,
 		projectId: process.env.VERCEL_PROJECT_ID,
+		githubToken: process.env.GH_TOKEN,
 		apply,
 	});
 	process.stdout.write(
-		apply
-			? `Deleted ${result.deleted} images; kept production ${result.productionId} and newest ${result.newestId ?? "none"}\n`
-			: `Preview: keep production ${result.productionId} and newest ${result.newestId ?? "none"}; delete ${result.deleteIds.length} images\n`,
+		result.deferred
+			? `Deferred image cleanup while a release runs; deleted ${result.deleted} images\n`
+			: apply
+				? `Deleted ${result.deleted} images; kept production ${result.productionId} and newest ${result.newestId ?? "none"}\n`
+				: `Preview: keep production ${result.productionId} and newest ${result.newestId ?? "none"}; delete ${result.deleteIds.length} images\n`,
 	);
 }

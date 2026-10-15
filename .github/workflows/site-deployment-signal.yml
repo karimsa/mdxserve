@@ -1,0 +1,14 @@
+name: Site deployment signal
+
+on:
+  deployment_status:
+
+permissions: {}
+
+jobs:
+  signal:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Signal successful deployment
+        run: ":"
