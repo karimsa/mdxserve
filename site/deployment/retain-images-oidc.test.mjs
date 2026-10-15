@@ -204,6 +204,62 @@ test("rejects unauthorized exchange and malformed tokens without starting retent
 	}
 });
 
+test("reports safe OAuth diagnostics for a rejected exchange", async () => {
+	const fake = harness({
+		exchangeStatus: 400,
+		exchangeBody: {
+			error: "invalid_request",
+			error_description: "Invalid subject_token: could not decode JWT.",
+		},
+	});
+	await assert.rejects(
+		retainImagesWithOidc({
+			env,
+			...fake,
+			retain: async () => {
+				throw new Error("Should not run");
+			},
+		}),
+		/HTTP 400 \(invalid_request: Invalid subject_token: could not decode JWT\.\)/,
+	);
+	assert.deepEqual(fake.delays, []);
+});
+
+test("redacts echoed credentials and unknown OAuth error codes", async () => {
+	const fake = harness({
+		exchangeStatus: 400,
+		exchangeBody: {
+			error: "github.oidc.token",
+			error_description:
+				"subject=github.oidc.token request=actions-request-token metadata=metadata-token access=vcr.access.token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123456",
+			access_token: "vcr.access.token",
+		},
+	});
+	await assert.rejects(
+		retainImagesWithOidc({
+			env,
+			...fake,
+			retain: async () => {
+				throw new Error("Should not run");
+			},
+		}),
+		(error) => {
+			assert.match(error.message, /HTTP 400 \(unknown_error:/);
+			assert.match(error.message, /redacted/);
+			for (const secret of [
+				"github.oidc.token",
+				"actions-request-token",
+				"metadata-token",
+				"vcr.access.token",
+				"eyJhbGciOiJIUzI1NiJ9",
+			]) {
+				assert.ok(!error.message.includes(secret));
+			}
+			return true;
+		},
+	);
+});
+
 test("rejects an OIDC URL outside GitHub Actions before requesting a token", async () => {
 	const fake = harness();
 	await assert.rejects(
