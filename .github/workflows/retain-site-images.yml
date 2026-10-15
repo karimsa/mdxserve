@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: site-production
@@ -42,4 +43,4 @@ jobs:
           node-version: 22.x
 
       - name: Retain production and newest other image
-        run: node site/deployment/retain-images.mjs --apply
+        run: node site/deployment/retain-images-oidc.mjs --apply

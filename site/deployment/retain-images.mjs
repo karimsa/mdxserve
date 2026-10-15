@@ -193,6 +193,7 @@ export function planImageRetention(images, productionSha) {
 
 export async function retainImages({
 	token,
+	registryToken = token,
 	teamId,
 	projectId,
 	githubToken,
@@ -200,13 +201,18 @@ export async function retainImages({
 	fetchImpl = fetch,
 	checkRelease = hasPendingRelease,
 }) {
-	if (!token || !/^team_[A-Za-z0-9]+$/.test(teamId) || !/^prj_[A-Za-z0-9]+$/.test(projectId)) {
-		throw new Error("Vercel token, team ID, and project ID are required");
+	if (
+		!token ||
+		!registryToken ||
+		!/^team_[A-Za-z0-9]+$/.test(teamId) ||
+		!/^prj_[A-Za-z0-9]+$/.test(projectId)
+	) {
+		throw new Error("Vercel metadata and registry tokens, team ID, and project ID are required");
 	}
 	let deleted = 0;
 	const deletedIds = new Set();
 	for (;;) {
-		const images = await listImages({ fetchImpl, token, teamId, projectId });
+		const images = await listImages({ fetchImpl, token: registryToken, teamId, projectId });
 		if (images.some((image) => deletedIds.has(image.id))) {
 			throw new Error("Vercel image inventory still lists an image already deleted");
 		}
@@ -221,7 +227,7 @@ export async function retainImages({
 		const imageId = plan.deleteIds[0];
 		const response = await fetchImpl(imageUrl(teamId, projectId, imageId), {
 			method: "DELETE",
-			headers: { Authorization: `Bearer ${token}` },
+			headers: { Authorization: `Bearer ${registryToken}` },
 			signal: AbortSignal.timeout(10_000),
 		});
 		if (!response.ok) throw new Error(`Vercel image deletion returned HTTP ${response.status}`);
