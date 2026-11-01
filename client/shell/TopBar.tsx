@@ -77,6 +77,8 @@ export function TopBar({
 					label="Toggle sidebar"
 					size="sm"
 					active={sidebar.open}
+					// No grey flash on tap in mobile Safari.
+					className="[-webkit-tap-highlight-color:transparent]"
 					onClick={sidebar.onToggle}
 				/>
 			) : null}

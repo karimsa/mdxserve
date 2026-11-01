@@ -165,6 +165,15 @@ html {
 	scroll-padding-top: calc(var(--topbar-height) + var(--space-2));
 }
 
+/* Keep the page from panning sideways or rubber-banding on touch devices.
+   `clip` rather than `hidden`, so the sticky topbar and sidebar keep working;
+   wide content (code, tables, diagrams) scrolls inside its own box instead. */
+html,
+body {
+	overflow-x: clip;
+	overscroll-behavior: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	html {
 		scroll-behavior: smooth;

@@ -6,6 +6,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getDefaultStore } from "jotai";
 import { contentLayoutAtom, tocVisibleAtom } from "../../client/state";
 import { DiagramPreferences } from "../../client/diagrams/Preferences";
+import { useFullWidth } from "../../client/hooks";
+import { COMPACT_MEDIA } from "../../client/platform";
+
+let compactScreen = false;
 const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn(), probe: vi.fn() }));
 vi.mock("../../client/api", () => ({
 	trpcClient: {
@@ -20,6 +24,12 @@ let host: HTMLDivElement;
 beforeEach(async () => {
 	vi.resetAllMocks();
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+	compactScreen = false;
+	vi.stubGlobal("matchMedia", (query: string) => ({
+		matches: query === COMPACT_MEDIA && compactScreen,
+		addEventListener() {},
+		removeEventListener() {},
+	}));
 	vi.stubGlobal("localStorage", new JSDOM("", { url: "http://localhost" }).window.localStorage);
 	getDefaultStore().set(contentLayoutAtom, "flexible");
 	getDefaultStore().set(tocVisibleAtom, true);
@@ -139,6 +149,28 @@ it("applies layout changes immediately and keeps them across reopening, independ
 	await act(async () => root.render(createElement(DiagramPreferences, { onClose: vi.fn() })));
 	await clickButton("Layout");
 	expect(document.querySelector<HTMLSelectElement>("#content-layout")!.value).toBe("full-width");
+});
+
+it("hides the content layout choice on phones and fills the width without changing the saved choice", async () => {
+	compactScreen = true;
+	getDefaultStore().set(contentLayoutAtom, "flexible");
+	let fullWidth: boolean | undefined;
+	function Probe() {
+		fullWidth = useFullWidth();
+		return null;
+	}
+	await act(async () => root.render(null));
+	await act(async () =>
+		root.render([
+			createElement(DiagramPreferences, { key: "settings", onClose: vi.fn() }),
+			createElement(Probe, { key: "probe" }),
+		]),
+	);
+	await clickButton("Layout");
+	expect(document.querySelector("#content-layout")).toBeNull();
+	expect(document.querySelector("#toc-visibility")).not.toBeNull();
+	expect(fullWidth).toBe(true);
+	expect(getDefaultStore().get(contentLayoutAtom)).toBe("flexible");
 });
 
 it("defaults to visible contents and autosaves visibility independently of diagram settings", async () => {

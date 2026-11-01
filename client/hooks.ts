@@ -1,4 +1,7 @@
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { COMPACT_MEDIA } from "./platform";
+import { contentLayoutAtom } from "./state";
 
 /** Returns `value`, updated only after it has stayed unchanged for `delayMs`. */
 export function useDebounced<Value>(value: Value, delayMs: number): Value {
@@ -31,4 +34,20 @@ export function useMediaQuery(query: string, serverDefault = false): boolean {
 		() => window.matchMedia(query).matches,
 		() => serverDefault,
 	);
+}
+
+/** Whether the viewport is phone-sized, in either orientation. */
+export function useCompactScreen(): boolean {
+	return useMediaQuery(COMPACT_MEDIA);
+}
+
+/**
+ * Whether content fills the available width. Phones always do, whatever the
+ * saved preference says; the preference itself is left untouched so it
+ * applies again on a larger screen.
+ */
+export function useFullWidth(): boolean {
+	const layout = useAtomValue(contentLayoutAtom);
+	const compact = useCompactScreen();
+	return compact || layout === "full-width";
 }
