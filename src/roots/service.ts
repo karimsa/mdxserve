@@ -7,7 +7,7 @@ import { expandHome } from "./paths.js";
 import { computeRootInfos, isInside, type RootInfo } from "./root-info.js";
 
 export type AdmitRootsResult =
-	| { kind: "ok"; roots: string[]; rootInfos: RootInfo[] }
+	| { kind: "ok"; roots: string[]; rootInfos: RootInfo[]; skipped?: string[] }
 	| { kind: "not-found"; message: string }
 	| { kind: "not-a-directory"; message: string }
 	/** Serving `/` would put the whole filesystem behind the doc routes. */
@@ -15,7 +15,7 @@ export type AdmitRootsResult =
 	| { kind: "nested"; message: string };
 
 type ResolveInputsResult =
-	| { kind: "ok"; roots: string[] }
+	| { kind: "ok"; roots: string[]; skipped: string[] }
 	| { kind: "not-found"; message: string }
 	| { kind: "not-a-directory"; message: string };
 
@@ -107,16 +107,21 @@ export class RootsService {
 	 * a symlinked alias of an already-named directory is dropped rather than
 	 * served twice, and Vite's `fs.allow` compares real paths anyway.
 	 */
-	private async resolveInputs(inputs: string[]): Promise<ResolveInputsResult> {
+	private async resolveInputs(inputs: string[], skipMissing = false): Promise<ResolveInputsResult> {
 		const resolved = inputs.map((input) => path.resolve(this.cwd, expandHome(input, this.home)));
 
 		const roots: string[] = [];
+		const skipped: string[] = [];
 		const seen = new Set<string>();
 		for (const dirAbs of resolved) {
 			let stat;
 			try {
 				stat = await fsp.stat(dirAbs);
 			} catch {
+				if (skipMissing) {
+					skipped.push(dirAbs);
+					continue;
+				}
 				return { kind: "not-found", message: `no such directory: ${dirAbs}` };
 			}
 			if (!stat.isDirectory()) {
@@ -129,7 +134,7 @@ export class RootsService {
 			roots.push(real);
 		}
 
-		return { kind: "ok", roots };
+		return { kind: "ok", roots, skipped };
 	}
 
 	/**
@@ -163,15 +168,23 @@ export class RootsService {
 	 * Resolve `inputs` and decide whether they can be served together, without
 	 * touching the mounted set. Used by `serve` at startup. An empty list
 	 * admits an empty set of roots — the caller decides what "no roots" means.
+	 * With `skipMissing`, a directory that no longer exists is left out and
+	 * reported in `skipped` instead of failing the call; configured roots use
+	 * this so a deleted folder cannot keep the server from starting.
 	 */
-	async admit(inputs: string[]): Promise<AdmitRootsResult> {
-		const resolved = await this.resolveInputs(inputs);
+	async admit(inputs: string[], skipMissing = false): Promise<AdmitRootsResult> {
+		const resolved = await this.resolveInputs(inputs, skipMissing);
 		if (resolved.kind !== "ok") return resolved;
 
 		const conflict = this.checkSet(resolved.roots);
 		if (conflict) return conflict;
 
-		return { kind: "ok", roots: resolved.roots, rootInfos: computeRootInfos(resolved.roots) };
+		return {
+			kind: "ok",
+			roots: resolved.roots,
+			rootInfos: computeRootInfos(resolved.roots),
+			...(skipMissing ? { skipped: resolved.skipped } : {}),
+		};
 	}
 
 	/** The currently mounted roots, in mount order. */
@@ -193,12 +206,16 @@ export class RootsService {
 
 			let snapshot: ConfigSnapshot | undefined;
 			let currentDirs = this.mounted.map((info) => info.dir);
+			// Configured roots that are gone from disk stay in the file, so a
+			// temporarily missing folder does not lose its entry.
+			let missingDirs: string[] = [];
 			try {
 				if (this.configPath) {
 					snapshot = readConfig(this.configPath);
-					const admitted = await this.admit(this.configInputs(snapshot));
+					const admitted = await this.admit(this.configInputs(snapshot), true);
 					if (admitted.kind !== "ok") return this.configError(admitted.message);
 					currentDirs = admitted.roots;
+					missingDirs = admitted.skipped ?? [];
 				}
 			} catch (error) {
 				return this.configError(error);
@@ -212,7 +229,7 @@ export class RootsService {
 
 			try {
 				if (this.configPath && snapshot && added.length > 0)
-					writeConfig(this.configPath, snapshot, [...currentDirs, ...added]);
+					writeConfig(this.configPath, snapshot, [...currentDirs, ...added, ...missingDirs]);
 			} catch (error) {
 				return this.configError(error);
 			}
@@ -249,10 +266,9 @@ export class RootsService {
 					for (const dir of currentDirs) {
 						const admitted = await this.admit([dir]);
 						if (admitted.kind === "ok") continue;
-						// A previously mounted directory may have been deleted. Keep it
-						// removable, but do not admit new missing paths from user edits.
-						if (admitted.kind === "not-found" && this.mounted.some((info) => info.dir === dir))
-							continue;
+						// A configured directory may have been deleted. It stays in the
+						// file and does not block removing other roots.
+						if (admitted.kind === "not-found") continue;
 						return this.configError(admitted.message);
 					}
 				}
@@ -276,11 +292,11 @@ export class RootsService {
 
 			let remaining = currentDirs.filter((dir) => !seen.has(dir));
 			if (this.configPath && snapshot) {
-				const admitted = await this.admit(remaining);
+				const admitted = await this.admit(remaining, true);
 				if (admitted.kind !== "ok") return this.configError(admitted.message);
 				remaining = admitted.roots;
 				try {
-					writeConfig(this.configPath, snapshot, admitted.roots);
+					writeConfig(this.configPath, snapshot, [...admitted.roots, ...(admitted.skipped ?? [])]);
 				} catch (error) {
 					return this.configError(error);
 				}
@@ -331,7 +347,7 @@ export class RootsService {
 			if (!this.configPath) return { kind: "ok" };
 			try {
 				const snapshot = readConfig(this.configPath);
-				const admitted = await this.admit(this.configInputs(snapshot));
+				const admitted = await this.admit(this.configInputs(snapshot), true);
 				if (admitted.kind !== "ok") return this.configError(admitted.message);
 				await this.apply(admitted.roots);
 				return { kind: "ok" };

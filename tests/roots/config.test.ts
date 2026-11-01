@@ -69,26 +69,23 @@ it("reloads edits, atomic replacements, empty roots and recreation after deletio
 	await vi.waitFor(() => expect(dirs(roots)).toEqual([first]), { timeout: 3000 });
 });
 
-it.each([
-	"{",
-	'{"roots":42}',
-	'{"roots":["/"]}',
-	'{"roots":["missing"]}',
-	'{"roots":[".","first"]}',
-])("keeps the last good roots and refuses to overwrite invalid config: %s", async (content) => {
-	const roots = service();
-	await roots.initialize([first]);
-	await fs.writeFile(config, content);
-	expect((await roots.reload()).kind).toBe("config-error");
-	expect((await roots.add([second])).kind).toBe("config-error");
-	expect(dirs(roots)).toEqual([first]);
-	expect(await fs.readFile(config, "utf8")).toBe(content);
-	await fs.writeFile(config, JSON.stringify({ roots: [second] }));
-	expect((await roots.reload()).kind).toBe("ok");
-	expect(dirs(roots)).toEqual([second]);
-});
+it.each(["{", '{"roots":42}', '{"roots":["/"]}', '{"roots":[".","first"]}'])(
+	"keeps the last good roots and refuses to overwrite invalid config: %s",
+	async (content) => {
+		const roots = service();
+		await roots.initialize([first]);
+		await fs.writeFile(config, content);
+		expect((await roots.reload()).kind).toBe("config-error");
+		expect((await roots.add([second])).kind).toBe("config-error");
+		expect(dirs(roots)).toEqual([first]);
+		expect(await fs.readFile(config, "utf8")).toBe(content);
+		await fs.writeFile(config, JSON.stringify({ roots: [second] }));
+		expect((await roots.reload()).kind).toBe("ok");
+		expect(dirs(roots)).toEqual([second]);
+	},
+);
 
-it.each(["nested", "filesystem root", "missing", "file"])(
+it.each(["nested", "filesystem root", "file"])(
 	"refuses removals from rejected %s config without changing the file or live roots",
 	async (invalidKind) => {
 		const roots = service();
@@ -98,13 +95,7 @@ it.each(["nested", "filesystem root", "missing", "file"])(
 		const file = path.join(base, "document.md");
 		await fs.writeFile(file, "# Document");
 		const invalidRoot =
-			invalidKind === "nested"
-				? second
-				: invalidKind === "filesystem root"
-					? "/"
-					: invalidKind === "missing"
-						? path.join(base, "missing")
-						: file;
+			invalidKind === "nested" ? second : invalidKind === "filesystem root" ? "/" : file;
 		const content = JSON.stringify({ roots: [invalidRoot, child] });
 		await fs.writeFile(config, content);
 		expect((await roots.reload()).kind).toBe("config-error");
@@ -170,4 +161,36 @@ it("arbitrary add/remove sequences always survive restart", async () => {
 		}),
 		{ numRuns: 25 },
 	);
+});
+
+it("starts without a configured root whose directory no longer exists, keeping its entry", async () => {
+	const gone = path.join(base, "gone");
+	await fs.writeFile(config, JSON.stringify({ roots: [gone, first] }));
+	const roots = service();
+	expect((await roots.initialize([second])).kind).toBe("ok");
+	expect(dirs(roots)).toEqual([first, second]);
+	expect(readConfig(config).value.roots).toEqual([first, second, gone]);
+});
+
+it("reloads a config that names a missing directory without reporting an error", async () => {
+	const roots = service();
+	await roots.initialize([first]);
+	await fs.writeFile(config, JSON.stringify({ roots: [path.join(base, "gone"), second] }));
+	expect(await roots.reload()).toEqual({ kind: "ok" });
+	expect(dirs(roots)).toEqual([second]);
+});
+
+it("still rejects a missing directory named explicitly on startup", async () => {
+	const result = await service().initialize([path.join(base, "gone")]);
+	expect(result.kind).toBe("not-found");
+});
+
+it("removes a root while another configured directory is missing, keeping the missing entry", async () => {
+	const gone = path.join(base, "gone");
+	await fs.writeFile(config, JSON.stringify({ roots: [gone, first, second] }));
+	const roots = service();
+	await roots.initialize([]);
+	expect((await roots.remove([first])).kind).toBe("ok");
+	expect(dirs(roots)).toEqual([second]);
+	expect(readConfig(config).value.roots).toEqual([second, gone]);
 });
