@@ -5,6 +5,7 @@ import Network from "lucide-react/dist/esm/icons/network.mjs";
 import PanelsTopLeft from "lucide-react/dist/esm/icons/panels-top-left.mjs";
 import SettingsIcon from "lucide-react/dist/esm/icons/settings.mjs";
 import CloseIcon from "lucide-react/dist/esm/icons/x.mjs";
+import { useCompactScreen } from "./hooks";
 import { contentLayoutAtom, tocVisibleAtom, type ContentLayout } from "./state";
 import { Modal } from "./ui/Modal";
 
@@ -22,6 +23,8 @@ export function Settings({
 	const [category, setCategory] = useState<"diagrams" | "layout">(diagrams ? "diagrams" : "layout");
 	const [layout, setLayout] = useAtom(contentLayoutAtom);
 	const [tocVisible, setTocVisible] = useAtom(tocVisibleAtom);
+	// Phones always fill the width (see useFullWidth), so the choice is moot there.
+	const compact = useCompactScreen();
 	return (
 		<Modal
 			open
@@ -72,27 +75,29 @@ export function Settings({
 					<section>
 						<h3>Layout</h3>
 						<p>Choose how content fills the available space.</p>
-						<label className="diagram-setting-row" htmlFor="content-layout">
-							<span>
-								<strong>Content layout</strong>
-								<small>
-									{layout === "flexible"
-										? "Drag the bars to resize content."
-										: "Content automatically fills the available width."}
-								</small>
-							</span>
-							<span className="diagram-agent-select">
-								<select
-									id="content-layout"
-									value={layout}
-									onChange={(event) => setLayout(event.target.value as ContentLayout)}
-								>
-									<option value="flexible">Flexible</option>
-									<option value="full-width">Full width</option>
-								</select>
-								<ChevronDown size={14} aria-hidden="true" />
-							</span>
-						</label>
+						{compact ? null : (
+							<label className="diagram-setting-row" htmlFor="content-layout">
+								<span>
+									<strong>Content layout</strong>
+									<small>
+										{layout === "flexible"
+											? "Drag the bars to resize content."
+											: "Content automatically fills the available width."}
+									</small>
+								</span>
+								<span className="diagram-agent-select">
+									<select
+										id="content-layout"
+										value={layout}
+										onChange={(event) => setLayout(event.target.value as ContentLayout)}
+									>
+										<option value="flexible">Flexible</option>
+										<option value="full-width">Full width</option>
+									</select>
+									<ChevronDown size={14} aria-hidden="true" />
+								</span>
+							</label>
+						)}
 						<label className="diagram-setting-row" htmlFor="toc-visibility">
 							<span>
 								<strong>Table of contents</strong>

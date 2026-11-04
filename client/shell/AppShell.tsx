@@ -6,7 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { trpc } from "../api";
 import { DocView } from "../DocView";
 import { HomeView } from "../HomeView";
-import { useDebounced } from "../hooks";
+import { useDebounced, useFullWidth, useMediaQuery } from "../hooks";
 import { ListingView } from "../ListingView";
 import { fadeRise, TRANSITIONS } from "../motion";
 import { useTheme } from "../theme";
@@ -31,13 +31,7 @@ import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
 import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import { DESKTOP_MEDIA } from "../platform";
-import {
-	contentLayoutAtom,
-	docWidthAtom,
-	LISTING_MAX_WIDTH,
-	LISTING_MIN_WIDTH,
-	listingWidthAtom,
-} from "../state";
+import { docWidthAtom, LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
 
 function sidebarStorageKey(): string {
 	// Keep hosted navigation preferences separate from local reader defaults.
@@ -177,12 +171,15 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	const [desktopOpen, setDesktopOpen] = useState(readStoredSidebarOpen);
 	const [mobileOpen, setMobileOpen] = useState(false);
+	// Tracks rotation and resizes across the dock/drawer breakpoint, so the
+	// toggle and its pressed state always describe the layout on screen.
+	const isDesktop = useMediaQuery(DESKTOP_MEDIA, true);
 
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [exporting, setExporting] = useState(false);
 	const listingWidth = useAtomValue(listingWidthAtom);
 	const docWidth = useAtomValue(docWidthAtom);
-	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
+	const fullWidth = useFullWidth();
 	const contentRef = useRef<HTMLDivElement>(null);
 	const contentWidth = useContentWidth(contentRef);
 	const listingMaxWidth = useListingMaxWidth(contentWidth, listingWidth);
@@ -230,6 +227,12 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		setMobileOpen(false);
 	}, [activePath]);
 
+	// Widening past the breakpoint docks the sidebar; a drawer left open on the
+	// narrow layout must not reappear the next time the screen narrows.
+	useEffect(() => {
+		if (isDesktop) setMobileOpen(false);
+	}, [isDesktop]);
+
 	// One export at a time: the trigger is disabled while a build runs, and the
 	// server queues builds anyway (see startServer).
 	const handleExport = useCallback(
@@ -246,7 +249,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	);
 
 	const handleToggleSidebar = useCallback(() => {
-		if (window.matchMedia(DESKTOP_MEDIA).matches) {
+		if (isDesktop) {
 			// A click here would otherwise silently flip (and persist) the
 			// preference for the next doc.
 			if (sidebarHidden) return;
@@ -254,7 +257,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		} else {
 			setMobileOpen((previous) => !previous);
 		}
-	}, [sidebarHidden]);
+	}, [isDesktop, sidebarHidden]);
 
 	// Global ⌘K / Ctrl+K to open search, from anywhere on the page.
 	useEffect(() => {
@@ -325,7 +328,12 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				onDiagramPreferences={() => setDiagramPreferences(true)}
 				homeHref="/"
 				hostLabel={location.host}
-				sidebar={{ open: showSidebar || mobileOpen, onToggle: handleToggleSidebar }}
+				sidebar={{
+					// Only the docked sidebar shows a pressed toggle; on a phone the
+					// drawer covers the bar, and a pressed state just looks stuck.
+					open: isDesktop && showSidebar,
+					onToggle: handleToggleSidebar,
+				}}
 				search={{ onOpen: () => setSearchOpen(true) }}
 				exportDoc={
 					route.kind === "doc" && shellInfo.permissions !== "restricted" && shellInfo.sameMachine

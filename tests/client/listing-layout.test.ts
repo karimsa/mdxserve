@@ -15,6 +15,11 @@ let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+	vi.stubGlobal("matchMedia", () => ({
+		matches: false,
+		addEventListener() {},
+		removeEventListener() {},
+	}));
 	vi.stubGlobal("localStorage", new JSDOM("", { url: "http://localhost" }).window.localStorage);
 	getDefaultStore().set(contentLayoutAtom, "full-width");
 	HTMLDialogElement.prototype.showModal = function () {

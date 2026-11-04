@@ -26,7 +26,7 @@ export function ConfirmDeleteDialog({
 			placement="top"
 			role="alertdialog"
 			aria-labelledby="confirm-delete-title"
-			className="w-[560px] overflow-hidden"
+			className="w-[560px] max-w-[calc(100vw-2rem)] overflow-hidden"
 		>
 			<div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
 				<Icon name="trash-2" size="md" className="text-status-danger-fg" />

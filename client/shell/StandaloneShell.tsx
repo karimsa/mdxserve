@@ -6,7 +6,8 @@ import { DocView } from "../DocView";
 import { fadeRise } from "../motion";
 import { useTheme } from "../theme";
 import { docModuleCache } from "../doc-module-cache";
-import { contentLayoutAtom, docWidthAtom } from "../state";
+import { docWidthAtom } from "../state";
+import { useFullWidth } from "../hooks";
 import { Footer } from "./Footer";
 import { TocRail } from "./TocRail";
 import { TopBar } from "./TopBar";
@@ -24,7 +25,7 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [tocVersion, setTocVersion] = useState(0);
 	const docWidth = useAtomValue(docWidthAtom);
-	const fullWidth = useAtomValue(contentLayoutAtom) === "full-width";
+	const fullWidth = useFullWidth();
 	const contentRef = useRef<HTMLDivElement>(null);
 	const contentWidth = useContentWidth(contentRef);
 	const docMaxWidth = useDocMaxWidth(contentWidth, docWidth);

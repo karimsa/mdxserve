@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MdSection, type MdSectionProps } from "../../client/MdSection";
 import { ListingView } from "../../client/ListingView";
 import { shellInfo } from "../../client/router";
@@ -17,6 +17,14 @@ vi.mock("../../client/api", () => ({
 	},
 	queryClient: { invalidateQueries: vi.fn() },
 }));
+
+beforeEach(() => {
+	vi.stubGlobal("matchMedia", () => ({
+		matches: false,
+		addEventListener() {},
+		removeEventListener() {},
+	}));
+});
 
 afterEach(() => {
 	shellInfo.permissions = "full";
