@@ -43,6 +43,10 @@ export const setCommentThreadResolvedInput = z.object({
 	resolved: z.boolean(),
 });
 export const commentThreadsResultSchema = z.object({ threads: z.array(commentThreadSchema) });
+export const addCommentThreadResultSchema = z.object({
+	threads: z.array(commentThreadSchema),
+	threadId: idSchema,
+});
 
 function throwFailure(failure: ThreadFailure): never {
 	switch (failure.kind) {
@@ -98,10 +102,10 @@ const addCommentThread = procedure(
 	"Starts a comment thread on a piece of rendered text by writing it, with its first human message, into the doc's frontmatter. Returns the doc's full thread list. Used by the comment composer.",
 )
 	.input(addCommentThreadInput)
-	.output(commentThreadsResultSchema)
+	.output(addCommentThreadResultSchema)
 	.mutation(async ({ ctx, input }) => {
 		const result = await new CommentsService(ctx.docs).addThread(input);
-		if (result.kind === "ok") return { threads: result.threads };
+		if (result.kind === "ok") return { threads: result.threads, threadId: result.threadId };
 		return throwFailure(result);
 	});
 
@@ -152,4 +156,5 @@ export type AddCommentThreadInput = z.infer<typeof addCommentThreadInput>;
 export type AddCommentReplyInput = z.infer<typeof addCommentReplyInput>;
 export type EditCommentInput = z.infer<typeof editCommentInput>;
 export type SetCommentThreadResolvedInput = z.infer<typeof setCommentThreadResolvedInput>;
+export type AddCommentThreadResult = z.infer<typeof addCommentThreadResultSchema>;
 export type CommentThreadsResult = z.infer<typeof commentThreadsResultSchema>;

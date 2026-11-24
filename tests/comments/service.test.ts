@@ -28,6 +28,12 @@ afterEach(async () => {
 	await fs.rm(root, { recursive: true, force: true });
 });
 
+it("returns the id of the thread it created", async () => {
+	const added = await comments.addThread({ path: abs, anchor: ANCHOR, body: "First" });
+	if (added.kind !== "ok") throw new Error(added.kind);
+	expect(added.threadId).toBe(added.threads[0].id);
+});
+
 async function addThread() {
 	const added = await comments.addThread({ path: abs, anchor: ANCHOR, body: "First" });
 	if (added.kind !== "ok") throw new Error(added.kind);
@@ -57,6 +63,15 @@ describe("CommentsService input validation", () => {
 			expect((await comments.addThread({ path: abs, anchor, body: "ok" })).kind).toBe(
 				"invalid-input",
 			);
+		expect(await fs.readFile(abs, "utf8")).toBe(before);
+	});
+
+	it("rejects a blank or oversized heading without writing", async () => {
+		const before = await fs.readFile(abs, "utf8");
+		for (const heading of ["  ", "h".repeat(301)])
+			expect(
+				(await comments.addThread({ path: abs, anchor: { ...ANCHOR, heading }, body: "ok" })).kind,
+			).toBe("invalid-input");
 		expect(await fs.readFile(abs, "utf8")).toBe(before);
 	});
 });
