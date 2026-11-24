@@ -79,11 +79,12 @@ export function resolveAnchorStatically(
 		});
 		if (matching.size === 0) return "detached";
 	}
+	const wantedBlock = normalizeText(anchor.block);
 	const block = blocks.find(
-		(candidate) => matching.has(candidate.section) && candidate.text.endsWith(anchor.block),
+		(candidate) => matching.has(candidate.section) && candidate.text.endsWith(wantedBlock),
 	);
 	if (!block) return "section";
-	return block.text.includes(anchor.quote) ? "exact" : "block";
+	return block.text.includes(normalizeText(anchor.quote)) ? "exact" : "block";
 }
 
 /**
