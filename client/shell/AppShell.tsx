@@ -22,6 +22,7 @@ import {
 import type { ExportFormat } from "../../src/export/service";
 import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
+import { useCommentsModel } from "../comments/model";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
 import { Footer } from "./Footer";
@@ -209,6 +210,8 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			target?.scrollIntoView({ block: "start", behavior: "instant" });
 		}
 	}, []);
+
+	useCommentsModel(route.kind === "doc" ? route.path : null, tocVersion);
 
 	useEffect(() => {
 		try {

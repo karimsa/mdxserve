@@ -375,6 +375,17 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	}
 }
 
+/* Comment highlights (client/comments/highlights.ts) use the CSS Custom Highlight API,
+   so React's DOM is untouched. Browsers without it show the panel and no marks. */
+::highlight(mdxserve-comment) {
+	background-color: var(--status-warn-bg);
+	color: inherit;
+}
+::highlight(mdxserve-comment-active) {
+	background-color: color-mix(in oklab, var(--status-warn-fg) 32%, var(--status-warn-bg));
+	color: inherit;
+}
+
 /* Print: the reader gets the prose, nothing else. */
 @media print {
 	[data-print-hide] {
