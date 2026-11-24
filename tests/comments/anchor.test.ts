@@ -57,6 +57,16 @@ describe("resolveAnchorStatically", () => {
 		).toBe("detached");
 	});
 
+	it("normalizes a hand-written anchor before comparing", () => {
+		expect(
+			resolveAnchorStatically(collected, {
+				heading: "Install",
+				block: "Run  the\ninstaller now.",
+				quote: " the\n installer",
+			}),
+		).toBe("exact");
+	});
+
 	it("handles the null heading, table cells, code, and headings as blocks", () => {
 		expect(
 			resolveAnchorStatically(collected, { heading: null, block: "Intro line.", quote: "Intro" }),
