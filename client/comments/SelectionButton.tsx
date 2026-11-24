@@ -15,6 +15,14 @@ interface Pending {
 }
 
 /** The "Comment" button floating next to a selection. */
+// Never reused, so a finished submission can tell its own draft from a later one
+// even after the draft was discarded in between.
+let draftNonce = 0;
+function nextDraftNonce(): number {
+	draftNonce += 1;
+	return draftNonce;
+}
+
 export function SelectionButton({ model }: { model: CommentsModel }) {
 	const [pending, setPending] = useState<Pending | null>(null);
 	const [draft, setDraft] = useAtom(draftAtom);
@@ -116,7 +124,7 @@ export function SelectionButton({ model }: { model: CommentsModel }) {
 					anchor,
 					range,
 					body: previous?.body ?? "",
-					nonce: (previous?.nonce ?? 0) + 1,
+					nonce: nextDraftNonce(),
 				}));
 				// Desktop: the composer opens in a popover, whether or not the sidebar is
 				// open. Phone: it opens in the sheet.

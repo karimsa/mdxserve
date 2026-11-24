@@ -1,4 +1,4 @@
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useSetAtom, useStore } from "jotai";
 import { useState } from "react";
 import type { CommentsModel } from "./model";
 import { ReplyField } from "./ReplyField";
@@ -22,22 +22,24 @@ export function DraftThread({
 	const setActive = useSetAtom(activeThreadAtom);
 	const setPopover = useSetAtom(popoverThreadAtom);
 	const [pending, setPending] = useState(false);
+	const store = useStore();
 	if (!draft) return null;
 
 	async function submit() {
 		if (!draft) return;
+		// This draft, by the press that opened it: a later one must survive our completion.
+		const submitted = draft.nonce;
 		setPending(true);
-		const known = new Set(model.threads.map((thread) => thread.id));
-		const threads = await model.actions.addThread(draft.anchor, draft.body);
+		const created = await model.actions.addThread(draft.anchor, draft.body);
 		setPending(false);
 		// On failure the draft, with its text, stays.
-		if (!threads) return;
+		if (created === null) return;
+		// The user moved on to another comment (or another doc) while this one saved.
+		if (store.get(draftAtom)?.nonce !== submitted) return;
 		setDraft(null);
-		const created = threads.find((thread) => !known.has(thread.id));
-		if (!created) return;
-		setActive(created.id);
+		setActive(created);
 		// The popover follows the new thread unless the sidebar shows it.
-		if (!sidebarOpen) setPopover(created.id);
+		if (!sidebarOpen) setPopover(created);
 	}
 
 	return (
