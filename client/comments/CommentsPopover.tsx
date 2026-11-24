@@ -130,6 +130,9 @@ export function CommentsPopover({
 	const close = model.closePopover;
 	const discardDraft = () => setDraft(null);
 	const writing = draft !== null && draft.body.trim() !== "";
+	// Read when a request finishes, so a newer popover is not dismissed by an older resolve.
+	const shownId = useRef(model.popoverId);
+	shownId.current = model.popoverId;
 
 	if (draft) {
 		return (
@@ -165,7 +168,7 @@ export function CommentsPopover({
 							disabled={model.writesDisabled}
 							onClick={() => {
 								void model.actions.setResolved(thread.id, true).then((saved) => {
-									if (saved) close();
+									if (saved && shownId.current === thread.id) close();
 								});
 							}}
 						/>

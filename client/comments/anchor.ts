@@ -176,12 +176,15 @@ export function resolutionPosition(resolution: Resolution): number {
 
 /** Finds the anchor in the document: exact, whole block, section heading, or detached. */
 export function resolveAnchor(anchor: AnchorFields, index: ResolveIndex): Resolution {
+	const wantedBlock = normalizeText(anchor.block);
+	const wantedQuote = normalizeText(anchor.quote);
 	const sections: number[] = [];
 	if (anchor.heading === null) {
 		sections.push(-1);
 	} else {
+		const wantedHeading = headingKey(anchor.heading);
 		index.headings.forEach((heading, position) => {
-			if (heading.key === anchor.heading) sections.push(position);
+			if (heading.key === wantedHeading) sections.push(position);
 		});
 		if (sections.length === 0) return { state: "detached" };
 	}
@@ -189,10 +192,10 @@ export function resolveAnchor(anchor: AnchorFields, index: ResolveIndex): Resolu
 	for (const section of sections) {
 		for (let position = 0; position < index.blocks.length; position++) {
 			const block = index.blocks[position];
-			if (block.section !== section || !block.text.endsWith(anchor.block)) continue;
-			const found = block.text.indexOf(anchor.quote);
+			if (block.section !== section || !block.text.endsWith(wantedBlock)) continue;
+			const found = block.text.indexOf(wantedQuote);
 			if (found === -1) return { state: "block", block: position };
-			return { state: "exact", block: position, start: found, end: found + anchor.quote.length };
+			return { state: "exact", block: position, start: found, end: found + wantedQuote.length };
 		}
 	}
 

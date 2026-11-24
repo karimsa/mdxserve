@@ -28,6 +28,16 @@ export function CommentsSheet({
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [open, hasDraft, onClose]);
 
+	// Reserve scroll room so text at the end of the doc can be scrolled above the sheet.
+	useEffect(() => {
+		if (!open) return;
+		const previous = document.body.style.paddingBottom;
+		document.body.style.paddingBottom = "70vh";
+		return () => {
+			document.body.style.paddingBottom = previous;
+		};
+	}, [open]);
+
 	return (
 		<AnimatePresence>
 			{open ? (
