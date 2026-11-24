@@ -34,6 +34,20 @@ it("returns the id of the thread it created", async () => {
 	expect(added.threadId).toBe(added.threads[0].id);
 });
 
+it("clips an emoji-heavy block to the stored UTF-16 limit", async () => {
+	const block = "😀".repeat(300);
+	const added = await comments.addThread({
+		path: abs,
+		anchor: { heading: null, block, quote: "😀".repeat(300) },
+		body: "Emoji",
+	});
+	if (added.kind !== "ok") throw new Error(added.kind);
+	const thread = added.threads.find((candidate) => candidate.id === added.threadId);
+	expect(thread).toBeDefined();
+	expect(thread!.anchor.block.length).toBeLessThanOrEqual(500);
+	expect(thread!.anchor.quote.length).toBeLessThanOrEqual(500);
+});
+
 async function addThread() {
 	const added = await comments.addThread({ path: abs, anchor: ANCHOR, body: "First" });
 	if (added.kind !== "ok") throw new Error(added.kind);

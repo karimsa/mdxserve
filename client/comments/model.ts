@@ -105,6 +105,20 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		setReplyDrafts({});
 	}, [path, setActiveId, setDraft, setSheetOpen, setPopoverThread, setReplyDrafts]);
 
+	// Bumped when a tab panel is shown or hidden, so anchors re-resolve.
+	const [visibility, setVisibility] = useState(0);
+	useEffect(() => {
+		const article = findArticle();
+		if (!article) return;
+		const observer = new MutationObserver(() => setVisibility((count) => count + 1));
+		observer.observe(article, {
+			attributes: true,
+			attributeFilter: ["inert", "aria-hidden"],
+			subtree: true,
+		});
+		return () => observer.disconnect();
+	}, [path, renderVersion]);
+
 	// Resolve after the thread list changes, after DocView renders, and when a
 	// section editor closes. While one is open its DOM is the editor's, so keep
 	// the last answer rather than flash everything to "detached".
@@ -129,7 +143,7 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			});
 		}
 		setViews(next);
-	}, [path, threads, renderVersion, editing]);
+	}, [path, threads, renderVersion, editing, visibility]);
 
 	useEffect(() => {
 		const entries: HighlightEntry[] = [];

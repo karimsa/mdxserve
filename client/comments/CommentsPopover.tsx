@@ -182,7 +182,14 @@ export function CommentsPopover({
 				</>
 			}
 		>
-			<Thread thread={thread} view={view} active variant="popover" model={model} />
+			<Thread
+				key={`${model.path}:${thread.id}`}
+				thread={thread}
+				view={view}
+				active
+				variant="popover"
+				model={model}
+			/>
 		</PopoverFrame>
 	);
 }

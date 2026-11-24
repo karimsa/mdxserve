@@ -96,7 +96,7 @@ export function CommentsPanel({
 	function renderThread(thread: CommentThread) {
 		return (
 			<Thread
-				key={thread.id}
+				key={`${model.path}:${thread.id}`}
 				thread={thread}
 				view={views.get(thread.id)}
 				active={thread.id === activeId}

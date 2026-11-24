@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveAnchor } from "../../client/comments/anchor";
+import { headingKey, resolveAnchor } from "../../client/comments/anchor";
 import {
 	captureSelection,
 	collectDoc,
@@ -39,6 +39,21 @@ function select(startNode: Node, startOffset: number, endNode: Node, endOffset: 
 	selection.addRange(range);
 	return selection;
 }
+
+describe("collectDoc hidden content", () => {
+	it("skips content inside inert or aria-hidden containers", () => {
+		article.insertAdjacentHTML(
+			"beforeend",
+			`<div inert><h2>Hidden heading</h2><p id="hidden">Hidden text</p></div>
+			<div aria-hidden="true"><p id="hidden2">Also hidden</p></div>`,
+		);
+		const doc = collectDoc(article);
+		const ids = doc.blocks.map((block) => block.el.id);
+		expect(ids).not.toContain("hidden");
+		expect(ids).not.toContain("hidden2");
+		expect(doc.headings.map((heading) => heading.key)).not.toContain(headingKey("Hidden heading"));
+	});
+});
 
 describe("collectDoc", () => {
 	it("collects innermost blocks and headings in document order", () => {
