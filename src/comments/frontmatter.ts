@@ -14,6 +14,7 @@ import {
 import { leadingFrontmatter } from "../docs/frontmatter.js";
 import {
 	commentThreadSchema,
+	MAX_MESSAGES_PER_THREAD,
 	type CommentAuthor,
 	type CommentDiagnostic,
 	type CommentThread,
@@ -139,6 +140,7 @@ export type EditCommentsResult =
 	| { kind: "ok"; yaml: string }
 	| { kind: "invalid-frontmatter"; message: string }
 	| { kind: "thread-not-found" }
+	| { kind: "thread-full" }
 	| { kind: "message-not-found" }
 	| { kind: "not-editable" };
 
@@ -218,6 +220,8 @@ export function editComments(yamlText: string | undefined, edit: CommentsEdit): 
 			const messages = thread.get("messages", true);
 			if (!isSeq(messages)) return { kind: "thread-not-found" };
 			if (edit.kind === "add-message") {
+				// One more would fail the thread schema, and the reader would then skip the whole thread.
+				if (messages.items.length >= MAX_MESSAGES_PER_THREAD) return { kind: "thread-full" };
 				messages.add(messageNode(document, edit.message));
 			} else {
 				const message = messages.items.find((item) => messageIdOf(item) === edit.messageId);

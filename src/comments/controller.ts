@@ -50,6 +50,11 @@ function throwFailure(failure: ThreadFailure): never {
 			throw new TRPCError({ code: "NOT_FOUND", message: failure.message });
 		case "thread-not-found":
 			throw new TRPCError({ code: "NOT_FOUND", message: "Comment thread not found" });
+		case "thread-full":
+			throw new TRPCError({
+				code: "PAYLOAD_TOO_LARGE",
+				message: "This thread has reached its 100-message limit",
+			});
 		case "message-not-found":
 			throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found" });
 		case "not-editable":

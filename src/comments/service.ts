@@ -23,6 +23,7 @@ export type CommentsFailure =
 export type ThreadFailure =
 	| CommentsFailure
 	| { kind: "thread-not-found" }
+	| { kind: "thread-full" }
 	| { kind: "message-not-found" }
 	| { kind: "not-editable" };
 

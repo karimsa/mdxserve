@@ -71,6 +71,8 @@ export function ReplyField({
 				rows={1}
 				maxLength={MAX_MESSAGE_BODY}
 				disabled={disabled}
+				// Locked while a send is in flight: text typed then would be cleared with the sent draft.
+				readOnly={pending}
 				placeholder={placeholder}
 				onChange={(event) => onChange(event.target.value)}
 				onKeyDown={handleKeyDown}

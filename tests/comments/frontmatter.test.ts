@@ -246,3 +246,20 @@ describe("parseComments diagnostics for hand-written entries", () => {
 		expect(diagnostics[0].message).toContain("messages.0.body:");
 	});
 });
+
+describe("editComments message limit", () => {
+	it("refuses a reply that would push a thread past 100 messages", () => {
+		const messages = Array.from(
+			{ length: 100 },
+			(_, index) => `      - { id: m${index}, author: human, body: hi }`,
+		).join("\n");
+		const yaml = `comments:\n  - id: full\n    anchor: { heading: null, block: text, quote: text }\n    messages:\n${messages}\n`;
+		expect(parseComments(`---\n${yaml}---\n`).threads).toHaveLength(1);
+		const result = editComments(yaml, {
+			kind: "add-message",
+			threadId: "full",
+			message: { id: "extra", author: "human", body: "one more" },
+		});
+		expect(result).toEqual({ kind: "thread-full" });
+	});
+});
