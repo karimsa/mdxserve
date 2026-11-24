@@ -195,6 +195,92 @@ Plans are read in mdxserve and in plain text. Use headings for phases, a task li
 a table for files-to-change, and at most one mermaid diagram (the architecture or the main
 flow, never a chart). Skip components in plans unless the user views plans only in mdxserve.
 
+## Comments
+
+Comments belong to the reader. A person opens the doc in mdxserve, highlights text, and leaves
+a threaded comment on it; then they ask you to deal with the comments. Threads are stored in
+the doc's own leading YAML frontmatter under `comments`, not in the body.
+
+### When the user asks you to look at the comments
+
+"Look at my comments", "address the feedback on the doc", "I left notes in mdxserve" all mean
+this:
+
+1. **Read the whole file, frontmatter included.** The threads are in the `comments` list at
+   the top. They are not in the rendered page text, and a search of the body will not find
+   them.
+2. **Take the open threads**: entries with `resolved: false` or no `resolved` key. Skip
+   resolved ones.
+3. **Find what each one is about.** `anchor.heading` is the section, `anchor.block` is the
+   paragraph or list item, `anchor.quote` is the exact words the person highlighted. The last
+   `human` message in `messages` is what to act on.
+4. **Do what it asks.** Edit the body for a change request. For a question, answer it in the
+   thread and leave the body alone unless the answer belongs in the doc.
+5. **Reply in the thread** with one short message saying what you changed or the answer.
+   Append it to that thread's `messages` with `author: agent`.
+6. **Repair the anchor** if your edit changed or moved the commented text (see below).
+7. **Leave `resolved` alone.** The person resolves a thread when they are satisfied. Set
+   `resolved: true` only when told to.
+8. Run `mdxserve validate <absolute path>` and fix every comment warning it reports.
+
+### Do not start threads on your own
+
+When you write or edit a doc, put content in the body and raise questions in the chat. Start a
+thread only when the user explicitly asks you to review a doc by leaving comments on it. Never
+remove or rewrite a `human` message.
+
+### Format
+
+```yaml
+---
+title: Getting started
+comments:
+  - id: k3J9xQ2a
+    anchor:
+      heading: Installation
+      block: Run the installer, then restart your shell so the new PATH entry is picked up.
+      quote: restart your shell
+    resolved: false
+    messages:
+      - id: Zp41mD0c
+        author: human
+        body: Is a restart still needed on fish?
+        createdAt: 2026-11-24T19:02:11.000Z
+      - id: m2
+        author: agent
+        body: No. Fish reads conf.d on each prompt. I removed the restart step for fish.
+        createdAt: 2026-11-24T19:05:40.000Z
+---
+```
+
+- **A reply** is a new entry at the end of `messages`: `author: agent`, a `body` of 1 to 4000
+  characters, and an `id` unique in that thread (`m2`, `m3`, …; letters, digits, `_` and `-`,
+  up to 64). `createdAt` is optional ISO 8601 UTC. A thread holds up to 100 messages.
+- **A new thread** (review requests only) is a new entry at the end of `comments` with a
+  unique `id`, an `anchor`, and one message.
+- **Anchor values are rendered text, not Markdown source**: no `**`, backticks, link syntax or
+  list markers, and whitespace runs collapsed to one space. `heading` is the plain text of the
+  nearest heading above the block (the block itself when it is a heading), or `null` before the
+  first heading. `block` is the plain text of the paragraph, list item, table cell or other
+  block, and only its last 500 characters when longer. `quote` is the exact visible words
+  inside that block, at most 500 characters.
+- **Repairing an anchor**: set `heading`, `block` and `quote` to the text as it reads now. If
+  the commented words are gone, anchor to the sentence that replaced them. A thread whose
+  block no longer matches shows on its section heading; one whose heading is gone shows as
+  detached.
+- **Keep the frontmatter valid YAML.** One YAML error hides the page metadata and every
+  thread, and the server refuses to add comments until it is fixed. Leave other keys alone.
+
+### What `mdxserve validate` checks
+
+`validate` checks comments on every run, with or without a server. Both codes are warnings:
+
+- `frontmatter-comments`: a thread or message does not match the format (bad `id`, unknown
+  `author`, empty `body`, missing `anchor`, duplicate ids). The entry is skipped in the
+  browser, so the person cannot see it. Fix the entry on the line named.
+- `comment-anchor`: an open thread's `heading` or `block` text is not in the doc, usually
+  because the text was edited. Repair the anchor.
+
 ## After writing
 
 After saving any `.md`/`.mdx` file, run `mdxserve validate <absolute path>`. It works even when
