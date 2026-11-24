@@ -1,200 +1,787 @@
 <title>Comments final mockup</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<meta name="claude:viewport-fit-sides" content="cover" />
+<link
+	rel="stylesheet"
+	href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+/>
 <style>
-/* Layout: the chosen design in its three states (sidebar, popover, phone sheet) as app-window mockups, then a picker of highlight styles that restyles every mockup above it. Tokens are mdxserve's own. */
-:root {
-	--page: #f6f6f3; --app: #fbfbf9; --card: #ffffff; --sunken: #f6f6f3; --hover: #eeeeea;
-	--body: #2b2a27; --heading: #111110; --muted: #615f5a; --subtle: #82817a;
-	--line-soft: #eeeeea; --line: #e3e2dd; --line-strong: #cfcec7;
-	--accent: #0c8280; --accent-soft: #e8f6f5; --accent-text: #0a7472;
-	--amber-faint: #fdf5e4; --amber-bg: #fbeccd; --amber-strong: #ecd09a; --amber-line: #b07405;
-	--teal-strong: #c9eae8; --teal-line: #2ba5a2;
-	--warn: #855603; --ok-bg: #d8f0e3; --ok-fg: #12603b;
-	--scrim: rgba(17,17,16,.34);
-	--shadow-md: 0 2px 4px rgba(26,25,24,.05), 0 8px 20px rgba(26,25,24,.07);
-	--shadow-lg: 0 4px 8px rgba(26,25,24,.06), 0 18px 44px rgba(26,25,24,.11);
-	--focus: rgba(14,143,140,.45);
-	--sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-	--mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) {
-		--page: #020509; --app: #030712; --card: #0b1120; --sunken: #020509; --hover: #1b2436;
-		--body: #d1d5db; --heading: #f9fafb; --muted: #9ca3af; --subtle: #7b8494;
-		--line-soft: #111827; --line: #1f2937; --line-strong: #374151;
-		--accent: #0c8280; --accent-soft: #042c2b; --accent-text: #63c1be;
-		--amber-faint: #1f1808; --amber-bg: #33260a; --amber-strong: #5c4619; --amber-line: #e9c078;
-		--teal-strong: #064442; --teal-line: #2ba5a2;
-		--warn: #e9c078; --ok-bg: #122f22; --ok-fg: #8fd8b0;
-		--scrim: rgba(0,0,0,.6);
-		--shadow-md: 0 2px 4px rgba(0,0,0,.4), 0 8px 20px rgba(0,0,0,.45);
-		--shadow-lg: 0 4px 8px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.55);
+	/* Layout: the chosen design in its three states (sidebar, popover, phone sheet) as app-window mockups, then a picker of highlight styles that restyles every mockup above it. Tokens are mdxserve's own. */
+	:root {
+		--page: #f6f6f3;
+		--app: #fbfbf9;
+		--card: #ffffff;
+		--sunken: #f6f6f3;
+		--hover: #eeeeea;
+		--body: #2b2a27;
+		--heading: #111110;
+		--muted: #615f5a;
+		--subtle: #82817a;
+		--line-soft: #eeeeea;
+		--line: #e3e2dd;
+		--line-strong: #cfcec7;
+		--accent: #0c8280;
+		--accent-soft: #e8f6f5;
+		--accent-text: #0a7472;
+		--amber-faint: #fdf5e4;
+		--amber-bg: #fbeccd;
+		--amber-strong: #ecd09a;
+		--amber-line: #b07405;
+		--teal-strong: #c9eae8;
+		--teal-line: #2ba5a2;
+		--warn: #855603;
+		--ok-bg: #d8f0e3;
+		--ok-fg: #12603b;
+		--scrim: rgba(17, 17, 16, 0.34);
+		--shadow-md: 0 2px 4px rgba(26, 25, 24, 0.05), 0 8px 20px rgba(26, 25, 24, 0.07);
+		--shadow-lg: 0 4px 8px rgba(26, 25, 24, 0.06), 0 18px 44px rgba(26, 25, 24, 0.11);
+		--focus: rgba(14, 143, 140, 0.45);
+		--sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		--mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme="light"]) {
+			--page: #020509;
+			--app: #030712;
+			--card: #0b1120;
+			--sunken: #020509;
+			--hover: #1b2436;
+			--body: #d1d5db;
+			--heading: #f9fafb;
+			--muted: #9ca3af;
+			--subtle: #7b8494;
+			--line-soft: #111827;
+			--line: #1f2937;
+			--line-strong: #374151;
+			--accent: #0c8280;
+			--accent-soft: #042c2b;
+			--accent-text: #63c1be;
+			--amber-faint: #1f1808;
+			--amber-bg: #33260a;
+			--amber-strong: #5c4619;
+			--amber-line: #e9c078;
+			--teal-strong: #064442;
+			--teal-line: #2ba5a2;
+			--warn: #e9c078;
+			--ok-bg: #122f22;
+			--ok-fg: #8fd8b0;
+			--scrim: rgba(0, 0, 0, 0.6);
+			--shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.45);
+			--shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
+			color-scheme: dark;
+		}
+	}
+	:root[data-theme="dark"] {
+		--page: #020509;
+		--app: #030712;
+		--card: #0b1120;
+		--sunken: #020509;
+		--hover: #1b2436;
+		--body: #d1d5db;
+		--heading: #f9fafb;
+		--muted: #9ca3af;
+		--subtle: #7b8494;
+		--line-soft: #111827;
+		--line: #1f2937;
+		--line-strong: #374151;
+		--accent: #0c8280;
+		--accent-soft: #042c2b;
+		--accent-text: #63c1be;
+		--amber-faint: #1f1808;
+		--amber-bg: #33260a;
+		--amber-strong: #5c4619;
+		--amber-line: #e9c078;
+		--teal-strong: #064442;
+		--teal-line: #2ba5a2;
+		--warn: #e9c078;
+		--ok-bg: #122f22;
+		--ok-fg: #8fd8b0;
+		--scrim: rgba(0, 0, 0, 0.6);
+		--shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.45);
+		--shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.55);
 		color-scheme: dark;
 	}
-}
-:root[data-theme="dark"] {
-	--page: #020509; --app: #030712; --card: #0b1120; --sunken: #020509; --hover: #1b2436;
-	--body: #d1d5db; --heading: #f9fafb; --muted: #9ca3af; --subtle: #7b8494;
-	--line-soft: #111827; --line: #1f2937; --line-strong: #374151;
-	--accent: #0c8280; --accent-soft: #042c2b; --accent-text: #63c1be;
-	--amber-faint: #1f1808; --amber-bg: #33260a; --amber-strong: #5c4619; --amber-line: #e9c078;
-	--teal-strong: #064442; --teal-line: #2ba5a2;
-	--warn: #e9c078; --ok-bg: #122f22; --ok-fg: #8fd8b0;
-	--scrim: rgba(0,0,0,.6);
-	--shadow-md: 0 2px 4px rgba(0,0,0,.4), 0 8px 20px rgba(0,0,0,.45);
-	--shadow-lg: 0 4px 8px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.55);
-	color-scheme: dark;
-}
 
-/* Highlight styles. Only background-color and text-decoration are used, because the app draws
+	/* Highlight styles. Only background-color and text-decoration are used, because the app draws
    highlights with the CSS Custom Highlight API, which supports nothing else. */
-[data-hl="marker"]    { --hl-bg: var(--amber-bg);    --hl-line: transparent;       --hl-bg-on: var(--amber-strong); --hl-line-on: transparent; }
-[data-hl="underline"] { --hl-bg: transparent;        --hl-line: var(--amber-line); --hl-bg-on: var(--amber-bg);     --hl-line-on: var(--amber-line); }
-[data-hl="tint"]      { --hl-bg: var(--amber-faint); --hl-line: var(--amber-line); --hl-bg-on: var(--amber-strong); --hl-line-on: var(--amber-line); }
-[data-hl="accent"]    { --hl-bg: var(--accent-soft); --hl-line: var(--teal-line);  --hl-bg-on: var(--teal-strong);  --hl-line-on: var(--teal-line); }
-mark { background-color: var(--hl-bg); color: inherit; text-decoration: underline 2px var(--hl-line); text-underline-offset: 3px; }
-mark.on { background-color: var(--hl-bg-on); text-decoration-color: var(--hl-line-on); }
+	[data-hl="marker"] {
+		--hl-bg: var(--amber-bg);
+		--hl-line: transparent;
+		--hl-bg-on: var(--amber-strong);
+		--hl-line-on: transparent;
+	}
+	[data-hl="underline"] {
+		--hl-bg: transparent;
+		--hl-line: var(--amber-line);
+		--hl-bg-on: var(--amber-bg);
+		--hl-line-on: var(--amber-line);
+	}
+	[data-hl="tint"] {
+		--hl-bg: var(--amber-faint);
+		--hl-line: var(--amber-line);
+		--hl-bg-on: var(--amber-strong);
+		--hl-line-on: var(--amber-line);
+	}
+	[data-hl="accent"] {
+		--hl-bg: var(--accent-soft);
+		--hl-line: var(--teal-line);
+		--hl-bg-on: var(--teal-strong);
+		--hl-line-on: var(--teal-line);
+	}
+	mark {
+		background-color: var(--hl-bg);
+		color: inherit;
+		text-decoration: underline 2px var(--hl-line);
+		text-underline-offset: 3px;
+	}
+	mark.on {
+		background-color: var(--hl-bg-on);
+		text-decoration-color: var(--hl-line-on);
+	}
 
-* { box-sizing: border-box; }
-body {
-	background: var(--page); color: var(--body); font: 500 15px/1.5 var(--sans);
-	padding-block: 40px 72px;
-	padding-left: max(20px, env(safe-area-inset-left, 0px));
-	padding-right: max(20px, env(safe-area-inset-right, 0px));
-}
-::selection { background: var(--teal-strong); color: var(--heading); }
-.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
-.intro h1 { margin: 0 0 8px; font: 700 26px/1.25 var(--sans); letter-spacing: -.012em; color: var(--heading); text-wrap: balance; }
-.intro p { margin: 0; max-width: 66ch; color: var(--muted); }
-.part { display: flex; flex-direction: column; gap: 14px; }
-.part h2 { margin: 0; font: 700 18px/1.3 var(--sans); color: var(--heading); }
-.part .why { margin: 0; max-width: 72ch; color: var(--muted); font-size: 14px; }
-.stage { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--app); box-shadow: var(--shadow-md); }
-.pair { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
-.pair .rules { flex: 1 1 320px; min-width: 0; margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 8px; }
-.pair .rules b { color: var(--body); font-weight: 600; }
+	* {
+		box-sizing: border-box;
+	}
+	body {
+		background: var(--page);
+		color: var(--body);
+		font: 500 15px/1.5 var(--sans);
+		padding-block: 40px 72px;
+		padding-left: max(20px, env(safe-area-inset-left, 0px));
+		padding-right: max(20px, env(safe-area-inset-right, 0px));
+	}
+	::selection {
+		background: var(--teal-strong);
+		color: var(--heading);
+	}
+	.wrap {
+		max-width: 1120px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 56px;
+	}
+	.intro h1 {
+		margin: 0 0 8px;
+		font: 700 26px/1.25 var(--sans);
+		letter-spacing: -0.012em;
+		color: var(--heading);
+		text-wrap: balance;
+	}
+	.intro p {
+		margin: 0;
+		max-width: 66ch;
+		color: var(--muted);
+	}
+	.part {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+	.part h2 {
+		margin: 0;
+		font: 700 18px/1.3 var(--sans);
+		color: var(--heading);
+	}
+	.part .why {
+		margin: 0;
+		max-width: 72ch;
+		color: var(--muted);
+		font-size: 14px;
+	}
+	.stage {
+		overflow-x: auto;
+		border-radius: 12px;
+		border: 1px solid var(--line);
+		background: var(--app);
+		box-shadow: var(--shadow-md);
+	}
+	.pair {
+		display: flex;
+		gap: 28px;
+		flex-wrap: wrap;
+		align-items: flex-start;
+	}
+	.pair .rules {
+		flex: 1 1 320px;
+		min-width: 0;
+		margin: 0;
+		padding-left: 18px;
+		color: var(--muted);
+		font-size: 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.pair .rules b {
+		color: var(--body);
+		font-weight: 600;
+	}
 
-/* ── app window ── */
-.frame { min-width: 940px; height: 610px; display: flex; flex-direction: column; overflow: hidden; }
-.topbar { height: 44px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.topbar .crumb b { color: var(--heading); font-weight: 600; }
-.spacer { flex: 1; }
-.tb-btn { height: 28px; min-width: 28px; padding: 0 7px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; color: var(--muted); font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
-.tb-btn.on { background: var(--hover); color: var(--heading); }
-.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-.main { flex: 1; min-height: 0; display: flex; }
-.doc { flex: 1; min-width: 0; padding: 30px 40px; position: relative; overflow: hidden; }
-.doc-inner { max-width: 520px; margin: 0 auto; font-size: 14.5px; line-height: 1.72; }
-.doc h3 { font: 700 24px/1.2 var(--sans); color: var(--heading); margin: 0 0 12px; letter-spacing: -.012em; }
-.doc h4 { font: 700 18px/1.3 var(--sans); color: var(--heading); margin: 26px 0 8px; }
-.doc p { margin: 0 0 12px; }
-.doc ul { margin: 0 0 12px; padding-left: 20px; }
-code { font: 500 .88em/1.4 var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
-.link { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+	/* ── app window ── */
+	.frame {
+		min-width: 940px;
+		height: 610px;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+	.topbar {
+		height: 44px;
+		flex: none;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 0 12px;
+		border-bottom: 1px solid var(--line);
+		font-size: 13px;
+		color: var(--muted);
+	}
+	.topbar .crumb b {
+		color: var(--heading);
+		font-weight: 600;
+	}
+	.spacer {
+		flex: 1;
+	}
+	.tb-btn {
+		height: 28px;
+		min-width: 28px;
+		padding: 0 7px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		border-radius: 6px;
+		color: var(--muted);
+		font: 600 12px/1 var(--sans);
+		font-variant-numeric: tabular-nums;
+	}
+	.tb-btn.on {
+		background: var(--hover);
+		color: var(--heading);
+	}
+	.i {
+		width: 15px;
+		height: 15px;
+		flex: none;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+	.main {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+	}
+	.doc {
+		flex: 1;
+		min-width: 0;
+		padding: 30px 40px;
+		position: relative;
+		overflow: hidden;
+	}
+	.doc-inner {
+		max-width: 520px;
+		margin: 0 auto;
+		font-size: 14.5px;
+		line-height: 1.72;
+	}
+	.doc h3 {
+		font: 700 24px/1.2 var(--sans);
+		color: var(--heading);
+		margin: 0 0 12px;
+		letter-spacing: -0.012em;
+	}
+	.doc h4 {
+		font: 700 18px/1.3 var(--sans);
+		color: var(--heading);
+		margin: 26px 0 8px;
+	}
+	.doc p {
+		margin: 0 0 12px;
+	}
+	.doc ul {
+		margin: 0 0 12px;
+		padding-left: 20px;
+	}
+	code {
+		font: 500 0.88em/1.4 var(--mono);
+		background: var(--accent-soft);
+		padding: 1px 5px;
+		border-radius: 4px;
+	}
+	.link {
+		color: var(--accent-text);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
 
-/* ── thread pieces, shared by sidebar, popover and sheet ── */
-.icon-btn { width: 26px; height: 26px; flex: none; display: inline-grid; place-items: center; border: 0; background: none; border-radius: 6px; color: var(--subtle); cursor: pointer; padding: 0; }
-.icon-btn:hover { background: var(--hover); color: var(--heading); }
-.icon-btn.check:hover { background: var(--ok-bg); color: var(--ok-fg); }
-.icon-btn:focus-visible, .tab:focus-visible, .field textarea:focus-visible, .style input:focus-visible + .swatch { outline: 3px solid var(--focus); outline-offset: 1px; }
-.quote { display: block; font-size: 12.5px; line-height: 1.6; color: var(--body); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.msg { display: grid; grid-template-columns: 24px 1fr; column-gap: 10px; position: relative; }
-.msg + .msg { margin-top: 14px; }
-.msg:not(:last-child)::before { content: ""; position: absolute; left: 11.5px; top: 28px; bottom: -12px; width: 1px; background: var(--line); }
-.avatar { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; background: var(--hover); color: var(--muted); }
-.avatar.agent { background: var(--accent-soft); color: var(--accent-text); }
-.avatar .i { width: 13px; height: 13px; }
-.msg-head { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; line-height: 1.3; padding-top: 3px; }
-.msg-head .who { font-weight: 700; color: var(--heading); }
-.msg-head .who.agent { color: var(--accent-text); }
-.msg-head time { font-size: 11.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
-.msg-body { margin: 3px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--body); overflow-wrap: anywhere; }
-.note { margin: 0; font-size: 12px; color: var(--warn); }
-.reply { display: grid; grid-template-columns: 24px 1fr; column-gap: 10px; align-items: end; }
-.field { display: flex; align-items: flex-end; gap: 6px; border: 1px solid var(--line); background: var(--card); border-radius: 9px; padding: 5px 5px 5px 11px; }
-.field:focus-within { border-color: var(--accent); }
-.field textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: none; color: var(--body); font: 500 13.5px/1.5 var(--sans); padding: 2px 0; height: 24px; max-height: 120px; caret-color: var(--accent); border-radius: 4px; }
-.field textarea::placeholder { color: var(--subtle); }
-.send { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--hover); color: var(--subtle); cursor: pointer; padding: 0; }
-.field:focus-within .send, .send.ready { background: var(--accent); color: #fff; }
-.send .i { width: 13px; height: 13px; stroke-width: 2.25; }
+	/* ── thread pieces, shared by sidebar, popover and sheet ── */
+	.icon-btn {
+		width: 26px;
+		height: 26px;
+		flex: none;
+		display: inline-grid;
+		place-items: center;
+		border: 0;
+		background: none;
+		border-radius: 6px;
+		color: var(--subtle);
+		cursor: pointer;
+		padding: 0;
+	}
+	.icon-btn:hover {
+		background: var(--hover);
+		color: var(--heading);
+	}
+	.icon-btn.check:hover {
+		background: var(--ok-bg);
+		color: var(--ok-fg);
+	}
+	.icon-btn:focus-visible,
+	.tab:focus-visible,
+	.field textarea:focus-visible,
+	.style input:focus-visible + .swatch {
+		outline: 3px solid var(--focus);
+		outline-offset: 1px;
+	}
+	.quote {
+		display: block;
+		font-size: 12.5px;
+		line-height: 1.6;
+		color: var(--body);
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.msg {
+		display: grid;
+		grid-template-columns: 24px 1fr;
+		column-gap: 10px;
+		position: relative;
+	}
+	.msg + .msg {
+		margin-top: 14px;
+	}
+	.msg:not(:last-child)::before {
+		content: "";
+		position: absolute;
+		left: 11.5px;
+		top: 28px;
+		bottom: -12px;
+		width: 1px;
+		background: var(--line);
+	}
+	.avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 999px;
+		display: grid;
+		place-items: center;
+		background: var(--hover);
+		color: var(--muted);
+	}
+	.avatar.agent {
+		background: var(--accent-soft);
+		color: var(--accent-text);
+	}
+	.avatar .i {
+		width: 13px;
+		height: 13px;
+	}
+	.msg-head {
+		display: flex;
+		align-items: baseline;
+		gap: 7px;
+		font-size: 12.5px;
+		line-height: 1.3;
+		padding-top: 3px;
+	}
+	.msg-head .who {
+		font-weight: 700;
+		color: var(--heading);
+	}
+	.msg-head .who.agent {
+		color: var(--accent-text);
+	}
+	.msg-head time {
+		font-size: 11.5px;
+		color: var(--subtle);
+		font-variant-numeric: tabular-nums;
+	}
+	.msg-body {
+		margin: 3px 0 0;
+		font-size: 13.5px;
+		line-height: 1.55;
+		color: var(--body);
+		overflow-wrap: anywhere;
+	}
+	.note {
+		margin: 0;
+		font-size: 12px;
+		color: var(--warn);
+	}
+	.reply {
+		display: grid;
+		grid-template-columns: 24px 1fr;
+		column-gap: 10px;
+		align-items: end;
+	}
+	.field {
+		display: flex;
+		align-items: flex-end;
+		gap: 6px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		border-radius: 9px;
+		padding: 5px 5px 5px 11px;
+	}
+	.field:focus-within {
+		border-color: var(--accent);
+	}
+	.field textarea {
+		flex: 1;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		resize: none;
+		background: none;
+		color: var(--body);
+		font: 500 13.5px/1.5 var(--sans);
+		padding: 2px 0;
+		height: 24px;
+		max-height: 120px;
+		caret-color: var(--accent);
+		border-radius: 4px;
+	}
+	.field textarea::placeholder {
+		color: var(--subtle);
+	}
+	.send {
+		width: 24px;
+		height: 24px;
+		flex: none;
+		display: grid;
+		place-items: center;
+		border: 0;
+		border-radius: 999px;
+		background: var(--hover);
+		color: var(--subtle);
+		cursor: pointer;
+		padding: 0;
+	}
+	.field:focus-within .send,
+	.send.ready {
+		background: var(--accent);
+		color: #fff;
+	}
+	.send .i {
+		width: 13px;
+		height: 13px;
+		stroke-width: 2.25;
+	}
 
-/* ── sidebar ── */
-.panel { width: 348px; flex: none; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--app); }
-.panel-head { height: 42px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--line); }
-.panel-head .title { font: 700 13px/1 var(--sans); color: var(--heading); margin-right: 4px; }
-.tabs { display: flex; gap: 14px; align-self: stretch; }
-.tab { border: 0; background: none; padding: 0; font: 600 12.5px/1 var(--sans); color: var(--subtle); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border-bottom: 2px solid transparent; margin-bottom: -1px; font-variant-numeric: tabular-nums; }
-.tab.on { color: var(--heading); border-bottom-color: var(--heading); }
-.tab .n { font-weight: 500; color: var(--subtle); }
-.scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
-.thread { padding: 16px 14px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
-.thread + .thread { border-top: 1px solid var(--line); }
-.thread.on { background: var(--card); }
-.thread .top { display: flex; align-items: center; gap: 8px; }
-.thread .top .quote { flex: 1; min-width: 0; }
+	/* ── sidebar ── */
+	.panel {
+		width: 348px;
+		flex: none;
+		display: flex;
+		flex-direction: column;
+		border-left: 1px solid var(--line);
+		background: var(--app);
+	}
+	.panel-head {
+		height: 42px;
+		flex: none;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 0 8px 0 16px;
+		border-bottom: 1px solid var(--line);
+	}
+	.panel-head .title {
+		font: 700 13px/1 var(--sans);
+		color: var(--heading);
+		margin-right: 4px;
+	}
+	.tabs {
+		display: flex;
+		gap: 14px;
+		align-self: stretch;
+	}
+	.tab {
+		border: 0;
+		background: none;
+		padding: 0;
+		font: 600 12.5px/1 var(--sans);
+		color: var(--subtle);
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
+		font-variant-numeric: tabular-nums;
+	}
+	.tab.on {
+		color: var(--heading);
+		border-bottom-color: var(--heading);
+	}
+	.tab .n {
+		font-weight: 500;
+		color: var(--subtle);
+	}
+	.scroll {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: var(--line-strong) transparent;
+	}
+	.thread {
+		padding: 16px 14px 18px 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.thread + .thread {
+		border-top: 1px solid var(--line);
+	}
+	.thread.on {
+		background: var(--card);
+	}
+	.thread .top {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.thread .top .quote {
+		flex: 1;
+		min-width: 0;
+	}
 
-/* ── popover ── */
-.pin { position: absolute; right: 14px; height: 22px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font: 600 11.5px/1 var(--sans); font-variant-numeric: tabular-nums; }
-.pin.on { border-color: var(--line-strong); color: var(--heading); background: var(--hover); }
-.pin .i { width: 12px; height: 12px; }
-.pop { position: absolute; width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 14px; display: flex; flex-direction: column; gap: 14px; }
-.pop .tools { position: absolute; top: 8px; right: 8px; display: flex; }
-.pop .msg:first-child .msg-head { padding-right: 84px; }
+	/* ── popover ── */
+	.pin {
+		position: absolute;
+		right: 14px;
+		height: 22px;
+		padding: 0 7px;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		color: var(--muted);
+		font: 600 11.5px/1 var(--sans);
+		font-variant-numeric: tabular-nums;
+	}
+	.pin.on {
+		border-color: var(--line-strong);
+		color: var(--heading);
+		background: var(--hover);
+	}
+	.pin .i {
+		width: 12px;
+		height: 12px;
+	}
+	.pop {
+		position: absolute;
+		width: 360px;
+		background: var(--card);
+		border: 1px solid var(--line);
+		border-radius: 12px;
+		box-shadow: var(--shadow-lg);
+		padding: 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+	.pop .tools {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		display: flex;
+	}
+	.pop .msg:first-child .msg-head {
+		padding-right: 84px;
+	}
 
-/* ── phone ── */
-.phone { width: 300px; height: 610px; flex: none; border-radius: 28px; border: 1px solid var(--line); background: var(--app); box-shadow: var(--shadow-md); overflow: hidden; display: flex; flex-direction: column; position: relative; }
-.phone .topbar { height: 46px; }
-.phone .doc { padding: 20px 18px; }
-.phone .doc-inner { font-size: 14px; }
-.phone .doc h3 { font-size: 21px; }
-.phone .scrim { position: absolute; inset: 0; background: var(--scrim); }
-.sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 68%; background: var(--card); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.sheet .grip { width: 36px; height: 4px; border-radius: 999px; background: var(--line-strong); margin: 8px auto 2px; flex: none; }
-.sheet .panel-head { border-bottom-color: var(--line-soft); }
-.sheet .thread.on { background: none; }
+	/* ── phone ── */
+	.phone {
+		width: 300px;
+		height: 610px;
+		flex: none;
+		border-radius: 28px;
+		border: 1px solid var(--line);
+		background: var(--app);
+		box-shadow: var(--shadow-md);
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		position: relative;
+	}
+	.phone .topbar {
+		height: 46px;
+	}
+	.phone .doc {
+		padding: 20px 18px;
+	}
+	.phone .doc-inner {
+		font-size: 14px;
+	}
+	.phone .doc h3 {
+		font-size: 21px;
+	}
+	.phone .scrim {
+		position: absolute;
+		inset: 0;
+		background: var(--scrim);
+	}
+	.sheet {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 68%;
+		background: var(--card);
+		border-radius: 16px 16px 0 0;
+		box-shadow: var(--shadow-lg);
+		display: flex;
+		flex-direction: column;
+	}
+	.sheet .grip {
+		width: 36px;
+		height: 4px;
+		border-radius: 999px;
+		background: var(--line-strong);
+		margin: 8px auto 2px;
+		flex: none;
+	}
+	.sheet .panel-head {
+		border-bottom-color: var(--line-soft);
+	}
+	.sheet .thread.on {
+		background: none;
+	}
 
-/* ── highlight picker ── */
-.styles { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-.style { display: block; cursor: pointer; }
-.style input { position: absolute; opacity: 0; pointer-events: none; }
-.swatch { display: flex; flex-direction: column; gap: 8px; height: 100%; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
-.style input:checked + .swatch { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.swatch .name { display: flex; align-items: center; gap: 8px; font: 700 13.5px/1.3 var(--sans); color: var(--heading); }
-.swatch .name .picked { margin-left: auto; font: 600 11.5px/1 var(--sans); color: var(--accent-text); visibility: hidden; }
-.style input:checked + .swatch .picked { visibility: visible; }
-.swatch .sample { margin: 0; font-size: 14.5px; line-height: 1.72; color: var(--body); }
-.swatch .about { margin: 0; font-size: 12.5px; color: var(--muted); }
+	/* ── highlight picker ── */
+	.styles {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: 12px;
+	}
+	.style {
+		display: block;
+		cursor: pointer;
+	}
+	.style input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+	.swatch {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		height: 100%;
+		padding: 14px 16px 16px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: var(--card);
+	}
+	.style input:checked + .swatch {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 1px var(--accent);
+	}
+	.swatch .name {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font: 700 13.5px/1.3 var(--sans);
+		color: var(--heading);
+	}
+	.swatch .name .picked {
+		margin-left: auto;
+		font: 600 11.5px/1 var(--sans);
+		color: var(--accent-text);
+		visibility: hidden;
+	}
+	.style input:checked + .swatch .picked {
+		visibility: visible;
+	}
+	.swatch .sample {
+		margin: 0;
+		font-size: 14.5px;
+		line-height: 1.72;
+		color: var(--body);
+	}
+	.swatch .about {
+		margin: 0;
+		font-size: 12.5px;
+		color: var(--muted);
+	}
 </style>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-	<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
-	<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
-	<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
-	<symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
-	<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
-	<symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/></symbol>
-	<symbol id="i-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
-	<symbol id="i-dock" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
-	<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+	<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+	<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+	<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" /></symbol>
+	<symbol id="i-msg" viewBox="0 0 24 24">
+		<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+	</symbol>
+	<symbol id="i-user" viewBox="0 0 24 24">
+		<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+		<circle cx="12" cy="7" r="4" />
+	</symbol>
+	<symbol id="i-bot" viewBox="0 0 24 24">
+		<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z" />
+	</symbol>
+	<symbol id="i-side" viewBox="0 0 24 24">
+		<rect x="3" y="4" width="18" height="16" rx="2" />
+		<path d="M9 4v16" />
+	</symbol>
+	<symbol id="i-dock" viewBox="0 0 24 24">
+		<rect x="3" y="4" width="18" height="16" rx="2" />
+		<path d="M15 4v16" />
+	</symbol>
+	<symbol id="i-sun" viewBox="0 0 24 24">
+		<circle cx="12" cy="12" r="4" />
+		<path
+			d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+		/>
+	</symbol>
 </svg>
 
 <div class="wrap" id="wrap" data-hl="marker">
 	<div class="intro">
 		<h1>Comments final mockup</h1>
-		<p>The conversation timeline is the one thread layout, used in three places: the docked sidebar as the full view, a popover for reading a single thread in place, and the bottom sheet on a phone. Pick a highlight style at the bottom and every mockup updates. The reply fields are live.</p>
+		<p>
+			The conversation timeline is the one thread layout, used in three places: the docked sidebar
+			as the full view, a popover for reading a single thread in place, and the bottom sheet on a
+			phone. Pick a highlight style at the bottom and every mockup updates. The reply fields are
+			live.
+		</p>
 	</div>
 
 	<section class="part">
 		<h2>Sidebar: the full view</h2>
-		<p class="why">Full height, flush to the window edge, on the page's own ground. The active thread sits on the card surface and its text is the darker highlight in the doc. Resolve is the checkmark beside each quote.</p>
+		<p class="why">
+			Full height, flush to the window edge, on the page's own ground. The active thread sits on the
+			card surface and its text is the darker highlight in the doc. Resolve is the checkmark beside
+			each quote.
+		</p>
 		<div class="stage"><div class="frame" id="frame-sidebar"></div></div>
 	</section>
 
 	<section class="part">
 		<h2>Popover: one thread, in place</h2>
-		<p class="why">With the sidebar closed, clicking a highlight opens its thread under the text with the same timeline. The three controls are resolve, open in sidebar, and close. Gutter counters show where the other threads are.</p>
+		<p class="why">
+			With the sidebar closed, clicking a highlight opens its thread under the text with the same
+			timeline. The three controls are resolve, open in sidebar, and close. Gutter counters show
+			where the other threads are.
+		</p>
 		<div class="stage"><div class="frame" id="frame-popover"></div></div>
 	</section>
 
@@ -204,12 +791,26 @@ code { font: 500 .88em/1.4 var(--mono); background: var(--accent-soft); padding:
 			<div class="phone" id="phone"></div>
 			<ul class="rules">
 				<li><b>Sidebar closed:</b> clicking a highlight opens the popover.</li>
-				<li><b>Sidebar open:</b> clicking a highlight focuses that thread in the sidebar; no popover.</li>
+				<li>
+					<b>Sidebar open:</b> clicking a highlight focuses that thread in the sidebar; no popover.
+				</li>
 				<li><b>Open in sidebar</b> on the popover docks the panel with that thread active.</li>
-				<li><b>New comment:</b> the selection button opens the popover with an empty thread and the field focused, whether or not the sidebar is open.</li>
-				<li><b>Escape or a click outside</b> closes the popover. A typed, unsent reply is kept for that thread.</li>
-				<li><b>Phone:</b> tapping a highlight raises the sheet scrolled to that thread; there is no popover and no gutter counter.</li>
-				<li><b>Resolved</b> threads lose their highlight and move to the Resolved tab, where the checkmark becomes Reopen.</li>
+				<li>
+					<b>New comment:</b> the selection button opens the popover with an empty thread and the
+					field focused, whether or not the sidebar is open.
+				</li>
+				<li>
+					<b>Escape or a click outside</b> closes the popover. A typed, unsent reply is kept for
+					that thread.
+				</li>
+				<li>
+					<b>Phone:</b> tapping a highlight raises the sheet scrolled to that thread; there is no
+					popover and no gutter counter.
+				</li>
+				<li>
+					<b>Resolved</b> threads lose their highlight and move to the Resolved tab, where the
+					checkmark becomes Reopen.
+				</li>
 				<li><b>Read-only servers:</b> same layouts without the field and the checkmark.</li>
 			</ul>
 		</div>
@@ -217,36 +818,65 @@ code { font: 500 .88em/1.4 var(--mono); background: var(--accent-soft); padding:
 
 	<section class="part">
 		<h2>Highlight styles</h2>
-		<p class="why">Each sample shows a resting highlight, the active one, and how the style sits next to a link and inline code. All four use only a background and an underline, which is everything the browser's highlight feature can draw; rounded corners, padding and inline icons are not available.</p>
+		<p class="why">
+			Each sample shows a resting highlight, the active one, and how the style sits next to a link
+			and inline code. All four use only a background and an underline, which is everything the
+			browser's highlight feature can draw; rounded corners, padding and inline icons are not
+			available.
+		</p>
 		<div class="styles" id="styles"></div>
 	</section>
 </div>
 
 <script>
-const icon = (name) => `<svg class="i"><use href="#i-${name}"/></svg>`;
+	const icon = (name) => `<svg class="i"><use href="#i-${name}"/></svg>`;
 
-const threads = [
-	{ id: "t1", quote: "restart your shell", messages: [
-		{ who: "You", time: "12m", body: "Is a restart still needed on fish?" },
-		{ who: "Agent", time: "9m", body: "No. Fish reads conf.d on every prompt, so the new PATH entry is live at once. I removed the restart step for fish and kept it for bash and zsh." },
-		{ who: "You", time: "2m", body: "Good. Say that in one line, not a separate note." },
-	] },
-	{ id: "t2", quote: "exits with zero on success", messages: [
-		{ who: "Agent", time: "1h", body: "Should this list the non-zero exit codes too? There are three in src/cli/exit.ts." },
-	] },
-	{ id: "t3", quote: "Usage", note: "Original text not found. Showing on the section.", messages: [
-		{ who: "You", time: "Tue", body: "Mention that -v also prints timings." },
-	] },
-];
+	const threads = [
+		{
+			id: "t1",
+			quote: "restart your shell",
+			messages: [
+				{ who: "You", time: "12m", body: "Is a restart still needed on fish?" },
+				{
+					who: "Agent",
+					time: "9m",
+					body: "No. Fish reads conf.d on every prompt, so the new PATH entry is live at once. I removed the restart step for fish and kept it for bash and zsh.",
+				},
+				{ who: "You", time: "2m", body: "Good. Say that in one line, not a separate note." },
+			],
+		},
+		{
+			id: "t2",
+			quote: "exits with zero on success",
+			messages: [
+				{
+					who: "Agent",
+					time: "1h",
+					body: "Should this list the non-zero exit codes too? There are three in src/cli/exit.ts.",
+				},
+			],
+		},
+		{
+			id: "t3",
+			quote: "Usage",
+			note: "Original text not found. Showing on the section.",
+			messages: [{ who: "You", time: "Tue", body: "Mention that -v also prints timings." }],
+		},
+	];
 
-const check = `<button class="icon-btn check" aria-label="Resolve thread" title="Resolve">${icon("check")}</button>`;
-const message = (entry) => `<div class="msg"><span class="avatar ${entry.who === "Agent" ? "agent" : ""}">${icon(entry.who === "Agent" ? "bot" : "user")}</span><div><div class="msg-head"><span class="who ${entry.who === "Agent" ? "agent" : ""}">${entry.who}</span><time>${entry.time}</time></div><p class="msg-body">${entry.body}</p></div></div>`;
-const timeline = (list) => `<div>${list.map(message).join("")}</div>`;
-const reply = (id) => `<div class="reply"><span class="avatar">${icon("user")}</span><label class="field"><textarea id="${id}" rows="1" placeholder="Reply…" aria-label="Reply"></textarea><button class="send" aria-label="Send reply" title="Send">${icon("up")}</button></label></div>`;
-const head = () => `<div class="panel-head"><div class="tabs" aria-label="Comments"><button class="tab on">Open <span class="n">3</span></button><button class="tab">Resolved <span class="n">1</span></button></div><span class="spacer"></span><button class="icon-btn" aria-label="Close comments">${icon("x")}</button></div>`;
-const thread = (entry, active, replyId) => `<div class="thread ${active ? "on" : ""}"><div class="top"><span class="quote"><mark class="${active ? "on" : ""}">${entry.quote}</mark></span>${check}</div>${entry.note ? `<p class="note">${entry.note}</p>` : ""}${timeline(entry.messages)}${active ? reply(replyId) : ""}</div>`;
-const topbar = (pressed) => `<div class="topbar"><span class="tb-btn">${icon("side")}</span><span class="crumb">docs / <b>guide.md</b></span><span class="spacer"></span><span class="tb-btn ${pressed ? "on" : ""}">${icon("msg")}3</span><span class="tb-btn">${icon("sun")}</span></div>`;
-const doc = () => `<div class="doc-inner">
+	const check = `<button class="icon-btn check" aria-label="Resolve thread" title="Resolve">${icon("check")}</button>`;
+	const message = (entry) =>
+		`<div class="msg"><span class="avatar ${entry.who === "Agent" ? "agent" : ""}">${icon(entry.who === "Agent" ? "bot" : "user")}</span><div><div class="msg-head"><span class="who ${entry.who === "Agent" ? "agent" : ""}">${entry.who}</span><time>${entry.time}</time></div><p class="msg-body">${entry.body}</p></div></div>`;
+	const timeline = (list) => `<div>${list.map(message).join("")}</div>`;
+	const reply = (id) =>
+		`<div class="reply"><span class="avatar">${icon("user")}</span><label class="field"><textarea id="${id}" rows="1" placeholder="Reply…" aria-label="Reply"></textarea><button class="send" aria-label="Send reply" title="Send">${icon("up")}</button></label></div>`;
+	const head = () =>
+		`<div class="panel-head"><div class="tabs" aria-label="Comments"><button class="tab on">Open <span class="n">3</span></button><button class="tab">Resolved <span class="n">1</span></button></div><span class="spacer"></span><button class="icon-btn" aria-label="Close comments">${icon("x")}</button></div>`;
+	const thread = (entry, active, replyId) =>
+		`<div class="thread ${active ? "on" : ""}"><div class="top"><span class="quote"><mark class="${active ? "on" : ""}">${entry.quote}</mark></span>${check}</div>${entry.note ? `<p class="note">${entry.note}</p>` : ""}${timeline(entry.messages)}${active ? reply(replyId) : ""}</div>`;
+	const topbar = (pressed) =>
+		`<div class="topbar"><span class="tb-btn">${icon("side")}</span><span class="crumb">docs / <b>guide.md</b></span><span class="spacer"></span><span class="tb-btn ${pressed ? "on" : ""}">${icon("msg")}3</span><span class="tb-btn">${icon("sun")}</span></div>`;
+	const doc = () => `<div class="doc-inner">
 	<h3>Getting started</h3>
 	<p>This guide installs the tool and runs it once against a folder of docs.</p>
 	<h4>Installation</h4>
@@ -257,54 +887,89 @@ const doc = () => `<div class="doc-inner">
 	<p>Pass <code>-v</code> for a longer report.</p>
 </div>`;
 
-document.getElementById("frame-sidebar").innerHTML = `${topbar(true)}<div class="main"><div class="doc">${doc()}</div><aside class="panel">${head()}<div class="scroll">${threads.map((entry, index) => thread(entry, index === 0, "side-reply")).join("")}</div></aside></div>`;
+	document.getElementById("frame-sidebar").innerHTML =
+		`${topbar(true)}<div class="main"><div class="doc">${doc()}</div><aside class="panel">${head()}<div class="scroll">${threads.map((entry, index) => thread(entry, index === 0, "side-reply")).join("")}</div></aside></div>`;
 
-document.getElementById("frame-popover").innerHTML = `${topbar(false)}<div class="main"><div class="doc">${doc()}
+	document.getElementById("frame-popover").innerHTML =
+		`${topbar(false)}<div class="main"><div class="doc">${doc()}
 	${threads.map((entry, index) => `<span class="pin ${index === 0 ? "on" : ""}" data-for="${entry.id}">${icon("msg")}${entry.messages.length}</span>`).join("")}
 	<div class="pop"><span class="tools">${check}<button class="icon-btn" aria-label="Open in sidebar" title="Open in sidebar">${icon("dock")}</button><button class="icon-btn" aria-label="Close" title="Close">${icon("x")}</button></span>${timeline(threads[0].messages)}${reply("pop-reply")}</div>
 </div></div>`;
 
-document.getElementById("phone").innerHTML = `${topbar(true)}<div class="doc">${doc()}</div><div class="scrim"></div><div class="sheet"><span class="grip"></span>${head()}<div class="scroll">${threads.slice(0, 2).map((entry, index) => thread(entry, index === 0, "sheet-reply")).join("")}</div></div>`;
+	document.getElementById("phone").innerHTML =
+		`${topbar(true)}<div class="doc">${doc()}</div><div class="scrim"></div><div class="sheet"><span class="grip"></span>${head()}<div class="scroll">${threads
+			.slice(0, 2)
+			.map((entry, index) => thread(entry, index === 0, "sheet-reply"))
+			.join("")}</div></div>`;
 
-const styles = [
-	{ id: "marker", name: "Marker", about: "What is built today. The loudest: a doc with many threads looks heavily marked up." },
-	{ id: "underline", name: "Underline", about: "Leaves the text clean until a thread is active. Easiest to miss when skimming." },
-	{ id: "tint", name: "Tint and underline", about: "Closest to Notion. Quiet at rest, clear when active, and still visible in print-like reading." },
-	{ id: "accent", name: "Accent", about: "Uses the app's teal. On brand, but it sits close to links and inline code, which are also teal." },
-];
-document.getElementById("styles").innerHTML = styles.map((style, index) => `
+	const styles = [
+		{
+			id: "marker",
+			name: "Marker",
+			about: "What is built today. The loudest: a doc with many threads looks heavily marked up.",
+		},
+		{
+			id: "underline",
+			name: "Underline",
+			about: "Leaves the text clean until a thread is active. Easiest to miss when skimming.",
+		},
+		{
+			id: "tint",
+			name: "Tint and underline",
+			about:
+				"Closest to Notion. Quiet at rest, clear when active, and still visible in print-like reading.",
+		},
+		{
+			id: "accent",
+			name: "Accent",
+			about:
+				"Uses the app's teal. On brand, but it sits close to links and inline code, which are also teal.",
+		},
+	];
+	document.getElementById("styles").innerHTML = styles
+		.map(
+			(style, index) => `
 	<label class="style"><input type="radio" name="hl" value="${style.id}" id="hl-${style.id}" ${index === 0 ? "checked" : ""}>
 		<span class="swatch" data-hl="${style.id}">
 			<span class="name">${style.name}<span class="picked">Shown above</span></span>
 			<p class="sample">Run the installer, then <mark>restart your shell</mark> so the new entry is picked up. The tool <mark class="on">exits with zero</mark> on success; see <span class="link">exit codes</span> and <code>-v</code>.</p>
 			<p class="about">${style.about}</p>
 		</span>
-	</label>`).join("");
-for (const input of document.querySelectorAll('input[name="hl"]')) {
-	input.addEventListener("change", () => { document.getElementById("wrap").dataset.hl = input.value; });
-}
-
-function place() {
-	const pane = document.querySelector("#frame-popover .doc");
-	const origin = pane.getBoundingClientRect();
-	for (const pin of pane.querySelectorAll(".pin")) {
-		const rect = pane.querySelector(`mark[data-thread="${pin.dataset.for}"]`).getBoundingClientRect();
-		pin.style.top = `${rect.top - origin.top + (rect.height - 22) / 2}px`;
+	</label>`,
+		)
+		.join("");
+	for (const input of document.querySelectorAll('input[name="hl"]')) {
+		input.addEventListener("change", () => {
+			document.getElementById("wrap").dataset.hl = input.value;
+		});
 	}
-	const popover = pane.querySelector(".pop");
-	const rect = pane.querySelector('mark[data-thread="t1"]').getBoundingClientRect();
-	popover.style.top = `${rect.bottom - origin.top + 8}px`;
-	popover.style.left = `${Math.max(16, Math.min(rect.left - origin.left - 24, pane.clientWidth - 360 - 64))}px`;
-}
 
-for (const area of document.querySelectorAll(".field textarea")) {
-	area.addEventListener("input", () => {
-		area.style.height = "24px";
-		area.style.height = `${Math.min(area.scrollHeight, 120)}px`;
-		area.closest(".field").querySelector(".send").classList.toggle("ready", area.value.trim() !== "");
-	});
-}
-place();
-window.addEventListener("resize", place);
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+	function place() {
+		const pane = document.querySelector("#frame-popover .doc");
+		const origin = pane.getBoundingClientRect();
+		for (const pin of pane.querySelectorAll(".pin")) {
+			const rect = pane
+				.querySelector(`mark[data-thread="${pin.dataset.for}"]`)
+				.getBoundingClientRect();
+			pin.style.top = `${rect.top - origin.top + (rect.height - 22) / 2}px`;
+		}
+		const popover = pane.querySelector(".pop");
+		const rect = pane.querySelector('mark[data-thread="t1"]').getBoundingClientRect();
+		popover.style.top = `${rect.bottom - origin.top + 8}px`;
+		popover.style.left = `${Math.max(16, Math.min(rect.left - origin.left - 24, pane.clientWidth - 360 - 64))}px`;
+	}
+
+	for (const area of document.querySelectorAll(".field textarea")) {
+		area.addEventListener("input", () => {
+			area.style.height = "24px";
+			area.style.height = `${Math.min(area.scrollHeight, 120)}px`;
+			area
+				.closest(".field")
+				.querySelector(".send")
+				.classList.toggle("ready", area.value.trim() !== "");
+		});
+	}
+	place();
+	window.addEventListener("resize", place);
+	if (document.fonts && document.fonts.ready) document.fonts.ready.then(place);
 </script>
