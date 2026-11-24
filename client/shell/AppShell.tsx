@@ -23,7 +23,9 @@ import type { ExportFormat } from "../../src/export/service";
 import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { CommentsSheet } from "../comments/CommentsSheet";
+import { CommentsPopover } from "../comments/CommentsPopover";
 import { CommentsSidebar } from "../comments/CommentsSidebar";
+import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -326,7 +328,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const showSidebar = desktopOpen && !sidebarHidden;
 
 	return (
-		<div className="min-h-screen bg-surface-page">
+		<div className="relative min-h-screen bg-surface-page">
 			<AnimatePresence>
 				{diagramPreferences && (
 					<DiagramPreferences
@@ -446,6 +448,12 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			</div>
 			{route.kind === "doc" && comments.available && !commentsPanel.isDesktop ? (
 				<CommentsSheet model={comments} open={commentsPanel.open} onClose={closeComments} />
+			) : null}
+			{route.kind === "doc" && commentsPanel.isDesktop ? (
+				<>
+					{comments.available && !commentsSidebarOpen ? <GutterCounters model={comments} /> : null}
+					<CommentsPopover model={comments} />
+				</>
 			) : null}
 			<SearchDialog
 				open={searchOpen}

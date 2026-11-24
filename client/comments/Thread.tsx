@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CommentMessage, CommentThread } from "../../src/comments/schema";
 import { Icon } from "../ui/Icon";
 import { CtlButton } from "./CtlButton";
@@ -9,8 +9,8 @@ import { ReplyField } from "./ReplyField";
 import { replyDraftsAtom } from "./state";
 import { relativeTime } from "./time";
 
-/** Where a thread is drawn: a sidebar row or the sheet's row. */
-export type ThreadVariant = "sidebar" | "sheet";
+/** Where a thread is drawn: a sidebar row, the sheet's row, or the popover's body. */
+export type ThreadVariant = "sidebar" | "sheet" | "popover";
 
 const ACTIVE_QUOTE = "bg-[color-mix(in_oklab,var(--status-warn-fg)_32%,var(--status-warn-bg))]";
 
@@ -43,12 +43,15 @@ export function QuoteText({ text, active }: { text: string; active: boolean }) {
 function Message({
 	message,
 	last,
+	reserveTools,
 	canEdit,
 	editDisabled,
 	onEdit,
 }: {
 	message: CommentMessage;
 	last: boolean;
+	/** Leaves room for the popover's tool buttons beside the first header. */
+	reserveTools: boolean;
 	canEdit: boolean;
 	editDisabled: boolean;
 	onEdit: (body: string) => Promise<boolean>;
@@ -75,7 +78,12 @@ function Message({
 			)}
 			<Avatar author={message.author} />
 			<div className="min-w-0">
-				<div className="flex items-baseline gap-[7px] pt-[3px] text-[12.5px] leading-[1.3]">
+				<div
+					className={
+						"flex items-baseline gap-[7px] pt-[3px] text-[12.5px] leading-[1.3] " +
+						(reserveTools ? "pr-[84px]" : "")
+					}
+				>
 					<span className={"font-bold " + (agent ? "text-text-accent" : "text-text-heading")}>
 						{agent ? "Agent" : "You"}
 					</span>
@@ -150,11 +158,12 @@ export function Thread({
 	const [replying, setReplying] = useState(false);
 	const [resolving, setResolving] = useState(false);
 	const { readOnly, writesDisabled, actions } = model;
+	const popover = variant === "popover";
 	const reply = replyDraftOf(drafts, thread.id);
 
 	useEffect(() => {
-		if (active) ref.current?.scrollIntoView({ block: "nearest" });
-	}, [active]);
+		if (active && !popover) ref.current?.scrollIntoView({ block: "nearest" });
+	}, [active, popover]);
 
 	async function sendReply() {
 		setReplying(true);
@@ -178,42 +187,52 @@ export function Thread({
 				? "Original section not found."
 				: null;
 
-	const toolbar = readOnly ? null : (
-		<CtlButton
-			tone="resolve"
-			icon={thread.resolved ? "rotate-ccw" : "check"}
-			label={thread.resolved ? "Reopen thread" : "Resolve thread"}
-			disabled={writesDisabled || resolving}
-			onClick={() => void toggleResolved()}
-		/>
-	);
+	let toolbar: ReactNode = null;
+	if (!popover && !readOnly) {
+		toolbar = (
+			<CtlButton
+				tone="resolve"
+				icon={thread.resolved ? "rotate-ccw" : "check"}
+				label={thread.resolved ? "Reopen thread" : "Resolve thread"}
+				disabled={writesDisabled || resolving}
+				onClick={() => void toggleResolved()}
+			/>
+		);
+	}
 
 	return (
 		<div
 			ref={ref}
 			data-thread-id={thread.id}
 			data-active={active || undefined}
-			onClick={(event) => {
-				if (!(event.target as Element).closest("textarea, button, a")) {
-					model.selectThread(thread.id);
-				}
-			}}
+			onClick={
+				popover
+					? undefined
+					: (event) => {
+							if (!(event.target as Element).closest("textarea, button, a")) {
+								model.selectThread(thread.id);
+							}
+						}
+			}
 			className={
-				"flex flex-col gap-3 pt-4 pr-3.5 pb-[18px] pl-4 " +
+				"flex flex-col gap-3 " +
+				(popover ? "" : "pt-4 pr-3.5 pb-[18px] pl-4 ") +
 				(variant === "sidebar" && active ? "bg-surface-card" : "")
 			}
 		>
-			<div className="flex items-center gap-2">
-				<button
-					type="button"
-					title="Show in the doc"
-					onClick={() => model.selectThread(thread.id)}
-					className="m-0 min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-				>
-					<QuoteText text={thread.anchor.quote} active={active} />
-				</button>
-				{toolbar}
-			</div>
+			{popover ? null : (
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						title="Show in the doc"
+						onClick={() => model.selectThread(thread.id)}
+						className="m-0 min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
+					>
+						<QuoteText text={thread.anchor.quote} active={active} />
+					</button>
+					{toolbar}
+				</div>
+			)}
 			{note ? <p className="m-0 text-xs text-status-warn-fg">{note}</p> : null}
 			<div>
 				{thread.messages.map((message, index) => (
@@ -221,6 +240,7 @@ export function Thread({
 						key={message.id}
 						message={message}
 						last={index === thread.messages.length - 1}
+						reserveTools={popover && index === 0}
 						canEdit={!readOnly && message.author === "human"}
 						editDisabled={writesDisabled}
 						onEdit={async (body) => (await actions.edit(thread.id, message.id, body)) !== null}

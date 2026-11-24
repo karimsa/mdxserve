@@ -13,6 +13,7 @@ import {
 	activeThreadAtom,
 	commentsOpenAtom,
 	commentsSheetOpenAtom,
+	popoverThreadAtom,
 	replyDraftsAtom,
 } from "./state";
 
@@ -39,6 +40,12 @@ export interface CommentsModel {
 	actions: CommentActions;
 	/** Makes a thread active in the list and scrolls the doc to it. */
 	selectThread: (id: string) => void;
+	/** The thread shown in the popover: desktop with the sidebar closed only, else null. */
+	popoverId: string | null;
+	showPopover: (id: string) => void;
+	closePopover: () => void;
+	/** Docks the sidebar with this thread active and closes the popover. */
+	openInSidebar: (id: string) => void;
 }
 
 /** Panel visibility, switching between the persisted desktop sidebar and the transient phone sheet. */
@@ -82,16 +89,18 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	const [activeId, setActiveId] = useAtom(activeThreadAtom);
 	const setSheetOpen = useSetAtom(commentsSheetOpenAtom);
 	const setRailOpen = useSetAtom(commentsOpenAtom);
+	const [popoverThread, setPopoverThread] = useAtom(popoverThreadAtom);
 	const setReplyDrafts = useSetAtom(replyDraftsAtom);
-	const { isDesktop } = useCommentsPanel();
+	const { isDesktop, sidebarOpen } = useCommentsPanel();
 	const readOnly = shellInfo.permissions === "restricted";
 
 	// Another doc starts clean.
 	useEffect(() => {
 		setActiveId(null);
 		setSheetOpen(false);
+		setPopoverThread(null);
 		setReplyDrafts({});
-	}, [path, setActiveId, setSheetOpen, setReplyDrafts]);
+	}, [path, setActiveId, setSheetOpen, setPopoverThread, setReplyDrafts]);
 
 	// Resolve after the thread list changes, after DocView renders, and when a
 	// section editor closes. While one is open its DOM is the editor's, so keep
@@ -128,8 +137,8 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	}, [views, activeId]);
 	useEffect(() => clearHighlights, []);
 
-	// A click on highlighted text focuses that thread and opens the panel: the
-	// sidebar on desktop, the sheet on a phone.
+	// A click on highlighted text focuses that thread: in the sidebar when it is open,
+	// else in the popover (desktop) or the sheet (phone).
 	useEffect(() => {
 		if (path === null) return;
 		function onClick(event: MouseEvent) {
@@ -141,12 +150,12 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			const id = threadAtPoint(event.clientX, event.clientY);
 			if (!id) return;
 			setActiveId(id);
-			if (isDesktop) setRailOpen(true);
-			else setSheetOpen(true);
+			if (!isDesktop) setSheetOpen(true);
+			else if (!sidebarOpen) setPopoverThread(id);
 		}
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, [path, isDesktop, setActiveId, setSheetOpen, setRailOpen]);
+	}, [path, isDesktop, sidebarOpen, setActiveId, setSheetOpen, setPopoverThread]);
 
 	const actions = useMemo(() => commentActions(path ?? ""), [path]);
 	const selectThread = useCallback(
@@ -155,6 +164,26 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			scrollToView(views.get(id), isDesktop);
 		},
 		[setActiveId, views, isDesktop],
+	);
+
+	const showPopover = useCallback(
+		(id: string) => {
+			setActiveId(id);
+			setPopoverThread(id);
+		},
+		[setActiveId, setPopoverThread],
+	);
+	const closePopover = useCallback(() => {
+		setPopoverThread(null);
+		setActiveId(null);
+	}, [setPopoverThread, setActiveId]);
+	const openInSidebar = useCallback(
+		(id: string) => {
+			setPopoverThread(null);
+			setRailOpen(true);
+			setActiveId(id);
+		},
+		[setPopoverThread, setRailOpen, setActiveId],
 	);
 
 	const openCount = threads.filter((thread) => !thread.resolved).length;
@@ -168,5 +197,9 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		available: path !== null && (!readOnly || threads.length > 0),
 		actions,
 		selectThread,
+		popoverId: isDesktop && !sidebarOpen ? popoverThread : null,
+		showPopover,
+		closePopover,
+		openInSidebar,
 	};
 }

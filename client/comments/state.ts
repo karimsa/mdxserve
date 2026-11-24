@@ -18,5 +18,8 @@ export const commentsSheetOpenAtom = atom(false);
 /** The focused thread, drawn with the active highlight and marked in the panel. */
 export const activeThreadAtom = atom<string | null>(null);
 
+/** The thread shown in the popover (desktop, sidebar closed). */
+export const popoverThreadAtom = atom<string | null>(null);
+
 /** Unsent reply text per thread; lives as long as the doc stays open. */
 export const replyDraftsAtom = atom<ReplyDrafts>({});
