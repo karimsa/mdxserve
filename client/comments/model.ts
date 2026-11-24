@@ -161,9 +161,24 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	const selectThread = useCallback(
 		(id: string) => {
 			setActiveId(id);
-			scrollToView(views.get(id), isDesktop);
+			let view = views.get(id);
+			if (!view) {
+				// Resolved threads are not kept in `views`; find this one on demand.
+				const thread = threads.find((candidate) => candidate.id === id);
+				const article = findArticle();
+				if (thread && article) {
+					const doc = collectDoc(article);
+					const { resolution, range, scrollTarget } = resolveInDom(
+						doc,
+						resolveIndexOf(doc),
+						thread.anchor,
+					);
+					view = { resolution, position: resolutionPosition(resolution), range, scrollTarget };
+				}
+			}
+			scrollToView(view, isDesktop);
 		},
-		[setActiveId, views, isDesktop],
+		[setActiveId, views, threads, isDesktop],
 	);
 
 	const showPopover = useCallback(

@@ -69,6 +69,8 @@ function throwFailure(failure: ThreadFailure): never {
 				code: "PAYLOAD_TOO_LARGE",
 				message: "The doc's frontmatter would exceed 64 KiB",
 			});
+		case "invalid-input":
+			throw new TRPCError({ code: "BAD_REQUEST", message: failure.message });
 		case "busy":
 			throw new TRPCError({ code: "CONFLICT", message: "File is changing on disk; try again" });
 		default: {

@@ -273,7 +273,7 @@ export class DocsService implements MetadataPort {
 
 				const next = withFrontmatter(current, update.yaml);
 				if (
-					Buffer.byteLength(update.yaml, "utf8") > MAX_YAML_BYTES ||
+					Buffer.byteLength(leadingFrontmatter(next)?.value ?? "", "utf8") > MAX_YAML_BYTES ||
 					Buffer.byteLength(next, "utf8") > MAX_SOURCE_BYTES
 				)
 					return { kind: "too-large" };
