@@ -158,9 +158,16 @@ export function Thread({
 
 	async function sendReply() {
 		setReplying(true);
-		const saved = await actions.reply(thread.id, reply);
+		const submitted = reply;
+		const saved = await actions.reply(thread.id, submitted);
 		setReplying(false);
-		if (saved) setDrafts((previous) => withReplyDraft(previous, thread.id, ""));
+		// Text typed while the request ran stays.
+		if (saved)
+			setDrafts((previous) =>
+				replyDraftOf(previous, thread.id) === submitted
+					? withReplyDraft(previous, thread.id, "")
+					: previous,
+			);
 	}
 
 	async function toggleResolved() {
