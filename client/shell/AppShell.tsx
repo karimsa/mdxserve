@@ -22,6 +22,12 @@ import {
 import type { ExportFormat } from "../../src/export/service";
 import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
+import { CommentsPopover } from "../comments/CommentsPopover";
+import { CommentsSheet } from "../comments/CommentsSheet";
+import { CommentsSidebar } from "../comments/CommentsSidebar";
+import { GutterCounters } from "../comments/GutterCounters";
+import { useCommentsModel, useCommentsPanel } from "../comments/model";
+import { SelectionButton } from "../comments/SelectionButton";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
 import { Footer } from "./Footer";
@@ -210,6 +216,14 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 		}
 	}, []);
 
+	const comments = useCommentsModel(route.kind === "doc" ? route.path : null, tocVersion);
+	const commentsPanel = useCommentsPanel();
+	// The sidebar is docked beside <main>; the table-of-contents rail is hidden while it is open.
+	const commentsOpen = comments.available && commentsPanel.open;
+	const commentsSidebarOpen = comments.available && commentsPanel.sidebarOpen;
+	const setCommentsOpen = commentsPanel.setOpen;
+	const closeComments = useCallback(() => setCommentsOpen(false), [setCommentsOpen]);
+
 	useEffect(() => {
 		try {
 			localStorage.setItem(sidebarStorageKey(), desktopOpen ? "1" : "0");
@@ -315,7 +329,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const showSidebar = desktopOpen && !sidebarHidden;
 
 	return (
-		<div className="min-h-screen bg-surface-page">
+		<div className="relative min-h-screen bg-surface-page">
 			<AnimatePresence>
 				{diagramPreferences && (
 					<DiagramPreferences
@@ -342,6 +356,15 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				}
 				theme={theme}
 				onToggleTheme={toggle}
+				comments={
+					route.kind === "doc" && comments.available
+						? {
+								count: comments.openCount,
+								open: commentsOpen,
+								onToggle: () => commentsPanel.setOpen(!commentsPanel.open),
+							}
+						: undefined
+				}
 			/>
 			<div className="flex items-start">
 				<Sidebar
@@ -416,9 +439,24 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 							</motion.div>
 						</AnimatePresence>
 					</div>
-					{route.kind === "doc" ? <TocRail path={route.path} version={tocVersion} /> : null}
+					{route.kind === "doc" && !commentsSidebarOpen ? (
+						<TocRail path={route.path} version={tocVersion} />
+					) : null}
 				</main>
+				{route.kind === "doc" && commentsSidebarOpen ? (
+					<CommentsSidebar model={comments} onClose={closeComments} />
+				) : null}
 			</div>
+			{route.kind === "doc" && comments.available && !commentsPanel.isDesktop ? (
+				<CommentsSheet model={comments} open={commentsPanel.open} onClose={closeComments} />
+			) : null}
+			{route.kind === "doc" && commentsPanel.isDesktop ? (
+				<>
+					{comments.available && !commentsSidebarOpen ? <GutterCounters model={comments} /> : null}
+					<CommentsPopover model={comments} sidebarOpen={commentsSidebarOpen} />
+				</>
+			) : null}
+			{route.kind === "doc" && !comments.readOnly ? <SelectionButton model={comments} /> : null}
 			<SearchDialog
 				open={searchOpen}
 				query={query}

@@ -195,6 +195,58 @@ Plans are read in mdxserve and in plain text. Use headings for phases, a task li
 a table for files-to-change, and at most one mermaid diagram (the architecture or the main
 flow, never a chart). Skip components in plans unless the user views plans only in mdxserve.
 
+## Comments
+
+Readers leave threaded comments on highlighted text. They are stored in the doc's own leading
+YAML frontmatter under `comments`, so you read and answer them by editing the file. Open threads
+are the entries with `resolved: false` (or no `resolved` key).
+
+```yaml
+---
+title: Getting started
+comments:
+  - id: k3J9xQ2a
+    anchor:
+      heading: Installation
+      block: Run the installer, then restart your shell so the new PATH entry is picked up.
+      quote: restart your shell
+    resolved: false
+    messages:
+      - id: Zp41mD0c
+        author: human
+        body: Is a restart still needed on fish?
+        createdAt: 2026-11-24T19:02:11.000Z
+      - id: m2
+        author: agent
+        body: No. Fish reads conf.d on each prompt. I removed the restart step for fish.
+        createdAt: 2026-11-24T19:05:40.000Z
+---
+```
+
+- **Reply** by appending a message to the thread's `messages` with `author: agent`, a body of
+  1 to 4000 characters, and an `id` unique in that thread (`m2`, `m3`, …; letters, digits, `_`
+  and `-`, up to 64). `createdAt` is optional ISO 8601 UTC.
+- **Start a thread** by appending an entry to `comments` with a unique `id`, an `anchor`, and one
+  message. A thread holds 1 to 100 messages.
+- **Anchor values** are rendered text, not Markdown source: no `**`, backticks, link syntax or
+  list markers, with whitespace runs collapsed to one space. `heading` is the plain text of the
+  nearest heading above the block (the block itself when it is a heading), or `null` before the
+  first heading. `block` is the plain text of the paragraph, list item, table cell or other block,
+  and only its last 500 characters when longer. `quote` is the exact visible words inside that
+  block, at most 500 characters.
+- **Repair an anchor** after you move or rewrite text: update `heading`, `block` and `quote` to
+  the new rendered text. A thread whose block no longer matches falls back to its section
+  heading; one whose heading is gone shows as detached.
+- Never remove or rewrite a human's message. Do not set `resolved: true` unless asked to.
+- Keep the frontmatter valid YAML. One YAML error hides the page metadata and every thread, and
+  the server refuses to add comments until it is fixed. Keep body text out of the frontmatter
+  block and leave other keys alone.
+
+After editing, run `mdxserve validate <absolute path>` and read the warnings:
+`frontmatter-comments` is a thread or message that fails the schema (it is skipped, not
+deleted), and `comment-anchor` is a thread whose heading or block cannot be found in the doc.
+Fix the entry named in the warning.
+
 ## After writing
 
 After saving any `.md`/`.mdx` file, run `mdxserve validate <absolute path>`. It works even when

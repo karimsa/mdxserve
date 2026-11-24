@@ -24,7 +24,7 @@ const urlField = z
 const propertyField = z.string().regex(/^og:[a-z][a-z0-9_]*(?::[a-z][a-z0-9_]*)*$/i);
 const contentField = z.union([z.string(), z.number().finite()]).transform(String);
 const graphItem = z.object({ property: propertyField, content: contentField });
-const MAX_YAML_BYTES = 64 * 1024;
+export const MAX_YAML_BYTES = 64 * 1024;
 // Allow room for the opening/closing fences, BOM, and line endings around 64 KiB of YAML.
 // Disk reads use this prefix plus one sentinel byte to detect truncation.
 export const MAX_METADATA_PREFIX_BYTES = MAX_YAML_BYTES + 32;

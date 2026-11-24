@@ -140,3 +140,14 @@ describe("DocCache.read — fresh vs warmed cache agreement", () => {
 		PROPERTY_TIMEOUT_MS,
 	);
 });
+
+describe("DocCache.read — frontmatter and the read window", () => {
+	it("still indexes 64 KiB of body behind a large frontmatter block", async () => {
+		const abs = path.join(fixtureDir, "front.md");
+		const frontmatter = `---\nnote: ${"y".repeat(60_000)}\n---\n`;
+		const body = "b".repeat(70_000);
+		await fs.writeFile(abs, frontmatter + body, "utf8");
+		const doc = new DocCache().read(abs, (await fs.stat(abs)).mtimeMs);
+		expect(doc.bodyLines.join("\n")).toBe(body.slice(0, 64 * 1024));
+	});
+});

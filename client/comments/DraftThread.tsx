@@ -1,0 +1,70 @@
+import { useAtom, useSetAtom } from "jotai";
+import { useState } from "react";
+import type { CommentsModel } from "./model";
+import { ReplyField } from "./ReplyField";
+import { activeThreadAtom, draftAtom, popoverThreadAtom } from "./state";
+import { Avatar, QuoteText } from "./Thread";
+
+/** The new-comment composer: the selected quote and an empty field, in the popover or the sheet. */
+export function DraftThread({
+	model,
+	sidebarOpen,
+	reserveTools,
+	padded,
+}: {
+	model: CommentsModel;
+	sidebarOpen: boolean;
+	/** Leaves room for the popover's tool buttons beside the quote. */
+	reserveTools: boolean;
+	padded: boolean;
+}) {
+	const [draft, setDraft] = useAtom(draftAtom);
+	const setActive = useSetAtom(activeThreadAtom);
+	const setPopover = useSetAtom(popoverThreadAtom);
+	const [pending, setPending] = useState(false);
+	if (!draft) return null;
+
+	async function submit() {
+		if (!draft) return;
+		setPending(true);
+		const known = new Set(model.threads.map((thread) => thread.id));
+		const threads = await model.actions.addThread(draft.anchor, draft.body);
+		setPending(false);
+		// On failure the draft, with its text, stays.
+		if (!threads) return;
+		setDraft(null);
+		const created = threads.find((thread) => !known.has(thread.id));
+		if (!created) return;
+		setActive(created.id);
+		// The popover follows the new thread unless the sidebar shows it.
+		if (!sidebarOpen) setPopover(created.id);
+	}
+
+	return (
+		<div
+			data-draft
+			className={"flex flex-col gap-3 " + (padded ? "pt-4 pr-3.5 pb-[18px] pl-4" : "")}
+		>
+			<div className={reserveTools ? "pr-[84px]" : ""}>
+				<QuoteText text={draft.anchor.quote} active />
+			</div>
+			<div className="grid grid-cols-[24px_1fr] items-end gap-x-2.5">
+				<Avatar author="human" />
+				<ReplyField
+					label="New comment"
+					sendLabel="Send comment"
+					placeholder={
+						model.writesDisabled ? "Close the section editor to comment" : "Add a comment…"
+					}
+					value={draft.body}
+					onChange={(body) => setDraft({ ...draft, body })}
+					onSubmit={() => void submit()}
+					onCancel={() => setDraft(null)}
+					disabled={model.writesDisabled}
+					pending={pending}
+					focusNonce={draft.nonce}
+				/>
+			</div>
+		</div>
+	);
+}
