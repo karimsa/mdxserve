@@ -1,15 +1,20 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CommentThread } from "../../src/comments/schema";
 import { useMediaQuery } from "../hooks";
 import { DESKTOP_MEDIA } from "../platform";
 import { shellInfo } from "../router";
 import { openSectionAtom } from "../state";
 import { resolutionPosition, type Resolution } from "./anchor";
-import { useDocThreads } from "./data";
+import { commentActions, useDocThreads, type CommentActions } from "./data";
 import { collectDoc, findArticle, resolveIndexOf, resolveInDom } from "./dom";
 import { clearHighlights, setHighlights, threadAtPoint, type HighlightEntry } from "./highlights";
-import { activeThreadAtom, commentsOpenAtom, commentsSheetOpenAtom } from "./state";
+import {
+	activeThreadAtom,
+	commentsOpenAtom,
+	commentsSheetOpenAtom,
+	replyDraftsAtom,
+} from "./state";
 
 export interface ThreadView {
 	resolution: Resolution;
@@ -25,8 +30,13 @@ export interface CommentsModel {
 	/** Resolution of every unresolved thread. Resolved threads are not resolved against the page. */
 	views: ReadonlyMap<string, ThreadView>;
 	openCount: number;
+	/** Restricted server: the panel reads, nothing writes. */
+	readOnly: boolean;
+	/** A section editor is open in this tab: every writing control is disabled (S10). */
+	writesDisabled: boolean;
 	/** The panel and its TopBar button exist for this doc. */
 	available: boolean;
+	actions: CommentActions;
 	/** Makes a thread active in the list and scrolls the doc to it. */
 	selectThread: (id: string) => void;
 }
@@ -72,6 +82,7 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	const [activeId, setActiveId] = useAtom(activeThreadAtom);
 	const setSheetOpen = useSetAtom(commentsSheetOpenAtom);
 	const setRailOpen = useSetAtom(commentsOpenAtom);
+	const setReplyDrafts = useSetAtom(replyDraftsAtom);
 	const { isDesktop } = useCommentsPanel();
 	const readOnly = shellInfo.permissions === "restricted";
 
@@ -79,7 +90,8 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	useEffect(() => {
 		setActiveId(null);
 		setSheetOpen(false);
-	}, [path, setActiveId, setSheetOpen]);
+		setReplyDrafts({});
+	}, [path, setActiveId, setSheetOpen, setReplyDrafts]);
 
 	// Resolve after the thread list changes, after DocView renders, and when a
 	// section editor closes. While one is open its DOM is the editor's, so keep
@@ -136,6 +148,7 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		return () => document.removeEventListener("click", onClick);
 	}, [path, isDesktop, setActiveId, setSheetOpen, setRailOpen]);
 
+	const actions = useMemo(() => commentActions(path ?? ""), [path]);
 	const selectThread = useCallback(
 		(id: string) => {
 			setActiveId(id);
@@ -150,7 +163,10 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		threads,
 		views,
 		openCount,
+		readOnly,
+		writesDisabled: readOnly || editing,
 		available: path !== null && (!readOnly || threads.length > 0),
+		actions,
 		selectThread,
 	};
 }

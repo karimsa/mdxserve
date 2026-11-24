@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import type { ReplyDrafts } from "./drafts";
 
 /** Desktop sidebar open state; persisted. Takes the table-of-contents rail's place while open. */
 export const commentsOpenAtom = atomWithStorage<boolean>(
@@ -16,3 +17,6 @@ export const commentsSheetOpenAtom = atom(false);
 
 /** The focused thread, drawn with the active highlight and marked in the panel. */
 export const activeThreadAtom = atom<string | null>(null);
+
+/** Unsent reply text per thread; lives as long as the doc stays open. */
+export const replyDraftsAtom = atom<ReplyDrafts>({});

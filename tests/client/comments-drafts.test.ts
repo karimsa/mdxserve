@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+import {
+	canSend,
+	fieldHeight,
+	replyDraftOf,
+	FIELD_MAX_HEIGHT,
+	FIELD_MIN_HEIGHT,
+	withReplyDraft,
+} from "../../client/comments/drafts";
+
+describe("reply drafts", () => {
+	it("keeps text per thread and drops empty text", () => {
+		let drafts = withReplyDraft({}, "a", "hello");
+		drafts = withReplyDraft(drafts, "b", "world");
+		expect(drafts).toEqual({ a: "hello", b: "world" });
+		drafts = withReplyDraft(drafts, "a", "");
+		expect(drafts).toEqual({ b: "world" });
+	});
+
+	it("returns the same object when nothing changes", () => {
+		const drafts = { a: "x" };
+		expect(withReplyDraft(drafts, "a", "x")).toBe(drafts);
+		expect(withReplyDraft(drafts, "zzz", "")).toBe(drafts);
+	});
+});
+
+describe("reply drafts for ids that name Object.prototype members", () => {
+	it("treats them as ordinary thread ids", () => {
+		for (const id of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {
+			expect(replyDraftOf({}, id)).toBe("");
+			expect(withReplyDraft({}, id, "")).toEqual({});
+			const drafts = withReplyDraft({}, id, "hello");
+			expect(replyDraftOf(drafts, id)).toBe("hello");
+			expect(replyDraftOf(withReplyDraft(drafts, id, ""), id)).toBe("");
+		}
+	});
+});
+
+describe("reply field", () => {
+	it("grows between one line and 120px", () => {
+		expect(fieldHeight(0)).toBe(FIELD_MIN_HEIGHT);
+		expect(fieldHeight(24.2)).toBe(25);
+		expect(fieldHeight(500)).toBe(FIELD_MAX_HEIGHT);
+	});
+
+	it("sends only with text, when writes are allowed and none is in flight", () => {
+		expect(canSend("hi", false, false)).toBe(true);
+		expect(canSend("  \n", false, false)).toBe(false);
+		expect(canSend("hi", true, false)).toBe(false);
+		expect(canSend("hi", false, true)).toBe(false);
+	});
+});
