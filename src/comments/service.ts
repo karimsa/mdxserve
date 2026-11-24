@@ -14,6 +14,7 @@ import {
 	type CommentAnchor,
 	type CommentDiagnostic,
 	type CommentThread,
+	commentAnchorSchema,
 } from "./schema.js";
 
 export type CommentsFailure =
@@ -60,8 +61,21 @@ function invalidBody(body: string): { kind: "invalid-input"; message: string } |
 }
 
 function takeLast(text: string, limit: number): string {
-	const chars = Array.from(text);
-	return chars.length > limit ? chars.slice(chars.length - limit).join("") : text;
+	let start = 0;
+	for (const char of text) {
+		if (text.length - start <= limit) break;
+		start += char.length;
+	}
+	return text.slice(start);
+}
+
+function takeFirst(text: string, limit: number): string {
+	let end = 0;
+	for (const char of text) {
+		if (end + char.length > limit) break;
+		end += char.length;
+	}
+	return text.slice(0, end);
 }
 
 /**
@@ -89,7 +103,7 @@ export class CommentsService {
 		const anchor: CommentAnchor = {
 			heading: input.anchor.heading === null ? null : normalizeText(input.anchor.heading),
 			block: takeLast(normalizeText(input.anchor.block), MAX_ANCHOR_TEXT),
-			quote: normalizeText(input.anchor.quote).slice(0, MAX_ANCHOR_TEXT),
+			quote: takeFirst(normalizeText(input.anchor.quote), MAX_ANCHOR_TEXT),
 		};
 		if (anchor.block === "" || anchor.quote === "")
 			return { kind: "invalid-input", message: "A comment must be anchored to some text" };
@@ -101,6 +115,8 @@ export class CommentsService {
 				kind: "invalid-input",
 				message: `A heading anchor must be 1 to ${MAX_ANCHOR_HEADING} characters`,
 			};
+		if (!commentAnchorSchema.safeParse(anchor).success)
+			return { kind: "invalid-input", message: "The comment anchor is not valid" };
 		let threadId = "";
 		const written = await this.write(input.path, (yaml) => {
 			const taken = new Set(parseCommentsYaml(yaml ?? "").threads.map((thread) => thread.id));
