@@ -17,6 +17,8 @@ const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
  * Heading.tsx appends to a heading: it is chrome, not rendered text.
  */
 const EXCLUDED_SELECTOR = "[data-editing], svg, button, .mdx-anchor";
+/** Content of an inactive tab: still mounted, but hidden from the page. */
+const HIDDEN_SELECTOR = '[inert], [aria-hidden="true"]';
 
 export interface DomBlock {
 	el: Element;
@@ -46,7 +48,7 @@ function textNodesOf(block: Element): Text[] {
 	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
 		const parent = node.parentElement;
 		// The block itself is never inside an excluded element, so a match is within it.
-		if (parent?.closest(EXCLUDED_SELECTOR)) continue;
+		if (parent?.closest(EXCLUDED_SELECTOR) || parent?.closest(HIDDEN_SELECTOR)) continue;
 		nodes.push(node as Text);
 	}
 	return nodes;
@@ -59,7 +61,7 @@ export function collectDoc(article: Element): DomDoc {
 	let section = -1;
 	for (const el of article.querySelectorAll(BLOCK_SELECTOR)) {
 		if (el.querySelector(BLOCK_SELECTOR)) continue;
-		if (el.closest(EXCLUDED_SELECTOR)) continue;
+		if (el.closest(EXCLUDED_SELECTOR) || el.closest(HIDDEN_SELECTOR)) continue;
 		const nodes = textNodesOf(el);
 		const text = normalizeText(nodes.map((node) => node.data).join(""));
 		if (el.matches(HEADING_SELECTOR)) {
