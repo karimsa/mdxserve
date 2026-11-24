@@ -1,11 +1,20 @@
 import type { Root, RootContent } from "mdast";
 import { toString as mdastToString } from "mdast-util-to-string";
 import type { Diagnostic } from "../validation/validate.js";
-import type { CommentThread } from "./schema.js";
+import { MAX_ANCHOR_HEADING, type CommentThread } from "./schema.js";
 
 /** Collapse runs of whitespace to one space, then trim. Must match `client/comments/anchor.ts`. */
 export function normalizeText(text: string): string {
 	return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The comparison key of a heading: its normalized text cut to the stored
+ * heading limit. Must match `headingKey` in `client/comments/anchor.ts`, which
+ * is what the browser stores, so a heading longer than the limit still matches.
+ */
+export function headingKey(text: string): string {
+	return normalizeText(text).slice(0, MAX_ANCHOR_HEADING).trimEnd();
 }
 
 export type AnchorState = "exact" | "block" | "section" | "detached";
@@ -64,8 +73,9 @@ export function resolveAnchorStatically(
 	if (anchor.heading === null) matching = new Set([-1]);
 	else {
 		matching = new Set<number>();
+		const wanted = headingKey(anchor.heading);
 		headings.forEach((text, index) => {
-			if (text === anchor.heading) matching.add(index);
+			if (headingKey(text) === wanted) matching.add(index);
 		});
 		if (matching.size === 0) return "detached";
 	}

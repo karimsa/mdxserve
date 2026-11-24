@@ -22,3 +22,19 @@ describe("client and server comment limits agree", () => {
 		);
 	});
 });
+
+import { headingKey as clientHeadingKey } from "../../client/comments/anchor";
+import { headingKey as serverHeadingKey } from "../../src/comments/anchor.js";
+
+describe("headingKey", () => {
+	it("is the same on the client and the server", () => {
+		for (const text of [
+			"Usage",
+			"  spaced   out  ",
+			"word ".repeat(80),
+			"x".repeat(299) + " tail",
+		]) {
+			expect(clientHeadingKey(text)).toBe(serverHeadingKey(text));
+		}
+	});
+});

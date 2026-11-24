@@ -128,3 +128,20 @@ describe("anchorDiagnostics", () => {
 		expect(diagnostics[0]).toMatchObject({ line: 7, column: 5 });
 	});
 });
+
+describe("headings longer than the stored limit", () => {
+	it("matches an anchor holding the browser's truncated heading", () => {
+		const long = "word ".repeat(80).trim();
+		const longTree = createProcessor({ format: "md", remarkPlugins: [remarkGfm] }).parse(
+			`## ${long}\n\nA paragraph under the long heading.\n`,
+		);
+		const stored = normalizeText(long).slice(0, 300).trimEnd();
+		expect(stored.length).toBeLessThan(long.length);
+		const state = resolveAnchorStatically(collectBlocks(longTree), {
+			heading: stored,
+			block: "A paragraph under the long heading.",
+			quote: "paragraph",
+		});
+		expect(state).toBe("exact");
+	});
+});
