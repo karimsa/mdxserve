@@ -150,12 +150,16 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			const id = threadAtPoint(event.clientX, event.clientY);
 			if (!id) return;
 			setActiveId(id);
-			if (!isDesktop) setSheetOpen(true);
-			else if (!sidebarOpen) setPopoverThread(id);
+			if (!isDesktop) {
+				setSheetOpen(true);
+				// The sheet covers the tapped text; once its scroll space is in place,
+				// bring the anchor into the part of the page it leaves uncovered.
+				requestAnimationFrame(() => scrollToView(views.get(id), isDesktop));
+			} else if (!sidebarOpen) setPopoverThread(id);
 		}
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, [path, isDesktop, sidebarOpen, setActiveId, setSheetOpen, setPopoverThread]);
+	}, [path, isDesktop, sidebarOpen, views, setActiveId, setSheetOpen, setPopoverThread]);
 
 	const actions = useMemo(() => commentActions(path ?? ""), [path]);
 	const selectThread = useCallback(
