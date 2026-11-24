@@ -74,6 +74,14 @@ describe("resolveAnchor", () => {
 		expect(resolution).toEqual({ state: "exact", block: 2, start: 19, end: 31 });
 	});
 
+	it("normalizes a hand-written anchor before comparing", () => {
+		const resolution = resolveAnchor(
+			{ heading: "Install\n guide", block: "Run  the\ninstaller now.", quote: " the\n installer" },
+			indexOf([{ heading: "Install guide", blocks: ["Run the installer now."] }]),
+		);
+		expect(resolution).toEqual({ state: "exact", block: 1, start: 4, end: 17 });
+	});
+
 	it("highlights the first occurrence of a repeated quote", () => {
 		const repeated = indexOf([{ heading: "A", blocks: ["go go go"] }]);
 		expect(resolveAnchor({ heading: "A", block: "go go go", quote: "go" }, repeated)).toMatchObject(

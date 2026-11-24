@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CommentThread } from "../../src/comments/schema";
 import { CtlButton } from "./CtlButton";
 import type { CommentsModel } from "./model";
@@ -61,6 +61,14 @@ export function CommentsPanel({
 	const activeId = useAtomValue(activeThreadAtom);
 	const { threads, views } = model;
 	const sheet = variant === "sheet";
+
+	// Selecting a thread (a highlight click, say) shows the tab that holds it.
+	const threadsRef = useRef(threads);
+	threadsRef.current = threads;
+	useEffect(() => {
+		const active = threadsRef.current.find((thread) => thread.id === activeId);
+		if (active) setTab(active.resolved ? "resolved" : "open");
+	}, [activeId]);
 
 	const { open, detached, resolved } = useMemo(() => {
 		const unresolved = threads.filter((thread) => !thread.resolved);
