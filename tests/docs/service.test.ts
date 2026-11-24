@@ -492,6 +492,16 @@ describe("DocsService.updateFrontmatter", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe("---\nk: v\n---\nB\n");
 	});
 
+	it("measures the YAML as written, so CRLF expansion cannot exceed the limit", async () => {
+		const yaml = "key: 12345678\n".repeat(4500);
+		expect(Buffer.byteLength(yaml)).toBeLessThan(64 * 1024);
+		const original = "first\r\nsecond\r\n";
+		await fs.writeFile(abs, original, "utf8");
+		const result = await service.updateFrontmatter({ path: abs, update: setYaml(yaml) });
+		expect(result.kind).toBe("too-large");
+		expect(await fs.readFile(abs, "utf8")).toBe(original);
+	});
+
 	it("reports not-found and too-large without writing", async () => {
 		expect(
 			(
