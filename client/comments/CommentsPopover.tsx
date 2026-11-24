@@ -114,6 +114,9 @@ export function CommentsPopover({ model }: { model: CommentsModel }) {
 	const reference = useReference(view?.range ?? null, view?.scrollTarget ?? null);
 
 	const close = model.closePopover;
+	// Read when a request finishes, so a newer popover is not dismissed by an older resolve.
+	const shownId = useRef(model.popoverId);
+	shownId.current = model.popoverId;
 
 	if (!thread || thread.resolved) return null;
 
@@ -135,7 +138,7 @@ export function CommentsPopover({ model }: { model: CommentsModel }) {
 							disabled={model.writesDisabled}
 							onClick={() => {
 								void model.actions.setResolved(thread.id, true).then((saved) => {
-									if (saved) close();
+									if (saved && shownId.current === thread.id) close();
 								});
 							}}
 						/>
