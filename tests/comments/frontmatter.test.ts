@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseComments } from "../../src/comments/frontmatter.js";
+import { editComments, parseComments } from "../../src/comments/frontmatter.js";
+import type { CommentThread } from "../../src/comments/schema.js";
 
 const THREAD_YAML = `comments:
   - id: k3J9xQ2a
@@ -21,6 +22,13 @@ const THREAD_YAML = `comments:
 function doc(yamlText: string, body = "# Body\n"): string {
 	return `---\n${yamlText}---\n${body}`;
 }
+
+const NEW_THREAD: CommentThread = {
+	id: "t1",
+	anchor: { heading: null, block: "Hello world", quote: "world" },
+	resolved: false,
+	messages: [{ id: "m1", author: "human", body: "Why?" }],
+};
 
 describe("parseComments", () => {
 	it("returns no threads without frontmatter", () => {
@@ -116,6 +124,105 @@ describe("parseComments", () => {
 	});
 });
 
+describe("editComments", () => {
+	it("creates comments in an absent, empty, or null-valued frontmatter", () => {
+		for (const start of [undefined, "", "# only a comment\n", "comments:\n"]) {
+			const edited = editComments(start, { kind: "add-thread", thread: NEW_THREAD });
+			expect(edited.kind).toBe("ok");
+			if (edited.kind !== "ok") continue;
+			expect(parseComments(`---\n${edited.yaml}---\n`).threads).toEqual([NEW_THREAD]);
+		}
+	});
+
+	it("keeps unknown keys, YAML comments, and invalid sibling entries", () => {
+		const start = `title: Hi # keep me\nextra:\n  nested: [1, 2]\ncomments:\n  - not a thread\n  - id: x\n    unknown: 7\n`;
+		const edited = editComments(start, { kind: "add-thread", thread: NEW_THREAD });
+		expect(edited.kind).toBe("ok");
+		if (edited.kind !== "ok") return;
+		expect(edited.yaml).toContain("# keep me");
+		expect(edited.yaml).toContain("- not a thread");
+		expect(edited.yaml).toContain("unknown: 7");
+		expect(edited.yaml).toContain("nested:");
+		expect(parseComments(`---\n${edited.yaml}---\n`).threads.map((thread) => thread.id)).toEqual([
+			"t1",
+		]);
+	});
+
+	it("keeps unknown keys on a thread when replying and resolving", () => {
+		const start = THREAD_YAML.replace(
+			"    resolved: false",
+			"    resolved: false\n    labels: [a]",
+		);
+		const replied = editComments(start, {
+			kind: "add-message",
+			threadId: "k3J9xQ2a",
+			message: { id: "m3", author: "human", body: "ok" },
+		});
+		if (replied.kind !== "ok") throw new Error(replied.kind);
+		const resolved = editComments(replied.yaml, {
+			kind: "set-resolved",
+			threadId: "k3J9xQ2a",
+			resolved: true,
+		});
+		if (resolved.kind !== "ok") throw new Error(resolved.kind);
+		expect(resolved.yaml).toContain("labels:");
+		const [thread] = parseComments(`---\n${resolved.yaml}---\n`).threads;
+		expect(thread.resolved).toBe(true);
+		expect(thread.messages.map((message) => message.id)).toEqual(["Zp41mD0c", "m2", "m3"]);
+	});
+
+	it("edits a human message and refuses an agent message", () => {
+		const edited = editComments(THREAD_YAML, {
+			kind: "edit-message",
+			threadId: "k3J9xQ2a",
+			messageId: "Zp41mD0c",
+			body: "Multi\nline: body",
+			editedAt: "2026-11-25T00:00:00.000Z",
+		});
+		if (edited.kind !== "ok") throw new Error(edited.kind);
+		const [thread] = parseComments(`---\n${edited.yaml}---\n`).threads;
+		expect(thread.messages[0]).toMatchObject({
+			body: "Multi\nline: body",
+			editedAt: "2026-11-25T00:00:00.000Z",
+		});
+		expect(
+			editComments(THREAD_YAML, {
+				kind: "edit-message",
+				threadId: "k3J9xQ2a",
+				messageId: "m2",
+				body: "x",
+				editedAt: "2026-11-25T00:00:00.000Z",
+			}),
+		).toEqual({ kind: "not-editable" });
+	});
+
+	it("reports missing threads and messages", () => {
+		expect(
+			editComments(THREAD_YAML, { kind: "set-resolved", threadId: "nope", resolved: true }),
+		).toEqual({ kind: "thread-not-found" });
+		expect(
+			editComments(undefined, { kind: "set-resolved", threadId: "a", resolved: true }),
+		).toEqual({ kind: "thread-not-found" });
+		expect(
+			editComments(THREAD_YAML, {
+				kind: "edit-message",
+				threadId: "k3J9xQ2a",
+				messageId: "nope",
+				body: "x",
+				editedAt: "2026-11-25T00:00:00.000Z",
+			}),
+		).toEqual({ kind: "message-not-found" });
+	});
+
+	it("refuses invalid YAML, a non-map root, and a non-list comments key", () => {
+		for (const start of ["a: [", "- 1\n- 2\n", "comments: 3\n", "a: 1\na: 2\n"]) {
+			expect(editComments(start, { kind: "add-thread", thread: NEW_THREAD }).kind).toBe(
+				"invalid-frontmatter",
+			);
+		}
+	});
+});
+
 describe("parseComments diagnostics for hand-written entries", () => {
 	it("names every problem of a malformed thread in one warning", () => {
 		const source = [
@@ -137,5 +244,22 @@ describe("parseComments diagnostics for hand-written entries", () => {
 		expect(diagnostics[0].message).toContain("id:");
 		expect(diagnostics[0].message).toContain("messages.0.author:");
 		expect(diagnostics[0].message).toContain("messages.0.body:");
+	});
+});
+
+describe("editComments message limit", () => {
+	it("refuses a reply that would push a thread past 100 messages", () => {
+		const messages = Array.from(
+			{ length: 100 },
+			(_, index) => `      - { id: m${index}, author: human, body: hi }`,
+		).join("\n");
+		const yaml = `comments:\n  - id: full\n    anchor: { heading: null, block: text, quote: text }\n    messages:\n${messages}\n`;
+		expect(parseComments(`---\n${yaml}---\n`).threads).toHaveLength(1);
+		const result = editComments(yaml, {
+			kind: "add-message",
+			threadId: "full",
+			message: { id: "extra", author: "human", body: "one more" },
+		});
+		expect(result).toEqual({ kind: "thread-full" });
 	});
 });

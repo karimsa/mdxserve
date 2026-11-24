@@ -4,12 +4,21 @@ import {
 	isScalar,
 	isSeq,
 	LineCounter,
+	Scalar,
 	parseDocument,
 	visit,
+	type Document,
 	type Node,
+	type YAMLMap,
 } from "yaml";
 import { leadingFrontmatter } from "../docs/frontmatter.js";
-import { commentThreadSchema, type CommentDiagnostic, type CommentThread } from "./schema.js";
+import {
+	commentThreadSchema,
+	MAX_MESSAGES_PER_THREAD,
+	type CommentAuthor,
+	type CommentDiagnostic,
+	type CommentThread,
+} from "./schema.js";
 
 export interface ParsedComments {
 	threads: CommentThread[];
@@ -115,4 +124,113 @@ export function parseComments(source: string): ParsedComments {
 	const frontmatter = leadingFrontmatter(source);
 	if (!frontmatter) return { threads: [], diagnostics: [], positions: new Map() };
 	return parseCommentsYaml(frontmatter.value, frontmatter.startLine);
+}
+
+export type CommentsEdit =
+	| { kind: "add-thread"; thread: CommentThread }
+	| {
+			kind: "add-message";
+			threadId: string;
+			message: { id: string; author: CommentAuthor; body: string; createdAt?: string };
+	  }
+	| { kind: "edit-message"; threadId: string; messageId: string; body: string; editedAt: string }
+	| { kind: "set-resolved"; threadId: string; resolved: boolean };
+
+export type EditCommentsResult =
+	| { kind: "ok"; yaml: string }
+	| { kind: "invalid-frontmatter"; message: string }
+	| { kind: "thread-not-found" }
+	| { kind: "thread-full" }
+	| { kind: "message-not-found" }
+	| { kind: "not-editable" };
+
+function messageIdOf(node: unknown): string | undefined {
+	if (!isMap(node)) return undefined;
+	const id = node.get("id");
+	return typeof id === "string" ? id : undefined;
+}
+
+/** The first valid thread map with this id: the same one `parseComments` would return. */
+function findThread(list: { items: unknown[] }, threadId: string): YAMLMap | undefined {
+	for (const item of list.items) {
+		const read = readThreadNode(item);
+		if (read.ok && read.thread.id === threadId && isMap(item)) return item;
+	}
+	return undefined;
+}
+
+/**
+ * A block scalar cannot carry trailing whitespace or carriage returns through
+ * the closing `---` fence (the fence ends the block), so those bodies are
+ * written double-quoted, where every character is escaped explicitly.
+ */
+function bodyScalar(body: string): Scalar<string> {
+	const scalar = new Scalar(body);
+	if (/\s$|[\r\u0085\u2028\u2029]/.test(body)) scalar.type = Scalar.QUOTE_DOUBLE;
+	return scalar;
+}
+
+function messageNode(document: Document, message: object & { body: string }) {
+	const node: unknown = document.createNode({ ...message, body: "" });
+	if (isMap(node)) (node as YAMLMap).set("body", bodyScalar(message.body));
+	return node as YAMLMap;
+}
+
+/**
+ * Turn one YAML string into the next by applying a comment edit to its nodes.
+ * Other keys, other threads, invalid entries, and YAML comments are left alone.
+ */
+export function editComments(yamlText: string | undefined, edit: CommentsEdit): EditCommentsResult {
+	const document: Document = parseDocument(yamlText ?? "", { uniqueKeys: true });
+	if (document.errors.length)
+		return { kind: "invalid-frontmatter", message: document.errors[0].message };
+	if (
+		document.contents === null ||
+		(isScalar(document.contents) && document.contents.value === null)
+	)
+		document.contents = document.createNode({}) as YAMLMap;
+	const root = document.contents;
+	if (!isMap(root))
+		return { kind: "invalid-frontmatter", message: "Frontmatter must be a YAML map." };
+
+	let list = root.get("comments", true);
+	if (list === undefined || (isScalar(list) && list.value === null)) {
+		if (edit.kind !== "add-thread") return { kind: "thread-not-found" };
+		root.set("comments", document.createNode([]));
+		list = root.get("comments", true);
+	}
+	if (!isSeq(list))
+		return { kind: "invalid-frontmatter", message: "The comments key must be a list." };
+
+	if (edit.kind === "add-thread") {
+		const node: unknown = document.createNode({ ...edit.thread, messages: [] });
+		if (isMap(node)) {
+			(node as YAMLMap).set(
+				"messages",
+				document.createNode(edit.thread.messages.map((message) => messageNode(document, message))),
+			);
+		}
+		list.add(node);
+	} else {
+		const thread = findThread(list, edit.threadId);
+		if (!thread) return { kind: "thread-not-found" };
+		if (edit.kind === "set-resolved") {
+			thread.set("resolved", edit.resolved);
+		} else {
+			const messages = thread.get("messages", true);
+			if (!isSeq(messages)) return { kind: "thread-not-found" };
+			if (edit.kind === "add-message") {
+				// One more would fail the thread schema, and the reader would then skip the whole thread.
+				if (messages.items.length >= MAX_MESSAGES_PER_THREAD) return { kind: "thread-full" };
+				messages.add(messageNode(document, edit.message));
+			} else {
+				const message = messages.items.find((item) => messageIdOf(item) === edit.messageId);
+				if (!isMap(message)) return { kind: "message-not-found" };
+				if (message.get("author") === "agent") return { kind: "not-editable" };
+				message.set("body", bodyScalar(edit.body));
+				message.set("editedAt", edit.editedAt);
+			}
+		}
+	}
+	return { kind: "ok", yaml: document.toString({ lineWidth: 0 }) };
 }

@@ -3,7 +3,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { spliceLines } from "./edit.js";
-import { leadingFrontmatter, type LeadingFrontmatter } from "./frontmatter.js";
+import { bodyLines, leadingFrontmatter, type LeadingFrontmatter } from "./frontmatter.js";
 import { resolveDocPath } from "../roots/paths.js";
 import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
@@ -11,6 +11,7 @@ import { ValidationService } from "../validation/service.js";
 import type { Diagnostic } from "../validation/validate.js";
 import {
 	MAX_METADATA_PREFIX_BYTES,
+	MAX_YAML_BYTES,
 	parseMetadata,
 	type DocumentMetadata,
 	type MetadataDiagnostic,
@@ -81,6 +82,45 @@ export type SaveSectionResult =
 	| { kind: "invalid-range"; message: string }
 	/** The spliced file would not compile; nothing was written. */
 	| { kind: "invalid-doc"; message: string; diagnostics: Diagnostic[] };
+
+export type FrontmatterUpdate<Abort> =
+	{ kind: "write"; yaml: string } | { kind: "abort"; value: Abort };
+
+export type UpdateFrontmatterResult<Abort> =
+	| { kind: "ok"; version: string; source: string }
+	| { kind: "not-found"; message: string }
+	| { kind: "aborted"; value: Abort }
+	| { kind: "too-large" }
+	| { kind: "busy" };
+
+export interface UpdateFrontmatterInput<Abort> {
+	path: string;
+	/** Receives the current leading YAML (undefined when the doc has none) and returns the next one. */
+	update: (yaml: string | undefined) => FrontmatterUpdate<Abort>;
+}
+
+const MAX_UPDATE_ATTEMPTS = 3;
+
+/** The doc source with only its frontmatter YAML replaced; every body line is untouched. */
+function withFrontmatter(source: string, yaml: string): string {
+	const eol = /\r\n|\r|\n/.exec(source)?.[0] ?? "\n";
+	const yamlLines = yaml.replace(/(?:\r\n|\r|\n)+$/, "");
+	const block = yamlLines === "" ? "" : yamlLines.split(/\r\n|\r|\n/).join(eol) + eol;
+	const existing = leadingFrontmatter(source);
+	if (!existing) {
+		const bom = source.startsWith("\uFEFF") ? "\uFEFF" : "";
+		return `${bom}---${eol}${block}---${eol}${source.slice(bom.length)}`;
+	}
+	// Lines keep their own terminators, so the splice never touches a body byte.
+	const lines = source.match(/[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$/g) ?? [];
+	// startLine is the first YAML line and endLine the closing fence (1-based);
+	// an empty block has endLine === startLine, so nothing sits between the fences.
+	return [
+		...lines.slice(0, existing.startLine - 1),
+		block,
+		...lines.slice(existing.endLine - 1),
+	].join("");
+}
 
 /** Owns per-file save locks, so a `DocsService` is per-process state. */
 export class DocsService implements MetadataPort {
@@ -180,6 +220,86 @@ export class DocsService implements MetadataPort {
 	}
 
 	/**
+	 * Atomic write: stage in a hidden dotfile next to the target (same
+	 * directory => same filesystem => rename() is atomic), carry over the
+	 * original file's mode, then rename over it. The dotfile is also
+	 * chokidar-ignored (src/rendering/vite.ts `server.watch.ignored`), so it never
+	 * triggers HMR or the listing-changed watcher on its own.
+	 *
+	 * Just before the rename the file is read once more: an editor or another
+	 * process may have written it since the caller read it, in which case
+	 * nothing is renamed and the current version comes back as `stale`.
+	 */
+	private async writeAtomically(
+		abs: string,
+		mode: number,
+		text: string,
+		expectedVersion: string,
+	): Promise<{ kind: "ok" } | { kind: "stale"; version: string }> {
+		const tmp = path.join(path.dirname(abs), "." + path.basename(abs) + ".mdxserve-tmp");
+		try {
+			await fsp.writeFile(tmp, text, "utf8");
+			await fsp.chmod(tmp, mode);
+			const latest = versionOf(await fsp.readFile(abs, "utf8"));
+			if (latest !== expectedVersion) return { kind: "stale", version: latest };
+			await fsp.rename(tmp, abs);
+		} finally {
+			await fsp.unlink(tmp).catch(() => {});
+		}
+		return { kind: "ok" };
+	}
+
+	/**
+	 * Rewrite only the leading YAML block of a doc. `update` sees the current
+	 * YAML and returns the next one (or aborts); the body lines are guaranteed
+	 * byte-identical. This is a read-modify-write of the current file under the
+	 * save lock, so it needs no client version; if the file changes underneath
+	 * it, the whole cycle runs again, up to three times.
+	 */
+	async updateFrontmatter<Abort>(
+		input: UpdateFrontmatterInput<Abort>,
+	): Promise<UpdateFrontmatterResult<Abort>> {
+		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
+		const resolved = await resolveDocPath(rootDirs, input.path);
+		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
+		const abs = await fsp.realpath(resolved.abs);
+
+		return this.withSaveLock(abs, async (): Promise<UpdateFrontmatterResult<Abort>> => {
+			for (let attempt = 0; attempt < MAX_UPDATE_ATTEMPTS; attempt++) {
+				const stat = await fsp.stat(abs);
+				const current = await fsp.readFile(abs, "utf8");
+				const update = input.update(leadingFrontmatter(current)?.value);
+				if (update.kind === "abort") return { kind: "aborted", value: update.value };
+
+				const next = withFrontmatter(current, update.yaml);
+				if (
+					Buffer.byteLength(update.yaml, "utf8") > MAX_YAML_BYTES ||
+					Buffer.byteLength(next, "utf8") > MAX_SOURCE_BYTES
+				)
+					return { kind: "too-large" };
+
+				const written = leadingFrontmatter(next);
+				const wanted = update.yaml.replace(/(?:\r\n|\r|\n)+$/, "");
+				const bodyBefore = bodyLines(current);
+				// A BOM leads the file, not the body: inserting a block moves it above the opening fence.
+				if (!leadingFrontmatter(current) && bodyBefore[0]?.startsWith("\uFEFF"))
+					bodyBefore[0] = bodyBefore[0].slice(1);
+				const bodyAfter = bodyLines(next);
+				if (
+					(written?.value.replace(/\r\n|\r/g, "\n") ?? "") !== wanted.replace(/\r\n|\r/g, "\n") ||
+					bodyBefore.length !== bodyAfter.length ||
+					bodyBefore.some((line, index) => line !== bodyAfter[index])
+				)
+					throw new Error("updateFrontmatter would change more than the frontmatter");
+
+				const outcome = await this.writeAtomically(abs, stat.mode, next, versionOf(current));
+				if (outcome.kind === "ok") return { kind: "ok", version: versionOf(next), source: next };
+			}
+			return { kind: "busy" };
+		});
+	}
+
+	/**
 	 * Write back exactly the line range a section editor was seeded from. The
 	 * version token is checked against the file the client actually read (not
 	 * "now"), so an edit made elsewhere between open and save is caught as a
@@ -233,24 +353,8 @@ export class DocsService implements MetadataPort {
 				};
 			}
 
-			// Atomic write: stage in a hidden dotfile next to the target (same
-			// directory => same filesystem => rename() is atomic), carry over the
-			// original file's mode, then rename over it. The dotfile is also
-			// chokidar-ignored (src/rendering/vite.ts `server.watch.ignored`), so it never
-			// triggers HMR or the listing-changed watcher on its own.
-			const tmp = path.join(path.dirname(abs), "." + path.basename(abs) + ".mdxserve-tmp");
-			try {
-				await fsp.writeFile(tmp, spliced.text, "utf8");
-				await fsp.chmod(tmp, stat.mode);
-				// Last look before committing: an editor or another process may
-				// have written the file while we were validating. Same conflict as
-				// the check at the top; the client's version is still the one it read.
-				const latest = versionOf(await fsp.readFile(abs, "utf8"));
-				if (latest !== version) return { kind: "stale", version: latest };
-				await fsp.rename(tmp, abs);
-			} finally {
-				await fsp.unlink(tmp).catch(() => {});
-			}
+			const written = await this.writeAtomically(abs, stat.mode, spliced.text, version);
+			if (written.kind === "stale") return written;
 
 			// No websocket push: every root is already on vite.watcher, so the
 			// rename above fires chokidar's own "change" event, which drives
