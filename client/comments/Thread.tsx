@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CommentMessage, CommentThread } from "../../src/comments/schema";
 import { Icon } from "../ui/Icon";
 import { CtlButton } from "./CtlButton";
-import { withReplyDraft } from "./drafts";
+import { replyDraftOf, withReplyDraft } from "./drafts";
 import type { CommentsModel, ThreadView } from "./model";
 import { ReplyField } from "./ReplyField";
 import { replyDraftsAtom } from "./state";
@@ -159,7 +159,7 @@ export function Thread({
 	const [resolving, setResolving] = useState(false);
 	const { readOnly, writesDisabled, actions } = model;
 	const popover = variant === "popover";
-	const reply = drafts[thread.id] ?? "";
+	const reply = replyDraftOf(drafts, thread.id);
 
 	useEffect(() => {
 		if (active && !popover) ref.current?.scrollIntoView({ block: "nearest" });

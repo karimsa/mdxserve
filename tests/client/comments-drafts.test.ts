@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	canSend,
 	fieldHeight,
+	replyDraftOf,
 	FIELD_MAX_HEIGHT,
 	FIELD_MIN_HEIGHT,
 	withReplyDraft,
@@ -21,6 +22,18 @@ describe("reply drafts", () => {
 		const drafts = { a: "x" };
 		expect(withReplyDraft(drafts, "a", "x")).toBe(drafts);
 		expect(withReplyDraft(drafts, "zzz", "")).toBe(drafts);
+	});
+});
+
+describe("reply drafts for ids that name Object.prototype members", () => {
+	it("treats them as ordinary thread ids", () => {
+		for (const id of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {
+			expect(replyDraftOf({}, id)).toBe("");
+			expect(withReplyDraft({}, id, "")).toEqual({});
+			const drafts = withReplyDraft({}, id, "hello");
+			expect(replyDraftOf(drafts, id)).toBe("hello");
+			expect(replyDraftOf(withReplyDraft(drafts, id, ""), id)).toBe("");
+		}
 	});
 });
 
