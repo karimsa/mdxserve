@@ -99,10 +99,10 @@ export function anchorDiagnostics(
 			code: "comment-anchor",
 			message:
 				state === "detached"
-					? `Comment thread ${thread.id}: the heading "${thread.anchor.heading}" no longer exists.`
+					? `Comment thread "${thread.id}": the heading "${thread.anchor.heading}" no longer exists.`
 					: thread.anchor.heading === null
-						? `Comment thread ${thread.id}: its text was not found before the first heading.`
-						: `Comment thread ${thread.id}: its text was not found under the heading "${thread.anchor.heading}".`,
+						? `Comment thread "${thread.id}": its text was not found before the first heading.`
+						: `Comment thread "${thread.id}": its text was not found under the heading "${thread.anchor.heading}".`,
 			...(position ? { line: position.line, column: position.column } : {}),
 		});
 	}

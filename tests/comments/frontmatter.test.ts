@@ -222,3 +222,27 @@ describe("editComments", () => {
 		}
 	});
 });
+
+describe("parseComments diagnostics for hand-written entries", () => {
+	it("names every problem of a malformed thread in one warning", () => {
+		const source = [
+			"---",
+			"comments:",
+			"  - id: bad id",
+			"    anchor: { heading: Usage, block: text, quote: text }",
+			"    messages:",
+			'      - { id: m1, author: robot, body: "" }',
+			"---",
+			"# Doc",
+			"",
+		].join("\n");
+		const { threads, diagnostics } = parseComments(source);
+		expect(threads).toEqual([]);
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0].code).toBe("frontmatter-comments");
+		expect(diagnostics[0].line).toBe(3);
+		expect(diagnostics[0].message).toContain("id:");
+		expect(diagnostics[0].message).toContain("messages.0.author:");
+		expect(diagnostics[0].message).toContain("messages.0.body:");
+	});
+});

@@ -47,11 +47,13 @@ function readThreadNode(
 		return { ok: false, message: "YAML aliases and custom tags are not supported in comments." };
 	const parsed = commentThreadSchema.safeParse(node.toJSON());
 	if (!parsed.success) {
-		const issue = parsed.error.issues[0];
-		const where = issue?.path.length ? ` at ${issue.path.join(".")}` : "";
+		// Name every problem at once, so one validate run is enough to fix the entry.
+		const problems = parsed.error.issues
+			.slice(0, 5)
+			.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ` : "") + issue.message);
 		return {
 			ok: false,
-			message: `Invalid comment thread${where}: ${issue?.message ?? "does not match the schema"}.`,
+			message: `Invalid comment thread: ${problems.join("; ") || "does not match the schema"}.`,
 		};
 	}
 	return { ok: true, thread: parsed.data };

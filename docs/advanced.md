@@ -265,14 +265,14 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 
 ### Verbs
 
-| Verb                                   | What it does                                                                                                                                                                                                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), and render-time errors. Exits 1 on any error |
-| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                            |
-| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                             |
-| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                              |
-| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                          |
-| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                            |
+| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
+| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                  |
+| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                   |
+| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                    |
+| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                |
+| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                  |
 
 ### What happens with no server, or no roots
 
@@ -288,7 +288,7 @@ The `--json` result carries `rendered` next to `ok`; the text output prints `Ren
 is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
 back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
 the page. `rendered: false` means only the static checks ran (compile, unknown component,
-unknown prop, mermaid chart fence). Even with `rendered: true`, errors thrown inside `useEffect` /
+unknown prop, mermaid chart fence, comments). Even with `rendered: true`, errors thrown inside `useEffect` /
 `useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
 
 A `pie`, `xychart-beta`, `quadrantChart`, or `sankey-beta` mermaid fence is always an `error`
