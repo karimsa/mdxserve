@@ -9,6 +9,7 @@ import {
 } from "./frontmatter.js";
 import {
 	MAX_ANCHOR_TEXT,
+	MAX_MESSAGE_BODY,
 	type CommentAnchor,
 	type CommentDiagnostic,
 	type CommentThread,
@@ -25,7 +26,8 @@ export type ThreadFailure =
 	| { kind: "thread-not-found" }
 	| { kind: "thread-full" }
 	| { kind: "message-not-found" }
-	| { kind: "not-editable" };
+	| { kind: "not-editable" }
+	| { kind: "invalid-input"; message: string };
 
 export type ListCommentsResult =
 	| { kind: "ok"; threads: CommentThread[]; diagnostics: CommentDiagnostic[] }
@@ -33,13 +35,24 @@ export type ListCommentsResult =
 
 export type WriteCommentsResult = { kind: "ok"; threads: CommentThread[] } | ThreadFailure;
 
-type Abort = Exclude<ThreadFailure, { kind: "not-found" | "too-large" | "busy" }>;
+type Abort = Exclude<ThreadFailure, { kind: "not-found" | "too-large" | "busy" | "invalid-input" }>;
 
 function generateId(taken: ReadonlySet<string>): string {
 	for (;;) {
 		const id = randomBytes(6).toString("base64url");
 		if (!taken.has(id)) return id;
 	}
+}
+
+/** The failure for a message body that is blank or too long, else undefined. */
+function invalidBody(body: string): { kind: "invalid-input"; message: string } | undefined {
+	if (body.trim() === "") return { kind: "invalid-input", message: "A comment cannot be empty" };
+	if (body.length > MAX_MESSAGE_BODY)
+		return {
+			kind: "invalid-input",
+			message: `A comment cannot exceed ${MAX_MESSAGE_BODY} characters`,
+		};
+	return undefined;
 }
 
 function takeLast(text: string, limit: number): string {
@@ -67,11 +80,15 @@ export class CommentsService {
 		anchor: { heading: string | null; block: string; quote: string };
 		body: string;
 	}): Promise<WriteCommentsResult> {
+		const invalid = invalidBody(input.body);
+		if (invalid) return invalid;
 		const anchor: CommentAnchor = {
 			heading: input.anchor.heading === null ? null : normalizeText(input.anchor.heading),
 			block: takeLast(normalizeText(input.anchor.block), MAX_ANCHOR_TEXT),
 			quote: normalizeText(input.anchor.quote).slice(0, MAX_ANCHOR_TEXT),
 		};
+		if (anchor.block === "" || anchor.quote === "")
+			return { kind: "invalid-input", message: "A comment must be anchored to some text" };
 		return this.write(input.path, (yaml) => {
 			const taken = new Set(parseCommentsYaml(yaml ?? "").threads.map((thread) => thread.id));
 			return {
@@ -98,6 +115,8 @@ export class CommentsService {
 		threadId: string;
 		body: string;
 	}): Promise<WriteCommentsResult> {
+		const invalid = invalidBody(input.body);
+		if (invalid) return invalid;
 		return this.write(input.path, (yaml) => {
 			const thread = parseCommentsYaml(yaml ?? "").threads.find(
 				(candidate) => candidate.id === input.threadId,
@@ -122,6 +141,8 @@ export class CommentsService {
 		messageId: string;
 		body: string;
 	}): Promise<WriteCommentsResult> {
+		const invalid = invalidBody(input.body);
+		if (invalid) return invalid;
 		return this.write(input.path, () => ({
 			kind: "edit-message",
 			threadId: input.threadId,

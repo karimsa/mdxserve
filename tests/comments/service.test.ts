@@ -34,6 +34,33 @@ async function addThread() {
 	return added.threads[0];
 }
 
+describe("CommentsService input validation", () => {
+	it("rejects blank or oversized bodies and empty anchors without writing", async () => {
+		const thread = await addThread();
+		const before = await fs.readFile(abs, "utf8");
+		const messageId = thread.messages[0].id;
+		for (const body of ["", " \n\t ", "x".repeat(4001)]) {
+			expect((await comments.addThread({ path: abs, anchor: ANCHOR, body })).kind).toBe(
+				"invalid-input",
+			);
+			expect((await comments.addReply({ path: abs, threadId: thread.id, body })).kind).toBe(
+				"invalid-input",
+			);
+			expect(
+				(await comments.editMessage({ path: abs, threadId: thread.id, messageId, body })).kind,
+			).toBe("invalid-input");
+		}
+		for (const anchor of [
+			{ ...ANCHOR, block: " \n " },
+			{ ...ANCHOR, quote: "  " },
+		])
+			expect((await comments.addThread({ path: abs, anchor, body: "ok" })).kind).toBe(
+				"invalid-input",
+			);
+		expect(await fs.readFile(abs, "utf8")).toBe(before);
+	});
+});
+
 describe("CommentsService", () => {
 	it("lists nothing for a doc without comments and reports a missing doc", async () => {
 		expect(await comments.list(abs, false)).toEqual({ kind: "ok", threads: [], diagnostics: [] });
