@@ -142,11 +142,16 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			if (!id) return;
 			setActiveId(id);
 			if (isDesktop) setRailOpen(true);
-			else setSheetOpen(true);
+			else {
+				setSheetOpen(true);
+				// The sheet covers the tapped text; once its scroll space is in place,
+				// bring the anchor into the part of the page it leaves uncovered.
+				requestAnimationFrame(() => scrollToView(views.get(id), isDesktop));
+			}
 		}
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, [path, isDesktop, setActiveId, setSheetOpen, setRailOpen]);
+	}, [path, isDesktop, views, setActiveId, setSheetOpen, setRailOpen]);
 
 	const actions = useMemo(() => commentActions(path ?? ""), [path]);
 	const selectThread = useCallback(
