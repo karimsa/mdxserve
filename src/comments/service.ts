@@ -8,6 +8,7 @@ import {
 	type CommentsEdit,
 } from "./frontmatter.js";
 import {
+	MAX_ANCHOR_HEADING,
 	MAX_ANCHOR_TEXT,
 	MAX_MESSAGE_BODY,
 	type CommentAnchor,
@@ -32,6 +33,9 @@ export type ThreadFailure =
 export type ListCommentsResult =
 	| { kind: "ok"; threads: CommentThread[]; diagnostics: CommentDiagnostic[] }
 	| { kind: "not-found"; message: string };
+
+export type AddThreadResult =
+	{ kind: "ok"; threads: CommentThread[]; threadId: string } | ThreadFailure;
 
 export type WriteCommentsResult = { kind: "ok"; threads: CommentThread[] } | ThreadFailure;
 
@@ -79,7 +83,7 @@ export class CommentsService {
 		path: string;
 		anchor: { heading: string | null; block: string; quote: string };
 		body: string;
-	}): Promise<WriteCommentsResult> {
+	}): Promise<AddThreadResult> {
 		const invalid = invalidBody(input.body);
 		if (invalid) return invalid;
 		const anchor: CommentAnchor = {
@@ -89,12 +93,22 @@ export class CommentsService {
 		};
 		if (anchor.block === "" || anchor.quote === "")
 			return { kind: "invalid-input", message: "A comment must be anchored to some text" };
-		return this.write(input.path, (yaml) => {
+		if (
+			anchor.heading !== null &&
+			(anchor.heading === "" || anchor.heading.length > MAX_ANCHOR_HEADING)
+		)
+			return {
+				kind: "invalid-input",
+				message: `A heading anchor must be 1 to ${MAX_ANCHOR_HEADING} characters`,
+			};
+		let threadId = "";
+		const written = await this.write(input.path, (yaml) => {
 			const taken = new Set(parseCommentsYaml(yaml ?? "").threads.map((thread) => thread.id));
+			threadId = generateId(taken);
 			return {
 				kind: "add-thread",
 				thread: {
-					id: generateId(taken),
+					id: threadId,
 					anchor,
 					resolved: false,
 					messages: [
@@ -108,6 +122,7 @@ export class CommentsService {
 				},
 			};
 		});
+		return written.kind === "ok" ? { ...written, threadId } : written;
 	}
 
 	async addReply(input: {

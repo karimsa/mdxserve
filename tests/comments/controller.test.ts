@@ -42,8 +42,13 @@ async function code(promise: Promise<unknown>): Promise<string> {
 describe("comments controller", () => {
 	it("round-trips a thread through every procedure", async () => {
 		const api = caller();
-		const { threads } = await api.addCommentThread({ path: abs, anchor: ANCHOR, body: "Q" });
+		const { threads, threadId } = await api.addCommentThread({
+			path: abs,
+			anchor: ANCHOR,
+			body: "Q",
+		});
 		const [thread] = threads;
+		expect(threadId).toBe(thread.id);
 		const replied = await api.addCommentReply({ path: abs, threadId: thread.id, body: "R" });
 		expect(replied.threads[0].messages).toHaveLength(2);
 		const edited = await api.editComment({
