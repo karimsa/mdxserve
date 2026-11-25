@@ -1,12 +1,20 @@
-import { useAtom } from "jotai";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useAtom, useStore } from "jotai";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CommentMessage, CommentThread } from "../../src/comments/schema";
 import { Icon } from "../ui/Icon";
 import { CtlButton } from "./CtlButton";
 import { replyDraftOf, withReplyDraft } from "./drafts";
 import type { CommentsModel, ThreadView } from "./model";
+import { rowMotion } from "./motion";
 import { ReplyField } from "./ReplyField";
-import { pendingReplyKey, pendingSendsAtom, replyDraftsAtom, withPendingSend } from "./state";
+import {
+	freshThreadAtom,
+	pendingReplyKey,
+	pendingSendsAtom,
+	replyDraftsAtom,
+	withPendingSend,
+} from "./state";
 import { relativeTime } from "./time";
 
 /** Where a thread is drawn: a sidebar row, the sheet's row, or the popover's body. */
@@ -42,6 +50,7 @@ export function QuoteText({ text, active }: { text: string; active: boolean }) {
 
 function Message({
 	message,
+	first,
 	last,
 	reserveTools,
 	canEdit,
@@ -49,6 +58,7 @@ function Message({
 	onEdit,
 }: {
 	message: CommentMessage;
+	first: boolean;
 	last: boolean;
 	/** Leaves room for the popover's tool buttons beside the first header. */
 	reserveTools: boolean;
@@ -60,6 +70,7 @@ function Message({
 	const [draft, setDraft] = useState(message.body);
 	const [pending, setPending] = useState(false);
 	const agent = message.author === "agent";
+	const reducedMotion = useReducedMotion();
 
 	async function save() {
 		setPending(true);
@@ -68,71 +79,79 @@ function Message({
 		if (saved) setEditing(false);
 	}
 
+	// The gap above a message is drawn inside it (the timeline's connector, then
+	// 2px of air) instead of as a margin, so a new message's whole footprint
+	// grows from nothing and the reply field below is pushed down smoothly.
 	return (
-		<div className="group relative grid grid-cols-[24px_1fr] gap-x-2.5 not-first:mt-3.5">
-			{last ? null : (
-				<span
-					aria-hidden
-					className="absolute top-7 -bottom-3 left-[11.5px] w-px bg-border-default"
-				/>
+		<motion.div {...rowMotion(reducedMotion)} className="group overflow-hidden">
+			{first ? null : (
+				<span aria-hidden className="mb-0.5 ml-[11.5px] block h-3 w-px bg-border-default" />
 			)}
-			<Avatar author={message.author} />
-			<div className="min-w-0">
-				<div
-					className={
-						"flex items-baseline gap-[7px] pt-[3px] text-[12.5px] leading-[1.3] " +
-						(reserveTools ? "pr-[84px]" : "")
-					}
-				>
-					<span className={"font-bold " + (agent ? "text-text-accent" : "text-text-heading")}>
-						{agent ? "Agent" : "You"}
-					</span>
-					<time
-						className="text-[11.5px] text-text-subtle tabular-nums"
-						dateTime={message.createdAt}
-						title={message.createdAt ? new Date(message.createdAt).toLocaleString() : undefined}
-					>
-						{relativeTime(message.createdAt)}
-						{message.editedAt ? " · edited" : ""}
-					</time>
-					{canEdit && !editing ? (
-						<button
-							type="button"
-							disabled={editDisabled}
-							aria-label="Edit comment"
-							onClick={() => {
-								setDraft(message.body);
-								setEditing(true);
-							}}
-							className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-sm border-0 bg-transparent p-0 text-[11.5px] font-semibold text-text-subtle opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-text-heading focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-0 group-hover:disabled:opacity-45 [@media(hover:none)]:opacity-100"
-						>
-							<Icon name="pencil" size={11} />
-							Edit
-						</button>
-					) : null}
-				</div>
-				{editing ? (
-					<div className="mt-1.5" data-comment-edit>
-						<ReplyField
-							label="Edit comment"
-							sendLabel="Save comment"
-							placeholder=""
-							value={draft}
-							onChange={setDraft}
-							onSubmit={() => void save()}
-							onCancel={() => setEditing(false)}
-							disabled={editDisabled}
-							pending={pending}
-							focusNonce={0}
-						/>
-					</div>
-				) : (
-					<p className="m-0 mt-[3px] text-[13.5px] leading-[1.55] break-words whitespace-pre-wrap text-text-body">
-						{message.body}
-					</p>
+			<div className="relative grid grid-cols-[24px_1fr] gap-x-2.5">
+				{last ? null : (
+					<span
+						aria-hidden
+						className="absolute top-7 bottom-0 left-[11.5px] w-px bg-border-default"
+					/>
 				)}
+				<Avatar author={message.author} />
+				<div className="min-w-0">
+					<div
+						className={
+							"flex items-baseline gap-[7px] pt-[3px] text-[12.5px] leading-[1.3] " +
+							(reserveTools ? "pr-[84px]" : "")
+						}
+					>
+						<span className={"font-bold " + (agent ? "text-text-accent" : "text-text-heading")}>
+							{agent ? "Agent" : "You"}
+						</span>
+						<time
+							className="text-[11.5px] text-text-subtle tabular-nums"
+							dateTime={message.createdAt}
+							title={message.createdAt ? new Date(message.createdAt).toLocaleString() : undefined}
+						>
+							{relativeTime(message.createdAt)}
+							{message.editedAt ? " · edited" : ""}
+						</time>
+						{canEdit && !editing ? (
+							<button
+								type="button"
+								disabled={editDisabled}
+								aria-label="Edit comment"
+								onClick={() => {
+									setDraft(message.body);
+									setEditing(true);
+								}}
+								className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-sm border-0 bg-transparent p-0 text-[11.5px] font-semibold text-text-subtle opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-text-heading focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-0 group-hover:disabled:opacity-45 [@media(hover:none)]:opacity-100"
+							>
+								<Icon name="pencil" size={11} />
+								Edit
+							</button>
+						) : null}
+					</div>
+					{editing ? (
+						<div className="mt-1.5" data-comment-edit>
+							<ReplyField
+								label="Edit comment"
+								sendLabel="Save comment"
+								placeholder=""
+								value={draft}
+								onChange={setDraft}
+								onSubmit={() => void save()}
+								onCancel={() => setEditing(false)}
+								disabled={editDisabled}
+								pending={pending}
+								focusNonce={0}
+							/>
+						</div>
+					) : (
+						<p className="m-0 mt-[3px] text-[13.5px] leading-[1.55] break-words whitespace-pre-wrap text-text-body">
+							{message.body}
+						</p>
+					)}
+				</div>
 			</div>
-		</div>
+		</motion.div>
 	);
 }
 
@@ -164,6 +183,14 @@ export function Thread({
 	const { readOnly, writesDisabled, actions } = model;
 	const popover = variant === "popover";
 	const reply = replyDraftOf(drafts, thread.id);
+
+	// A thread this tab just created shows its message arriving in the popover.
+	// In the panel the whole row expands in instead (CommentsPanel).
+	const store = useStore();
+	const [animateFirst] = useState(() => popover && store.get(freshThreadAtom) === thread.id);
+	useEffect(() => {
+		if (store.get(freshThreadAtom) === thread.id) store.set(freshThreadAtom, null);
+	}, [store, thread.id]);
 
 	useEffect(() => {
 		if (active && !popover) ref.current?.scrollIntoView({ block: "nearest" });
@@ -246,17 +273,20 @@ export function Thread({
 			)}
 			{note ? <p className="m-0 text-xs text-status-warn-fg">{note}</p> : null}
 			<div>
-				{thread.messages.map((message, index) => (
-					<Message
-						key={message.id}
-						message={message}
-						last={index === thread.messages.length - 1}
-						reserveTools={popover && index === 0}
-						canEdit={!readOnly && message.author === "human"}
-						editDisabled={writesDisabled}
-						onEdit={async (body) => (await actions.edit(thread.id, message.id, body)) !== null}
-					/>
-				))}
+				<AnimatePresence initial={animateFirst}>
+					{thread.messages.map((message, index) => (
+						<Message
+							key={message.id}
+							message={message}
+							first={index === 0}
+							last={index === thread.messages.length - 1}
+							reserveTools={popover && index === 0}
+							canEdit={!readOnly && message.author === "human"}
+							editDisabled={writesDisabled}
+							onEdit={async (body) => (await actions.edit(thread.id, message.id, body)) !== null}
+						/>
+					))}
+				</AnimatePresence>
 			</div>
 			{showReply ? (
 				<div className="grid grid-cols-[24px_1fr] items-end gap-x-2.5">

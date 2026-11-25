@@ -1,5 +1,7 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { TRANSITIONS } from "../motion";
 import { Icon } from "../ui/Icon";
 import { findArticle } from "./dom";
 import type { CommentsModel, ThreadView } from "./model";
@@ -89,25 +91,31 @@ export function GutterCounters({ model }: { model: CommentsModel }) {
 
 	return (
 		<div ref={containerRef} data-print-hide className="pointer-events-none absolute top-0 left-0">
-			{pins.map((pin) => (
-				<button
-					key={pin.id}
-					type="button"
-					data-comments-keep
-					aria-label={`Open comment thread, ${pin.count} ${pin.count === 1 ? "message" : "messages"}`}
-					onClick={() => model.showPopover(pin.id)}
-					style={{ top: pin.top, left: pin.left, height: PIN_HEIGHT }}
-					className={
-						"pointer-events-auto absolute z-[1] inline-flex cursor-pointer items-center gap-1 rounded-full border px-[7px] font-sans text-[11.5px] leading-none font-semibold tabular-nums " +
-						(pin.id === activeId
-							? "border-border-strong bg-surface-hover text-text-heading"
-							: "border-border-default bg-surface-card text-text-muted hover:text-text-heading")
-					}
-				>
-					<Icon name="message-square" size={12} />
-					{pin.count}
-				</button>
-			))}
+			<AnimatePresence>
+				{pins.map((pin) => (
+					<motion.button
+						key={pin.id}
+						initial={{ opacity: 0, scale: 0.85 }}
+						animate={{ opacity: 1, scale: 1 }}
+						exit={{ opacity: 0, transition: TRANSITIONS.fast }}
+						transition={TRANSITIONS.snap}
+						type="button"
+						data-comments-keep
+						aria-label={`Open comment thread, ${pin.count} ${pin.count === 1 ? "message" : "messages"}`}
+						onClick={() => model.showPopover(pin.id)}
+						style={{ top: pin.top, left: pin.left, height: PIN_HEIGHT }}
+						className={
+							"pointer-events-auto absolute z-[1] inline-flex cursor-pointer items-center gap-1 rounded-full border px-[7px] font-sans text-[11.5px] leading-none font-semibold tabular-nums " +
+							(pin.id === activeId
+								? "border-border-strong bg-surface-hover text-text-heading"
+								: "border-border-default bg-surface-card text-text-muted hover:text-text-heading")
+						}
+					>
+						<Icon name="message-square" size={12} />
+						{pin.count}
+					</motion.button>
+				))}
+			</AnimatePresence>
 		</div>
 	);
 }

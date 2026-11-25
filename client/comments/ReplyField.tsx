@@ -85,7 +85,7 @@ export function ReplyField({
 				disabled={!ready}
 				onClick={onSubmit}
 				className={
-					"grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full border-0 p-0 transition-colors disabled:cursor-not-allowed " +
+					"grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full border-0 p-0 transition-[color,background-color,scale] duration-150 ease-out enabled:active:scale-90 disabled:cursor-not-allowed motion-reduce:enabled:active:scale-100 " +
 					(ready
 						? "bg-surface-accent text-text-inverse"
 						: "bg-surface-hover text-text-subtle group-focus-within/field:bg-surface-accent group-focus-within/field:text-text-inverse")
