@@ -74,6 +74,8 @@ function PopoverFrame({
 			const target = event.target instanceof Element ? event.target : null;
 			if (!target || frameRef.current?.contains(target)) return;
 			if (keepOpen || target.closest("[data-comments-keep]")) return;
+			// A comment being edited holds unsaved text: Escape or Close ends it, a stray click does not.
+			if (frameRef.current?.querySelector("[data-comment-edit]")) return;
 			// A click on another highlight is handled there: it swaps the thread.
 			if (threadAtPoint(event.clientX, event.clientY)) return;
 			onClose();

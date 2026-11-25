@@ -6,7 +6,7 @@ import { CtlButton } from "./CtlButton";
 import { replyDraftOf, withReplyDraft } from "./drafts";
 import type { CommentsModel, ThreadView } from "./model";
 import { ReplyField } from "./ReplyField";
-import { replyDraftsAtom } from "./state";
+import { pendingReplyKey, pendingSendsAtom, replyDraftsAtom, withPendingSend } from "./state";
 import { relativeTime } from "./time";
 
 /** Where a thread is drawn: a sidebar row, the sheet's row, or the popover's body. */
@@ -112,7 +112,7 @@ function Message({
 					) : null}
 				</div>
 				{editing ? (
-					<div className="mt-1.5">
+					<div className="mt-1.5" data-comment-edit>
 						<ReplyField
 							label="Edit comment"
 							sendLabel="Save comment"
@@ -155,7 +155,11 @@ export function Thread({
 }) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [drafts, setDrafts] = useAtom(replyDraftsAtom);
-	const [replying, setReplying] = useState(false);
+	const [pendingSends, setPendingSends] = useAtom(pendingSendsAtom);
+	const replyKey = pendingReplyKey(model.path, thread.id);
+	const replying = pendingSends.has(replyKey);
+	const setReplying = (active: boolean) =>
+		setPendingSends((previous) => withPendingSend(previous, replyKey, active));
 	const [resolving, setResolving] = useState(false);
 	const { readOnly, writesDisabled, actions } = model;
 	const popover = variant === "popover";
