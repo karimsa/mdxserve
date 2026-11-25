@@ -383,6 +383,11 @@ export function useRouter(initialRoute: Route) {
 		if (!import.meta.hot) return;
 		const handleDocChanged = (data: { files?: Array<{ path: string }> }) => {
 			for (const file of data?.files ?? []) {
+				// An agent's reply lives in the frontmatter, so refetch the comments too.
+				void queryClient.invalidateQueries({
+					...trpc.getDocComments.queryFilter({ path: file.path }),
+					refetchType: "all",
+				});
 				if (!docModuleCache.has(file.path)) continue;
 				void ensureDocModule(file.path, true).then(() => {
 					setRoute((current) =>
