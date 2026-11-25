@@ -33,7 +33,7 @@ export interface CommentActions {
  * replaces the cached one at once. A failure becomes a danger toast with the
  * server's message and resolves to null, so callers keep their draft text.
  */
-async function write(
+async function runWrite(
 	path: string,
 	call: () => Promise<{ threads: CommentThread[] }>,
 ): Promise<CommentThread[] | null> {
@@ -50,6 +50,25 @@ async function write(
 		pushToast({ tone: "danger", text: errorText(error), dedupeKey: "comment-error" });
 		return null;
 	}
+}
+
+// Each response is a snapshot of the whole thread list. Two writes in flight
+// for one doc could land out of order and roll the cache back, so a doc's
+// writes run one after another.
+const writeQueues = new Map<string, Promise<unknown>>();
+
+function write(
+	path: string,
+	call: () => Promise<{ threads: CommentThread[] }>,
+): Promise<CommentThread[] | null> {
+	const previous = writeQueues.get(path) ?? Promise.resolve();
+	// runWrite never rejects, so the chain cannot break.
+	const run = previous.then(() => runWrite(path, call));
+	writeQueues.set(path, run);
+	void run.then(() => {
+		if (writeQueues.get(path) === run) writeQueues.delete(path);
+	});
+	return run;
 }
 
 export function commentActions(path: string): CommentActions {
