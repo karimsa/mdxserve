@@ -3,7 +3,7 @@ import { atomWithStorage } from "jotai/utils";
 import type { AnchorFields } from "./anchor";
 import type { ReplyDrafts } from "./drafts";
 
-/** Desktop sidebar open state; persisted. Takes the table-of-contents rail's place while open. */
+/** Desktop sidebar open state; persisted. Covers the table-of-contents rail while open. */
 export const commentsOpenAtom = atomWithStorage<boolean>(
 	"mdxserve.comments.open",
 	false,

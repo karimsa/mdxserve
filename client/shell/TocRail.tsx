@@ -27,6 +27,7 @@ export function TocRail({ path, version }: { path: string; version: number }) {
 	return (
 		<div
 			ref={railRef}
+			data-toc-rail
 			data-print-hide
 			className="hidden xl:block shrink-0 self-start ml-10 sticky top-[calc(var(--topbar-height)+40px)]"
 			style={{ width: clampWidth(width) }}

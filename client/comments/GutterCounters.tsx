@@ -72,8 +72,7 @@ export function GutterCounters({ model }: { model: CommentsModel }) {
 
 	useLayoutEffect(measure, [measure]);
 
-	// The doc reflows with the window, with late fonts and images, and with the
-	// sidebar closing; anything that moves an anchor resizes the article. The
+	// The doc reflows with the window and with late fonts and images; anything that moves an anchor resizes the article. The
 	// navigation sidebar and TOC rail shift the centred doc without resizing it,
 	// but they do resize the content area around it.
 	useEffect(() => {

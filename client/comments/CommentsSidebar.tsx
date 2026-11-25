@@ -1,24 +1,36 @@
+import { motion } from "framer-motion";
 import { CommentsPanel } from "./CommentsPanel";
 import type { CommentsModel } from "./model";
-
-export const COMMENTS_SIDEBAR_WIDTH = 348;
+import { SLIDE, SLIDE_BLEED, SLIDE_OUT } from "./motion";
 
 /**
- * Desktop column: 348px, full height under the top bar, flush to the window's
- * right edge. AppShell docks it beside `<main>` in a wrapper whose width opens
- * and closes, so the doc column narrows to make room. The column itself keeps
- * its full width throughout and is clipped by that wrapper: its contents slide
- * in from the right edge without reflowing.
+ * Desktop panel: 348px, full height under the top bar, fixed to the window's
+ * right edge. It slides in over the right-hand track AppShell reserves beside
+ * the doc (the one the table-of-contents rail sits in), so it never covers
+ * the doc. Render it inside an `AnimatePresence` for the exit.
+ *
+ * The slide is a spring that overshoots slightly, so the panel is wider than
+ * it looks: `SLIDE_BLEED` of padding hangs off the window's right edge and
+ * comes into view only while the spring is past its resting point.
  */
+export const COMMENTS_SIDEBAR_WIDTH = 348;
 export function CommentsSidebar({ model, onClose }: { model: CommentsModel; onClose: () => void }) {
 	return (
-		<aside
+		<motion.aside
 			data-print-hide
 			aria-label="Comments"
-			style={{ width: COMMENTS_SIDEBAR_WIDTH }}
-			className="sticky top-topbar flex h-[calc(100vh-var(--topbar-height))] shrink-0 flex-col border-l border-border-default bg-surface-page"
+			initial={{ x: "100%" }}
+			animate={{ x: 0 }}
+			exit={{ x: "100%", transition: SLIDE_OUT }}
+			transition={SLIDE}
+			style={{
+				width: COMMENTS_SIDEBAR_WIDTH + SLIDE_BLEED,
+				right: -SLIDE_BLEED,
+				paddingRight: SLIDE_BLEED,
+			}}
+			className="fixed top-topbar bottom-0 z-[var(--z-sticky)] flex flex-col border-l border-border-default bg-surface-page shadow-lg"
 		>
 			<CommentsPanel model={model} variant="sidebar" onClose={onClose} />
-		</aside>
+		</motion.aside>
 	);
 }

@@ -25,20 +25,22 @@ export function rowMotion(reducedMotion: boolean | null) {
 }
 
 /**
- * `TRANSITIONS.glide` with the damping raised to critical. A width must not
- * overshoot: a spring closing to 0 dips negative, CSS drops the invalid value,
- * and the column sits a few pixels wide until the spring settles.
+ * The comments sidebar's slide: slower and looser than `TRANSITIONS.glide`, so
+ * the panel visibly travels and settles with a small overshoot (about 3% of
+ * its width). The sidebar bleeds past the window edge by `SLIDE_BLEED` so the
+ * overshoot never opens a gap there.
  */
-const DOCK: Transition = { type: "spring", stiffness: 340, damping: 36, mass: 0.9 };
-
-/** A docked column whose width opens and closes, taking the space from its neighbours. */
-export function dockMotion(width: number | "auto", reducedMotion: boolean | null) {
-	return {
-		initial: { width: 0, opacity: 0 },
-		animate: { width, opacity: 1 },
-		exit: { width: 0, opacity: 0 },
-		transition: reducedMotion
-			? { width: INSTANT, opacity: TRANSITIONS.fast }
-			: { width: DOCK, opacity: TRANSITIONS.base },
-	};
-}
+export const SLIDE: Transition = { type: "spring", stiffness: 170, damping: 19, mass: 1 };
+export const SLIDE_BLEED = 32;
+/**
+ * How far the spring carries the sidebar past its resting edge, rounded up
+ * (measured: 13px). The layout keeps this much clear beside the sidebar so
+ * the overshoot never crosses a doc that fills its column.
+ */
+export const SLIDE_OVERSHOOT = 16;
+/**
+ * Leaving is a plain accelerate-out: a spring's settling would happen off
+ * screen, and the layout waits for the exit to finish before it reclaims the
+ * sidebar's track.
+ */
+export const SLIDE_OUT: Transition = { duration: 0.3, ease: [0.4, 0, 0.6, 1] };
