@@ -4,6 +4,8 @@ import { ErrorBox } from "./ErrorBox";
 type RenderErrorBoundaryState = {
 	error: Error | null;
 	componentStack: string | null;
+	/** The `resetKey` this state belongs to. */
+	resetKey: number;
 };
 
 /**
@@ -12,15 +14,28 @@ type RenderErrorBoundaryState = {
  * shows ErrorBox instead of leaving the page blank. React error boundaries
  * only work as class components — there is no hook equivalent.
  *
- * The parent keys this component on the cached module's identity, so an HMR
- * re-import after a fix remounts the boundary and clears the stale error
- * rather than getting stuck on the first throw.
+ * The parent passes the cached module's identity as `resetKey`, so an HMR
+ * re-import after a fix clears the stale error rather than getting stuck on
+ * the first throw. It is a prop and not a React `key`: a key would remount the
+ * whole article on every re-import, error or not.
  */
 export class RenderErrorBoundary extends Component<
-	{ children: ReactNode },
+	{ resetKey: number; children: ReactNode },
 	RenderErrorBoundaryState
 > {
-	state: RenderErrorBoundaryState = { error: null, componentStack: null };
+	state: RenderErrorBoundaryState = {
+		error: null,
+		componentStack: null,
+		resetKey: this.props.resetKey,
+	};
+
+	static getDerivedStateFromProps(
+		props: { resetKey: number },
+		state: RenderErrorBoundaryState,
+	): RenderErrorBoundaryState | null {
+		if (props.resetKey === state.resetKey) return null;
+		return { error: null, componentStack: null, resetKey: props.resetKey };
+	}
 
 	static getDerivedStateFromError(error: Error): Partial<RenderErrorBoundaryState> {
 		return { error };
