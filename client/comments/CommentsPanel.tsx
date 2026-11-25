@@ -74,7 +74,7 @@ function ThreadRow({ active, children }: { active: boolean; children: ReactNode 
 	);
 }
 
-/** Header and thread list shared by the docked sidebar and the phone sheet. */
+/** Header and thread list shared by the desktop sidebar and the phone sheet. */
 export function CommentsPanel({
 	model,
 	variant,

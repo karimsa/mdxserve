@@ -1,8 +1,16 @@
 import { DiagramPreferences } from "../diagrams/Preferences";
-import { AnimatePresence, motion, useReducedMotion, useSpring } from "framer-motion";
+import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	type CSSProperties,
+} from "react";
 import { trpc } from "../api";
 import { DocView } from "../DocView";
 import { HomeView } from "../HomeView";
@@ -27,7 +35,6 @@ import { CommentsSheet } from "../comments/CommentsSheet";
 import { COMMENTS_SIDEBAR_WIDTH, CommentsSidebar } from "../comments/CommentsSidebar";
 import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
-import { dockMotion } from "../comments/motion";
 import { SelectionButton } from "../comments/SelectionButton";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -219,12 +226,15 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	const comments = useCommentsModel(route.kind === "doc" ? route.path : null, tocVersion);
 	const commentsPanel = useCommentsPanel();
-	// The sidebar is docked beside <main>; the table-of-contents rail is hidden while it is open.
+	// The sidebar slides in over the right-hand track, covering the table-of-contents rail.
 	const commentsOpen = comments.available && commentsPanel.open;
 	const commentsSidebarOpen = comments.available && commentsPanel.sidebarOpen;
 	const setCommentsOpen = commentsPanel.setOpen;
 	const closeComments = useCallback(() => setCommentsOpen(false), [setCommentsOpen]);
-	const reducedMotion = useReducedMotion();
+	// The sidebar is still on screen while it slides out, so the track it covers
+	// stays reserved until that exit finishes.
+	const [commentsTrackHeld, setCommentsTrackHeld] = useState(commentsSidebarOpen);
+	if (commentsSidebarOpen && !commentsTrackHeld) setCommentsTrackHeld(true);
 
 	useEffect(() => {
 		try {
@@ -441,33 +451,32 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 							</motion.div>
 						</AnimatePresence>
 					</div>
-					{/* The comments sidebar takes the rail's place. Both are width-animated
-					    wrappers, so the centred doc slides between the two layouts rather
-					    than jumping. `overflow-x-clip`, not `hidden`: it must not become
-					    the scroll container the sticky column inside sticks to. */}
-					<AnimatePresence initial={false}>
-						{route.kind === "doc" && !commentsSidebarOpen ? (
-							<motion.div
-								key="toc-rail"
-								data-print-hide
-								{...dockMotion("auto", reducedMotion)}
-								className="hidden shrink-0 self-stretch overflow-x-clip xl:block"
-							>
-								<TocRail path={route.path} version={tocVersion} />
-							</motion.div>
-						) : null}
-					</AnimatePresence>
-				</main>
-				<AnimatePresence initial={false}>
-					{route.kind === "doc" && commentsSidebarOpen ? (
-						<motion.div
-							key="comments-sidebar"
+					{/* The right-hand track, shared by the table-of-contents rail and the
+					    comments sidebar. It is as wide as the sidebar (less <main>'s own
+					    right padding), so the sidebar slides in over the rail and can never
+					    cover the doc. Where the rail already holds the track open (xl and
+					    up, in a doc with headings) opening the sidebar moves nothing;
+					    elsewhere the track opens in one step as the sidebar starts to
+					    slide and closes in one step once it has left. Inert while covered, or focus could land on hidden links. */}
+					{route.kind === "doc" ? (
+						<div
 							data-print-hide
-							{...dockMotion(COMMENTS_SIDEBAR_WIDTH, reducedMotion)}
-							className="shrink-0 self-stretch overflow-x-clip"
+							inert={commentsSidebarOpen}
+							style={{ "--comments-track": `${COMMENTS_SIDEBAR_WIDTH - 32}px` } as CSSProperties}
+							className={
+								"flex shrink-0 justify-end self-stretch " +
+								(commentsTrackHeld
+									? "min-w-[var(--comments-track)]"
+									: "xl:has-[[data-toc-rail]]:min-w-[var(--comments-track)]")
+							}
 						>
-							<CommentsSidebar model={comments} onClose={closeComments} />
-						</motion.div>
+							<TocRail path={route.path} version={tocVersion} />
+						</div>
+					) : null}
+				</main>
+				<AnimatePresence initial={false} onExitComplete={() => setCommentsTrackHeld(false)}>
+					{route.kind === "doc" && commentsSidebarOpen ? (
+						<CommentsSidebar key="comments-sidebar" model={comments} onClose={closeComments} />
 					) : null}
 				</AnimatePresence>
 			</div>
