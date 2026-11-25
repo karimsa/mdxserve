@@ -35,3 +35,26 @@ export interface CommentDraft {
 }
 
 export const draftAtom = atom<CommentDraft | null>(null);
+
+/**
+ * Replies and new comments being saved, by key (`pendingReplyKey`, `pendingDraftKey`).
+ * Shared, not component state: a thread or composer that remounts mid-save must
+ * still see its own send as pending, or the same text could be sent twice.
+ */
+export const pendingSendsAtom = atom<ReadonlySet<string>>(new Set<string>());
+
+export function pendingReplyKey(path: string, threadId: string): string {
+	return `reply:${path}:${threadId}`;
+}
+
+export function withPendingSend(
+	pending: ReadonlySet<string>,
+	key: string,
+	active: boolean,
+): ReadonlySet<string> {
+	if (pending.has(key) === active) return pending;
+	const next = new Set(pending);
+	if (active) next.add(key);
+	else next.delete(key);
+	return next;
+}

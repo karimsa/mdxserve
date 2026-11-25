@@ -1,8 +1,13 @@
 import { useAtom, useSetAtom, useStore } from "jotai";
-import { useState } from "react";
 import type { CommentsModel } from "./model";
 import { ReplyField } from "./ReplyField";
-import { activeThreadAtom, draftAtom, popoverThreadAtom } from "./state";
+import {
+	activeThreadAtom,
+	draftAtom,
+	pendingSendsAtom,
+	popoverThreadAtom,
+	withPendingSend,
+} from "./state";
 import { Avatar, QuoteText } from "./Thread";
 
 /** The new-comment composer: the selected quote and an empty field, in the popover or the sheet. */
@@ -21,7 +26,13 @@ export function DraftThread({
 	const [draft, setDraft] = useAtom(draftAtom);
 	const setActive = useSetAtom(activeThreadAtom);
 	const setPopover = useSetAtom(popoverThreadAtom);
-	const [pending, setPending] = useState(false);
+	// Shared, so a composer that remounts mid-save (the sheet closed and reopened)
+	// still shows its send as pending and cannot post the comment twice.
+	const [pendingSends, setPendingSends] = useAtom(pendingSendsAtom);
+	const pendingKey = draft ? `draft:${draft.nonce}` : "";
+	const pending = pendingSends.has(pendingKey);
+	const setPending = (active: boolean) =>
+		setPendingSends((previous) => withPendingSend(previous, pendingKey, active));
 	const store = useStore();
 	if (!draft) return null;
 
