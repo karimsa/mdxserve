@@ -50,3 +50,17 @@ describe("reply field", () => {
 		expect(canSend("hi", false, true)).toBe(false);
 	});
 });
+
+describe("pending sends", () => {
+	it("adds and removes a key, and returns the same set when nothing changes", async () => {
+		const { pendingReplyKey, withPendingSend } = await import("../../client/comments/state");
+		const key = pendingReplyKey("/docs/a.md", "t1");
+		expect(key).not.toBe(pendingReplyKey("/docs/b.md", "t1"));
+		const empty: ReadonlySet<string> = new Set();
+		expect(withPendingSend(empty, key, false)).toBe(empty);
+		const one = withPendingSend(empty, key, true);
+		expect(one.has(key)).toBe(true);
+		expect(withPendingSend(one, key, true)).toBe(one);
+		expect(withPendingSend(one, key, false).has(key)).toBe(false);
+	});
+});
