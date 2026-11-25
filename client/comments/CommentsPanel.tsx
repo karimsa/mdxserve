@@ -2,8 +2,9 @@ import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CommentThread } from "../../src/comments/schema";
 import { CtlButton } from "./CtlButton";
+import { DraftThread } from "./DraftThread";
 import type { CommentsModel } from "./model";
-import { activeThreadAtom } from "./state";
+import { activeThreadAtom, draftAtom } from "./state";
 import { Thread } from "./Thread";
 
 type Tab = "open" | "resolved";
@@ -59,7 +60,9 @@ export function CommentsPanel({
 }) {
 	const [tab, setTab] = useState<Tab>("open");
 	const activeId = useAtomValue(activeThreadAtom);
-	const { threads, views } = model;
+	// The composer is the sheet's: on desktop a new comment opens in the popover.
+	const draft = useAtomValue(draftAtom);
+	const { threads, views, readOnly } = model;
 	const sheet = variant === "sheet";
 
 	// Selecting a thread (a highlight click, say) shows the tab that holds it.
@@ -126,6 +129,11 @@ export function CommentsPanel({
 				/>
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin]">
+				{sheet && draft ? (
+					<div className="border-b border-border-default">
+						<DraftThread model={model} sidebarOpen={false} reserveTools={false} padded />
+					</div>
+				) : null}
 				<div className="divide-y divide-border-default">
 					{shown.map(renderThread)}
 					{tab === "open" && detached.length > 0 ? (
@@ -137,9 +145,11 @@ export function CommentsPanel({
 						</div>
 					) : null}
 				</div>
-				{tab === "open" && empty ? (
+				{tab === "open" && empty && !draft ? (
 					<p className="m-0 px-4 py-4 text-[length:var(--size-sm)] text-text-subtle">
-						No open comments.
+						{readOnly
+							? "No open comments."
+							: "No open comments. Select text in the doc to add one."}
 					</p>
 				) : null}
 				{tab === "resolved" && resolved.length === 0 ? (

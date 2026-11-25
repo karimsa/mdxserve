@@ -248,6 +248,9 @@ and when it was last edited.
 - The top bar toggles light and dark (it remembers your choice), prints, and exports.
 - Double-click a section, or use its pencil, to edit it in place; `⌘S` saves,
   `Esc` cancels. The edit is written back to the file on disk.
+- Select text and press the comment button to start a thread on it. Agents reply by editing the
+  file, since threads live in the doc's frontmatter. See
+  [comments](docs/advanced.md#comments).
 - Saving a file from your editor re-renders the open page, and a toast names what changed.
 - In a folder listing, select files to move them to the OS Trash (never deleted outright).
 - Diagrams and charts open full-screen; a flowchart's direction can be flipped without

@@ -1,8 +1,11 @@
 import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
+import { useAtom } from "jotai";
 import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { CtlButton } from "./CtlButton";
+import { DraftThread } from "./DraftThread";
 import { threadAtPoint } from "./highlights";
 import type { CommentsModel } from "./model";
+import { draftAtom } from "./state";
 import { Thread } from "./Thread";
 
 const GAP = 8;
@@ -107,19 +110,46 @@ function PopoverFrame({
 }
 
 /**
- * The popover for desktop with the sidebar closed: an existing thread, opened
- * from a highlight or a gutter counter.
+ * The popover for desktop with the sidebar closed: an existing thread (opened
+ * from a highlight or a gutter counter) or a new comment's composer. A new
+ * comment opens it whether or not the sidebar is open.
  */
-export function CommentsPopover({ model }: { model: CommentsModel }) {
-	const thread = model.threads.find((entry) => entry.id === model.popoverId);
+export function CommentsPopover({
+	model,
+	sidebarOpen,
+}: {
+	model: CommentsModel;
+	sidebarOpen: boolean;
+}) {
+	const [draft, setDraft] = useAtom(draftAtom);
+	const thread = draft ? undefined : model.threads.find((entry) => entry.id === model.popoverId);
 	const view = thread ? model.views.get(thread.id) : undefined;
-	const reference = useReference(view?.range ?? null, view?.scrollTarget ?? null);
+	const reference = useReference(
+		draft ? draft.range : (view?.range ?? null),
+		draft ? null : (view?.scrollTarget ?? null),
+	);
 
 	const close = model.closePopover;
+	const discardDraft = () => setDraft(null);
+	const writing = draft !== null && draft.body.trim() !== "";
 	// Read when a request finishes, so a newer popover is not dismissed by an older resolve.
 	const shownId = useRef(model.popoverId);
 	shownId.current = model.popoverId;
 
+	if (draft) {
+		return (
+			<PopoverFrame
+				reference={reference}
+				onClose={discardDraft}
+				keepOpen={writing}
+				focusFrame={false}
+				label="New comment"
+				tools={<CtlButton icon="x" label="Discard comment" onClick={discardDraft} />}
+			>
+				<DraftThread model={model} sidebarOpen={sidebarOpen} reserveTools padded={false} />
+			</PopoverFrame>
+		);
+	}
 	if (!thread || thread.resolved) return null;
 
 	return (

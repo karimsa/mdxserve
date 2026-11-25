@@ -23,10 +23,14 @@ function errorText(error: unknown): string {
 }
 
 export interface CommentActions {
+	/** Resolves to the id of the thread it created, or null when the write failed. */
+	addThread(anchor: CommentAnchorInput, body: string): Promise<string | null>;
 	reply(threadId: string, body: string): Promise<CommentThread[] | null>;
 	edit(threadId: string, messageId: string, body: string): Promise<CommentThread[] | null>;
 	setResolved(threadId: string, resolved: boolean): Promise<CommentThread[] | null>;
 }
+
+type CommentAnchorInput = { heading: string | null; block: string; quote: string };
 
 /**
  * Runs one comment mutation. The response carries the full thread list, which
@@ -73,6 +77,17 @@ function write(
 
 export function commentActions(path: string): CommentActions {
 	return {
+		addThread: async (anchor, body) => {
+			// The server names the thread it created; the returned list can also hold
+			// threads someone else added since this tab last fetched.
+			let created: string | null = null;
+			const threads = await write(path, async () => {
+				const result = await trpcClient.addCommentThread.mutate({ path, anchor, body });
+				created = result.threadId;
+				return result;
+			});
+			return threads ? created : null;
+		},
 		reply: (threadId, body) =>
 			write(path, () => trpcClient.addCommentReply.mutate({ path, threadId, body })),
 		edit: (threadId, messageId, body) =>

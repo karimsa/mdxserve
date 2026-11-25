@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import type { AnchorFields } from "./anchor";
 import type { ReplyDrafts } from "./drafts";
 
 /** Desktop sidebar open state; persisted. Takes the table-of-contents rail's place while open. */
@@ -23,6 +24,17 @@ export const popoverThreadAtom = atom<string | null>(null);
 
 /** Unsent reply text per thread; lives as long as the doc stays open. */
 export const replyDraftsAtom = atom<ReplyDrafts>({});
+
+export interface CommentDraft {
+	anchor: AnchorFields;
+	/** The selected text in the page, so the popover can sit under it. */
+	range: Range | null;
+	body: string;
+	/** Bumped on every press of the selection button so the composer refocuses. */
+	nonce: number;
+}
+
+export const draftAtom = atom<CommentDraft | null>(null);
 
 /**
  * Replies and new comments being saved, by key (`pendingReplyKey`, `pendingDraftKey`).

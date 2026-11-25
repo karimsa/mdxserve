@@ -1,9 +1,12 @@
 import {
+	captureAnchor,
 	headingKey,
 	mapNormalizedRange,
 	normalizeText,
 	resolveAnchor,
 	type AnchorFields,
+	type BlockDescription,
+	type NodePoint,
 	type Resolution,
 	type ResolveIndex,
 } from "./anchor";
@@ -75,6 +78,76 @@ export function collectDoc(article: Element): DomDoc {
 
 export function findArticle(root: ParentNode = document): Element | null {
 	return root.querySelector("article.mdx-prose");
+}
+
+function describeBlocks(doc: DomDoc): BlockDescription[] {
+	return doc.blocks.map((block) => ({
+		heading: block.section === -1 ? null : doc.headings[block.section].key,
+		nodes: block.nodes.map((node) => node.data),
+	}));
+}
+
+/** Index of `node` within the block's text nodes for a range boundary; see `boundaryPoint`. */
+function boundaryPoint(
+	block: DomBlock,
+	container: Node,
+	offset: number,
+	edge: "start" | "end",
+): NodePoint | null {
+	const direct = block.nodes.indexOf(container as Text);
+	if (direct !== -1) return { node: direct, offset };
+
+	const probe = block.el.ownerDocument.createRange();
+	probe.setStart(container, offset);
+	probe.collapse(true);
+	if (edge === "start") {
+		// First text node that begins at or after the boundary.
+		for (let node = 0; node < block.nodes.length; node++) {
+			if (probe.comparePoint(block.nodes[node], 0) >= 0) return { node, offset: 0 };
+		}
+		return null;
+	}
+	// Last text node that begins before the boundary, taken whole.
+	for (let node = block.nodes.length - 1; node >= 0; node--) {
+		if (probe.comparePoint(block.nodes[node], 0) < 0) {
+			return { node, offset: block.nodes[node].length };
+		}
+	}
+	return null;
+}
+
+/** The anchor for the live selection, or null when it cannot carry a comment. */
+export function captureSelection(
+	selection: Selection | null,
+	article: Element | null = findArticle(),
+): AnchorFields | null {
+	if (!selection || selection.rangeCount === 0 || !article) return null;
+	const range = selection.getRangeAt(0);
+	if (range.collapsed) return null;
+	if (!article.contains(range.startContainer)) return null;
+
+	const startElement =
+		range.startContainer instanceof Element
+			? range.startContainer
+			: range.startContainer.parentElement;
+	if (!startElement || startElement.closest("[data-editing]")) return null;
+	const blockElement = startElement.closest(BLOCK_SELECTOR);
+	if (!blockElement) return null;
+
+	const doc = collectDoc(article);
+	const blockIndex = doc.blocks.findIndex((block) => block.el === blockElement);
+	if (blockIndex === -1) return null;
+	const block = doc.blocks[blockIndex];
+
+	const start = boundaryPoint(block, range.startContainer, range.startOffset, "start");
+	if (!start) return null;
+	// An end beyond the block clips to the block's last text node.
+	const endsInside = blockElement.contains(range.endContainer);
+	const end = endsInside
+		? boundaryPoint(block, range.endContainer, range.endOffset, "end")
+		: boundaryPoint(block, blockElement, blockElement.childNodes.length, "end");
+	if (!end) return null;
+	return captureAnchor(describeBlocks(doc), { blockIndex, start, end });
 }
 
 export function resolveIndexOf(doc: DomDoc): ResolveIndex {

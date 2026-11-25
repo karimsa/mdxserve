@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { TRANSITIONS } from "../motion";
 import { CommentsPanel } from "./CommentsPanel";
 import type { CommentsModel } from "./model";
+import { draftAtom } from "./state";
 
 /** Phone-width panel: rises from the bottom, 70% of the screen at most, list scrolls inside. Same header and threads as the sidebar. */
 export function CommentsSheet({
@@ -14,14 +16,17 @@ export function CommentsSheet({
 	open: boolean;
 	onClose: () => void;
 }) {
+	const hasDraft = useAtomValue(draftAtom) !== null;
+
+	// Escape discards a draft first (SelectionButton); the sheet closes on the next one.
 	useEffect(() => {
-		if (!open) return;
+		if (!open || hasDraft) return;
 		function onKeyDown(event: KeyboardEvent) {
 			if (event.key === "Escape") onClose();
 		}
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [open, onClose]);
+	}, [open, hasDraft, onClose]);
 
 	// Reserve scroll room so text at the end of the doc can be scrolled above the sheet.
 	useEffect(() => {

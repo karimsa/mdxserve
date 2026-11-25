@@ -99,6 +99,46 @@ export function mapNormalizedRange(
 	return { start: first, end: { node: last.node, offset: last.offset + 1 } };
 }
 
+// ── capture ─────────────────────────────────────────────────────────────────
+
+export interface BlockDescription {
+	/** Heading text of the block's section (already `headingKey`ed), or null before the first heading. */
+	heading: string | null;
+	/** The text-node strings of the block, in document order. */
+	nodes: string[];
+}
+
+export interface SelectionDescription {
+	blockIndex: number;
+	start: NodePoint;
+	/** Null clips the selection to the end of the block. */
+	end: NodePoint | null;
+}
+
+function rawOffset(nodes: readonly string[], point: NodePoint): number {
+	let total = 0;
+	for (let node = 0; node < point.node && node < nodes.length; node++) total += nodes[node].length;
+	return total + point.offset;
+}
+
+/** The anchor for a selection, clipped to the block holding its start. Null when it has no text. */
+export function captureAnchor(
+	blocks: readonly BlockDescription[],
+	selection: SelectionDescription,
+): AnchorFields | null {
+	const block = blocks[selection.blockIndex];
+	if (!block) return null;
+	const raw = block.nodes.join("");
+	const startRaw = rawOffset(block.nodes, selection.start);
+	const endRaw = selection.end ? rawOffset(block.nodes, selection.end) : raw.length;
+	if (endRaw <= startRaw) return null;
+
+	const quote = normalizeText(raw.slice(startRaw, endRaw)).slice(0, MAX_ANCHOR_TEXT).trimEnd();
+	if (!quote) return null;
+	const blockText = normalizeText(raw).slice(-MAX_ANCHOR_TEXT).trimStart();
+	return { heading: block.heading, block: blockText, quote };
+}
+
 // ── resolve ─────────────────────────────────────────────────────────────────
 
 export interface ResolveBlock {

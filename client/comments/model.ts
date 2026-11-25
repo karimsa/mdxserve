@@ -13,6 +13,7 @@ import {
 	activeThreadAtom,
 	commentsOpenAtom,
 	commentsSheetOpenAtom,
+	draftAtom,
 	popoverThreadAtom,
 	replyDraftsAtom,
 } from "./state";
@@ -87,6 +88,7 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	const editing = useAtomValue(openSectionAtom) !== null;
 	const [views, setViews] = useState<ReadonlyMap<string, ThreadView>>(new Map());
 	const [activeId, setActiveId] = useAtom(activeThreadAtom);
+	const setDraft = useSetAtom(draftAtom);
 	const setSheetOpen = useSetAtom(commentsSheetOpenAtom);
 	const setRailOpen = useSetAtom(commentsOpenAtom);
 	const [popoverThread, setPopoverThread] = useAtom(popoverThreadAtom);
@@ -97,10 +99,11 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	// Another doc starts clean.
 	useEffect(() => {
 		setActiveId(null);
+		setDraft(null);
 		setSheetOpen(false);
 		setPopoverThread(null);
 		setReplyDrafts({});
-	}, [path, setActiveId, setSheetOpen, setPopoverThread, setReplyDrafts]);
+	}, [path, setActiveId, setDraft, setSheetOpen, setPopoverThread, setReplyDrafts]);
 
 	// Bumped when a tab panel is shown or hidden, so anchors re-resolve.
 	const [visibility, setVisibility] = useState(0);

@@ -47,6 +47,79 @@ Malformed metadata produces `frontmatter-metadata` warnings from `mdxserve valid
 
 The frontmatter block must be at the beginning of the document. A YAML example in a code fence or a later thematic break does not declare page metadata. Expressions and imported React components do not compute frontmatter values. Native JSX head tags can still render in the browser, but they are not extracted into the initial response by this feature. Avoid mixing native head declarations with frontmatter for the same fields.
 
+## Comments
+
+On a full-permission server, select text inside one block of a page and a comment button
+appears next to the selection. Press it, type, and submit; the text stays highlighted. Threads
+are listed in a sidebar on the right on screens 768 px and wider, and in a sheet that rises from
+the bottom on narrower ones. Each thread shows a quote of its text and its messages, labelled as
+written by a human or by an agent. You can reply, edit a message a human wrote, resolve a thread,
+switch the panel to Resolved, and reopen one. A selection that crosses blocks is clipped to the
+block where it starts. While a section editor is open, the controls that write are disabled.
+`.md` and `.mdx` behave the same.
+
+Threads are stored in the doc's leading frontmatter under `comments`, so they travel with the
+file and an agent answers by editing it. Page metadata ignores the key.
+
+```yaml
+---
+title: Getting started
+comments:
+  - id: k3J9xQ2a
+    anchor:
+      heading: Installation
+      block: Run the installer, then restart your shell so the new PATH entry is picked up.
+      quote: restart your shell
+    resolved: false
+    messages:
+      - id: Zp41mD0c
+        author: human
+        body: Is a restart still needed on fish?
+        createdAt: 2026-11-24T19:02:11.000Z
+---
+```
+
+| Field                   | Rule                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `id` (thread, message)  | 1 to 64 characters of letters, digits, `_` and `-`; unique in the doc / in the thread |
+| `anchor.heading`        | 1 to 300 characters, or `null` before the first heading                               |
+| `anchor.block`          | 1 to 500 characters                                                                   |
+| `anchor.quote`          | 1 to 500 characters                                                                   |
+| `resolved`              | `true` or `false`; `false` when absent                                                |
+| `messages`              | 1 to 100 entries                                                                      |
+| `author`                | `human` or `agent`                                                                    |
+| `body`                  | 1 to 4000 characters                                                                  |
+| `createdAt`, `editedAt` | ISO 8601 date-time, optional                                                          |
+
+The anchor strings hold rendered text with whitespace collapsed to single spaces. `heading` is
+the nearest heading, `block` is the last 500 characters of the block's text, and `quote` is the
+highlighted words. When the doc changes, a thread is placed in this order:
+
+| State           | When                                                 | Shown                                 |
+| --------------- | ---------------------------------------------------- | ------------------------------------- |
+| Exact text      | The block is found and contains the quote            | The quote is highlighted              |
+| Whole block     | The block is found but the quote is not in it        | The whole block is highlighted        |
+| Section heading | A matching heading exists but the block is not found | Attached to the heading, no highlight |
+| Detached        | No heading has that text                             | Listed last under "Detached"          |
+
+If a quote appears twice in a block, the first occurrence is highlighted. Renaming a heading
+detaches the threads under it.
+
+Frontmatter is limited to 64 KiB, shared with page metadata. A comment write that would exceed it
+is refused; that holds roughly 50 to 80 threads, resolved ones included, so remove old resolved
+threads from the file by hand. A write is also refused when the existing frontmatter is not valid
+YAML. The first server write re-serializes the frontmatter: keys, values and YAML comments are
+kept, but quoting and indentation can change. Body lines are never touched.
+
+Restricted servers show threads read-only, with no control that adds, edits, replies to or
+resolves one. Comments are public wherever the doc is served, and they are committed with the
+file. They are not included in HTML or PDF exports.
+
+`mdxserve validate` reports a malformed `comments` entry as a `frontmatter-comments` warning and
+a thread whose heading or block cannot be found as a `comment-anchor` warning. The anchor check
+reads the Markdown tree, so text a component produces from props is invisible to it. Both are
+warnings and never fail validation.
+
 ## One server per user
 
 Only one `mdxserve serve` runs per user at a time. On start it takes a pid lockfile at
@@ -192,14 +265,14 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 
 ### Verbs
 
-| Verb                                   | What it does                                                                                                                                                                                                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), and render-time errors. Exits 1 on any error |
-| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                            |
-| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                             |
-| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                              |
-| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                          |
-| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                            |
+| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
+| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                  |
+| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                   |
+| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                    |
+| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                |
+| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                  |
 
 ### What happens with no server, or no roots
 
@@ -215,7 +288,7 @@ The `--json` result carries `rendered` next to `ok`; the text output prints `Ren
 is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
 back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
 the page. `rendered: false` means only the static checks ran (compile, unknown component,
-unknown prop, mermaid chart fence). Even with `rendered: true`, errors thrown inside `useEffect` /
+unknown prop, mermaid chart fence, comments). Even with `rendered: true`, errors thrown inside `useEffect` /
 `useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
 
 A `pie`, `xychart-beta`, `quadrantChart`, or `sankey-beta` mermaid fence is always an `error`

@@ -22,11 +22,12 @@ import {
 import type { ExportFormat } from "../../src/export/service";
 import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
-import { CommentsSheet } from "../comments/CommentsSheet";
 import { CommentsPopover } from "../comments/CommentsPopover";
+import { CommentsSheet } from "../comments/CommentsSheet";
 import { CommentsSidebar } from "../comments/CommentsSidebar";
 import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
+import { SelectionButton } from "../comments/SelectionButton";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
 import { Footer } from "./Footer";
@@ -452,9 +453,10 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 			{route.kind === "doc" && commentsPanel.isDesktop ? (
 				<>
 					{comments.available && !commentsSidebarOpen ? <GutterCounters model={comments} /> : null}
-					<CommentsPopover model={comments} />
+					<CommentsPopover model={comments} sidebarOpen={commentsSidebarOpen} />
 				</>
 			) : null}
+			{route.kind === "doc" && !comments.readOnly ? <SelectionButton model={comments} /> : null}
 			<SearchDialog
 				open={searchOpen}
 				query={query}

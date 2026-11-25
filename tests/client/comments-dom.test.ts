@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { headingKey } from "../../client/comments/anchor";
-import { collectDoc, resolveInDom, resolveIndexOf } from "../../client/comments/dom";
+import { headingKey, resolveAnchor } from "../../client/comments/anchor";
+import {
+	captureSelection,
+	collectDoc,
+	resolveInDom,
+	resolveIndexOf,
+} from "../../client/comments/dom";
 
 let article: HTMLElement;
 
@@ -24,6 +29,16 @@ afterEach(() => {
 	document.body.innerHTML = "";
 	window.getSelection()?.removeAllRanges();
 });
+
+function select(startNode: Node, startOffset: number, endNode: Node, endOffset: number) {
+	const range = document.createRange();
+	range.setStart(startNode, startOffset);
+	range.setEnd(endNode, endOffset);
+	const selection = window.getSelection() as Selection;
+	selection.removeAllRanges();
+	selection.addRange(range);
+	return selection;
+}
 
 describe("collectDoc hidden content", () => {
 	it("skips content inside inert or aria-hidden containers", () => {
@@ -69,6 +84,63 @@ describe("collectDoc", () => {
 	});
 });
 
+describe("captureSelection", () => {
+	it("captures across inline elements within a block", () => {
+		const run = document.getElementById("run") as HTMLElement;
+		const installer = run.querySelector("code")?.firstChild as Text;
+		const restart = run.querySelector("strong")?.firstChild as Text;
+		const anchor = captureSelection(select(installer, 2, restart, 4), article);
+		expect(anchor).toEqual({
+			heading: "Installation",
+			block: "Run the installer, then restart your shell.",
+			quote: "staller, then rest",
+		});
+	});
+
+	it("clips a selection that ends in a later block", () => {
+		const run = document.getElementById("run") as HTMLElement;
+		const cell = document.getElementById("cell")?.firstChild as Text;
+		const anchor = captureSelection(select(run.firstChild as Text, 4, cell, 4), article);
+		expect(anchor?.quote).toBe("the installer, then restart your shell.");
+		expect(anchor?.heading).toBe("Installation");
+	});
+
+	it("uses a null heading before the first heading", () => {
+		const intro = document.getElementById("intro")?.firstChild as Text;
+		expect(captureSelection(select(intro, 0, intro, 6), article)?.heading).toBeNull();
+	});
+
+	it("captures a heading block under itself", () => {
+		const heading = document.getElementById("install")?.firstChild as Text;
+		expect(captureSelection(select(heading, 0, heading, 4), article)).toEqual({
+			heading: "Installation",
+			block: "Installation",
+			quote: "Inst",
+		});
+	});
+
+	it("refuses collapsed, outside, editing and non-block selections", () => {
+		const intro = document.getElementById("intro")?.firstChild as Text;
+		expect(captureSelection(select(intro, 2, intro, 2), article)).toBeNull();
+		const outside = document.createElement("p");
+		outside.textContent = "outside";
+		document.body.append(outside);
+		expect(
+			captureSelection(
+				select(outside.firstChild as Text, 0, outside.firstChild as Text, 3),
+				article,
+			),
+		).toBeNull();
+		const editing = document.getElementById("editing")?.firstChild as Text;
+		expect(captureSelection(select(editing, 0, editing, 3), article)).toBeNull();
+		// A start between blocks is in no block.
+		expect(captureSelection(select(article, 0, intro, 3), article)).toBeNull();
+		// A parent list item is not innermost.
+		const outer = document.getElementById("outer")?.firstChild as Text;
+		expect(captureSelection(select(outer, 0, outer, 3), article)).toBeNull();
+	});
+});
+
 describe("resolveInDom", () => {
 	it("builds a range over the quote, across inline elements", () => {
 		const doc = collectDoc(article);
@@ -81,6 +153,19 @@ describe("resolveInDom", () => {
 		expect(result.resolution.state).toBe("exact");
 		expect(result.range?.toString()).toBe("then restart");
 		expect(result.scrollTarget?.id).toBe("run");
+	});
+
+	it("round-trips a captured selection", () => {
+		const run = document.getElementById("run") as HTMLElement;
+		const installer = run.querySelector("code")?.firstChild as Text;
+		const restart = run.querySelector("strong")?.firstChild as Text;
+		const anchor = captureSelection(select(installer, 0, restart, 7), article);
+		expect(anchor).not.toBeNull();
+		if (!anchor) return;
+		const doc = collectDoc(article);
+		const result = resolveInDom(doc, resolveIndexOf(doc), anchor);
+		expect(result.range?.toString()).toBe("installer, then restart");
+		expect(resolveAnchor(anchor, resolveIndexOf(doc)).state).toBe("exact");
 	});
 
 	it("covers the whole block, the section heading, or nothing", () => {

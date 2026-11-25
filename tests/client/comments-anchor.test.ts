@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+	captureAnchor,
 	headingKey,
 	mapNormalizedRange,
 	normalizeText,
 	normalizeWithMap,
 	resolveAnchor,
 	resolutionPosition,
+	type BlockDescription,
 	type ResolveIndex,
 } from "../../client/comments/anchor";
 
@@ -56,6 +58,77 @@ describe("mapNormalizedRange", () => {
 		expect(mapNormalizedRange(["abc"], 1, 1)).toBeNull();
 		expect(mapNormalizedRange(["abc"], 0, 4)).toBeNull();
 		expect(mapNormalizedRange([], 0, 1)).toBeNull();
+	});
+});
+
+describe("captureAnchor", () => {
+	const blocks: BlockDescription[] = [
+		{ heading: null, nodes: ["Intro text."] },
+		{ heading: "Installation", nodes: ["Run the installer, ", "then  restart", " your shell."] },
+	];
+
+	it("captures heading, block and quote", () => {
+		const anchor = captureAnchor(blocks, {
+			blockIndex: 1,
+			start: { node: 1, offset: 0 },
+			end: { node: 1, offset: 13 },
+		});
+		expect(anchor).toEqual({
+			heading: "Installation",
+			block: "Run the installer, then restart your shell.",
+			quote: "then restart",
+		});
+	});
+
+	it("clips a selection that runs past the block", () => {
+		const anchor = captureAnchor(blocks, {
+			blockIndex: 1,
+			start: { node: 0, offset: 8 },
+			end: null,
+		});
+		expect(anchor?.quote).toBe("installer, then restart your shell.");
+	});
+
+	it("keeps a null heading", () => {
+		const anchor = captureAnchor(blocks, {
+			blockIndex: 0,
+			start: { node: 0, offset: 0 },
+			end: { node: 0, offset: 5 },
+		});
+		expect(anchor?.heading).toBeNull();
+	});
+
+	it("returns null for whitespace-only or empty selections", () => {
+		expect(
+			captureAnchor([{ heading: null, nodes: ["a   b"] }], {
+				blockIndex: 0,
+				start: { node: 0, offset: 1 },
+				end: { node: 0, offset: 4 },
+			}),
+		).toBeNull();
+		expect(
+			captureAnchor(blocks, {
+				blockIndex: 0,
+				start: { node: 0, offset: 3 },
+				end: { node: 0, offset: 3 },
+			}),
+		).toBeNull();
+		expect(
+			captureAnchor(blocks, { blockIndex: 9, start: { node: 0, offset: 0 }, end: null }),
+		).toBeNull();
+	});
+
+	it("keeps the last 500 characters of a long block and cuts a long quote", () => {
+		const long = "word ".repeat(300).trim();
+		const anchor = captureAnchor([{ heading: null, nodes: [long] }], {
+			blockIndex: 0,
+			start: { node: 0, offset: 0 },
+			end: null,
+		});
+		expect(anchor?.block.length).toBeLessThanOrEqual(500);
+		expect(long.endsWith(anchor?.block ?? "?")).toBe(true);
+		expect(anchor?.quote.length).toBeLessThanOrEqual(500);
+		expect(long.startsWith(anchor?.quote ?? "?")).toBe(true);
 	});
 });
 
