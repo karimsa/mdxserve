@@ -444,3 +444,158 @@ describe("DocsService.saveSection", () => {
 		expect((await fs.stat(abs)).mode).toBe(before);
 	});
 });
+
+describe("DocsService.updateFrontmatter", () => {
+	const setYaml = (yaml: string) => () => ({ kind: "write" as const, yaml });
+
+	it("inserts frontmatter into a doc without any, leaving the body bytes alone", async () => {
+		const result = await service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n") });
+		expect(result).toMatchObject({ kind: "ok", source: `---\na: 1\n---\n${ORIGINAL}` });
+		expect(await fs.readFile(abs, "utf8")).toBe(`---\na: 1\n---\n${ORIGINAL}`);
+		if (result.kind === "ok") expect(result.version).toBe(versionOf(`---\na: 1\n---\n${ORIGINAL}`));
+	});
+
+	it("inserts after a BOM and uses the file's CRLF line endings", async () => {
+		await fs.writeFile(abs, "﻿first\r\nsecond", "utf8");
+		await service.updateFrontmatter({ path: abs, update: setYaml("a: 1\nb: 2\n") });
+		expect(await fs.readFile(abs, "utf8")).toBe("﻿---\r\na: 1\r\nb: 2\r\n---\r\nfirst\r\nsecond");
+	});
+
+	it("replaces existing YAML, including an empty block", async () => {
+		await fs.writeFile(abs, "---\nold: 1\nmore: 2\n---\nBody\n", "utf8");
+		await service.updateFrontmatter({ path: abs, update: setYaml("new: 1\n") });
+		expect(await fs.readFile(abs, "utf8")).toBe("---\nnew: 1\n---\nBody\n");
+		await fs.writeFile(abs, "---\n---\nBody", "utf8");
+		await service.updateFrontmatter({ path: abs, update: setYaml("x: 1\n") });
+		expect(await fs.readFile(abs, "utf8")).toBe("---\nx: 1\n---\nBody");
+	});
+
+	it("passes the current YAML (or undefined) to update and honours abort", async () => {
+		const seen: (string | undefined)[] = [];
+		const aborted = await service.updateFrontmatter({
+			path: abs,
+			update: (yaml) => {
+				seen.push(yaml);
+				return { kind: "abort", value: "stop" };
+			},
+		});
+		expect(aborted).toEqual({ kind: "aborted", value: "stop" });
+		await fs.writeFile(abs, "---\nk: v\n---\nB\n", "utf8");
+		await service.updateFrontmatter({
+			path: abs,
+			update: (yaml) => {
+				seen.push(yaml);
+				return { kind: "abort", value: 0 };
+			},
+		});
+		expect(seen).toEqual([undefined, "k: v"]);
+		expect(await fs.readFile(abs, "utf8")).toBe("---\nk: v\n---\nB\n");
+	});
+
+	it("measures the YAML as written, so CRLF expansion cannot exceed the limit", async () => {
+		const yaml = "key: 12345678\n".repeat(4500);
+		expect(Buffer.byteLength(yaml)).toBeLessThan(64 * 1024);
+		const original = "first\r\nsecond\r\n";
+		await fs.writeFile(abs, original, "utf8");
+		const result = await service.updateFrontmatter({ path: abs, update: setYaml(yaml) });
+		expect(result.kind).toBe("too-large");
+		expect(await fs.readFile(abs, "utf8")).toBe(original);
+	});
+
+	it("reports not-found and too-large without writing", async () => {
+		expect(
+			(
+				await service.updateFrontmatter({
+					path: path.join(root, "nope.md"),
+					update: setYaml("a: 1\n"),
+				})
+			).kind,
+		).toBe("not-found");
+		expect(
+			(
+				await service.updateFrontmatter({
+					path: abs,
+					update: setYaml(`a: ${"x".repeat(65 * 1024)}\n`),
+				})
+			).kind,
+		).toBe("too-large");
+		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
+	});
+
+	it("starts again when the file changes during the write, then succeeds", async () => {
+		let calls = 0;
+		const spy = vi.spyOn(fs, "chmod").mockImplementation(async (...args) => {
+			if (++calls === 1) await fs.writeFile(abs, "# Changed\n", "utf8");
+			return (await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).chmod(
+				...args,
+			);
+		});
+		try {
+			const result = await service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n") });
+			expect(result.kind).toBe("ok");
+			expect(await fs.readFile(abs, "utf8")).toBe("---\na: 1\n---\n# Changed\n");
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	it("returns busy after three attempts that all lose a race", async () => {
+		let count = 0;
+		const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+		const spy = vi.spyOn(fs, "chmod").mockImplementation(async (...args) => {
+			await fs.writeFile(abs, `# Changed ${++count}\n`, "utf8");
+			return actual.chmod(...args);
+		});
+		try {
+			expect((await service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n") })).kind).toBe(
+				"busy",
+			);
+			expect(count).toBe(3);
+			expect(await fs.readFile(abs, "utf8")).toBe("# Changed 3\n");
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	it("writes through a symlink and keeps the file mode", async () => {
+		const link = path.join(root, "alias.md");
+		await fs.symlink(abs, link);
+		await fs.chmod(abs, 0o640);
+		const before = (await fs.stat(abs)).mode;
+		await service.updateFrontmatter({ path: link, update: setYaml("a: 1\n") });
+		expect((await fs.lstat(link)).isSymbolicLink()).toBe(true);
+		expect((await fs.stat(abs)).mode).toBe(before);
+		expect(await fs.readFile(abs, "utf8")).toBe(`---\na: 1\n---\n${ORIGINAL}`);
+	});
+
+	it("throws rather than write YAML that would swallow body lines", async () => {
+		await expect(
+			service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n---\nsneaky: true\n") }),
+		).rejects.toThrow();
+		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
+	});
+
+	it("serializes with saveSection through the shared lock", async () => {
+		const [saved, updated] = await Promise.all([
+			service.saveSection({
+				path: abs,
+				startLine: 3,
+				endLine: 3,
+				version: versionOf(ORIGINAL),
+				markdown: "edited",
+			}),
+			service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n") }),
+		]);
+		// Which call takes the lock first is not fixed. Either way the frontmatter
+		// write lands, and the section save either lands too or is refused as
+		// stale: never a lost update and never a half-written file.
+		expect(updated.kind).toBe("ok");
+		const text = await fs.readFile(abs, "utf8");
+		if (saved.kind === "ok") {
+			expect(text).toBe("---\na: 1\n---\n# Title\n\nedited\n\nline five\n");
+		} else {
+			expect(saved.kind).toBe("stale");
+			expect(text).toBe(`---\na: 1\n---\n${ORIGINAL}`);
+		}
+	});
+});

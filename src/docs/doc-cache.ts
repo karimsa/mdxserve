@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { bodyLines } from "./frontmatter.js";
+import { bodyLines, leadingFrontmatter } from "./frontmatter.js";
+import { MAX_METADATA_PREFIX_BYTES } from "./metadata.js";
 import path from "node:path";
 import { toHtml } from "hast-util-to-html";
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -21,6 +22,23 @@ export interface CachedDoc {
 }
 
 const MAX_READ_BYTES = 64 * 1024;
+// A leading frontmatter block can take up to MAX_METADATA_PREFIX_BYTES, so the
+// read window is widened by that much; the text is then cut back to the
+// frontmatter plus MAX_READ_BYTES, so a doc with full frontmatter still has
+// 64 KiB of body indexed and a doc without any is cut exactly as before.
+const MAX_READ_WINDOW_BYTES = MAX_READ_BYTES + MAX_METADATA_PREFIX_BYTES;
+
+/** Cut a read window to its frontmatter (if any) plus MAX_READ_BYTES of body. */
+function clipToBody(buffer: Buffer): Buffer {
+	const text = buffer.toString("utf8");
+	const frontmatter = leadingFrontmatter(text);
+	let headBytes = 0;
+	if (frontmatter) {
+		const lines = text.match(/[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$/g) ?? [];
+		headBytes = Buffer.byteLength(lines.slice(0, frontmatter.endLine).join(""), "utf8");
+	}
+	return buffer.subarray(0, Math.min(buffer.length, headBytes + MAX_READ_BYTES));
+}
 
 function hasMdxNode(node: Nodes): boolean {
 	if (node.type.startsWith("mdx")) return true;
@@ -105,10 +123,10 @@ export class DocCache {
 			const fd = fs.openSync(absPath, "r");
 			try {
 				const stat = fs.fstatSync(fd);
-				const size = Math.min(stat.size, MAX_READ_BYTES);
+				const size = Math.min(stat.size, MAX_READ_WINDOW_BYTES);
 				const buffer = Buffer.alloc(size);
 				fs.readSync(fd, buffer, 0, size, 0);
-				raw = buffer.toString("utf8");
+				raw = clipToBody(buffer).toString("utf8");
 			} finally {
 				fs.closeSync(fd);
 			}
