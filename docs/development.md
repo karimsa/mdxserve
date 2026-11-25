@@ -99,6 +99,12 @@ git push origin v0.1.1
 The workflow checks that the tag matches `package.json`, runs the same checks as
 `verify-pr.yml`, builds, runs `yarn smoke`, and publishes.
 
+A prerelease version such as `0.6.0-rc.1` (tag `v0.6.0-rc.1`) is a release candidate. The
+workflow publishes it to npm under the `next` dist-tag, so `npm install @karimsa/mdxserve`
+still resolves to the latest stable release and `npm install @karimsa/mdxserve@next` gets the
+candidate. A candidate does not promote the site and gets no `CHANGELOG.md` entry; its changes
+are listed under the stable release that follows.
+
 ## Tests
 
 Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`,

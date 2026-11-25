@@ -131,3 +131,22 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
    (`git push origin v0.5.0`). Create and push the release tag only after the PR merges.
 4. Verify the tag-triggered Release workflow succeeds. It publishes the package to
    npm and then promotes the site deployment.
+
+### Release candidates
+
+A release candidate is an npm-only release: it is published under the `next` dist-tag and
+never changes the live site or `CHANGELOG.md`.
+
+1. Create a release branch from the latest `origin/main` and set the version explicitly, for
+   example `npm version 0.6.0-rc.1 --no-git-tag-version`. For a later candidate of the same
+   release, `npm version prerelease --no-git-tag-version` gives `0.6.0-rc.2`. Do not run
+   `yarn changelog`: it accepts stable versions only.
+2. Commit the version with the required `Co-authored-by` trailer and open a PR titled only
+   with the version number (`0.6.0-rc.1`). The changelog generator omits these commits.
+3. After the PR merges, tag the merged commit to match the package version
+   (`git tag -a v0.6.0-rc.1 -m 'Release 0.6.0-rc.1'`) and push the tag.
+4. Verify the Release workflow publishes to npm and skips the site promotion job. Install a
+   candidate with `npm install @karimsa/mdxserve@next`.
+5. For the stable release, follow the steps above with `npm version 0.6.0 --no-git-tag-version`.
+   `yarn changelog 0.6.0` lists every change since the previous stable release, including
+   those that shipped in candidates.
