@@ -31,7 +31,9 @@ if (
 	process.argv.length > 3 ||
 	(requestedVersion && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(requestedVersion))
 ) {
-	throw new Error("Pass a release version such as 0.5.0.");
+	throw new Error(
+		"Pass a stable release version such as 0.5.0. Release candidates get no changelog entry; their changes appear under the stable release that follows.",
+	);
 }
 
 const targetTag = requestedVersion ? `v${requestedVersion}` : releaseTags.at(-1);

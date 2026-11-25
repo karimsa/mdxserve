@@ -58,12 +58,22 @@ jobs:
       - name: Check site deployment promotion safety
         run: node --test site/deployment/*.test.mjs
 
+      # A prerelease version such as 0.6.0-rc.1 goes out under the "next" dist-tag, so a
+      # plain `npm install @karimsa/mdxserve` keeps resolving to the latest stable release.
+      # npm refuses to publish a prerelease without an explicit tag.
       - name: Publish
-        run: npm publish --provenance --access public
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          case "$version" in
+            *-*) npm publish --provenance --access public --tag next ;;
+            *) npm publish --provenance --access public ;;
+          esac
 
   promote-site:
     name: Promote site on Vercel
     needs: publish
+    # Release candidates are npm-only: a prerelease tag (v0.6.0-rc.1) never moves the live site.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     # Allow 15 minutes to find the deployment, 15 minutes to rebuild it, and freshness/promotion time.
     timeout-minutes: 45
