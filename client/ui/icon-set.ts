@@ -50,6 +50,7 @@ import Info from "lucide-react/dist/esm/icons/info.mjs";
 import Lightbulb from "lucide-react/dist/esm/icons/lightbulb.mjs";
 import ListChecks from "lucide-react/dist/esm/icons/list-checks.mjs";
 import Maximize from "lucide-react/dist/esm/icons/maximize.mjs";
+import MessageSquare from "lucide-react/dist/esm/icons/message-square.mjs";
 import Minus from "lucide-react/dist/esm/icons/minus.mjs";
 import Moon from "lucide-react/dist/esm/icons/moon.mjs";
 import OctagonAlert from "lucide-react/dist/esm/icons/octagon-alert.mjs";
@@ -57,9 +58,11 @@ import PanelLeft from "lucide-react/dist/esm/icons/panel-left.mjs";
 import Pencil from "lucide-react/dist/esm/icons/pencil.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles.mjs";
 import Sun from "lucide-react/dist/esm/icons/sun.mjs";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2.mjs";
 import TriangleAlert from "lucide-react/dist/esm/icons/triangle-alert.mjs";
+import User from "lucide-react/dist/esm/icons/user.mjs";
 import XIcon from "lucide-react/dist/esm/icons/x.mjs";
 
 export const staticIcons: Record<string, LucideIcon> = {
@@ -88,6 +91,7 @@ export const staticIcons: Record<string, LucideIcon> = {
 	lightbulb: Lightbulb,
 	"list-checks": ListChecks,
 	maximize: Maximize,
+	"message-square": MessageSquare,
 	minus: Minus,
 	moon: Moon,
 	"octagon-alert": OctagonAlert,
@@ -95,8 +99,10 @@ export const staticIcons: Record<string, LucideIcon> = {
 	pencil: Pencil,
 	plus: Plus,
 	search: Search,
+	sparkles: Sparkles,
 	sun: Sun,
 	"trash-2": Trash2,
 	"triangle-alert": TriangleAlert,
+	user: User,
 	x: XIcon,
 };

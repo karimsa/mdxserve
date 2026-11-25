@@ -45,6 +45,7 @@ export function TopBar({
 	theme,
 	onToggleTheme,
 	onDiagramPreferences,
+	comments,
 }: {
 	/** Wordmark's link target; undefined renders it as a plain (non-link) span. */
 	homeHref?: string;
@@ -59,6 +60,8 @@ export function TopBar({
 	theme: Theme;
 	onToggleTheme: () => void;
 	onDiagramPreferences?: () => void;
+	/** Comments panel toggle (doc pages); omitted when undefined. */
+	comments?: { count: number; open: boolean; onToggle: () => void };
 }) {
 	const mac = isApplePlatform();
 
@@ -116,6 +119,26 @@ export function TopBar({
 					options={EXPORT_FORMAT_OPTIONS}
 					onChange={(format) => exportDoc.onExport(format as ExportFormat)}
 				/>
+			) : null}
+			{comments ? (
+				<span className="relative inline-flex shrink-0">
+					<IconButton
+						icon="message-square"
+						label={comments.count > 0 ? `Comments (${comments.count} open)` : "Comments"}
+						size="sm"
+						active={comments.open}
+						className="max-md:h-11 max-md:w-11"
+						onClick={comments.onToggle}
+					/>
+					{comments.count > 0 ? (
+						<span
+							aria-hidden
+							className="pointer-events-none absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-surface-accent px-1 text-[10px] font-semibold leading-none text-n-0 tabular-nums"
+						>
+							{comments.count > 99 ? "99+" : comments.count}
+						</span>
+					) : null}
+				</span>
 			) : null}
 			{onDiagramPreferences && (
 				<IconButton icon="settings" label="Settings" size="sm" onClick={onDiagramPreferences} />
