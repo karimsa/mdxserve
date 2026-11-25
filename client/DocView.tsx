@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef, type ComponentType, type ReactNode } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { DocContext } from "./DocContext";
 import { ErrorBox } from "./ErrorBox";
@@ -10,7 +10,7 @@ import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "./s
 
 // Each Component a re-import produces (including an HMR re-import after a
 // fix) is a distinct function identity, so this assigns it a stable, unique
-// key the RenderErrorBoundary below can be keyed on to reset itself.
+// number the RenderErrorBoundary below resets itself on.
 const moduleKeys = new WeakMap<object, number>();
 let nextModuleKey = 0;
 function keyForComponent(Component: object): number {
@@ -20,6 +20,18 @@ function keyForComponent(Component: object): number {
 		moduleKeys.set(Component, key);
 	}
 	return key;
+}
+
+/**
+ * Calls the doc's compiled content function instead of mounting it. A re-import
+ * after an edit yields a new function; mounted as a component, React would see
+ * a new type and rebuild the whole article. Called from this one long-lived
+ * component, only the elements it returns are diffed, so unchanged blocks keep
+ * their DOM and state. The content function's own hooks (`useMDXComponents`)
+ * are the same on every import, so they are safe to run as this component's.
+ */
+function DocContent({ render }: { render: ComponentType }) {
+	return (render as (props: Record<string, never>) => ReactNode)({});
 }
 
 export function DocView({
@@ -99,8 +111,8 @@ export function DocView({
 			)}
 			<article className="mdx-prose min-w-0 max-w-full">
 				<DocContext value={docContext}>
-					<RenderErrorBoundary key={keyForComponent(Content)}>
-						<Content />
+					<RenderErrorBoundary resetKey={keyForComponent(Content)}>
+						<DocContent render={Content} />
 					</RenderErrorBoundary>
 				</DocContext>
 			</article>

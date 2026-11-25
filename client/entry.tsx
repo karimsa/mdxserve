@@ -49,5 +49,15 @@ function main() {
 main();
 
 if (import.meta.hot) {
+	// Every doc module exports `__mdxserveMetadata` (src/rendering/mdx/remark-metadata.ts)
+	// beside its component. Fast Refresh rejects a module with a non-component
+	// export whose value changed, and a doc has no static importer to fall back
+	// on, so without this every write to a doc — a comment included — reloads
+	// the whole page. The router's `mdxserve:doc-changed` handler re-imports the
+	// doc, so new metadata still arrives.
+	(
+		window as Window & { __getReactRefreshIgnoredExports?: () => string[] }
+	).__getReactRefreshIgnoredExports = () => ["__mdxserveMetadata"];
+
 	import.meta.hot.accept();
 }

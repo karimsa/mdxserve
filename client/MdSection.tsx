@@ -58,14 +58,11 @@ export interface MdSectionProps {
  * it's invisible — same children, same DOM — until hovered, when a pencil
  * appears to swap it into an inline Tiptap editor seeded from the raw file.
  *
- * This outer component only resolves `path` and re-keys the inner `Section`
- * on `path:startLine:endLine`. That key matters after a save: Vite's HMR
- * re-executes the doc module and React Fast Refresh re-renders this
- * component in place with *new* startLine/endLine props (the edited range
- * shifted). Without the key, Fast Refresh would preserve `Section`'s local
- * state across that update and leave it holding an editor pointed at
- * now-stale line numbers; keying on the range forces a clean remount back to
- * read mode instead.
+ * This outer component only resolves `path`. `Section` is deliberately not
+ * keyed on its line range: anything that adds lines above it — a comment
+ * growing the frontmatter, an edit to an earlier section — shifts the range,
+ * and a key would remount every section below, diagrams included. `Section`
+ * drops back to read mode itself when its range moves.
  */
 export function MdSection({ index, startLine, endLine, rawJsx, children }: MdSectionProps) {
 	const ctxPath = useContext(DocContext)?.path;
@@ -78,7 +75,6 @@ export function MdSection({ index, startLine, endLine, rawJsx, children }: MdSec
 
 	return (
 		<Section
-			key={`${path}:${startLine}:${endLine}`}
 			path={path}
 			index={index}
 			startLine={Number(startLine)}
@@ -111,6 +107,15 @@ function Section({
 	const [version, setVersion] = useState("");
 	const [openSection, setOpenSection] = useAtom(openSectionAtom);
 	const key = `${path}:${startLine}:${endLine}`;
+
+	// The range moved under this section (a save or an outside write shifted
+	// it), so an open editor now points at stale line numbers: back to read
+	// mode. Reset during render so the editor never commits with the new range.
+	const [renderedKey, setRenderedKey] = useState(key);
+	if (renderedKey !== key) {
+		setRenderedKey(key);
+		setMode("read");
+	}
 
 	// Only one section edits (or loads) at a time. The atom is claimed the
 	// moment a section starts opening, so if a different section claims it
