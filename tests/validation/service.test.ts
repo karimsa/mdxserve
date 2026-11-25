@@ -365,3 +365,43 @@ describe("ValidationService.validateDoc — hints", () => {
 		expect(outcome.result.hints).toEqual([]);
 	});
 });
+
+describe("ValidationService.validateText — comments", () => {
+	const THREAD = (heading: string, block: string) =>
+		`comments:\n  - id: t1\n    anchor:\n      heading: ${heading}\n      block: ${block}\n      quote: ${block}\n    messages:\n      - id: m1\n        author: human\n        body: hi\n`;
+
+	async function validate(source: string) {
+		const abs = await writeDoc("c.md", source);
+		return serviceWith().validateText({ source, absPath: abs });
+	}
+
+	it("reports a malformed thread as a warning that does not change ok", async () => {
+		const result = await validate("---\ncomments:\n  - id: bad id\n---\n# Doc\n\nText.\n");
+		expect(result.ok).toBe(true);
+		expect(result.diagnostics).toEqual([
+			expect.objectContaining({ severity: "warning", code: "frontmatter-comments", line: 3 }),
+		]);
+	});
+
+	it("reports an open thread whose heading or block is gone, but not a resolved one", async () => {
+		const open = await validate(`---\n${THREAD("Gone", "Text.")}---\n# Doc\n\nText.\n`);
+		expect(open.ok).toBe(true);
+		expect(open.diagnostics).toEqual([
+			expect.objectContaining({ severity: "warning", code: "comment-anchor", line: 3 }),
+		]);
+		const lostBlock = await validate(`---\n${THREAD("Doc", "Missing text.")}---\n# Doc\n\nText.\n`);
+		expect(lostBlock.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["comment-anchor"]);
+		const resolved = await validate(
+			`---\n${THREAD("Gone", "Text.")}    resolved: true\n---\n# Doc\n\nText.\n`,
+		);
+		expect(resolved.diagnostics).toEqual([]);
+	});
+
+	it("is silent for a thread that still matches, in .md and .mdx alike", async () => {
+		const source = `---\n${THREAD("Doc", "Text.")}---\n# Doc\n\nText.\n`;
+		expect((await validate(source)).diagnostics).toEqual([]);
+		const abs = await writeDoc("c.mdx", source);
+		const mdx = await serviceWith().validateText({ source, absPath: abs });
+		expect(mdx.diagnostics).toEqual([]);
+	});
+});

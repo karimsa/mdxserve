@@ -19,6 +19,8 @@ export const diagnosticSchema = z.object({
 		"render-error",
 		"mermaid-chart",
 		"frontmatter-metadata",
+		"frontmatter-comments",
+		"comment-anchor",
 	]),
 	message: z.string(),
 	line: z.number().optional(),
