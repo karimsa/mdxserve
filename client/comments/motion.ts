@@ -33,6 +33,12 @@ export function rowMotion(reducedMotion: boolean | null) {
 export const SLIDE: Transition = { type: "spring", stiffness: 170, damping: 19, mass: 1 };
 export const SLIDE_BLEED = 32;
 /**
+ * How far the spring carries the sidebar past its resting edge, rounded up
+ * (measured: 13px). The layout keeps this much clear beside the sidebar so
+ * the overshoot never crosses a doc that fills its column.
+ */
+export const SLIDE_OVERSHOOT = 16;
+/**
  * Leaving is a plain accelerate-out: a spring's settling would happen off
  * screen, and the layout waits for the exit to finish before it reclaims the
  * sidebar's track.

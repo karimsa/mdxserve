@@ -35,6 +35,7 @@ import { CommentsSheet } from "../comments/CommentsSheet";
 import { COMMENTS_SIDEBAR_WIDTH, CommentsSidebar } from "../comments/CommentsSidebar";
 import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
+import { SLIDE_OVERSHOOT } from "../comments/motion";
 import { SelectionButton } from "../comments/SelectionButton";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -453,7 +454,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					</div>
 					{/* The right-hand track, shared by the table-of-contents rail and the
 					    comments sidebar. It is as wide as the sidebar (less <main>'s own
-					    right padding), so the sidebar slides in over the rail and can never
+					    right padding, plus room for the slide's overshoot), so the sidebar slides in over the rail and can never
 					    cover the doc. Where the rail already holds the track open (xl and
 					    up, in a doc with headings) opening the sidebar moves nothing;
 					    elsewhere the track opens in one step as the sidebar starts to
@@ -462,7 +463,11 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 						<div
 							data-print-hide
 							inert={commentsSidebarOpen}
-							style={{ "--comments-track": `${COMMENTS_SIDEBAR_WIDTH - 32}px` } as CSSProperties}
+							style={
+								{
+									"--comments-track": `${COMMENTS_SIDEBAR_WIDTH - 32 + SLIDE_OVERSHOOT}px`,
+								} as CSSProperties
+							}
 							className={
 								"flex shrink-0 justify-end self-stretch " +
 								(commentsTrackHeld
