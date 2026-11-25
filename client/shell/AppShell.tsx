@@ -24,7 +24,6 @@ import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { CommentsPopover } from "../comments/CommentsPopover";
 import { CommentsSheet } from "../comments/CommentsSheet";
-import { CommentsPopover } from "../comments/CommentsPopover";
 import { CommentsSidebar } from "../comments/CommentsSidebar";
 import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
