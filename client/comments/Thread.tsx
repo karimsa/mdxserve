@@ -189,26 +189,6 @@ export function Thread({
 		setResolving(false);
 	}
 
-	async function sendReply() {
-		setReplying(true);
-		const submitted = reply;
-		const saved = await actions.reply(thread.id, submitted);
-		setReplying(false);
-		// Text typed while the request ran stays.
-		if (saved)
-			setDrafts((previous) =>
-				replyDraftOf(previous, thread.id) === submitted
-					? withReplyDraft(previous, thread.id, "")
-					: previous,
-			);
-	}
-
-	async function toggleResolved() {
-		setResolving(true);
-		await actions.setResolved(thread.id, !thread.resolved);
-		setResolving(false);
-	}
-
 	const state = view?.resolution.state;
 	const showReply = active && !readOnly && !thread.resolved;
 	const note =
