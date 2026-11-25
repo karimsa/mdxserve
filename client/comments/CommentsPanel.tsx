@@ -1,9 +1,11 @@
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtomValue } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CommentThread } from "../../src/comments/schema";
 import { CtlButton } from "./CtlButton";
 import { DraftThread } from "./DraftThread";
 import type { CommentsModel } from "./model";
+import { rowMotion } from "./motion";
 import { activeThreadAtom, draftAtom } from "./state";
 import { Thread } from "./Thread";
 
@@ -45,6 +47,30 @@ function Tabs({
 				</button>
 			))}
 		</div>
+	);
+}
+
+/**
+ * One thread's place in the list. It expands in when the thread joins the tab
+ * (a new comment, a reopen) and collapses when it leaves (a resolve), so the
+ * rows around it move aside instead of jumping.
+ */
+function ThreadRow({ active, children }: { active: boolean; children: ReactNode }) {
+	const ref = useRef<HTMLDivElement>(null);
+	const reducedMotion = useReducedMotion();
+	return (
+		<motion.div
+			ref={ref}
+			{...rowMotion(reducedMotion)}
+			// Thread scrolls itself into view when it becomes active, but a new one
+			// is still collapsed then; bring it fully into view once it has opened.
+			onAnimationComplete={() => {
+				if (active) ref.current?.scrollIntoView({ block: "nearest" });
+			}}
+			className="overflow-hidden"
+		>
+			{children}
+		</motion.div>
 	);
 }
 
@@ -95,14 +121,15 @@ export function CommentsPanel({
 
 	function renderThread(thread: CommentThread) {
 		return (
-			<Thread
-				key={`${model.path}:${thread.id}`}
-				thread={thread}
-				view={views.get(thread.id)}
-				active={thread.id === activeId}
-				variant={variant}
-				model={model}
-			/>
+			<ThreadRow key={`${model.path}:${thread.id}`} active={thread.id === activeId}>
+				<Thread
+					thread={thread}
+					view={views.get(thread.id)}
+					active={thread.id === activeId}
+					variant={variant}
+					model={model}
+				/>
+			</ThreadRow>
 		);
 	}
 
@@ -134,14 +161,18 @@ export function CommentsPanel({
 						<DraftThread model={model} sidebarOpen={false} reserveTools={false} padded />
 					</div>
 				) : null}
-				<div className="divide-y divide-border-default">
-					{shown.map(renderThread)}
+				{/* Keyed by tab and doc: switching either swaps the whole list at once,
+				    and only a thread joining or leaving the list on screen animates. */}
+				<div key={`${model.path}:${tab}`} className="divide-y divide-border-default">
+					<AnimatePresence initial={false}>{shown.map(renderThread)}</AnimatePresence>
 					{tab === "open" && detached.length > 0 ? (
 						<div>
 							<h3 className="m-0 px-4 pt-3.5 text-[length:var(--size-2xs)] font-semibold tracking-wide text-text-subtle uppercase">
 								Detached
 							</h3>
-							<div className="divide-y divide-border-default">{detached.map(renderThread)}</div>
+							<div className="divide-y divide-border-default">
+								<AnimatePresence initial={false}>{detached.map(renderThread)}</AnimatePresence>
+							</div>
 						</div>
 					) : null}
 				</div>

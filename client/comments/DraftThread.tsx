@@ -4,6 +4,7 @@ import { ReplyField } from "./ReplyField";
 import {
 	activeThreadAtom,
 	draftAtom,
+	freshThreadAtom,
 	pendingSendsAtom,
 	popoverThreadAtom,
 	withPendingSend,
@@ -26,6 +27,7 @@ export function DraftThread({
 	const [draft, setDraft] = useAtom(draftAtom);
 	const setActive = useSetAtom(activeThreadAtom);
 	const setPopover = useSetAtom(popoverThreadAtom);
+	const setFresh = useSetAtom(freshThreadAtom);
 	// Shared, so a composer that remounts mid-save (the sheet closed and reopened)
 	// still shows its send as pending and cannot post the comment twice.
 	const [pendingSends, setPendingSends] = useAtom(pendingSendsAtom);
@@ -47,6 +49,7 @@ export function DraftThread({
 		if (created === null) return;
 		// The user moved on to another comment (or another doc) while this one saved.
 		if (store.get(draftAtom)?.nonce !== submitted) return;
+		setFresh(created);
 		setDraft(null);
 		setActive(created);
 		// The popover follows the new thread unless the sidebar shows it.

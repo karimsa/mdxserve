@@ -37,6 +37,13 @@ export interface CommentDraft {
 export const draftAtom = atom<CommentDraft | null>(null);
 
 /**
+ * The thread this tab just created, until something draws it. The popover
+ * animates that thread's first message in, so a sent comment visibly lands;
+ * a thread opened any other way appears as it is.
+ */
+export const freshThreadAtom = atom<string | null>(null);
+
+/**
  * Replies and new comments being saved, by key (`pendingReplyKey`, `pendingDraftKey`).
  * Shared, not component state: a thread or composer that remounts mid-save must
  * still see its own send as pending, or the same text could be sent twice.

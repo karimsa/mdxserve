@@ -1,5 +1,5 @@
 import { DiagramPreferences } from "../diagrams/Preferences";
-import { AnimatePresence, motion, useSpring } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -24,9 +24,10 @@ import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { CommentsPopover } from "../comments/CommentsPopover";
 import { CommentsSheet } from "../comments/CommentsSheet";
-import { CommentsSidebar } from "../comments/CommentsSidebar";
+import { COMMENTS_SIDEBAR_WIDTH, CommentsSidebar } from "../comments/CommentsSidebar";
 import { GutterCounters } from "../comments/GutterCounters";
 import { useCommentsModel, useCommentsPanel } from "../comments/model";
+import { dockMotion } from "../comments/motion";
 import { SelectionButton } from "../comments/SelectionButton";
 import { PageNav, type PageNavLink } from "../ui/PageNav";
 import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
@@ -223,6 +224,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const commentsSidebarOpen = comments.available && commentsPanel.sidebarOpen;
 	const setCommentsOpen = commentsPanel.setOpen;
 	const closeComments = useCallback(() => setCommentsOpen(false), [setCommentsOpen]);
+	const reducedMotion = useReducedMotion();
 
 	useEffect(() => {
 		try {
@@ -439,13 +441,35 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 							</motion.div>
 						</AnimatePresence>
 					</div>
-					{route.kind === "doc" && !commentsSidebarOpen ? (
-						<TocRail path={route.path} version={tocVersion} />
-					) : null}
+					{/* The comments sidebar takes the rail's place. Both are width-animated
+					    wrappers, so the centred doc slides between the two layouts rather
+					    than jumping. `overflow-x-clip`, not `hidden`: it must not become
+					    the scroll container the sticky column inside sticks to. */}
+					<AnimatePresence initial={false}>
+						{route.kind === "doc" && !commentsSidebarOpen ? (
+							<motion.div
+								key="toc-rail"
+								data-print-hide
+								{...dockMotion("auto", reducedMotion)}
+								className="hidden shrink-0 self-stretch overflow-x-clip xl:block"
+							>
+								<TocRail path={route.path} version={tocVersion} />
+							</motion.div>
+						) : null}
+					</AnimatePresence>
 				</main>
-				{route.kind === "doc" && commentsSidebarOpen ? (
-					<CommentsSidebar model={comments} onClose={closeComments} />
-				) : null}
+				<AnimatePresence initial={false}>
+					{route.kind === "doc" && commentsSidebarOpen ? (
+						<motion.div
+							key="comments-sidebar"
+							data-print-hide
+							{...dockMotion(COMMENTS_SIDEBAR_WIDTH, reducedMotion)}
+							className="shrink-0 self-stretch overflow-x-clip"
+						>
+							<CommentsSidebar model={comments} onClose={closeComments} />
+						</motion.div>
+					) : null}
+				</AnimatePresence>
 			</div>
 			{route.kind === "doc" && comments.available && !commentsPanel.isDesktop ? (
 				<CommentsSheet model={comments} open={commentsPanel.open} onClose={closeComments} />

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, type ComponentType, type ReactNode } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, type ComponentType, type ReactNode } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { DocContext } from "./DocContext";
 import { ErrorBox } from "./ErrorBox";
@@ -34,7 +34,12 @@ function DocContent({ render }: { render: ComponentType }) {
 	return (render as (props: Record<string, never>) => ReactNode)({});
 }
 
-export function DocView({
+/**
+ * Memoized: the shell re-renders on every frame of a width change (the
+ * comments sidebar opening, a window resize), and without this each of those
+ * would re-run the whole doc's content function.
+ */
+export const DocView = memo(function DocView({
 	path,
 	module,
 	onRendered,
@@ -118,4 +123,4 @@ export function DocView({
 			</article>
 		</div>
 	);
-}
+});
