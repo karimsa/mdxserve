@@ -1,7 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useAtom } from "jotai";
+import { useEffect, useRef, useState } from "react";
 import type { CommentMessage, CommentThread } from "../../src/comments/schema";
 import { Icon } from "../ui/Icon";
+import { CtlButton } from "./CtlButton";
+import { replyDraftOf, withReplyDraft } from "./drafts";
 import type { CommentsModel, ThreadView } from "./model";
+import { ReplyField } from "./ReplyField";
+import { pendingReplyKey, pendingSendsAtom, replyDraftsAtom, withPendingSend } from "./state";
 import { relativeTime } from "./time";
 
 /** Where a thread is drawn: a sidebar row or the sheet's row. */
@@ -35,11 +40,33 @@ export function QuoteText({ text, active }: { text: string; active: boolean }) {
 	);
 }
 
-function Message({ message, last }: { message: CommentMessage; last: boolean }) {
+function Message({
+	message,
+	last,
+	canEdit,
+	editDisabled,
+	onEdit,
+}: {
+	message: CommentMessage;
+	last: boolean;
+	canEdit: boolean;
+	editDisabled: boolean;
+	onEdit: (body: string) => Promise<boolean>;
+}) {
+	const [editing, setEditing] = useState(false);
+	const [draft, setDraft] = useState(message.body);
+	const [pending, setPending] = useState(false);
 	const agent = message.author === "agent";
 
+	async function save() {
+		setPending(true);
+		const saved = await onEdit(draft);
+		setPending(false);
+		if (saved) setEditing(false);
+	}
+
 	return (
-		<div className="relative grid grid-cols-[24px_1fr] gap-x-2.5 not-first:mt-3.5">
+		<div className="group relative grid grid-cols-[24px_1fr] gap-x-2.5 not-first:mt-3.5">
 			{last ? null : (
 				<span
 					aria-hidden
@@ -60,16 +87,51 @@ function Message({ message, last }: { message: CommentMessage; last: boolean }) 
 						{relativeTime(message.createdAt)}
 						{message.editedAt ? " · edited" : ""}
 					</time>
+					{canEdit && !editing ? (
+						<button
+							type="button"
+							disabled={editDisabled}
+							aria-label="Edit comment"
+							onClick={() => {
+								setDraft(message.body);
+								setEditing(true);
+							}}
+							className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-sm border-0 bg-transparent p-0 text-[11.5px] font-semibold text-text-subtle opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-text-heading focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-0 group-hover:disabled:opacity-45 [@media(hover:none)]:opacity-100"
+						>
+							<Icon name="pencil" size={11} />
+							Edit
+						</button>
+					) : null}
 				</div>
-				<p className="m-0 mt-[3px] text-[13.5px] leading-[1.55] break-words whitespace-pre-wrap text-text-body">
-					{message.body}
-				</p>
+				{editing ? (
+					<div className="mt-1.5">
+						<ReplyField
+							label="Edit comment"
+							sendLabel="Save comment"
+							placeholder=""
+							value={draft}
+							onChange={setDraft}
+							onSubmit={() => void save()}
+							onCancel={() => setEditing(false)}
+							disabled={editDisabled}
+							pending={pending}
+							focusNonce={0}
+						/>
+					</div>
+				) : (
+					<p className="m-0 mt-[3px] text-[13.5px] leading-[1.55] break-words whitespace-pre-wrap text-text-body">
+						{message.body}
+					</p>
+				)}
 			</div>
 		</div>
 	);
 }
 
-/** One thread as a conversation timeline: the quote and the messages. */
+/**
+ * One thread as a conversation timeline: the quote and a resolve (or reopen)
+ * checkmark, the messages, and on the active thread a reply field.
+ */
 export function Thread({
 	thread,
 	view,
@@ -84,18 +146,58 @@ export function Thread({
 	model: CommentsModel;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const [drafts, setDrafts] = useAtom(replyDraftsAtom);
+	const [pendingSends, setPendingSends] = useAtom(pendingSendsAtom);
+	const replyKey = pendingReplyKey(model.path, thread.id);
+	const replying = pendingSends.has(replyKey);
+	const setReplying = (active: boolean) =>
+		setPendingSends((previous) => withPendingSend(previous, replyKey, active));
+	const [resolving, setResolving] = useState(false);
+	const { readOnly, writesDisabled, actions } = model;
+	const reply = replyDraftOf(drafts, thread.id);
 
 	useEffect(() => {
 		if (active) ref.current?.scrollIntoView({ block: "nearest" });
 	}, [active]);
 
+	async function sendReply() {
+		setReplying(true);
+		const submitted = reply;
+		const saved = await actions.reply(thread.id, submitted);
+		setReplying(false);
+		// Text typed while the request ran stays.
+		if (saved)
+			setDrafts((previous) =>
+				replyDraftOf(previous, thread.id) === submitted
+					? withReplyDraft(previous, thread.id, "")
+					: previous,
+			);
+	}
+
+	async function toggleResolved() {
+		setResolving(true);
+		await actions.setResolved(thread.id, !thread.resolved);
+		setResolving(false);
+	}
+
 	const state = view?.resolution.state;
+	const showReply = active && !readOnly && !thread.resolved;
 	const note =
 		state === "section"
 			? "Original text not found. Showing on the section."
 			: state === "detached"
 				? "Original section not found."
 				: null;
+
+	const toolbar = readOnly ? null : (
+		<CtlButton
+			tone="resolve"
+			icon={thread.resolved ? "rotate-ccw" : "check"}
+			label={thread.resolved ? "Reopen thread" : "Resolve thread"}
+			disabled={writesDisabled || resolving}
+			onClick={() => void toggleResolved()}
+		/>
+	);
 
 	return (
 		<div
@@ -121,13 +223,36 @@ export function Thread({
 				>
 					<QuoteText text={thread.anchor.quote} active={active} />
 				</button>
+				{toolbar}
 			</div>
 			{note ? <p className="m-0 text-xs text-status-warn-fg">{note}</p> : null}
 			<div>
 				{thread.messages.map((message, index) => (
-					<Message key={message.id} message={message} last={index === thread.messages.length - 1} />
+					<Message
+						key={message.id}
+						message={message}
+						last={index === thread.messages.length - 1}
+						canEdit={!readOnly && message.author === "human"}
+						editDisabled={writesDisabled}
+						onEdit={async (body) => (await actions.edit(thread.id, message.id, body)) !== null}
+					/>
 				))}
 			</div>
+			{showReply ? (
+				<div className="grid grid-cols-[24px_1fr] items-end gap-x-2.5">
+					<Avatar author="human" />
+					<ReplyField
+						label="Reply"
+						sendLabel="Send reply"
+						placeholder={writesDisabled ? "Close the section editor to reply" : "Reply…"}
+						value={reply}
+						onChange={(next) => setDrafts((previous) => withReplyDraft(previous, thread.id, next))}
+						onSubmit={() => void sendReply()}
+						disabled={writesDisabled}
+						pending={replying}
+					/>
+				</div>
+			) : null}
 		</div>
 	);
 }

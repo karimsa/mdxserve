@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
+import {
+	isSelfWrite,
+	markSelfWrite,
+	SELF_WRITE_WINDOW_MS,
+} from "../../client/comments/self-writes";
 import { relativeTime } from "../../client/comments/time";
+
+describe("self writes", () => {
+	it("holds a path for two seconds", () => {
+		markSelfWrite("/a.md", 1000);
+		expect(isSelfWrite("/a.md", 1000 + SELF_WRITE_WINDOW_MS - 1)).toBe(true);
+		expect(isSelfWrite("/a.md", 1000 + SELF_WRITE_WINDOW_MS)).toBe(false);
+		expect(isSelfWrite("/b.md", 1000)).toBe(false);
+	});
+});
 
 describe("relativeTime", () => {
 	const now = Date.parse("2026-11-24T20:00:00.000Z");

@@ -11,6 +11,7 @@ import {
 import { Icon } from "./Icon";
 import { nextCount } from "./toast-count";
 import { docModuleCache } from "../doc-module-cache";
+import { isSelfWrite } from "../comments/self-writes";
 
 export type ToastTone = "info" | "ok" | "warn" | "danger";
 
@@ -148,7 +149,10 @@ export function ToastStack() {
 		const handleDocChanged = (data: {
 			files?: Array<{ path: string; root: string; rel: string }>;
 		}) => {
-			const files = (data?.files ?? []).filter((file) => docModuleCache.has(file.path));
+			// A comment this tab just wrote is not an outside change to announce.
+			const files = (data?.files ?? []).filter(
+				(file) => docModuleCache.has(file.path) && !isSelfWrite(file.path),
+			);
 			const [first] = files;
 			if (!first) return;
 			if (files.length === 1) {

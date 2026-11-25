@@ -57,6 +57,7 @@ import OctagonAlert from "lucide-react/dist/esm/icons/octagon-alert.mjs";
 import PanelLeft from "lucide-react/dist/esm/icons/panel-left.mjs";
 import Pencil from "lucide-react/dist/esm/icons/pencil.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.mjs";
 import Sun from "lucide-react/dist/esm/icons/sun.mjs";
@@ -98,6 +99,7 @@ export const staticIcons: Record<string, LucideIcon> = {
 	"panel-left": PanelLeft,
 	pencil: Pencil,
 	plus: Plus,
+	"rotate-ccw": RotateCcw,
 	search: Search,
 	sparkles: Sparkles,
 	sun: Sun,
