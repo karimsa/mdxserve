@@ -13,6 +13,7 @@ import {
 	activeThreadAtom,
 	commentsOpenAtom,
 	commentsSheetOpenAtom,
+	popoverThreadAtom,
 	replyDraftsAtom,
 } from "./state";
 
@@ -39,6 +40,12 @@ export interface CommentsModel {
 	actions: CommentActions;
 	/** Makes a thread active in the list and scrolls the doc to it. */
 	selectThread: (id: string) => void;
+	/** The thread shown in the popover: desktop with the sidebar closed only, else null. */
+	popoverId: string | null;
+	showPopover: (id: string) => void;
+	closePopover: () => void;
+	/** Docks the sidebar with this thread active and closes the popover. */
+	openInSidebar: (id: string) => void;
 }
 
 /** Panel visibility, switching between the persisted desktop sidebar and the transient phone sheet. */
@@ -82,16 +89,18 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	const [activeId, setActiveId] = useAtom(activeThreadAtom);
 	const setSheetOpen = useSetAtom(commentsSheetOpenAtom);
 	const setRailOpen = useSetAtom(commentsOpenAtom);
+	const [popoverThread, setPopoverThread] = useAtom(popoverThreadAtom);
 	const setReplyDrafts = useSetAtom(replyDraftsAtom);
-	const { isDesktop } = useCommentsPanel();
+	const { isDesktop, sidebarOpen } = useCommentsPanel();
 	const readOnly = shellInfo.permissions === "restricted";
 
 	// Another doc starts clean.
 	useEffect(() => {
 		setActiveId(null);
 		setSheetOpen(false);
+		setPopoverThread(null);
 		setReplyDrafts({});
-	}, [path, setActiveId, setSheetOpen, setReplyDrafts]);
+	}, [path, setActiveId, setSheetOpen, setPopoverThread, setReplyDrafts]);
 
 	// Bumped when a tab panel is shown or hidden, so anchors re-resolve.
 	const [visibility, setVisibility] = useState(0);
@@ -142,8 +151,8 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 	}, [views, activeId]);
 	useEffect(() => clearHighlights, []);
 
-	// A click on highlighted text focuses that thread and opens the panel: the
-	// sidebar on desktop, the sheet on a phone.
+	// A click on highlighted text focuses that thread: in the sidebar when it is open,
+	// else in the popover (desktop) or the sheet (phone).
 	useEffect(() => {
 		if (path === null) return;
 		function onClick(event: MouseEvent) {
@@ -155,17 +164,16 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 			const id = threadAtPoint(event.clientX, event.clientY);
 			if (!id) return;
 			setActiveId(id);
-			if (isDesktop) setRailOpen(true);
-			else {
+			if (!isDesktop) {
 				setSheetOpen(true);
 				// The sheet covers the tapped text; once its scroll space is in place,
 				// bring the anchor into the part of the page it leaves uncovered.
 				requestAnimationFrame(() => scrollToView(views.get(id), isDesktop));
-			}
+			} else if (!sidebarOpen) setPopoverThread(id);
 		}
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, [path, isDesktop, views, setActiveId, setSheetOpen, setRailOpen]);
+	}, [path, isDesktop, sidebarOpen, views, setActiveId, setSheetOpen, setPopoverThread]);
 
 	const actions = useMemo(() => commentActions(path ?? ""), [path]);
 	const selectThread = useCallback(
@@ -191,6 +199,26 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		[setActiveId, views, threads, isDesktop],
 	);
 
+	const showPopover = useCallback(
+		(id: string) => {
+			setActiveId(id);
+			setPopoverThread(id);
+		},
+		[setActiveId, setPopoverThread],
+	);
+	const closePopover = useCallback(() => {
+		setPopoverThread(null);
+		setActiveId(null);
+	}, [setPopoverThread, setActiveId]);
+	const openInSidebar = useCallback(
+		(id: string) => {
+			setPopoverThread(null);
+			setRailOpen(true);
+			setActiveId(id);
+		},
+		[setPopoverThread, setRailOpen, setActiveId],
+	);
+
 	const openCount = threads.filter((thread) => !thread.resolved).length;
 	return {
 		path: path ?? "",
@@ -202,5 +230,9 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		available: path !== null && (!readOnly || threads.length > 0),
 		actions,
 		selectThread,
+		popoverId: isDesktop && !sidebarOpen ? popoverThread : null,
+		showPopover,
+		closePopover,
+		openInSidebar,
 	};
 }

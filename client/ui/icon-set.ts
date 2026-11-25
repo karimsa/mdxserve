@@ -55,6 +55,7 @@ import Minus from "lucide-react/dist/esm/icons/minus.mjs";
 import Moon from "lucide-react/dist/esm/icons/moon.mjs";
 import OctagonAlert from "lucide-react/dist/esm/icons/octagon-alert.mjs";
 import PanelLeft from "lucide-react/dist/esm/icons/panel-left.mjs";
+import PanelRight from "lucide-react/dist/esm/icons/panel-right.mjs";
 import Pencil from "lucide-react/dist/esm/icons/pencil.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw.mjs";
@@ -97,6 +98,7 @@ export const staticIcons: Record<string, LucideIcon> = {
 	moon: Moon,
 	"octagon-alert": OctagonAlert,
 	"panel-left": PanelLeft,
+	"panel-right": PanelRight,
 	pencil: Pencil,
 	plus: Plus,
 	"rotate-ccw": RotateCcw,
