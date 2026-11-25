@@ -449,6 +449,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 						{route.kind === "doc" && !commentsSidebarOpen ? (
 							<motion.div
 								key="toc-rail"
+								data-print-hide
 								{...dockMotion("auto", reducedMotion)}
 								className="hidden shrink-0 self-stretch overflow-x-clip xl:block"
 							>
@@ -461,6 +462,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					{route.kind === "doc" && commentsSidebarOpen ? (
 						<motion.div
 							key="comments-sidebar"
+							data-print-hide
 							{...dockMotion(COMMENTS_SIDEBAR_WIDTH, reducedMotion)}
 							className="shrink-0 self-stretch overflow-x-clip"
 						>
