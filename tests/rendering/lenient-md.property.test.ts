@@ -1,6 +1,9 @@
 import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkMdx from "remark-mdx";
 import { escapeBareLt as escapeWithMetadata } from "../../src/document/lenient.js";
 import { validateSource } from "../../src/validation/validate.js";
 import { fixtureRegistry } from "../fixtures/registry.js";
@@ -138,6 +141,121 @@ describe("escapeBareLt and JSX attributes", () => {
 				[],
 			);
 		}
+	});
+});
+
+describe("escapeBareLt scanner states", () => {
+	it("does not start a tag at an escaped `<` and still escapes the comparison after it", () => {
+		expect(escapeBareLt("Write \\<Widget when x < 5.")).toBe("Write \\<Widget when x \\< 5.");
+	});
+
+	it("treats `\\\\<` as an escaped backslash followed by a real `<`", () => {
+		expect(escapeBareLt("a \\\\< 5")).toBe("a \\\\\\< 5");
+		expect(escapeBareLt("a \\\\<b c> x < 5")).toBe("a \\\\<b c> x \\< 5");
+	});
+
+	it("keeps a backslash literal inside a plain attribute string", () => {
+		// `title="a\"` ends at the second quote, so the `>` closes the tag.
+		expect(escapeBareLt('<Callout title="a\\">x < 5</Callout>')).toBe(
+			'<Callout title="a\\">x \\< 5</Callout>',
+		);
+		expect(escapeBareLt("<Callout title='a\\'>x < 5</Callout>")).toBe(
+			"<Callout title='a\\'>x \\< 5</Callout>",
+		);
+	});
+
+	it("honours backslash escapes in JavaScript strings inside braces", () => {
+		expect(escapeBareLt("<Callout title={'can\\'t'}>x < 5</Callout>")).toBe(
+			"<Callout title={'can\\'t'}>x \\< 5</Callout>",
+		);
+		expect(escapeBareLt('<Callout title={"say \\"a > b\\""}>x < 5</Callout>')).toBe(
+			'<Callout title={"say \\"a > b\\""}>x \\< 5</Callout>',
+		);
+		expect(escapeBareLt("<Callout title={'a\\\\'}>x < 5</Callout>")).toBe(
+			"<Callout title={'a\\\\'}>x \\< 5</Callout>",
+		);
+	});
+
+	it("reads template literals, including `${}` substitutions and nested braces", () => {
+		expect(
+			escapeBareLt(
+				"<Callout title={`a > ${1 < 2 ? 'x}' : `y${{ a: 1 }.a}`} \\` b`}>x < 5</Callout>",
+			),
+		).toBe("<Callout title={`a > ${1 < 2 ? 'x}' : `y${{ a: 1 }.a}`} \\` b`}>x \\< 5</Callout>");
+	});
+
+	it("carries brace, string and template state across lines", () => {
+		const source = [
+			"<Callout",
+			"  title={`a >",
+			"b < 1`}",
+			"  data={{ a: '}' }}",
+			">",
+			"x < 5",
+		].join("\n");
+		expect(escapeBareLt(source)).toBe(source.replace("x < 5", "x \\< 5"));
+	});
+
+	it("leaves indented code, fenced code and frontmatter alone", () => {
+		expect(escapeBareLt("para\n\n    a < b\n")).toBe("para\n\n    a < b\n");
+		expect(escapeBareLt("```\na < b\n```\n")).toBe("```\na < b\n```\n");
+		expect(escapeBareLt("---\ntitle: a < b\n---\nx < 5")).toBe("---\ntitle: a < b\n---\nx \\< 5");
+	});
+
+	const cases = [
+		"Write \\<Widget when x < 5.",
+		"a \\\\< 5 and more",
+		'<Callout title="a\\">x < 5</Callout>',
+		"<Callout title='a\\'>x < 5</Callout>",
+		"<Callout title={'can\\'t'}>x < 5</Callout>",
+		'<Callout title={"say \\"a > b\\""}>x < 5</Callout>',
+		"<Callout title={`a > ${1 < 2 ? 'x' : 'y'} b`}>x < 5</Callout>",
+		'<Callout title="Latency < 100 ms">x < 5</Callout>',
+	];
+
+	for (const extension of ["md", "mdx"]) {
+		it(`parses every tricky input without a syntax error in .${extension}`, async () => {
+			for (const body of cases) {
+				const result = await validateSource({
+					metadata: createMetadataPort(),
+					source: `# Title\n\n${body}\n`,
+					path: `doc.${extension}`,
+					registry: fixtureRegistry,
+				});
+				expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(
+					false,
+				);
+			}
+		});
+	}
+
+	it("delivers attribute values to the parser unchanged", () => {
+		const attributeOf = (body: string): unknown => {
+			const tree = unified().use(remarkParse).use(remarkMdx).parse(escapeBareLt(body));
+			const paragraph = tree.children[0] as { children: unknown[] };
+			const node = paragraph.children[0] as { attributes: Array<{ value: unknown }> };
+			return node.attributes[0].value;
+		};
+		expect(attributeOf('<Callout title="a\\">x < 5</Callout>')).toBe("a\\");
+		expect(attributeOf("<Callout title='Latency < 100 \\ms'>x</Callout>")).toBe(
+			"Latency < 100 \\ms",
+		);
+		const expression = attributeOf("<Callout title={'can\\'t'}>x < 5</Callout>") as {
+			value: string;
+		};
+		expect(expression.value).toBe("'can\\'t'");
+	});
+
+	it("never leaves a bare `<` before a digit, space or `=` in tag-free prose", () => {
+		const pieceArb = fc.constantFrom(" ", "5", "=", "<", "\\<", "\\\\<", "\\\\");
+		fc.assert(
+			fc.property(fc.array(pieceArb, { maxLength: 12 }), (pieces) => {
+				const output = escapeBareLt(pieces.join(""));
+				expect(output).toBe(escapeBareLt(output));
+				// A real `<` is one preceded by an even run of backslashes.
+				expect(/(?<!\\)(?:\\\\)*<[\d\s=]/.test(output)).toBe(false);
+			}),
+		);
 	});
 });
 

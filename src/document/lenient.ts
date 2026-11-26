@@ -15,7 +15,7 @@ export function escapeBareLt(
 	const parts = source.split(/(\r\n|\r|\n)/);
 	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
-	const tag: TagState = { inTag: false, quote: null, braceDepth: 0 };
+	const tag: TagState = { inTag: false, quote: null, nesting: [] };
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
 		const line = parts[index];
@@ -35,11 +35,18 @@ export function escapeBareLt(
 /**
  * Where the scan is inside a JSX opening tag, carried from one line to the
  * next because a tag's attributes may sit on their own lines.
+ *
+ * `nesting` is the stack of open `{` (a brace expression or object literal)
+ * and `${` (a template-literal substitution). It is empty in the tag's own
+ * attribute text. `quote` is the string being read: in the attribute text it
+ * is a JSX attribute string (no escapes, only the same quote closes it);
+ * inside braces it is a JavaScript string (backslash escapes the next
+ * character) or a template literal.
  */
 interface TagState {
 	inTag: boolean;
-	quote: '"' | "'" | null;
-	braceDepth: number;
+	quote: '"' | "'" | "`" | null;
+	nesting: Array<"{" | "${">;
 }
 
 const INLINE_CODE = /`+[^`]*`+/y;
@@ -50,9 +57,17 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
  * skipped (there `<` is literal or JavaScript), and so is everything between
  * a tag's `<Name` and its closing `>`: a quoted attribute value is literal
  * text, so a backslash added to `title="Latency < 100 ms"` would be displayed.
+ *
+ * In prose a backslash escapes the character after it, so `\<` is a literal
+ * `<` that neither gets another backslash nor starts a tag, while `\\<` is an
+ * escaped backslash followed by a real `<`.
+ *
+ * Inside braces this is not a JavaScript parser: `//` and `/* *\/` comments and
+ * regex literals are not recognised, so a quote character inside one would be
+ * read as the start of a string.
  */
 function escapeLine(line: string, tag: TagState): string {
-	if (line.trim() === "" && tag.braceDepth === 0) {
+	if (line.trim() === "" && tag.nesting.length === 0) {
 		// A tag cannot continue across a blank line, so a `<word` in prose that
 		// never closes stops protecting the text after it.
 		tag.inTag = false;
@@ -66,16 +81,14 @@ function escapeLine(line: string, tag: TagState): string {
 	while (index < line.length) {
 		const character = line[index];
 		if (tag.inTag) {
-			if (tag.quote) {
-				if (character === tag.quote) tag.quote = null;
-			} else if (character === '"' || character === "'") tag.quote = character;
-			else if (tag.braceDepth > 0) {
-				if (character === "{") tag.braceDepth += 1;
-				else if (character === "}") tag.braceDepth -= 1;
-			} else if (character === "{") tag.braceDepth = 1;
-			else if (character === ">") tag.inTag = false;
-			output += character;
-			index += 1;
+			const width = scanTagCharacter(line, index, tag);
+			output += line.slice(index, index + width);
+			index += width;
+			continue;
+		}
+		if (character === "\\") {
+			output += line.slice(index, index + 2);
+			index += 2;
 			continue;
 		}
 		const skipped = character === "`" ? INLINE_CODE : character === "{" ? INLINE_EXPRESSION : null;
@@ -91,10 +104,33 @@ function escapeLine(line: string, tag: TagState): string {
 		if (character === "<") {
 			const next = line[index + 1] ?? "";
 			if (/[A-Za-z]/.test(next)) tag.inTag = true;
-			else if (/[\d\s=]/.test(next) && line[index - 1] !== "\\") output += "\\";
+			else if (/[\d\s=]/.test(next)) output += "\\";
 		}
 		output += character;
 		index += 1;
 	}
 	return output;
+}
+
+/** Advance the tag state over the character at `index`; returns how many characters it consumed. */
+function scanTagCharacter(line: string, index: number, tag: TagState): number {
+	const character = line[index];
+	const inBraces = tag.nesting.length > 0;
+	if (tag.quote) {
+		if (inBraces && character === "\\") return 2;
+		if (character === tag.quote) tag.quote = null;
+		else if (tag.quote === "`" && character === "$" && line[index + 1] === "{") {
+			tag.nesting.push("${");
+			tag.quote = null;
+			return 2;
+		}
+		return 1;
+	}
+	if (character === '"' || character === "'" || (inBraces && character === "`")) {
+		tag.quote = character;
+	} else if (character === "{") tag.nesting.push("{");
+	else if (character === "}" && inBraces) {
+		if (tag.nesting.pop() === "${") tag.quote = "`";
+	} else if (character === ">" && !inBraces) tag.inTag = false;
+	return 1;
 }
