@@ -290,7 +290,10 @@ export function Thread({
 			</div>
 			{showReply ? (
 				<div className="grid grid-cols-[24px_1fr] items-end gap-x-2.5">
-					<Avatar author="human" />
+					{/* Lifted by the field's border and padding, so it lines up with the send button. */}
+					<span className="mb-[6px]">
+						<Avatar author="human" />
+					</span>
 					<ReplyField
 						label="Reply"
 						sendLabel="Send reply"

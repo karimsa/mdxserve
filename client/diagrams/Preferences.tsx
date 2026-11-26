@@ -6,14 +6,21 @@ export type AgentChoice = "codex" | "claude" | "disabled";
 export function DiagramPreferences({
 	onClose,
 	canEditDiagrams = true,
+	nested = false,
 }: {
 	onClose: () => void;
 	canEditDiagrams?: boolean;
+	/** Opened from inside another modal dialog (see Settings). */
+	nested?: boolean;
 }) {
-	return canEditDiagrams ? <DiagramSettings onClose={onClose} /> : <Settings onClose={onClose} />;
+	return canEditDiagrams ? (
+		<DiagramSettings onClose={onClose} nested={nested} />
+	) : (
+		<Settings onClose={onClose} nested={nested} />
+	);
 }
 
-function DiagramSettings({ onClose }: { onClose: () => void }) {
+function DiagramSettings({ onClose, nested }: { onClose: () => void; nested: boolean }) {
 	const [agent, setAgent] = useState<AgentChoice>("disabled");
 	const [models, setModels] = useState({ codex: "", claude: "" });
 	const [catalog, setCatalog] = useState<{ id: string; label: string }[]>([]);
@@ -82,6 +89,7 @@ function DiagramSettings({ onClose }: { onClose: () => void }) {
 	return (
 		<Settings
 			onClose={onClose}
+			nested={nested}
 			saving={(loaded && pending) || checking}
 			status={
 				error ? (

@@ -1,35 +1,28 @@
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { useRef } from "react";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { TocList } from "../ui/TocList";
-import { TOC_MAX_WIDTH, TOC_MIN_WIDTH, tocVisibleAtom, tocWidthAtom } from "../state";
-import { useToc } from "./useToc";
+import { TOC_MAX_WIDTH, TOC_MIN_WIDTH, tocWidthAtom } from "../state";
+import type { DocToc } from "./useDocToc";
 
 function clampWidth(px: number): number {
 	return Math.min(TOC_MAX_WIDTH, Math.max(TOC_MIN_WIDTH, Math.round(px)));
 }
 
-/** "On this page" rail. Hidden entirely when the doc has no h2s. */
-export function TocRail({ path, version }: { path: string; version: number }) {
-	const { items, activeId, setActiveId } = useToc(path, version);
+/** "On this page" rail beside the doc. Renders nothing when the mode or the doc has no rail. */
+export function TocRail({ toc }: { toc: DocToc }) {
 	const [width, setWidth] = useAtom(tocWidthAtom);
-	const visible = useAtomValue(tocVisibleAtom);
 	const railRef = useRef<HTMLDivElement>(null);
-	const hasH2 = items.some((item) => item.level === 2);
-	if (!visible || !hasH2) return null;
-
-	function handleSelect(id: string) {
-		setActiveId(id);
-		history.replaceState(null, "", `#${id}`);
-		document.getElementById(id)?.scrollIntoView({ block: "start" });
-	}
+	if (toc.rail === null) return null;
 
 	return (
 		<div
 			ref={railRef}
 			data-toc-rail
 			data-print-hide
-			className="hidden xl:block shrink-0 self-start ml-10 sticky top-[calc(var(--topbar-height)+40px)]"
+			className={
+				toc.rail + " shrink-0 self-start ml-10 sticky top-[calc(var(--topbar-height)+40px)]"
+			}
 			style={{ width: clampWidth(width) }}
 		>
 			{/* The rail is flush against the main column's right edge, so the
@@ -48,7 +41,7 @@ export function TocRail({ path, version }: { path: string; version: number }) {
 			    margin) so a long list scrolls here instead of running below the fold,
 			    and the handle's resting pill stays centred in what's visible. */}
 			<div className="max-h-[calc(100vh-var(--topbar-height)-80px)] overflow-y-auto">
-				<TocList items={items} activeId={activeId} onSelect={handleSelect} />
+				<TocList items={toc.items} activeId={toc.activeId} onSelect={toc.select} />
 			</div>
 		</div>
 	);

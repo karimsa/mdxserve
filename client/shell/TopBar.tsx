@@ -46,6 +46,7 @@ export function TopBar({
 	onToggleTheme,
 	onDiagramPreferences,
 	comments,
+	toc,
 }: {
 	/** Wordmark's link target; undefined renders it as a plain (non-link) span. */
 	homeHref?: string;
@@ -60,6 +61,8 @@ export function TopBar({
 	theme: Theme;
 	onToggleTheme: () => void;
 	onDiagramPreferences?: () => void;
+	/** Brings out the table of contents where it is not on the page; omitted when undefined. */
+	toc?: { onOpen: () => void; className: string };
 	/** Comments panel toggle (doc pages); omitted when undefined. */
 	comments?: { count: number; open: boolean; onToggle: () => void };
 }) {
@@ -101,7 +104,7 @@ export function TopBar({
 					onClick={search.onOpen}
 					aria-label="Search docs"
 					title="Search docs"
-					className="flex h-11 w-11 shrink-0 justify-center md:h-[30px] md:w-60 md:justify-start items-center gap-2 rounded-md border border-border-default bg-surface-card px-2.5 text-[13px] text-text-subtle shadow-xs cursor-pointer"
+					className="flex h-11 w-11 shrink-0 justify-center md:h-[30px] md:w-60 md:justify-start items-center gap-2 rounded-md border border-border-default bg-surface-card px-2.5 text-[13px] text-text-subtle shadow-xs cursor-pointer max-md:border-transparent max-md:bg-transparent max-md:text-text-muted max-md:shadow-none max-md:[-webkit-tap-highlight-color:transparent] max-md:active:bg-surface-hover"
 				>
 					<Icon name="search" size="sm" />
 					<span className="hidden md:block flex-1 text-left">Search docs</span>
@@ -118,6 +121,15 @@ export function TopBar({
 					disabled={exportDoc.pending}
 					options={EXPORT_FORMAT_OPTIONS}
 					onChange={(format) => exportDoc.onExport(format as ExportFormat)}
+				/>
+			) : null}
+			{toc ? (
+				<IconButton
+					icon="table-of-contents"
+					label="On this page"
+					size="sm"
+					className={toc.className}
+					onClick={toc.onOpen}
 				/>
 			) : null}
 			{comments ? (

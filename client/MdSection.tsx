@@ -219,11 +219,13 @@ function Section({
 	// out of the way where a double-click already means something: following/
 	// selecting a link, a button (code copy, tabs), a task checkbox, selecting a
 	// word inside a code block, and svg-pan-zoom's double-click zoom on a
-	// mermaid diagram (client/Mermaid.tsx `dblClickZoomEnabled`).
+	// mermaid diagram (client/Mermaid.tsx `dblClickZoomEnabled`), and the inline
+	// table of contents (client/shell/TocAbove.tsx), which is not doc content.
 	function onDoubleClick(event: MouseEvent<HTMLDivElement>) {
 		if (shellInfo.permissions === "restricted") return;
 		const target = event.target as Element | null;
-		if (target?.closest("a, button, input, select, textarea, summary, pre, svg")) return;
+		if (target?.closest("a, button, input, select, textarea, summary, pre, svg, [data-toc-above]"))
+			return;
 		event.preventDefault();
 		void startEdit();
 	}

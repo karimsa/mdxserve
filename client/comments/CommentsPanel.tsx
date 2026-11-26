@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CommentThread } from "../../src/comments/schema";
+import type { SheetDragHandlers } from "../ui/BottomSheet";
 import { CtlButton } from "./CtlButton";
 import { DraftThread } from "./DraftThread";
 import type { CommentsModel } from "./model";
@@ -79,10 +80,13 @@ export function CommentsPanel({
 	model,
 	variant,
 	onClose,
+	headerDrag,
 }: {
 	model: CommentsModel;
 	variant: "sidebar" | "sheet";
 	onClose: () => void;
+	/** The sheet resizes by its header as well as its grab handle. */
+	headerDrag?: SheetDragHandlers;
 }) {
 	const [tab, setTab] = useState<Tab>("open");
 	const activeId = useAtomValue(activeThreadAtom);
@@ -136,9 +140,10 @@ export function CommentsPanel({
 	return (
 		<>
 			<div
+				{...headerDrag}
 				className={
 					"flex h-[42px] shrink-0 items-center gap-3 border-b pr-2 pl-4 " +
-					(sheet ? "border-border-subtle" : "border-border-default")
+					(sheet ? "touch-none border-border-subtle" : "border-border-default")
 				}
 			>
 				<Tabs
