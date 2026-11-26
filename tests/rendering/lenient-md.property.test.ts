@@ -204,6 +204,10 @@ describe("escapeBareLt scanner states", () => {
 		expect(escapeBareLt("``a <W\nb`` c < 1")).toBe("``a <W\nb`` c \\< 1");
 	});
 
+	it("closes a code span that ends on an indented continuation line", () => {
+		expect(escapeBareLt("`start\n    end`\ny < 6")).toBe("`start\n    end`\ny \\< 6");
+	});
+
 	it("treats an unmatched backtick as plain text", () => {
 		expect(escapeBareLt("it`s x < 5\nand y < 6")).toBe("it`s x \\< 5\nand y \\< 6");
 		expect(escapeBareLt("`a\n\nx < 5 `b`")).toBe("`a\n\nx \\< 5 `b`");

@@ -90,7 +90,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 		return line;
 	}
 	// Indented code blocks are literal too.
-	if (!tag.inTag && /^(?: {4}|\t)/.test(line)) return line;
+	if (!tag.inTag && !tag.codeRun && /^(?: {4}|\t)/.test(line)) return line;
 	let output = "";
 	let index = 0;
 	if (tag.codeRun) {
