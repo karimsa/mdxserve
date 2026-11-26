@@ -162,6 +162,24 @@ describe("DocumentService.parse — id fallbacks", () => {
 		expect(codes(diagnostics)).toEqual(["duplicate-tab-value"]);
 	});
 
+	it("holds an authored tab value to the id pattern and falls back to the label slug", () => {
+		const { tree, diagnostics } = parse(
+			'<Tabs id="t1">\n  <Tab label="One" value="x>y">\n    a\n  </Tab>\n  <Tab label="Two" value="one">\n    b\n  </Tab>\n  <Tab label="Three" value="9lives">\n    c\n  </Tab>\n</Tabs>\n',
+		);
+		const tabs = findById(tree, "t1");
+		expect(tabs && "tabs" in tabs ? tabs.tabs.map((tab) => tab.id) : []).toEqual([
+			"t1>one",
+			"t1>~2",
+			"t1>three",
+		]);
+		expect(diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.prop])).toEqual([
+			["invalid-id", "value"],
+			["duplicate-tab-value", "value"],
+			["invalid-id", "value"],
+		]);
+		expect(diagnostics[0].message).toContain("starting with a letter");
+	});
+
 	it("selects the first tab when defaultValue matches none, listing the values", () => {
 		const { tree, diagnostics } = parse(
 			'<Tabs id="pick" defaultValue="z">\n  <Tab label="A">\n    a\n  </Tab>\n  <Tab label="B">\n    b\n  </Tab>\n</Tabs>\n',
@@ -204,6 +222,15 @@ describe("DocumentService.parse — fallback parse", () => {
 		expect(ranges.get("broken")).toEqual({ startLine: 5, endLine: 8 });
 		expect(ranges.get("guide")).toEqual({ startLine: 1, endLine: 4 });
 		expect(ranges.get("fine")).toEqual({ startLine: 9, endLine: 11 });
+	});
+
+	it("lists a failed h2 section in the table of contents, in document order", () => {
+		const { tree } = parse("## Good\n\nfine\n\n## Broken\n\n{1 +}\n\n## After\n\nok\n");
+		expect(tree.toc).toEqual([
+			{ id: "good", label: "Good", kind: "heading", children: [] },
+			{ id: "broken", label: "Broken", kind: "heading", children: [] },
+			{ id: "after", label: "After", kind: "heading", children: [] },
+		]);
 	});
 
 	it("makes a document with no h1 or h2 one failed chunk", () => {
@@ -353,6 +380,11 @@ describe("DocumentService.parse — nodes", () => {
 		expect(JSON.stringify(preamble)).toContain('"src":"https://example.com/b.png"');
 		expect(JSON.stringify(preamble)).toContain('"src":"/abs/c.png"');
 		expect(JSON.stringify(preamble)).toContain('"src":"asset:/docs/guide.mdx:pic.png"');
+		const shot = parse(
+			'<Screenshot id="s" src="./s.png" alt="a" />\n<Screenshot id="t" src="https://x.dev/t.png" />\n',
+		);
+		expect(JSON.stringify(shot.tree)).toContain('"src":"asset:/docs/guide.mdx:./s.png"');
+		expect(JSON.stringify(shot.tree)).toContain('"src":"https://x.dev/t.png"');
 	});
 
 	it("converts tables with the hash id and alignment", () => {

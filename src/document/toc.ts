@@ -35,6 +35,13 @@ function collect(nodes: readonly (BlockNode | InlineNode)[], into: TocEntry[], m
 				}
 				break;
 			}
+			case "error": {
+				// A section that failed to parse stays reachable from the contents,
+				// so the reader can find what needs fixing.
+				const heading = mode === "root" ? failedHeading(node.source) : null;
+				if (heading) into.push({ id: node.id, label: heading, kind: "heading", children: [] });
+				break;
+			}
 			case "preamble":
 				collect(node.children, into, mode);
 				break;
@@ -54,6 +61,15 @@ function collect(nodes: readonly (BlockNode | InlineNode)[], into: TocEntry[], m
 				break;
 		}
 	}
+}
+
+/** The text of the h2 or h3 heading line a failed section starts with, or null. */
+function failedHeading(source: string): string | null {
+	const firstLine = source.split(/\r\n|\r|\n/, 1)[0] ?? "";
+	const match = /^ {0,3}#{2,3}(?=[ \t]|$)(.*)$/.exec(firstLine);
+	if (!match) return null;
+	const text = match[1].replace(/[ \t]+#+[ \t]*$/, "").trim();
+	return text === "" ? null : text;
 }
 
 function tabEntry(tab: TabNode): TocEntry {

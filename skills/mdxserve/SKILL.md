@@ -151,8 +151,8 @@ state, so each needs an `id`: short, descriptive, unique in the document, starti
 letter and using only letters, digits, `-` and `_` (`id="install-tabs"`). It must not equal a
 heading's anchor (the heading's slug, so not `id="install"` next to `## Install`). Keep the
 `id` when you edit the block. Give sibling headings distinct text: two `## Steps` under the
-same parent are an error, and a heading's anchor is its slug only while its text is unique in
-the document. `mdxserve document <file>` prints the table of contents with every anchor.
+same parent are an error. `mdxserve document <file>` prints the table of contents with the id
+of every entry.
 
 ## Tables: data versus facts
 

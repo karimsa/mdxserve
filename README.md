@@ -242,14 +242,15 @@ and a stateful component with no `id` gets a generated one. A syntax error, such
 `{`, only takes out its own `#`/`##` section, which is shown as source. `mdxserve validate`
 reports each of these as an error with the change that fixes it.
 
-### Heading anchors
+### Heading ids
 
-A heading's anchor is its slug (`## Install it` is `#install-it`), the same anchor earlier
-releases gave it. When the same heading text appears more than once in a document, each of
-those headings is anchored by its path from the top heading instead, joined with `>`
-(`#guide>install>examples`), and a link to the plain slug (`#examples`) still finds the first
-of them. A tab is anchored by its `Tabs` id and its value (`#install-tabs>macos`).
-`mdxserve document <file>` prints the table of contents with every anchor.
+Every heading, tab and stateful component has an id in the document tree that
+`mdxserve document <file>` prints. A heading whose text is unique in the document has its slug
+as its id (`## Install it` is `install-it`), the same anchor the page gives it. When the same
+heading text appears more than once, each of those headings is identified by its path from
+the top heading instead, joined with `>` (`guide>install>examples`), and a tab by its `Tabs`
+id and its value (`install-tabs>macos`). The page itself still anchors repeated headings the
+way earlier releases did.
 
 ### The example folder
 

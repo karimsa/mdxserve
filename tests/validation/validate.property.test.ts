@@ -202,7 +202,10 @@ describe("DocumentService.parse — unknown props", () => {
 				const propNames = propNamesOf(entry);
 				// `id` is the stateful builtins' own prop, checked by the id rules instead.
 				fc.pre(
-					!propNames.includes(extra) && extra !== "children" && extra !== "key" && extra !== "id",
+					!propNames.includes(extra) &&
+						!["children", "key", "id", "class", "style"].includes(extra) &&
+						// `on*` attributes are dropped earlier as unsupported-attribute.
+						!/^on/i.test(extra),
 				);
 				const src = `<${entry.name} ${extra}="v" />`;
 				const { diagnostics } = documents.parse(src, "x.mdx");

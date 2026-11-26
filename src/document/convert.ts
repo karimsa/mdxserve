@@ -394,6 +394,8 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		}
 		if (id !== null && position === "flow") nodeRange(id, node as FlowNode);
 		const props = checkProps(name, attributes, node.position);
+		// Screenshot's `src` resolves like a Markdown image.
+		if (name === "Screenshot" && typeof props.src === "string") props.src = resolveAsset(props.src);
 		return { type: "component", id, name, props, children: jsxChildren(node, scope, position) };
 	}
 
@@ -411,7 +413,21 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 			const tabProps = checkProps("Tab", foldAttributes(child), child.position);
 			if (typeof tabProps.label !== "string") continue;
 			const label = tabProps.label;
-			let value = typeof tabProps.value === "string" ? tabProps.value : tabValueFromLabel(label);
+			let value = tabValueFromLabel(label);
+			if (typeof tabProps.value === "string") {
+				if (isValidAuthoredId(tabProps.value)) {
+					value = tabProps.value;
+				} else {
+					report({
+						severity: "error",
+						code: "invalid-id",
+						message: `The value ${JSON.stringify(tabProps.value)} on the tab "${label}" is not valid, so the tab uses "${value || "a generated value"}" and links to it can break. Use letters, digits, - and _, starting with a letter.`,
+						component: "Tab",
+						prop: "value",
+						...placeOf(child.position),
+					});
+				}
+			}
 			if (value === "" || values.has(value)) {
 				if (value !== "") {
 					report({

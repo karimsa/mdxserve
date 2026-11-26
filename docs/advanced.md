@@ -295,9 +295,10 @@ nothing.
 
 ### IDs and anchors
 
-Every section, tab and stateful component has an ID that stays the same across edits. It is
-the URL anchor of a section or tab, and the key the reader's state (the selected tab, a table's
-sort and filters, an open `details`) is kept under.
+Every section, tab and stateful component has an ID in the JSON document tree that stays the
+same across edits elsewhere in the document. A stateful component's authored `id` is what the
+reader's state for it (the selected tab, a table's sort and filters, an open `details`) is
+kept under.
 
 | Node                                                                      | ID                                                                                        |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -308,9 +309,9 @@ sort and filters, an open `details`) is kept under.
 | Content before the first heading                                          | `~preamble`                                                                               |
 
 A heading inside a tab is pathed from its tab (`os>macos>install`), so the same heading in
-two tabs is not a repeat. A link to a plain slug that matches no ID exactly finds the first
-anchor that ends with `>` and that slug, so `#examples` keeps working after a second
-"Examples" heading turns both into paths.
+two tabs is not a repeat. These ids are what the JSON document tree (`getDocument`,
+`mdxserve document`) carries; the rendered page still anchors a heading by its slug, adding
+`-1`, `-2` to repeats, as earlier releases did.
 
 Each break of these rules is an `error` that names the fix, and the document still renders:
 
