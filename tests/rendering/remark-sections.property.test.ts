@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { createProcessor } from "@mdx-js/mdx";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options.js";
+import { builtinNames } from "../helpers/components.js";
 import { toString as mdastToString } from "mdast-util-to-string";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement } from "mdast-util-mdx";
@@ -11,9 +12,10 @@ import { spliceLines } from "../../src/docs/edit.js";
 
 // Use the same syntax extensions as rendering and validation.
 function parse(src: string): Root {
-	return createProcessor({ ...mdxCompileOptions(createMetadataPort()), format: "mdx" }).parse(
-		src,
-	) as Root;
+	return createProcessor({
+		...mdxCompileOptions(createMetadataPort(), { components: builtinNames }),
+		format: "mdx",
+	}).parse(src) as Root;
 }
 
 function runPlugin(src: string): Root {

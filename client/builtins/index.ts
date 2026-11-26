@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import type { z } from "zod";
 import Callout, { calloutProps } from "./Callout";
-import Button, { buttonProps } from "./Button";
 import Tooltip, { tooltipProps } from "./Tooltip";
 import Tabs, { Tab, tabsProps, tabProps } from "./Tabs";
 import Badge, { badgeProps } from "./Badge";
@@ -11,7 +10,6 @@ import Kbd, { kbdProps } from "./Kbd";
 import FileTree, { fileTreeProps } from "./FileTree";
 import Chart, { chartProps } from "./Chart";
 import Sparkline, { sparklineProps } from "./Sparkline";
-import Dropdown, { Option, dropdownProps, optionProps } from "./Dropdown";
 import DataTable, { dataTableProps } from "./DataTable";
 import Screenshot, { screenshotProps } from "./Screenshot";
 
@@ -29,7 +27,7 @@ export const builtins: BuiltinDefinition[] = [
 		description:
 			"A bordered, sortable, filterable data table with typed columns, unit selection, grouped headers and optional bars.",
 		whenToUse:
-			"Use for datasets and quantitative comparisons; use native Markdown tables for facts and prose. Required stable document-unique id. Columns have key, label, type (text/number/percent/time/bytes/currency), optional group and bars. Percent values are fractions (0.15 means 15%). Time and bytes require unit; currency requires a format function and numeric data. Bars are opt-in and independently scaled by column. Reader state is local to the document and ID.",
+			"Use for datasets and quantitative comparisons; use native Markdown tables for facts and prose. Required stable document-unique id. Columns have key, label, type (text/number/percent/time/bytes/currency), optional group and bars. Percent values are fractions (0.15 means 15%). Time and bytes require unit; currency requires a format function and numeric data, and a document cannot pass a function, so in a document use number with the currency in the label. Bars are opt-in and independently scaled by column. Reader state is local to the document and ID.",
 		props: dataTableProps,
 		Component: DataTable,
 	},
@@ -41,15 +39,6 @@ export const builtins: BuiltinDefinition[] = [
 			'Use to highlight a tip, note, or warning that should stand out from surrounding prose. Prefer `tone="warn"` for caveats or risks, `tone="danger"` for breaking changes, `tone="tip"` or `tone="ok"` for positive asides, and the default `tone="note"` for general notes; add `title` when the callout needs a short heading. (`type` is a deprecated alias for `tone`.)',
 		props: calloutProps,
 		Component: Callout,
-	},
-	{
-		name: "Button",
-		description:
-			"A clickable button or link with primary/secondary/ghost/danger styles and a small tap animation.",
-		whenToUse:
-			'Use for a call to action inside MDX/JSX content — a link styled as a button (`href`) or an interactive action (`onClick`, JSX only). Prefer `variant="primary"` for the main action on a page, `secondary` or `ghost` for less prominent actions, and `danger` for destructive ones. `icon`/`iconRight` take a lucide icon name.',
-		props: buttonProps,
-		Component: Button,
 	},
 	{
 		name: "Tooltip",
@@ -143,23 +132,6 @@ export const builtins: BuiltinDefinition[] = [
 			"Use inline (e.g. in a sentence or table cell) to show the shape of a trend without a full chart — 'requests over the last hour ' next to a Sparkline. Needs at least two `values`.",
 		props: sparklineProps,
 		Component: Sparkline,
-	},
-	{
-		name: "Dropdown",
-		description:
-			"A menu-style picker: a button that opens a popover list of options — a plain form control, or a content switcher when given `Option` children.",
-		whenToUse:
-			"Pass `options` (strings or `{ value, label }`) for a form-style select, e.g. a settings picker. Pass `Option` children instead — each with a `label` and its own content — to switch between longer or more numerous panels of content; prefer `Tabs` when there are only 2-4 visible alternatives, and `Dropdown` once the list gets longer than fits comfortably as tabs.",
-		props: dropdownProps,
-		Component: Dropdown,
-	},
-	{
-		name: "Option",
-		description: "A single labeled option within a `Dropdown` content switcher.",
-		whenToUse:
-			"Only as a direct child of `<Dropdown>`. `label` is required; `value` defaults to a slug of `label`.",
-		props: optionProps,
-		Component: Option,
 	},
 	{
 		name: "Screenshot",

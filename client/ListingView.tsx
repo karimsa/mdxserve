@@ -11,8 +11,8 @@ import { ResizeHandle } from "./ui/ResizeHandle";
 import { ConfirmDeleteDialog } from "./ui/ConfirmDeleteDialog";
 import { pushToast } from "./ui/Toast";
 import { shellInfo, type ListingEntry } from "./router";
-import Button from "./builtins/Button";
-import Dropdown from "./builtins/Dropdown";
+import Button from "./ui/Button";
+import Dropdown from "./ui/Dropdown";
 import {
 	LISTING_MAX_WIDTH,
 	LISTING_MIN_WIDTH,
@@ -234,7 +234,7 @@ function SelectMenu({
 		setOpen(false);
 	}
 
-	// Close on outside click, mirroring client/builtins/Dropdown.tsx.
+	// Close on outside click, mirroring client/ui/Dropdown.tsx.
 	useEffect(() => {
 		if (!open) return;
 		const onPointerDown = (event: PointerEvent) => {

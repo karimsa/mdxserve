@@ -14,21 +14,16 @@ function countSources(text: string): number {
 }
 
 describe("renderAppCss", () => {
-	it("imports the given CSS, scans every source, and never scans src/", () => {
+	it("imports the given CSS, scans client/ only, and never scans src/", () => {
 		fc.assert(
-			fc.property(
-				absPathArb,
-				absPathArb,
-				fc.array(absPathArb, { maxLength: 4 }),
-				fc.array(absPathArb, { maxLength: 4 }),
-				(tailwindCss, clientDir, sourceDirs, sourceFiles) => {
-					const css = renderAppCss({ tailwindCss, clientDir, sourceDirs, sourceFiles });
-					expect(css).toContain(`@import "${toPosix(tailwindCss)}"`);
-					expect(css).toContain(`@import "${toPosix(clientDir)}/app.css"`);
-					expect(css).not.toContain('/src"');
-					expect(countSources(css)).toBe(3 * sourceDirs.length + sourceFiles.length + 1);
-				},
-			),
+			fc.property(absPathArb, absPathArb, (tailwindCss, clientDir) => {
+				const css = renderAppCss({ tailwindCss, clientDir });
+				expect(css).toContain(`@import "${toPosix(tailwindCss)}"`);
+				expect(css).toContain(`@import "${toPosix(clientDir)}/app.css"`);
+				expect(css).not.toContain('/src"');
+				expect(countSources(css)).toBe(1);
+				expect(css).not.toContain("@source not");
+			}),
 		);
 	});
 });

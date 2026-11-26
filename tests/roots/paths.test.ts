@@ -2,12 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-	expandHome,
-	importResolves,
-	resolveDirPath,
-	resolveDocPath,
-} from "../../src/roots/paths.js";
+import { expandHome, resolveDirPath, resolveDocPath } from "../../src/roots/paths.js";
 
 let rootDir: string;
 let outsideDir: string;
@@ -39,9 +34,6 @@ beforeAll(async () => {
 	// A symlink alias of the root itself (like /tmp vs /private/tmp on macOS).
 	aliasDir = path.join(outsideDir, "alias");
 	await fs.symlink(rootDir, aliasDir, "dir");
-	await fs.writeFile(path.join(rootDir, "Widget.tsx"), "export default () => null;\n", "utf8");
-	await fs.mkdir(path.join(rootDir, "parts"));
-	await fs.writeFile(path.join(rootDir, "parts", "index.ts"), "export {};\n", "utf8");
 });
 
 afterAll(async () => {
@@ -145,17 +137,6 @@ describe("resolveDirPath", () => {
 		]) {
 			expect((await resolveDirPath([rootDir], candidate)).ok).toBe(false);
 		}
-	});
-});
-
-describe("importResolves", () => {
-	it("resolves literal, extensionless, and directory-index specifiers like Vite", () => {
-		const from = path.join(rootDir, "doc.md");
-		expect(importResolves(from, "./Widget.tsx")).toBe(true);
-		expect(importResolves(from, "./Widget")).toBe(true);
-		expect(importResolves(from, "./parts")).toBe(true);
-		expect(importResolves(from, "./Missing")).toBe(false);
-		expect(importResolves(from, "./sub")).toBe(false);
 	});
 });
 

@@ -123,8 +123,8 @@ in place. Use full network access only on a trusted network.
 
 Any folder of Markdown works as-is. `.md` and `.mdx` are treated identically: both get
 GitHub-flavored Markdown (tables, task lists, strikethrough), syntax-highlighted code blocks,
-and mermaid diagrams. In an `.mdx` file you can also use JSX, `export` values, and `import`
-your own React components.
+and mermaid diagrams. Both can also use the builtin components, a few lowercase HTML
+elements, and literal values in braces (see [What a document can contain](#what-a-document-can-contain)).
 
 Code fences take a title, a line-number gutter, and highlighted lines on the opening line:
 
@@ -184,14 +184,12 @@ A small set of components is available in every file, `.md` included, with no im
 | `Tabs` / `Tab`      | Per-OS or per-language variants of the same instructions |
 | `Badge`             | A status or tag inline with text                         |
 | `Tooltip`           | A short explanation on hover                             |
-| `Button`            | A link styled as a call to action                        |
 | `Diff`              | A before/after code change, unified or side by side      |
 | `Card` / `CardGrid` | Linked cards laid out in a grid                          |
 | `Kbd`               | A keyboard shortcut                                      |
 | `FileTree`          | The shape of a directory                                 |
 | `Chart`             | A bar (vertical or horizontal), line, area, or histogram |
 | `Sparkline`         | A tiny inline trend line                                 |
-| `Dropdown`          | A picker, or a switcher between longer panels of content |
 | `Screenshot`        | An app or UI screenshot framed as a macOS window         |
 
 ```mdx
@@ -207,7 +205,7 @@ A small set of components is available in every file, `.md` included, with no im
 Status: <Badge tone="ok" dot>Online</Badge>
 ```
 
-![Chart, Sparkline and Dropdown builtins in the light theme](docs/screenshots/builtins-light.jpg)
+![Chart and Sparkline builtins in the light theme](docs/screenshots/builtins-light.jpg)
 
 Every component's props are documented from the command line:
 
@@ -216,22 +214,31 @@ mdxserve components search           # list them all
 mdxserve components show Callout     # props, defaults, and when to use it
 ```
 
-### Your own components
+### What a document can contain
 
-An `.mdx` file can `import` a `.tsx` / `.jsx` component from next to it and use it as JSX.
-Imports resolve relative to the file, like any other Vite import, and Tailwind utility classes
-work anywhere. A local import with the same name as a builtin wins.
+A document is content, not code. mdxserve renders Markdown, the builtins above, and these
+lowercase elements: `kbd`, `abbr`, `sub`, `sup`, `mark`, `b`, `i`, `u`, `s`, `em`, `strong`,
+`small`, `br`, `span`, `details`, `summary`, `table` (with `thead`, `tbody`, `tr`, `th` and `td`
+inside it), `a` and `img`.
 
-```mdx
-import { Counter } from "./components/Counter";
+- Braces hold a literal: an array, object, string, number, boolean or null. A prop receives it
+  as is (`data={[{ label: "Mon", value: 3 }]}`). In prose, a string or number shows as its
+  text, an array or object as its JSON, and `true`, `false` and `null` show nothing.
+- There are no `import` or `export` statements and no custom components.
+- `className`, `style` and event handlers (`onClick` and the rest) are not supported. The
+  attributes a lowercase element keeps are `title` on `abbr`; `open` and `id` on `details`;
+  `href` and `title` on `a`; `src`, `alt`, `title`, `width` and `height` on `img`; and
+  `colspan`, `rowspan` and `align` on `th` and `td`.
+- Links use http, https, mailto, a relative path or an `#anchor`.
 
-<Counter start={3} />
-```
+A document that breaks a rule still renders what it can: an unknown tag shows its content, a
+non-literal is left out, and an unsupported attribute is dropped. `mdxserve validate` reports
+each of these as an error with the change that fixes it.
 
 ### The example folder
 
-[`example/`](./example) is a working tour of everything above — plain Markdown, MDX, custom
-components, Tailwind, every builtin, and a page of charts. From a clone, after `yarn`:
+[`example/`](./example) is a working tour of everything above — plain Markdown, the MDX
+syntax a document can use, every builtin, and a page of charts. From a clone, after `yarn`:
 
 ```bash
 yarn dev    # serves ./example

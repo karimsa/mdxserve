@@ -39,12 +39,11 @@ export interface StartServerOptions {
 	permissions?: string;
 }
 
-/** Regenerate `file` for the given `roots`, so a root added/removed at runtime shows up in HMR's Tailwind scan. */
-async function writeAppCss(file: string, roots: string[], pkgRoot: string): Promise<void> {
+/** Write the Tailwind entry CSS to `file`. It scans client/ only, never a mounted root. */
+async function writeAppCss(file: string, pkgRoot: string): Promise<void> {
 	await fsp.writeFile(
 		file,
 		renderAppCss({
-			sourceDirs: roots,
 			tailwindCss: resolveFromPkg("tailwindcss/index.css"),
 			clientDir: path.join(pkgRoot, "client"),
 		}),
@@ -197,16 +196,13 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 
 	const cssDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));
 	const cssFile = path.join(cssDir, "app.css");
-	await writeAppCss(
-		cssFile,
-		rootsService.list().map((info) => info.dir),
-		pkgRoot,
-	);
+	await writeAppCss(cssFile, pkgRoot);
 
 	const docs = new DocsService(rootsService, registry);
 	const httpServer = http.createServer();
 	const vite = await createDevServer({
 		metadata: docs,
+		components: registry.components.map((component) => component.name),
 		roots: rootsService.list().map((info) => info.dir),
 		viteRoot: cssDir,
 		cacheDir: getViteCacheDir(),
@@ -311,9 +307,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 
 	vite.watcher.on("change", onDocChange);
 
-	// Apply a live root change to the running Vite server: its fs.allow list,
-	// its watcher, and the generated app.css (Tailwind's @source scan) all
-	// need to move in lockstep with the mounted set, or a newly-added root's
+	// Apply a live root change to the running Vite server: its fs.allow list
+	// and its watcher both need to move in lockstep with the mounted set, or a newly-added root's
 	// docs would 403 out of Vite even though RootsService already serves them.
 	// By the time this runs the set has already changed, so nothing in here may
 	// reject: a failure would surface as an error on a mutation that did
@@ -331,7 +326,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 				allowFsDir(vite, dir);
 				vite.watcher.add(dir);
 			}
-			await writeAppCss(cssFile, dirs, pkgRoot);
 		} catch (error) {
 			console.error(error);
 		}

@@ -16,14 +16,6 @@ Pick the shape by what the reader has to do with the numbers:
 | See how measurements are spread               | `Chart type="histogram"`                |
 | Read more than ~7 categories or exact values  | A table                                 |
 
-export const renders = [
-  { label: "Mon", cold: 118, warm: 34 },
-  { label: "Tue", cold: 104, warm: 31 },
-  { label: "Wed", cold: 131, warm: 38 },
-  { label: "Thu", cold: 97, warm: 29 },
-  { label: "Fri", cold: 88, warm: 27 },
-];
-
 ## Sparkline — a trend beside a number
 
 `Sparkline` is inline, has no axes, and needs at least two `values`. It belongs in a
@@ -57,8 +49,8 @@ plot on a hairline rule, and `filename` replaces the chart type in the header.
   data={[
     { label: "01-markdown", value: 38 },
     { label: "02-mdx-basics", value: 52 },
-    { label: "03-custom", value: 71 },
-    { label: "04-tailwind", value: 46 },
+    { label: "08-diagrams", value: 71 },
+    { label: "12-data-tables", value: 46 },
     { label: "06-builtins", value: 118 },
     { label: "07-charts", value: 94 },
   ]}
@@ -78,15 +70,21 @@ The `series` array names the keys of each entry to plot, and the key becomes the
   type="bar"
   filename="cold-vs-warm.json"
   unit="ms"
-  data={renders}
+  data={[
+    { label: "Mon", cold: 118, warm: 34 },
+    { label: "Tue", cold: 104, warm: 31 },
+    { label: "Wed", cold: 131, warm: 38 },
+    { label: "Thu", cold: 97, warm: 29 },
+    { label: "Fri", cold: 88, warm: 27 },
+  ]}
   series={["cold", "warm"]}
   yLabel="Render time"
   xLabel="Day"
   caption="Cold renders compile the MDX; warm renders are served from the doc cache."
 />
 
-That `data` is an `export const renders` at the top of this file — MDX lets you declare a
-dataset once and pass it to as many charts as you like.
+That `data` is a literal array written inline. A document cannot declare a value once and
+reuse it, so a dataset shared by several charts is repeated in each.
 
 ## Horizontal bar — room for long labels
 
@@ -102,9 +100,9 @@ are more than about six categories and a vertical chart would crowd them.
   caption="Rendered HTML size for the largest docs in this folder."
   data={[
     { label: "nested/deep/05-nested-page.md", value: 14 },
-    { label: "03-custom-components.mdx", value: 22 },
+    { label: "08-diagram-authoring.md", value: 22 },
     { label: "02-mdx-basics.mdx", value: 27 },
-    { label: "04-tailwind.mdx", value: 31 },
+    { label: "12-data-tables.mdx", value: 31 },
     { label: "06-builtins.mdx", value: 58 },
     { label: "07-charts.mdx", value: 64 },
   ]}
@@ -199,19 +197,19 @@ keeps a small sample from splitting into bins with one point apiece:
 
 ## One dataset, three shapes
 
-The `renders` dataset again, in each `type`. The bars make the per-day comparison easiest;
+The same dataset again, in each `type`. The bars make the per-day comparison easiest;
 the line makes the downward trend in cold renders easiest; the area exaggerates the gap
 between the two series, which is why it works best with one.
 
 <Tabs>
   <Tab label="Bar">
-    <Chart type="bar" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+    <Chart type="bar" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
   <Tab label="Line">
-    <Chart type="line" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+    <Chart type="line" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
   <Tab label="Area">
-    <Chart type="area" filename="renders.json" unit="ms" data={renders} series={["cold", "warm"]} />
+    <Chart type="area" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
 </Tabs>
 

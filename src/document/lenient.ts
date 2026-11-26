@@ -1,0 +1,48 @@
+import type { MetadataPort } from "../docs/metadata-port.js";
+
+/**
+ * Every document, `.md` or `.mdx`, is parsed as MDX so builtin components
+ * work in both extensions, but that makes a bare `<` followed by a digit,
+ * whitespace or `=` (e.g. "(<800px)", "a < b") a hard JSX parse error even
+ * though it is perfectly valid Markdown. Such a `<` can never start a JSX tag,
+ * so escape it as `\<` — outside fenced and inline code, which MDX already
+ * treats literally. Applied to both extensions alike.
+ */
+export function escapeBareLt(
+	source: string,
+	metadata: Pick<MetadataPort, "leadingFrontmatter">,
+): string {
+	const parts = source.split(/(\r\n|\r|\n)/);
+	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
+	let fence: string | null = null;
+	for (let index = 0; index < parts.length; index += 2) {
+		if (index / 2 < frontmatterEndLine) continue;
+		const line = parts[index];
+		const match = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+		if (match) {
+			const marker = match[1];
+			if (!fence) fence = marker;
+			else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+			continue;
+		}
+		if (fence) continue;
+		parts[index] = escapeOutsideInlineCode(line);
+	}
+	return parts.join("");
+}
+
+function escapeOutsideInlineCode(line: string): string {
+	// Indented code blocks are literal too.
+	if (/^(?: {4}|\t)/.test(line)) return line;
+	// Split on backtick runs, `{...}` expressions and JSX opening tags; odd-indexed
+	// segments are inline code, MDX expressions (where `<` is JavaScript, not JSX)
+	// or a tag with its attributes. A quoted attribute value is literal text, so a
+	// backslash added there would be displayed: `title="Latency < 100 ms"`.
+	const parts = line.split(
+		/(`+[^`]*`+|\{[^{}]*\}|<[A-Za-z][\w.:-]*(?:\s+[\w:-]+(?:=(?:"[^"]*"|'[^']*'|\{[^{}]*\}))?)*\s*\/?>?)/,
+	);
+	for (let index = 0; index < parts.length; index += 2) {
+		parts[index] = parts[index].replace(/(^|[^\\])<(?=[\d\s=])/g, "$1\\<");
+	}
+	return parts.join("");
+}

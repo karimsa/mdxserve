@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { TRANSITIONS } from "../motion";
-import { Icon } from "../ui/Icon";
+import { Icon } from "./Icon";
 
 export const buttonProps = z.object({
 	variant: z

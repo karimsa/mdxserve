@@ -1,42 +1,54 @@
-export const meta = {
-  title: 'MDX Basics',
-  description: 'Introduces JSX and JS expressions inside a Markdown-like document',
-};
+---
+title: MDX Basics
+description: What a document can write beyond Markdown, in either extension
+---
 
-# {meta.title}
+# MDX Basics
 
 This file ends in `.mdx`, but to `mdxserve` that makes no difference: `.md` and `.mdx` are
-compiled through the same MDX pipeline. Either extension lets you export values, write inline
-JSX, use the builtin components, and drop in JavaScript expressions wrapped in curly braces,
-all inside what otherwise reads like a normal Markdown document.
+parsed, validated and rendered the same way. Either extension can use the builtin components,
+a small set of lowercase HTML elements, and literal values in curly braces, all inside what
+otherwise reads like a normal Markdown document.
 
 One consequence worth knowing: MDX is stricter than plain Markdown. A stray `{` or an unclosed
-`<tag>` in prose is a compile error (shown in the page) rather than literal text — escape them
-as `\{` or wrap them in backticks.
+`<tag>` in prose is a syntax error rather than literal text, so escape them as `\{` or wrap them
+in backticks. A bare `<` before a digit, a space or `=` (as in "a < b") is fine.
 
-The `export const meta = {...}` block above isn't rendered — it defines a plain JS object you
-can reference later in the file, like the page title just did with `{meta.title}`.
+## Builtin components
 
-## Inline JSX
+Every builtin works by writing its tag, with no import:
 
-You can write JSX directly in the middle of Markdown content:
+<Callout tone="tip" title="No imports">
+  Run `mdxserve components` for the list of builtins and their props.
+</Callout>
 
-<div className="rounded-lg border border-neutral-200 dark:border-neutral-700 p-4 my-4">
-  This box is a plain `div` with Tailwind classes, written as JSX inside an `.mdx` file.
-</div>
+## Lowercase elements
 
-## JS expressions
+A few HTML elements cover what Markdown has no syntax for. Press <kbd>Ctrl</kbd> + <kbd>C</kbd>
+to copy, write H<sub>2</sub>O and E = mc<sup>2</sup>, <mark>highlight</mark> a phrase, or
+spell out <abbr title="Model Context Protocol">MCP</abbr> on hover.
 
-Anything in curly braces is evaluated as JavaScript. For example, `1 + 1` is {1 + 1}, and the
-page title from the `meta` export above is "{meta.title}".
+<details>
+  <summary>Show the supported elements</summary>
 
-You can also use expressions inline, like today being day number {new Date().getDate()} of the
-month — this is re-evaluated every time the page renders.
+`kbd`, `abbr`, `sub`, `sup`, `mark`, `b`, `i`, `u`, `s`, `em`, `strong`, `small`, `br`, `span`,
+`details`, `summary`, `table` (with `thead`, `tbody`, `tr`, `th` and `td` inside it), `a` and
+`img`. Other tags are unwrapped, and `className`, `style` and event handlers are dropped.
+
+</details>
+
+## Literal values
+
+Curly braces hold a literal value: an array, an object, a string, a number, a boolean or null.
+In a prop it is passed as is, like the `values` of this sparkline:
+<Sparkline values={[3, 5, 4, 8, 6, 9]} />. In prose, a string or number shows as its text
+({"like this"}), an array or object as its JSON ({[1, 2, 3]}), and `true`, `false` and `null`
+show nothing.
+
+Anything else, such as `{1 + 1}` or an `import`, is not run: `mdxserve validate` reports it with
+the change that fixes it, and the rest of the page still renders.
 
 ## Why this matters
 
-Write whatever reads best as Markdown, and reach for JSX only when you want to embed
-interactive components or compute something inline. See
-[`03-custom-components.mdx`](./03-custom-components.mdx) for importing real components instead
-of writing raw JSX by hand, and [`06-builtins.mdx`](./06-builtins.mdx) for the components that
-need no import at all.
+Write whatever reads best as Markdown, and reach for a builtin only when it presents something
+better than prose. See [`06-builtins.mdx`](./06-builtins.mdx) for the full tour of builtins.

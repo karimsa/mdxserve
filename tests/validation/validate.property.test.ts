@@ -7,12 +7,12 @@ import { mdxjs } from "micromark-extension-mdxjs";
 import {
 	analyzeTree,
 	collectHints,
-	collectLocalNames,
 	fromCompileError,
 	validateSource,
 	type Diagnostic,
 } from "../../src/validation/validate.js";
 import { fixtureComponentNames, fixtureRegistry } from "../fixtures/registry.js";
+import { restrictTree, type RestrictDiagnostic } from "../../src/document/restrict.js";
 import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
 
 // Same parse helper as src/docs/doc-cache.ts.
@@ -104,7 +104,17 @@ describe("analyzeTree / validateSource — GFM invariance", () => {
 	});
 });
 
-describe("analyzeTree — unknown components", () => {
+/** The diagnostics `remarkRestrict` reports for `tree` against the fixture registry. */
+function restrictDiagnostics(tree: ReturnType<typeof parse>): RestrictDiagnostic[] {
+	const diagnostics: RestrictDiagnostic[] = [];
+	restrictTree(tree, {
+		components: fixtureComponentNames,
+		onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+	});
+	return diagnostics;
+}
+
+describe("remarkRestrict — unknown components", () => {
 	it("reports exactly one unknown-component diagnostic per injected name, at the right line", () => {
 		fc.assert(
 			fc.property(
@@ -118,7 +128,7 @@ describe("analyzeTree — unknown components", () => {
 					const lines = full.split("\n");
 
 					const tree = parse(full);
-					const diagnostics = analyzeTree(tree, fixtureRegistry);
+					const diagnostics = restrictDiagnostics(tree);
 
 					expect(diagnostics.length).toBe(names.length);
 					const byComponent = new Map(
@@ -128,16 +138,17 @@ describe("analyzeTree — unknown components", () => {
 						const diag = byComponent.get(name);
 						expect(diag).toBeDefined();
 						expect(diag!.code).toBe("unknown-component");
-						expect(diag!.severity).toBe("error");
 						const expectedLine = lines.findIndex((line) => line === `<${name} />`) + 1;
 						expect(diag!.line).toBe(expectedLine);
 					}
+					// The tags are gone, so analyzeTree has nothing left to report.
+					expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
 				},
 			),
 		);
 	});
 
-	it("imported names are excluded; the rest still get exactly one diagnostic", () => {
+	it("an import does not make a component known: each import and each tag is reported", () => {
 		fc.assert(
 			fc.property(
 				docArb,
@@ -147,21 +158,20 @@ describe("analyzeTree — unknown components", () => {
 					selector: (tuple) => tuple[0],
 				}),
 				(doc, namedFlags) => {
-					const imports = namedFlags
-						.filter(([, imported]) => imported)
-						.map(([name]) => `import ${name} from "./x";`)
-						.join("\n");
+					const imported = namedFlags.filter(([, flag]) => flag).map(([name]) => name);
+					const imports = imported.map((name) => `import ${name} from "./x";`).join("\n");
 					const tags = namedFlags.map(([name]) => `<${name} />`).join("\n\n");
 					const full = [imports, doc, tags].filter(Boolean).join("\n\n");
 
-					const tree = parse(full);
-					const diagnostics = analyzeTree(tree, fixtureRegistry);
-					const reported = new Set(diagnostics.map((diagnostic) => diagnostic.component));
-
-					for (const [name, imported] of namedFlags) {
-						expect(reported.has(name)).toBe(!imported);
-					}
-					expect(diagnostics.length).toBe(namedFlags.filter(([, imported]) => !imported).length);
+					const diagnostics = restrictDiagnostics(parse(full));
+					const unknown = diagnostics.filter(
+						(diagnostic) => diagnostic.code === "unknown-component",
+					);
+					const esm = diagnostics.filter((diagnostic) => diagnostic.code === "esm-not-supported");
+					expect(new Set(unknown.map((diagnostic) => diagnostic.component))).toEqual(
+						new Set(namedFlags.map(([name]) => name)),
+					);
+					expect(esm.length).toBe(imported.length);
 				},
 			),
 		);
@@ -240,26 +250,17 @@ describe("validateSource — examples", () => {
 		expect(typeof result.diagnostics[0].line).toBe("number");
 	});
 
-	it("a bare `<` before a digit is ok as .md (escaped) but not as .mdx", async () => {
-		// Mirrors the motivating example in src/rendering/mdx/lenient-md.ts: `<` immediately
+	it.each(["md", "mdx"])("a bare `<` before a digit is ok as .%s (escaped)", async (extension) => {
+		// Mirrors the motivating example in src/document/lenient.ts: `<` immediately
 		// followed by a digit is a hard JSX parse error, since MDX tries to read
-		// it as a tag name. `.md` gets escapeBareLt run on it first; `.mdx` does
-		// not.
-		const md = await validateSource({
+		// it as a tag name. Both extensions get escapeBareLt run on them first.
+		const result = await validateSource({
 			metadata: createMetadataPort(),
 			source: "(<800px)\n",
-			path: "x.md",
+			path: `x.${extension}`,
 			registry: fixtureRegistry,
 		});
-		expect(md.ok).toBe(true);
-
-		const mdx = await validateSource({
-			metadata: createMetadataPort(),
-			source: "(<800px)\n",
-			path: "x.mdx",
-			registry: fixtureRegistry,
-		});
-		expect(mdx.ok).toBe(false);
+		expect(result.ok).toBe(true);
 	});
 });
 
@@ -272,34 +273,12 @@ describe("fromCompileError", () => {
 	});
 });
 
-describe("collectLocalNames declarations", () => {
-	const cases: Array<[string, string]> = [
-		["export default function Layout() { return null }", "Layout"],
-		["export default class Frame {}", "Frame"],
-		["export class Panel {}", "Panel"],
-		["export function Row() { return null }", "Row"],
-		["export const Cell = () => null", "Cell"],
-	];
-
-	for (const [esm, name] of cases) {
-		it(`binds ${name} from \`${esm}\``, () => {
-			const tree = parse(`${esm}\n\n<${name} />\n`);
-			expect(collectLocalNames(tree).has(name)).toBe(true);
-			expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
-		});
-	}
-});
-
 describe("member tags on builtins", () => {
 	it("reports <Builtin.Member> as unknown and does not check its props", () => {
 		const tree = parse('<Callout.Foo tone="warn" bogus="x" />\n');
-		const diagnostics = analyzeTree(tree, fixtureRegistry);
+		const diagnostics = restrictDiagnostics(tree);
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({ code: "unknown-component", component: "Callout.Foo" });
-	});
-
-	it("leaves <Local.Member> alone when Local is imported", () => {
-		const tree = parse('import Local from "./x"\n\n<Local.Member />\n');
 		expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
 	});
 });
@@ -418,19 +397,16 @@ describe("validateSource — render step", () => {
 	});
 });
 
-describe("unresolved-import positions", () => {
+describe("esm-not-supported positions", () => {
 	it("points at the import statement", async () => {
 		const result = await validateSource({
 			metadata: createMetadataPort(),
 			source: '# T\n\nimport Missing from "./missing"\n\n<Missing />\n',
 			path: "/x/doc.mdx",
 			registry: fixtureRegistry,
-			resolveImport: () => false,
 		});
-		const warning = result.diagnostics.find(
-			(diagnostic) => diagnostic.code === "unresolved-import",
-		);
-		expect(warning).toMatchObject({ line: 3, column: 1 });
+		const error = result.diagnostics.find((diagnostic) => diagnostic.code === "esm-not-supported");
+		expect(error).toMatchObject({ severity: "error", line: 3, column: 1 });
 	});
 });
 

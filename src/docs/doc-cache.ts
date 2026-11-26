@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import { bodyLines, leadingFrontmatter } from "./frontmatter.js";
 import { MAX_METADATA_PREFIX_BYTES } from "./metadata.js";
-import path from "node:path";
 import { toHtml } from "hast-util-to-html";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toHast } from "mdast-util-to-hast";
@@ -9,6 +8,7 @@ import { mdxFromMarkdown } from "mdast-util-mdx";
 import { toString as mdastToString } from "mdast-util-to-string";
 import { mdxjs } from "micromark-extension-mdxjs";
 import type { Nodes, PhrasingContent } from "mdast";
+import { escapeBareLt } from "../document/lenient.js";
 
 export interface CachedDoc {
 	mtime: number;
@@ -56,17 +56,19 @@ function unwrapLinks(nodes: PhrasingContent[]): PhrasingContent[] {
 }
 
 /**
- * Render a single `# heading` line to plain text plus inline HTML. Raw HTML in
- * the source is dropped by `toHast`, so the output only ever contains
- * markdown-derived elements.
+ * Render a single `# heading` line to plain text plus inline HTML. The line is
+ * parsed as MDX for both extensions, after the same bare-`<` escaping the
+ * renderer applies. Raw HTML in the source is dropped by `toHast`, so the
+ * output only ever contains markdown-derived elements.
  */
-function parseHeading(line: string | undefined, isMdx: boolean): { h1?: string; h1Html?: string } {
+function parseHeading(line: string | undefined): { h1?: string; h1Html?: string } {
 	if (!line) return {};
 	let root;
 	try {
-		root = isMdx
-			? fromMarkdown(line, { extensions: [mdxjs()], mdastExtensions: [mdxFromMarkdown()] })
-			: fromMarkdown(line);
+		root = fromMarkdown(escapeBareLt(line, { leadingFrontmatter }), {
+			extensions: [mdxjs()],
+			mdastExtensions: [mdxFromMarkdown()],
+		});
 	} catch {
 		// Unparseable MDX (e.g. an unclosed JSX tag); treat as untitled.
 		return {};
@@ -137,8 +139,7 @@ export class DocCache {
 		const lines = raw.split(/\r?\n/);
 		const contentLines = bodyLines(raw);
 		const headingLine = findHeadingLine(contentLines);
-		const isMdx = path.extname(absPath).toLowerCase() === ".mdx";
-		const { h1, h1Html } = parseHeading(headingLine, isMdx);
+		const { h1, h1Html } = parseHeading(headingLine);
 
 		const doc: CachedDoc = { mtime, h1, h1Html, lines, bodyLines: contentLines };
 		this.cache.set(absPath, doc);

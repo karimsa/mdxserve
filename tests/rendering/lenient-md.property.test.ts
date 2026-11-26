@@ -1,7 +1,9 @@
 import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { escapeBareLt as escapeWithMetadata } from "../../src/rendering/mdx/lenient-md.js";
+import { escapeBareLt as escapeWithMetadata } from "../../src/document/lenient.js";
+import { validateSource } from "../../src/validation/validate.js";
+import { fixtureRegistry } from "../fixtures/registry.js";
 
 describe("escapeBareLt", () => {
 	it("is idempotent", () => {
@@ -83,6 +85,71 @@ describe("escapeBareLt", () => {
 					expect(result).toContain("`" + codeContent + "`");
 				},
 			),
+		);
+	});
+});
+
+describe("escapeBareLt and JSX attributes", () => {
+	it("leaves a quoted attribute value unchanged and still escapes prose on the same line", () => {
+		expect(escapeBareLt('<Callout title="Latency < 100 ms">under < 5 ms</Callout>')).toBe(
+			'<Callout title="Latency < 100 ms">under \\< 5 ms</Callout>',
+		);
+		expect(escapeBareLt("<img alt='a <= b' src=\"x.png\" /> and 3 < 4")).toBe(
+			"<img alt='a <= b' src=\"x.png\" /> and 3 \\< 4",
+		);
+	});
+
+	it("still escapes a quoted comparison in prose, outside any tag", () => {
+		expect(escapeBareLt('He wrote "x < 5" twice')).toBe('He wrote "x \\< 5" twice');
+	});
+
+	it("validates a builtin whose attribute holds a bare `<` in both extensions, keeping the value", async () => {
+		for (const extension of ["md", "mdx"]) {
+			const result = await validateSource({
+				metadata: createMetadataPort(),
+				source: '# Title\n\n<Callout title="Latency < 100 ms">Body</Callout>\n',
+				path: `doc.${extension}`,
+				registry: fixtureRegistry,
+			});
+			expect(result.diagnostics.filter((diagnostic) => diagnostic.severity === "error")).toEqual(
+				[],
+			);
+		}
+	});
+});
+
+describe("escapeBareLt applies to both extensions", () => {
+	const proseArb = fc
+		.array(
+			fc.oneof(
+				fc.stringMatching(/^[A-Za-z0-9 ]{1,8}$/),
+				fc.constantFrom("<1", "< ", "<=", "(<800px)"),
+			),
+			{
+				minLength: 1,
+				maxLength: 6,
+			},
+		)
+		.map((parts) => parts.join(" "));
+
+	it("validates prose with a bare `<` the same way as .md and .mdx, with no syntax error", async () => {
+		await fc.assert(
+			fc.asyncProperty(proseArb, async (prose) => {
+				const source = `# Title\n\n${prose}\n`;
+				const [md, mdx] = await Promise.all(
+					["md", "mdx"].map((extension) =>
+						validateSource({
+							metadata: createMetadataPort(),
+							source,
+							path: `doc.${extension}`,
+							registry: fixtureRegistry,
+						}),
+					),
+				);
+				expect(md.diagnostics).toEqual(mdx.diagnostics);
+				expect(md.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(false);
+			}),
+			{ numRuns: 25 },
 		);
 	});
 });

@@ -1,7 +1,7 @@
 import type { MetadataPort } from "../docs/metadata-port.js";
 import fsp from "node:fs/promises";
 import { validateSource, type ValidationResult } from "./validate.js";
-import { resolveDocPath, importResolves } from "../roots/paths.js";
+import { resolveDocPath } from "../roots/paths.js";
 import type { RootInfo } from "../roots/root-info.js";
 import type { Registry } from "../components/registry.js";
 import type { RenderPort } from "../rendering/protocol.js";
@@ -63,7 +63,6 @@ export class ValidationService {
 			source: input.source,
 			path: input.absPath,
 			registry: this.registry,
-			resolveImport: (specifier) => importResolves(input.absPath, specifier),
 			render: input.allowRender ? this.render : undefined,
 		});
 	}

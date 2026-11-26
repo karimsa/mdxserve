@@ -21,7 +21,7 @@ import {
 } from "./mermaid-direction";
 import { useMediaQuery } from "./hooks";
 import { DESKTOP_MEDIA } from "./platform";
-import Dropdown from "./builtins/Dropdown";
+import Dropdown from "./ui/Dropdown";
 import { TRANSITIONS } from "./motion";
 import { CrossFade } from "./CrossFade";
 import { Icon } from "./ui/Icon";

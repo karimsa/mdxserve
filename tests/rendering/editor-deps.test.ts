@@ -8,6 +8,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import type { ViteDevServer } from "vite";
 import { getPackageRoot } from "../../src/infra/pkg.js";
 import { createDevServer } from "../../src/rendering/vite.js";
+import { builtinNames } from "../helpers/components.js";
 
 let vite: ViteDevServer;
 let server: http.Server;
@@ -43,6 +44,7 @@ beforeAll(async () => {
 	}
 	server = http.createServer();
 	vite = await createDevServer({
+		components: builtinNames,
 		metadata: createMetadataPort(),
 		roots: [temporaryDir],
 		viteRoot: temporaryDir,
