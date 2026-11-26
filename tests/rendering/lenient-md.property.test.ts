@@ -199,6 +199,23 @@ describe("escapeBareLt scanner states", () => {
 		expect(escapeBareLt(source)).toBe(source.replace("x < 5", "x \\< 5"));
 	});
 
+	it("keeps an inline code span that crosses a line from starting a tag", () => {
+		expect(escapeBareLt("`<Widget\nexample` and x < 5")).toBe("`<Widget\nexample` and x \\< 5");
+		expect(escapeBareLt("``a <W\nb`` c < 1")).toBe("``a <W\nb`` c \\< 1");
+	});
+
+	it("treats an unmatched backtick as plain text", () => {
+		expect(escapeBareLt("it`s x < 5\nand y < 6")).toBe("it`s x \\< 5\nand y \\< 6");
+		expect(escapeBareLt("`a\n\nx < 5 `b`")).toBe("`a\n\nx \\< 5 `b`");
+	});
+
+	it("does not read a Markdown link or image title as a tag", () => {
+		expect(escapeBareLt('[link](https://example.com "<Widget") and x < 5')).toBe(
+			'[link](https://example.com "<Widget") and x \\< 5',
+		);
+		expect(escapeBareLt('![alt](a.png "<img") and x < 5')).toBe('![alt](a.png "<img") and x \\< 5');
+	});
+
 	it("carries brace, string and template state across lines", () => {
 		const source = [
 			"<Callout",
@@ -218,6 +235,8 @@ describe("escapeBareLt scanner states", () => {
 	});
 
 	const cases = [
+		"`<Widget\nexample` and x < 5",
+		'[link](https://example.com "<Widget") and x < 5',
 		"<Callout title={/* user's label */ 'Note'}>x < 5</Callout>",
 		"Write \\<Widget when x < 5.",
 		"a \\\\< 5 and more",

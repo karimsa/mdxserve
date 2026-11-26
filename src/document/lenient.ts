@@ -15,7 +15,7 @@ export function escapeBareLt(
 	const parts = source.split(/(\r\n|\r|\n)/);
 	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
-	const tag: TagState = { inTag: false, quote: null, nesting: [], comment: false };
+	const tag: TagState = { inTag: false, quote: null, nesting: [], comment: false, codeRun: null };
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
 		const line = parts[index];
@@ -27,7 +27,14 @@ export function escapeBareLt(
 			continue;
 		}
 		if (fence) continue;
-		parts[index] = escapeLine(line, tag);
+		const rest = (): string => {
+			const following: string[] = [];
+			for (let next = index + 2; next < parts.length && parts[next].trim() !== ""; next += 2) {
+				following.push(parts[next]);
+			}
+			return following.join("\n");
+		};
+		parts[index] = escapeLine(line, tag, rest);
 	}
 	return parts.join("");
 }
@@ -49,9 +56,14 @@ interface TagState {
 	nesting: Array<"{" | "${">;
 	/** Inside a `/* ... *\/` comment in braces, which may span lines. */
 	comment: boolean;
+	/** The backtick run of an inline code span that continues onto the next line. */
+	codeRun: string | null;
 }
 
-const INLINE_CODE = /`+[^`]*`+/y;
+// A code span closes at a backtick run of exactly the opening length.
+const INLINE_CODE = /(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/y;
+// A link or image destination with its optional title: `](url "title")`.
+const LINK_TARGET = /\]\((?:[^()\\\n]|\\.)*\)/y;
 const INLINE_EXPRESSION = /\{[^{}]*\}/y;
 
 /**
@@ -68,18 +80,27 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
  * skipped, but regex literals are not recognised, so a quote character inside
  * one would be read as the start of a string.
  */
-function escapeLine(line: string, tag: TagState): string {
+function escapeLine(line: string, tag: TagState, rest: () => string): string {
 	if (line.trim() === "" && tag.nesting.length === 0) {
 		// A tag cannot continue across a blank line, so a `<word` in prose that
 		// never closes stops protecting the text after it.
 		tag.inTag = false;
 		tag.quote = null;
+		tag.codeRun = null;
 		return line;
 	}
 	// Indented code blocks are literal too.
 	if (!tag.inTag && /^(?: {4}|\t)/.test(line)) return line;
 	let output = "";
 	let index = 0;
+	if (tag.codeRun) {
+		// Inside an inline code span opened on an earlier line.
+		const close = closingRun(tag.codeRun).exec(line);
+		if (!close) return line;
+		index = close.index + tag.codeRun.length;
+		output = line.slice(0, index);
+		tag.codeRun = null;
+	}
 	while (index < line.length) {
 		const character = line[index];
 		if (tag.inTag) {
@@ -93,7 +114,14 @@ function escapeLine(line: string, tag: TagState): string {
 			index += 2;
 			continue;
 		}
-		const skipped = character === "`" ? INLINE_CODE : character === "{" ? INLINE_EXPRESSION : null;
+		const skipped =
+			character === "`"
+				? INLINE_CODE
+				: character === "{"
+					? INLINE_EXPRESSION
+					: character === "]"
+						? LINK_TARGET
+						: null;
 		if (skipped) {
 			skipped.lastIndex = index;
 			const literal = skipped.exec(line);
@@ -102,6 +130,20 @@ function escapeLine(line: string, tag: TagState): string {
 				index += literal[0].length;
 				continue;
 			}
+		}
+		if (character === "`") {
+			// No closing run on this line: a span that continues onto a later line
+			// of the paragraph is literal, an unmatched backtick is plain text.
+			const run = /`+/y;
+			run.lastIndex = index;
+			const opener = run.exec(line)![0];
+			if (closingRun(opener).test(rest())) {
+				tag.codeRun = opener;
+				return output + line.slice(index);
+			}
+			output += opener;
+			index += opener.length;
+			continue;
 		}
 		if (character === "<") {
 			const next = line[index + 1] ?? "";
@@ -147,4 +189,9 @@ function scanTagCharacter(line: string, index: number, tag: TagState): number {
 		if (tag.nesting.pop() === "${") tag.quote = "`";
 	} else if (character === ">" && !inBraces) tag.inTag = false;
 	return 1;
+}
+
+/** A backtick run of exactly this length. */
+function closingRun(run: string): RegExp {
+	return new RegExp("(?<!`)" + run + "(?!`)");
 }
