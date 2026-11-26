@@ -7,6 +7,8 @@ import type { Registry } from "../../src/components/registry.js";
 import { getPackageRoot } from "../../src/infra/pkg.js";
 import { validateSource } from "../../src/validation/validate.js";
 import { createMetadataPort } from "../helpers/metadata.js";
+import { runDocument } from "../../src/cli/document.js";
+import { documentTreeSchema } from "../../src/document/schema.js";
 
 // The real builtin registry, built the way scripts/build-registry.ts builds
 // dist/registry.json, so this test needs no build step.
@@ -45,4 +47,18 @@ describe("example/", () => {
 		expect(result.diagnostics).toEqual([]);
 		expect(result.ok).toBe(true);
 	});
+
+	it.each(examples)(
+		"%s prints a schema-valid tree from `mdxserve document --json`",
+		async (file) => {
+			const outcome = await runDocument(
+				path.join(exampleDir, file),
+				{ json: true },
+				{ registry, cwd: exampleDir, home: exampleDir },
+			);
+			expect(outcome.exitCode).toBe(0);
+			const tree = JSON.parse(outcome.stdout.join("\n"));
+			expect(documentTreeSchema.parse(tree)).toEqual(tree);
+		},
+	);
 });

@@ -10,7 +10,7 @@ import { fakeLiveServer } from "../helpers/remote.js";
 const diagnosticArb: fc.Arbitrary<Diagnostic> = fc.record({
 	severity: fc.constantFrom("error" as const, "warning" as const),
 	code: fc.constantFrom(
-		"mdx-compile" as const,
+		"mdx-syntax" as const,
 		"unknown-component" as const,
 		"unknown-prop" as const,
 	),

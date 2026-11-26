@@ -1,25 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { motion } from "framer-motion";
-import { z } from "zod";
 import { TRANSITIONS } from "../motion";
 import { IconButton } from "../ui/IconButton";
 import { ExpandModal } from "../ui/ExpandModal";
-
-export const screenshotProps = z.object({
-	src: z.string().describe("Image URL, relative to the document like a Markdown image."),
-	alt: z.string().default("").describe("Accessible description of the image."),
-	title: z
-		.string()
-		.optional()
-		.describe("Window title shown centred in the title bar, e.g. the app or page name."),
-	caption: z.string().optional().describe("Caption shown below the image on a hairline rule."),
-	width: z
-		.union([z.number(), z.string()])
-		.optional()
-		.describe("Max width of the window (px or any CSS length); defaults to the full column."),
-});
-
-export type ScreenshotProps = z.infer<typeof screenshotProps>;
+import { type ScreenshotProps } from "../../shared/builtins/screenshot";
 
 // macOS traffic-light colours; the same in both themes, like the real thing.
 const TRAFFIC_LIGHTS = ["#ff5f57", "#febc2e", "#28c840"];

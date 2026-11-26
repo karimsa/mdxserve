@@ -197,7 +197,7 @@ A small set of components is available in every file, `.md` included, with no im
 	Rotate the key first; the old one stops working immediately.
 </Callout>
 
-<Tabs>
+<Tabs id="install-tabs">
 	<Tab label="macOS">`brew install foo`</Tab>
 	<Tab label="Linux">`apt install foo`</Tab>
 </Tabs>
@@ -206,6 +206,11 @@ Status: <Badge tone="ok" dot>Online</Badge>
 ```
 
 ![Chart and Sparkline builtins in the light theme](docs/screenshots/builtins-light.jpg)
+
+`Tabs`, `DataTable`, `Diff`, `FileTree`, `Chart`, `Screenshot` and the lowercase `details`
+keep reader state (the selected tab, a table's sort, an open panel), so each one needs an `id`
+that is unique in the document: a letter, then letters, digits, `-` and `_`. Keep the `id` when
+you edit, and the reader keeps their state.
 
 Every component's props are documented from the command line:
 
@@ -232,8 +237,19 @@ inside it), `a` and `img`.
 - Links use http, https, mailto, a relative path or an `#anchor`.
 
 A document that breaks a rule still renders what it can: an unknown tag shows its content, a
-non-literal is left out, and an unsupported attribute is dropped. `mdxserve validate` reports
-each of these as an error with the change that fixes it.
+non-literal is left out, an unsupported attribute or a prop value of the wrong type is dropped,
+and a stateful component with no `id` gets a generated one. A syntax error, such as a stray
+`{`, only takes out its own `#`/`##` section, which is shown as source. `mdxserve validate`
+reports each of these as an error with the change that fixes it.
+
+### Heading anchors
+
+A heading's anchor is its slug (`## Install it` is `#install-it`), the same anchor earlier
+releases gave it. When the same heading text appears more than once in a document, each of
+those headings is anchored by its path from the top heading instead, joined with `>`
+(`#guide>install>examples`), and a link to the plain slug (`#examples`) still finds the first
+of them. A tab is anchored by its `Tabs` id and its value (`#install-tabs>macos`).
+`mdxserve document <file>` prints the table of contents with every anchor.
 
 ### The example folder
 
@@ -274,11 +290,13 @@ and it gives the agent tools to write for it well:
 - **A writing skill.** `skills/mdxserve/SKILL.md` teaches an agent to write Markdown that
   renders richly here while staying plain and portable, and to check the builtin components
   before using them. `mdxserve setup` installs it for Claude Code and Codex.
-- **CLI verbs.** `mdxserve validate`, `search`, `docs`, `roots`, and `components` all take
-  `--json`, so an agent can check a file, find docs, and manage served folders from a shell.
+- **CLI verbs.** `mdxserve validate`, `document`, `search`, `docs`, `roots`, and `components`
+  all take `--json`, so an agent can check a file, see the tree a reader gets, find docs, and
+  manage served folders from a shell.
 
-`validate` works without a server (compile errors, unknown components and props) but only
-renders the doc when an `mdxserve serve` is running.
+`validate` works without a server (syntax errors, the document rules, unknown components, prop
+names and values, and `id`s) but only renders the doc when an `mdxserve serve` is running.
+`mdxserve document <file> --json` prints the JSON document tree a client renders.
 [`docs/advanced.md`](./docs/advanced.md#the-agent-cli) covers the verbs in detail.
 
 ## Keeping it running

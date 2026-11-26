@@ -3,12 +3,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { builtins } from "../client/builtins/index.js";
+import { builtinPropSchemas } from "../shared/builtins/index.js";
 
 const pkgRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const outDir = path.join(pkgRoot, "dist");
 const outFile = path.join(outDir, "registry.json");
 
-const components = builtins.map(({ name, description, whenToUse, props }) => {
+const components = builtins.map(({ name, description, whenToUse }) => {
+	// The prop schemas live in shared/ so the server's document parser checks
+	// props against the same objects; the client only adds the component.
+	const props = builtinPropSchemas[name];
+	if (!props) throw new Error(`No prop schema in shared/builtins for builtin ${name}`);
 	const hasChildren = "children" in props.shape;
 	const dataProps = hasChildren ? props.omit({ children: true }) : props;
 	// "input" mode: props with defaults are optional for the author, not required.

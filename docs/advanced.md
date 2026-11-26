@@ -230,14 +230,15 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 
 ### Verbs
 
-| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, every break of the [document rules](#document-rules) (imports and exports, non-literal expressions, unknown or removed components, unsupported elements and attributes, link schemes), unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
-| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdxserve validate <paths...>`         | Parses each `.md`/`.mdx` file with the same parser that builds the document tree a reader gets, and reports syntax errors (per `#`/`##` section), every break of the [document rules](#document-rules), unknown props, prop values of the wrong type, the [`id` rules](#ids-and-anchors), mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
+| `mdxserve document <file>`             | Parses one file into the JSON document tree a client receives from `getDocument`, with no server. `--json` prints the tree; without it, the table of contents with each entry's anchor                                                                                                                                                                                                                                                                                                                                                          |
+| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### What happens with no server, or no roots
 
@@ -252,8 +253,8 @@ The `--json` result carries `rendered` next to `ok`; the text output prints `Ren
 `Not rendered (…)`. When a live server owns the path and the caller
 is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
 back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
-the page. `rendered: false` means only the static checks ran (compile, unknown component,
-document rules, unknown prop, mermaid chart fence, comments). The render step runs only when
+the page. `rendered: false` means only the static checks ran (syntax, unknown component,
+document rules, prop names and values, ids, mermaid chart fence, comments). The render step runs only when
 the static checks found no error. Even with `rendered: true`, errors thrown inside `useEffect` /
 `useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
 
@@ -269,15 +270,17 @@ A document can use only the builtin components, a fixed set of lowercase element
 values. `.md` and `.mdx` follow the same rules. Each break is an `error` diagnostic whose message
 names the fix, and the page still renders without the offending part:
 
-| Code                     | Raised for                                                                                           | What renders                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `esm-not-supported`      | An `import` or `export` statement                                                                    | Nothing; the statement is ignored  |
-| `non-literal-expression` | A brace expression that is not an array, object, string, number, boolean or null, or a `{...spread}` | Nothing; a prop is dropped         |
-| `unknown-component`      | A capitalized tag that is not a builtin                                                              | The tag's children                 |
-| `removed-component`      | `Button`, `Dropdown` or `Option`, which are no longer builtins                                       | The tag's children                 |
-| `unsupported-element`    | A lowercase tag outside the supported list; `script` and `style` lose their children too             | The tag's children                 |
-| `unsupported-attribute`  | `className`, `style`, any `on*` attribute, or a lowercase element's attribute off its allowlist      | The element, without the attribute |
-| `invalid-href`           | A link whose scheme is not http, https or mailto                                                     | The link text with an empty target |
+| Code                     | Raised for                                                                                           | What renders                                                    |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `esm-not-supported`      | An `import` or `export` statement                                                                    | Nothing; the statement is ignored                               |
+| `non-literal-expression` | A brace expression that is not an array, object, string, number, boolean or null, or a `{...spread}` | Nothing; a prop is dropped                                      |
+| `unknown-component`      | A capitalized tag that is not a builtin                                                              | The tag's children                                              |
+| `removed-component`      | `Button`, `Dropdown` or `Option`, which are no longer builtins                                       | The tag's children                                              |
+| `unsupported-element`    | A lowercase tag outside the supported list; `script` and `style` lose their children too             | The tag's children                                              |
+| `unsupported-attribute`  | `className`, `style`, any `on*` attribute, or a lowercase element's attribute off its allowlist      | The element, without the attribute                              |
+| `invalid-href`           | A link (Markdown, `<a href>` or `Card` `href`) whose scheme is not http, https or mailto             | The link text with an empty target; a `Card` without its `href` |
+| `invalid-prop`           | A builtin prop whose value does not match the type the builtin declares, or a missing required prop  | The component, without the prop                                 |
+| `mdx-syntax`             | A `#`/`##` section that does not parse (a stray `{` or `<`, an unclosed tag)                         | The section's source, as text                                   |
 
 Supported lowercase elements: `kbd`, `abbr`, `sub`, `sup`, `mark`, `b`, `i`, `u`, `s`, `em`,
 `strong`, `small`, `br`, `span`, `details`, `summary`, `table`, `a` and `img`, plus `thead`,
@@ -289,6 +292,37 @@ A literal in a prop reaches the component as is. In prose, a string or number sh
 text, an array or object as its `JSON.stringify` text, and `true`, `false` and `null` show
 nothing. An empty or comment-only expression such as `{/* note */}` is allowed and shows
 nothing.
+
+### IDs and anchors
+
+Every section, tab and stateful component has an ID that stays the same across edits. It is
+the URL anchor of a section or tab, and the key the reader's state (the selected tab, a table's
+sort and filters, an open `details`) is kept under.
+
+| Node                                                                      | ID                                                                                        |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| A section whose heading text is unique                                    | The heading's slug: `## Install it` is `install-it`                                       |
+| A section whose heading text repeats                                      | Its path of slugs from the top heading, joined with `>`: `guide>install>examples`         |
+| `DataTable`, `Tabs`, `Diff`, `FileTree`, `Chart`, `Screenshot`, `details` | The authored `id`: a letter, then letters, digits, `-` and `_`                            |
+| A tab                                                                     | The `Tabs` id, `>`, and the tab's `value` (the label, lowercased, by default): `os>macos` |
+| Content before the first heading                                          | `~preamble`                                                                               |
+
+A heading inside a tab is pathed from its tab (`os>macos>install`), so the same heading in
+two tabs is not a repeat. A link to a plain slug that matches no ID exactly finds the first
+anchor that ends with `>` and that slug, so `#examples` keeps working after a second
+"Examples" heading turns both into paths.
+
+Each break of these rules is an `error` that names the fix, and the document still renders:
+
+| Code                        | Raised for                                            | What renders                          |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| `missing-id`                | A stateful component or `details` with no `id`        | The component, with a generated ID    |
+| `invalid-id`                | An `id` that does not match the pattern               | The component, with a generated ID    |
+| `duplicate-id`              | An `id` used earlier in the document                  | The later one, with a generated ID    |
+| `id-conflicts-with-heading` | An `id` equal to a heading's anchor                   | The heading keeps the anchor          |
+| `duplicate-heading`         | Two headings with the same text under the same parent | The later one, with a suffixed ID     |
+| `duplicate-tab-value`       | Two tabs with the same `value` in one `Tabs`          | The later tab, with a generated value |
+| `invalid-tab-default`       | A `defaultValue` that matches no tab                  | The first tab selected                |
 
 The result also carries `hints`: an array of advisory strings that never affect `ok`. Today
 there is one — a Markdown image whose alt text or path mentions "screen" is probably a

@@ -53,6 +53,11 @@ export function searchRegistry(registry: Registry, query: string | undefined): R
 	});
 }
 
+/** A short type for a prop's JSON schema, such as `string` or `"a" | "b"`. */
+export function describePropType(schema: Record<string, unknown>): string {
+	return typeOf(schema);
+}
+
 function typeOf(schema: Record<string, unknown>): string {
 	if (Array.isArray(schema.enum)) {
 		return (schema.enum as unknown[]).map((value) => JSON.stringify(value)).join(" | ");

@@ -9,20 +9,9 @@ import {
 	type ReactNode,
 } from "react";
 import { motion } from "framer-motion";
-import { z } from "zod";
 import { TRANSITIONS } from "../motion";
 import { CrossFade } from "../CrossFade";
-
-export const tabProps = z.object({
-	label: z.string().describe("Tab label shown in the tab list."),
-	value: z
-		.string()
-		.optional()
-		.describe("Stable identifier for this tab; defaults to a slug of `label`."),
-	children: z.custom<ReactNode>().describe("Tab panel content; any MDX/Markdown content."),
-});
-
-export type TabProps = z.infer<typeof tabProps>;
+import { tabValueFromLabel, type TabProps, type TabsProps } from "../../shared/builtins/tabs";
 
 /**
  * Renders nothing on its own — `Tabs` reads each `Tab` child's props to build
@@ -31,24 +20,6 @@ export type TabProps = z.infer<typeof tabProps>;
  */
 export function Tab(_props: TabProps) {
 	return null;
-}
-
-export const tabsProps = z.object({
-	defaultValue: z
-		.string()
-		.optional()
-		.describe("Value of the tab selected initially; defaults to the first tab."),
-	children: z.custom<ReactNode>().describe("One or more `<Tab>` elements."),
-});
-
-export type TabsProps = z.infer<typeof tabsProps>;
-
-function slugify(label: string): string {
-	return label
-		.toLowerCase()
-		.trim()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/(^-|-$)/g, "");
 }
 
 interface TabEntry {
@@ -73,7 +44,7 @@ function collectTabs(children: ReactNode): TabEntry[] {
 		)
 		.map((child) => {
 			const { label, value, children: content } = child.props;
-			return { label, value: value ?? slugify(label), content };
+			return { label, value: value ?? tabValueFromLabel(label), content };
 		});
 }
 

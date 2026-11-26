@@ -14,9 +14,12 @@ calling it.
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
 `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
-and `preferences/`. `setup/` is
+`document/`, and `preferences/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
+`document/` has no controller either: `DocumentService.parse` turns source text into the JSON
+document tree, its diagnostics and its line ranges, and its procedure (`getDocument`) lives in
+`docs/controller.ts`, behind `DocsService.readDocument`.
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
   `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules
@@ -66,6 +69,11 @@ Adapters contain no business logic:
 
 `client/` may only `import type` from `src/` (nothing under `src/` is served to the browser);
 today that is a single `import type { AppRouter } from "../src/api/router"`.
+
+`shared/` holds code both sides run, today each builtin's zod prop schema
+(`shared/builtins/<name>.ts`). `client/` and `src/` may import values from it. It imports no
+React value (type-only imports are fine) and nothing from `client/` or `src/`, and Vite's
+`fs.allow` lists it so the browser can load it.
 
 ## General philosophy
 

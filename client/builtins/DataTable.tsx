@@ -1,6 +1,5 @@
 import { useRef, useState, type ReactNode, type TableHTMLAttributes } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { z } from "zod";
 import { TableHeaderCell } from "../data-table/TableHeaderCell";
 import { useTableState } from "../data-table/useTableState";
 import {
@@ -13,27 +12,9 @@ import {
 import { TableCell } from "../data-table/TableCell";
 import { useDocumentBlockScope } from "../block-state/useBlockState";
 import { blockStateKey, type BlockStateScope } from "../block-state/storage";
-import { columnSchema, unitFactor } from "../data-table/model";
+import { unitFactor } from "../data-table/model";
+import { dataTableProps, type DataTableProps } from "../../shared/builtins/data-table";
 
-export const dataTableProps = z.object({
-	id: z
-		.string()
-		.trim()
-		.min(1)
-		.describe(
-			"Required stable ID, unique within this document. Retain it across edits to preserve local sorting, filters and units.",
-		),
-	caption: z.string().optional(),
-	columns: z
-		.array(columnSchema)
-		.min(1)
-		.describe(
-			"Ordered columns: key, label, type; optional group and bars. Time/bytes require a base unit. Percent data uses fractions (0.15 displays 15%). Currency requires a currency code such as USD and formats values as money.",
-		),
-	data: z.array(z.record(z.string(), z.union([z.string(), z.number().finite(), z.null()]))),
-});
-
-export type DataTableProps = z.infer<typeof dataTableProps>;
 type InternalProps = DataTableProps & {
 	renderCell?: (row: number, key: string) => ReactNode;
 	renderHeader?: (key: string) => ReactNode;

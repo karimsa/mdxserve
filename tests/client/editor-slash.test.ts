@@ -136,7 +136,7 @@ describe("slash block insertion", () => {
 		const source = blockContent(slashBlocks.find((block) => block.label === "Tab")!).attrs as {
 			source: string;
 		};
-		expect(source.source).toContain("<Tabs>");
+		expect(source.source).toContain('<Tabs id="example-tabs">');
 	});
 
 	it("offers no template for a removed builtin", () => {

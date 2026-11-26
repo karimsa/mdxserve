@@ -146,3 +146,80 @@ describe("saveDocSection", () => {
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
 });
+
+describe("getDocument", () => {
+	it("returns the parsed tree and the same version token getDocSource returns", async () => {
+		const abs = path.join(fixtureDir, "good.md");
+		const caller = createCaller(makeContext());
+		const result = await caller.getDocument({ path: abs });
+		const source = await caller.getDocSource({ path: abs });
+		expect(result.version).toBe(source.version);
+		expect(result.document.schemaVersion).toBe(1);
+		expect(result.document.children).toMatchObject([
+			{ type: "section", id: "good-doc", level: 1, heading: [{ type: "text", value: "Good doc" }] },
+		]);
+	});
+
+	it("needs no same-machine connection", async () => {
+		const abs = path.join(fixtureDir, "good.md");
+		const result = await createCaller(makeContext({ isLoopback: false })).getDocument({
+			path: abs,
+		});
+		expect(result.document.children).toHaveLength(1);
+	});
+
+	it("serves neither an import nor a script from the document", async () => {
+		const abs = path.join(fixtureDir, "code.mdx");
+		await fs.writeFile(
+			abs,
+			'import Thing from "./thing.js"\n\n# Code\n\nText <script>alert("x")</script> {window.location}\n',
+			"utf8",
+		);
+		const result = await createCaller(makeContext()).getDocument({ path: abs });
+		const text = JSON.stringify(result);
+		expect(text).not.toContain("import");
+		expect(text).not.toContain("alert");
+		expect(text).not.toContain("window");
+		expect(text).toContain("Text");
+	});
+
+	it("rewrites a relative image to the URL the server serves the file at", async () => {
+		const abs = path.join(fixtureDir, "image.md");
+		await fs.writeFile(abs, "![shot](<./img/my shot.png>)\n", "utf8");
+		const result = await createCaller(makeContext()).getDocument({ path: abs });
+		expect(JSON.stringify(result.document)).toContain(
+			`"src":"${encodeURI(path.join(fixtureDir, "img", "my shot.png"))}"`,
+		);
+	});
+
+	it("rejects a path outside every root with NOT_FOUND", async () => {
+		await expect(
+			createCaller(makeContext()).getDocument({ path: path.join(outsideDir, "secret.md") }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+	});
+
+	it("applies the restricted-mode path rules", async () => {
+		await fs.mkdir(path.join(fixtureDir, ".private"), { recursive: true });
+		await fs.writeFile(path.join(fixtureDir, ".private", "hidden.md"), "# Hidden\n", "utf8");
+		// A visible link to a hidden file: served locally, refused to a public reader.
+		const link = path.join(fixtureDir, "linked.md");
+		await fs.symlink(path.join(".private", "hidden.md"), link);
+		const local = await createCaller(makeContext()).getDocument({ path: link });
+		expect(local.document.children).toMatchObject([{ type: "section", id: "hidden" }]);
+		await expect(
+			createCaller(makeContext({ permissions: "restricted" })).getDocument({ path: link }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+	});
+
+	it("rejects a file over the size cap with PAYLOAD_TOO_LARGE", async () => {
+		const abs = path.join(fixtureDir, "huge-tree.md");
+		await fs.writeFile(abs, "# Huge\n\n" + "x".repeat(2 * 1024 * 1024 + 1), "utf8");
+		try {
+			await expect(createCaller(makeContext()).getDocument({ path: abs })).rejects.toMatchObject({
+				code: "PAYLOAD_TOO_LARGE",
+			});
+		} finally {
+			await fs.rm(abs, { force: true });
+		}
+	});
+});
