@@ -382,7 +382,7 @@ type Block =
 	{ type: "rows"; rows: DiffRow[] } | { type: "separator"; index: number; count: number };
 
 /** Group a flattened, expansion-applied item list into runs of plain rows
- * and standalone separators, so a separator can render full-width while
+ * and lone separators, so a separator can render full-width while
  * everything else renders as an aligned table. */
 function partitionBlocks(items: FlatItem[]): Block[] {
 	const blocks: Block[] = [];

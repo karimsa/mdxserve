@@ -384,9 +384,6 @@ describe("restricted permissions", () => {
 		await expect(client.addRoots.mutate({ dirs: [fixtureDir] })).rejects.toMatchObject({
 			data: { code: "FORBIDDEN" },
 		});
-		await expect(client.exportDoc.mutate({ path: docPath })).rejects.toMatchObject({
-			data: { code: "FORBIDDEN" },
-		});
 		await expect(client.getDiagramPreferences.query({})).rejects.toMatchObject({
 			data: { code: "FORBIDDEN" },
 		});

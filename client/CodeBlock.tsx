@@ -53,7 +53,7 @@ import { Icon } from "./ui/Icon";
  * hand-written JSX in an .mdx file, which bypasses rehype-pretty-code entirely)
  * falls back to rendering the same card itself, so plain `<pre>` still looks right.
  * `CodeFrame` is the single source of truth for that card, used by both paths;
- * `CodeFrameHeader` is its header bar, exported standalone so other framed
+ * `CodeFrameHeader` is its header bar, exported on its own so other framed
  * code-like surfaces (e.g. the Diff builtin) can reuse the same chrome.
  */
 
@@ -361,13 +361,13 @@ type PreProps = ComponentPropsWithoutRef<"pre"> & { "data-language"?: string };
 
 /**
  * MDXProvider `pre` override. Inside a `Figure`-rendered card it's just the bare
- * styled `<pre>` (the card supplies the header/copy button); standalone, it wraps
+ * styled `<pre>` (the card supplies the header/copy button); on its own, it wraps
  * itself in `CodeFrame` so it still gets the full treatment.
  */
 export function Pre(props: PreProps) {
 	const insideFrame = useContext(InsideCodeFrame);
 	// `data-code-source` is what CodeFrame's source/copy lookups select on; both
-	// the in-figure and the standalone <pre> carry it.
+	// the in-figure and the bare <pre> carry it.
 	if (insideFrame) {
 		return <pre {...props} data-code-source className={PRE_CLASS} />;
 	}

@@ -46,7 +46,6 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"listRoots",
 	"addRoots",
 	"removeRoots",
-	"exportDoc",
 	"getDiagramPreferences",
 	"setDiagramPreferences",
 	"probeDiagramAgents",
@@ -133,7 +132,6 @@ it("restricted policy blocks direct mutation callers even when their context cla
 		code: "FORBIDDEN",
 	});
 	await expect(api.validateDoc({ path: docPath })).rejects.toMatchObject({ code: "FORBIDDEN" });
-	await expect(api.exportDoc({ path: docPath })).rejects.toMatchObject({ code: "FORBIDDEN" });
 	await expect(api.getDiagramPreferences({})).rejects.toMatchObject({ code: "FORBIDDEN" });
 	expect(await fs.readFile(docPath, "utf8")).toBe(source.text);
 });

@@ -47,17 +47,17 @@ The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` 
 
 ## Where things live
 
-| Path               | Contents                                                                                                                                                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`) and adapters (`api/`, `cli/`, `http/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
-| `client/`          | The browser app: the shell, the doc view, the section editor, mermaid, and `builtins/`                                                                                                                                     |
-| `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                                      |
-| `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                                      |
-| `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                                |
-| `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                                |
-| `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                                          |
-| `scripts/`         | `build.ts` (the build sequence), `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`), and `smoke-pack.sh` (`yarn smoke`)                                                                                |
-| `docs/`            | These pages and the README screenshots                                                                                                                                                                                     |
+| Path               | Contents                                                                                                                                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`) and adapters (`api/`, `cli/`, `http/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
+| `client/`          | The browser app: the shell, the doc view, the section editor, mermaid, and `builtins/`                                                                                                                          |
+| `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                           |
+| `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                           |
+| `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                     |
+| `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                     |
+| `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                               |
+| `scripts/`         | `build.ts` (the build sequence), `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`), and `smoke-pack.sh` (`yarn smoke`)                                                                     |
+| `docs/`            | These pages and the README screenshots                                                                                                                                                                          |
 
 The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
 the service it needs inline with concrete values, calls one method, and maps the result union

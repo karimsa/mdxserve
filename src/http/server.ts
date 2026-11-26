@@ -12,7 +12,7 @@ import { resolveRoot } from "../roots/paths.js";
 import { isDocFile, isPublicPath, isServable } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
 import { rootInfoFor } from "../roots/root-info.js";
-import type { BundlePort, RenderPort } from "../rendering/protocol.js";
+import type { RenderPort } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
@@ -43,8 +43,6 @@ export interface RequestContext {
 	cssFile: string;
 	/** Renders a doc server-side; only defined when a Vite dev server is live. */
 	render?: RenderPort;
-	/** Builds one doc into a self-contained standalone bundle; per-process state, created once in startServer, serialized there. */
-	bundle: BundlePort;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	search: SearchService;
@@ -58,7 +56,7 @@ export async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render, bundle } = ctx;
+	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render } = ctx;
 	const rootInfos = ctx.roots.list();
 	const roots = rootInfos.map((rootInfo) => rootInfo.dir);
 	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
@@ -122,7 +120,6 @@ export async function handleRequest(
 				isLoopback,
 				permissions: ctx.permissions,
 				render,
-				bundle,
 				docCache,
 				search: searchService,
 				docs,

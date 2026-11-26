@@ -32,7 +32,7 @@ interface StateSnapshot<State> {
 	loaded: boolean;
 }
 
-/** Standalone exports use their page path; SSR never touches browser globals. */
+/** Falls back to the page path outside a DocContext; SSR never touches browser globals. */
 export function useDocumentBlockScope(
 	block: Omit<BlockStateScope, "documentPath">,
 ): BlockStateScope {

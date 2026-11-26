@@ -2,11 +2,11 @@
 
 The [README](../README.md) gets you serving a folder. This page is what sits underneath: how
 the single server is found and shared, what the rules for roots and URLs are, what changes
-when you expose it on a network, and the full story on exports, the agent CLI, and the cache.
+when you expose it on a network, and the full story on the agent CLI and the cache.
 
 ## Page metadata
 
-Leading YAML frontmatter can declare `title`, `description`, `canonical`, and `openGraph`. The server reads these fields as data and places them in the initial HTML head. Metadata extraction does not execute document JavaScript, including on restricted servers. The same metadata is available in the browser and in HTML exports.
+Leading YAML frontmatter can declare `title`, `description`, `canonical`, and `openGraph`. The server reads these fields as data and places them in the initial HTML head. Metadata extraction does not execute document JavaScript, including on restricted servers. The same metadata is available in the browser.
 
 `title` sets the browser title, `description` emits a description meta tag, and `canonical` emits a canonical link. They do not generate Open Graph tags automatically. Declare sharing values explicitly in an ordered `openGraph` list:
 
@@ -41,7 +41,7 @@ openGraph:
 
 Each list entry has a `property` beginning with `og:` and a string or finite numeric `content`. Entries retain their order, including repeated properties. Put an image's width, height, and alt text immediately after that image. Other frontmatter fields remain available for your own metadata and stay hidden from the visible body.
 
-Canonical links and Open Graph URL values must use absolute HTTP or HTTPS URLs. Use public URLs for shared pages. mdxserve does not infer a production hostname or rewrite local filesystem paths into public URLs. Exported files retain the URLs you declared.
+Canonical links and Open Graph URL values must use absolute HTTP or HTTPS URLs. Use public URLs for shared pages. mdxserve does not infer a production hostname or rewrite local filesystem paths into public URLs.
 
 Malformed metadata produces `frontmatter-metadata` warnings from `mdxserve validate`. Invalid metadata falls back to the filename title and omits the declared head metadata, while the document body can still render. YAML aliases, duplicate keys, oversized metadata, and unsupported tags are rejected for metadata extraction. Edit metadata in the source file; saving a body section preserves the leading YAML block.
 
@@ -113,7 +113,7 @@ kept, but quoting and indentation can change. Body lines are never touched.
 
 Restricted servers show threads read-only, with no control that adds, edits, replies to or
 resolves one. Comments are public wherever the doc is served, and they are committed with the
-file. They are not included in HTML or PDF exports.
+file.
 
 `mdxserve validate` reports a malformed `comments` entry as a `frontmatter-comments` warning and
 a thread whose heading or block cannot be found as a `comment-anchor` warning. The anchor check
@@ -133,7 +133,6 @@ record:
 | `mdxserve status`                      | Yes; exits 1 when nothing is running  |
 | `mdxserve validate`                    | When one is running; else static only |
 | `mdxserve search \| docs`              | Yes; exit 1 when nothing is running   |
-| `mdxserve export`                      | No — it renders on its own            |
 | `mdxserve components …`                | No — reads the built registry         |
 
 A second `serve` exits with an error naming the running instance's URL and pointing you at
@@ -223,40 +222,6 @@ One more thing a remote caller can reach: the dev server serves the files of mdx
 dependencies under `/@fs/`, from the `node_modules` the package was installed into. With a
 global or `npx` install that folder also holds whatever else is installed there, so use
 full permissions on a network interface only on a network you trust.
-
-## Exporting
-
-`mdxserve export <file>` compiles one document into one self-contained HTML file. It never
-touches a running server, so it works with nothing else up.
-
-```bash
-mdxserve export docs/guide.md                        # writes ./guide.html
-mdxserve export docs/guide.md -o ~/Desktop/guide.html
-mdxserve export docs/guide.md -f html                # html is the only format today
-mdxserve export docs/guide.md --mermaid bundle       # inline mermaid for a fully offline file
-```
-
-What the file carries:
-
-- The same theme, fonts, code blocks, builtin components, table of contents, and page-width
-  controls as the live viewer
-- Relative images, inlined
-- Custom components the document imports, compiled in
-- The lucide icons the document names literally
-
-What it does not:
-
-- The sidebar, search, previous/next links, editing, and live reload — everything that needs
-  a server
-- Links to other `.md` files, which stay plain links
-- An icon whose name is assembled at runtime rather than written in the document
-
-Mermaid comes from a CDN on first open by default (`--mermaid cdn`), pinned to the version
-mdxserve ships, so a typical page stays under 1 MB. `--mermaid bundle` inlines it (about
-2.4 MB more) for a file that must work with no network; `--mermaid none` drops diagrams.
-
-The viewer's Export menu (same-machine browsers only) produces the same output through the
-browser's save dialog, always with mermaid from the CDN.
 
 ## The agent CLI
 

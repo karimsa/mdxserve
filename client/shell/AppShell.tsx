@@ -28,8 +28,6 @@ import {
 	type Route,
 	type TreeNode,
 } from "../router";
-import type { ExportFormat } from "../../src/export/service";
-import { exportDocFromViewer } from "../export-doc";
 import { Breadcrumb, type BreadcrumbItem } from "../ui/Breadcrumb";
 import { CommentsPopover } from "../comments/CommentsPopover";
 import { CommentsSheet } from "../comments/CommentsSheet";
@@ -195,7 +193,6 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const isDesktop = useMediaQuery(DESKTOP_MEDIA, true);
 
 	const [searchOpen, setSearchOpen] = useState(false);
-	const [exporting, setExporting] = useState(false);
 	const listingWidth = useAtomValue(listingWidthAtom);
 	const docWidth = useAtomValue(docWidthAtom);
 	const fullWidth = useFullWidth();
@@ -263,21 +260,6 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	useEffect(() => {
 		if (isDesktop) setMobileOpen(false);
 	}, [isDesktop]);
-
-	// One export at a time: the trigger is disabled while a build runs, and the
-	// server queues builds anyway (see startServer).
-	const handleExport = useCallback(
-		async (format: ExportFormat) => {
-			if (route.kind !== "doc" || exporting) return;
-			setExporting(true);
-			try {
-				await exportDocFromViewer({ path: route.path, format });
-			} finally {
-				setExporting(false);
-			}
-		},
-		[route, exporting],
-	);
 
 	const handleToggleSidebar = useCallback(() => {
 		if (isDesktop) {
@@ -369,11 +351,6 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 					onToggle: handleToggleSidebar,
 				}}
 				search={{ onOpen: () => setSearchOpen(true) }}
-				exportDoc={
-					route.kind === "doc" && shellInfo.permissions !== "restricted" && shellInfo.sameMachine
-						? { pending: exporting, onExport: handleExport }
-						: undefined
-				}
 				theme={theme}
 				onToggleTheme={toggle}
 				toc={toc.button}

@@ -1,8 +1,7 @@
 import type { ComponentType } from "react";
 // This module (and everything it pulls in — every builtin, transitively) is
 // reachable from the SSR entry (client/ssr-entry.tsx) that validate_doc's
-// render check loads via Vite's SSR module runner, and from
-// client/standalone-entry.tsx's build output. Nothing in this file or its
+// render check loads via Vite's SSR module runner. Nothing in this file or its
 // dependency graph may import client/router.ts (it touches `window` and the
 // query cache at module scope). client/api.ts is the one exception:
 // MdSection imports its `trpcClient`, and api.ts is written to evaluate
@@ -16,9 +15,8 @@ import { builtinComponents } from "./builtins/index";
 
 /**
  * The `MDXProvider` component map shared by every render path that does not
- * need `MdSection` — the browser entry, the SSR entry, and the standalone
- * build entry. client/mdx-components.ts adds `MdSection` on top for the live
- * server's browser entry.
+ * need `MdSection`, such as the SSR entry. client/mdx-components.ts adds
+ * `MdSection` on top for the browser entry.
  */
 export const mdxComponentsBase: Record<string, ComponentType<any>> = {
 	...builtinComponents,

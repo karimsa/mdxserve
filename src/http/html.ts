@@ -22,20 +22,9 @@ export function renderDocument(options: {
 	title: string;
 	body: string;
 	bodyClass?: string;
-	/** Emit `<style>${inlineCss}</style>` instead of the `/__mdxserve/app.css` stylesheet link — used by `mdxserve export`, which ships no server to fetch it from. */
-	inlineCss?: string;
-	/** Overrides the `/__mdxserve/favicon.svg` icon href — `mdxserve export` passes a data URI since there is no server to serve the file from. */
-	faviconHref?: string;
 	metadata?: DocumentMetadata;
 }): string {
-	const {
-		title,
-		body,
-		bodyClass = BODY_CLASS,
-		inlineCss,
-		faviconHref = "/__mdxserve/favicon.svg",
-		metadata,
-	} = options;
+	const { title, body, bodyClass = BODY_CLASS, metadata } = options;
 	const metadataTags = metadata
 		? [
 				metadata.description === undefined
@@ -52,10 +41,6 @@ export function renderDocument(options: {
 				.filter(Boolean)
 				.join("\n    ")
 		: "";
-	const styleTag =
-		inlineCss === undefined
-			? `<link rel="stylesheet" href="/__mdxserve/app.css" />`
-			: `<style>${inlineCss}</style>`;
 	return `<!doctype html>
 <html lang="en">
   <head>
@@ -63,9 +48,9 @@ export function renderDocument(options: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>${escapeHtml(metadata?.title ?? title)}</title>
     ${metadataTags}
-    <link rel="icon" type="image/svg+xml" href="${faviconHref}" />
+    <link rel="icon" type="image/svg+xml" href="/__mdxserve/favicon.svg" />
     <script>${THEME_SCRIPT}</script>
-    ${styleTag}
+    <link rel="stylesheet" href="/__mdxserve/app.css" />
   </head>
   <body class="${bodyClass}">
 ${body}
