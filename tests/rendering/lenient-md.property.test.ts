@@ -204,6 +204,16 @@ describe("escapeBareLt scanner states", () => {
 		expect(escapeBareLt("``a <W\nb`` c < 1")).toBe("``a <W\nb`` c \\< 1");
 	});
 
+	it("only skips a link target that is a valid link", () => {
+		expect(escapeBareLt("](x < 5)")).toBe("](x \\< 5)");
+		expect(escapeBareLt("[label](x < 5)")).toBe("[label](x \\< 5)");
+	});
+
+	it("does not continue a code span across a heading, fence or rule", () => {
+		expect(escapeBareLt("`start\n# x < 5\nend`")).toBe("`start\n# x \\< 5\nend`");
+		expect(escapeBareLt("`start\n---\nx < 5\nend`")).toBe("`start\n---\nx \\< 5\nend`");
+	});
+
 	it("closes a code span that ends on an indented continuation line", () => {
 		expect(escapeBareLt("`start\n    end`\ny < 6")).toBe("`start\n    end`\ny \\< 6");
 	});

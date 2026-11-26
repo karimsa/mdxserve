@@ -29,7 +29,11 @@ export function escapeBareLt(
 		if (fence) continue;
 		const rest = (): string => {
 			const following: string[] = [];
-			for (let next = index + 2; next < parts.length && parts[next].trim() !== ""; next += 2) {
+			for (
+				let next = index + 2;
+				next < parts.length && parts[next].trim() !== "" && !BLOCK_BOUNDARY.test(parts[next]);
+				next += 2
+			) {
 				following.push(parts[next]);
 			}
 			return following.join("\n");
@@ -62,8 +66,11 @@ interface TagState {
 
 // A code span closes at a backtick run of exactly the opening length.
 const INLINE_CODE = /(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/y;
-// A link or image destination with its optional title: `](url "title")`.
-const LINK_TARGET = /\]\((?:[^()\\\n]|\\.)*\)/y;
+// A link or image destination with its optional quoted title: `](url "title")`.
+// Only skipped after a `[` on the line, so `](x < 5)` in prose is still escaped.
+const LINK_TARGET = /\]\([^\s()]*(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/y;
+// A line that ends the current paragraph, so no inline code span crosses it.
+const BLOCK_BOUNDARY = /^ {0,3}(?:#{1,6}(?:\s|$)|`{3,}|~{3,}|([-*_])(?: *\1){2,} *$)/;
 const INLINE_EXPRESSION = /\{[^{}]*\}/y;
 
 /**
@@ -119,7 +126,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 				? INLINE_CODE
 				: character === "{"
 					? INLINE_EXPRESSION
-					: character === "]"
+					: character === "]" && line.lastIndexOf("[", index) >= 0
 						? LINK_TARGET
 						: null;
 		if (skipped) {
