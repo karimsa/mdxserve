@@ -23,13 +23,16 @@ export interface DocToc {
 /**
  * The current doc's table of contents and where the saved mode puts it. One
  * heading scan feeds the rail, the top-bar button's popup and the inline list.
- * A doc without an h2 has no table of contents in any mode.
+ * A doc without an h2 has no table of contents in any mode, and neither does
+ * a route that is not a doc (an empty `path`).
  */
 export function useDocToc(path: string, version: number): DocToc {
 	const { items, activeId, setActiveId } = useToc(path, version);
 	const mode = useAtomValue(tocModeAtom);
 	const [popupOpen, setPopupOpen] = useState(false);
-	const hasHeadings = items.some((item) => item.level === 2);
+	// An empty path is a route that is not a doc. The heading scan can still
+	// hold the doc just left, so the path decides, not the scan.
+	const hasHeadings = path !== "" && items.some((item) => item.level === 2);
 	const presentation = tocPresentation(mode);
 
 	const select = useCallback(

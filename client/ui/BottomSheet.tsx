@@ -59,7 +59,11 @@ type Drag = {
 };
 
 /** Dragging resizes the sheet between its snaps; dragged or tossed far enough down, it closes. */
-function useSheetDrag(height: MotionValue<number>, onClose: () => void): SheetDragHandlers {
+function useSheetDrag(
+	height: MotionValue<number>,
+	onClose: () => void,
+	dismissible: boolean,
+): SheetDragHandlers {
 	const reducedMotion = useReducedMotion();
 	const drag = useRef<Drag | null>(null);
 
@@ -69,9 +73,12 @@ function useSheetDrag(height: MotionValue<number>, onClose: () => void): SheetDr
 			if (!current || current.pointerId !== event.pointerId) return;
 			drag.current = null;
 			if (!current.dragging) return;
-			const target = settle
+			const settled = settle
 				? settleSheet(height.get(), current.velocity, window.innerHeight)
 				: current.startHeight;
+			// A sheet that may not close right now comes back to its lowest snap.
+			const target =
+				settled === "close" && !dismissible ? sheetSnapHeights(window.innerHeight)[0] : settled;
 			if (target === "close") onClose();
 			else if (reducedMotion) height.set(target);
 			else animate(height, target, { ...SHEET_SPRING, velocity: current.velocity });
@@ -112,7 +119,7 @@ function useSheetDrag(height: MotionValue<number>, onClose: () => void): SheetDr
 			onPointerUp: (event) => release(event, true),
 			onPointerCancel: (event) => release(event, false),
 		};
-	}, [height, onClose, reducedMotion]);
+	}, [height, onClose, dismissible, reducedMotion]);
 }
 
 /**
@@ -128,6 +135,7 @@ export function BottomSheet({
 	label,
 	scrim = false,
 	closeOnEscape = true,
+	dismissible = true,
 	fillAboveKeyboard = false,
 	onClick,
 	marker,
@@ -142,6 +150,8 @@ export function BottomSheet({
 	/** Dims the page behind the sheet; tapping the dimmed page closes it. */
 	scrim?: boolean;
 	closeOnEscape?: boolean;
+	/** False while the sheet has to stay: dragging it down settles it back instead of closing it. */
+	dismissible?: boolean;
 	/** With the keyboard open, grow to fill the screen above it instead of keeping the current size. */
 	fillAboveKeyboard?: boolean;
 	onClick?: (event: ReactMouseEvent<HTMLElement>) => void;
@@ -161,11 +171,22 @@ export function BottomSheet({
 		: 0;
 	const height = useMotionValue(0);
 	const paddedHeight = useTransform(height, (value) => value + SHEET_BLEED);
-	const dragHandlers = useSheetDrag(height, onClose);
+	const dragHandlers = useSheetDrag(height, onClose, dismissible);
 
 	// Every opening starts from the default snap, whatever size it was dragged to last time.
 	useEffect(() => {
 		if (open) height.set(sheetSnapHeights(window.innerHeight)[SHEET_DEFAULT_SNAP]);
+	}, [open, height]);
+
+	// A rotated phone is a shorter screen: keep the handle and header on it.
+	useEffect(() => {
+		if (!open) return;
+		function clamp() {
+			const tallest = sheetSnapHeights(window.innerHeight).at(-1) ?? window.innerHeight;
+			if (height.get() > tallest) height.set(tallest);
+		}
+		window.addEventListener("resize", clamp);
+		return () => window.removeEventListener("resize", clamp);
 	}, [open, height]);
 
 	useEffect(() => {

@@ -148,6 +148,7 @@ export function Settings({
 				onExitComplete={onClose}
 				label="Settings"
 				scrim
+				dismissible={!saving}
 			>
 				{(dragHandlers) => (
 					<div className="diagram-dialog diagram-settings settings-sheet">
