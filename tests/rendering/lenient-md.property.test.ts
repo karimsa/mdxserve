@@ -184,6 +184,21 @@ describe("escapeBareLt scanner states", () => {
 		).toBe("<Callout title={`a > ${1 < 2 ? 'x}' : `y${{ a: 1 }.a}`} \\` b`}>x \\< 5</Callout>");
 	});
 
+	it("skips JavaScript comments inside braces, including an apostrophe in one", () => {
+		expect(escapeBareLt("<Callout title={/* user's label */ 'Note'}>x < 5</Callout>")).toBe(
+			"<Callout title={/* user's label */ 'Note'}>x \\< 5</Callout>",
+		);
+		const source = [
+			"<Callout",
+			"  data={{ a: 1, // it's }",
+			"  b: '/*' /* a",
+			"  don't */ }}",
+			">",
+			"x < 5",
+		].join("\n");
+		expect(escapeBareLt(source)).toBe(source.replace("x < 5", "x \\< 5"));
+	});
+
 	it("carries brace, string and template state across lines", () => {
 		const source = [
 			"<Callout",
@@ -203,6 +218,7 @@ describe("escapeBareLt scanner states", () => {
 	});
 
 	const cases = [
+		"<Callout title={/* user's label */ 'Note'}>x < 5</Callout>",
 		"Write \\<Widget when x < 5.",
 		"a \\\\< 5 and more",
 		'<Callout title="a\\">x < 5</Callout>',

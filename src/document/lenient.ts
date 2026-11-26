@@ -15,7 +15,7 @@ export function escapeBareLt(
 	const parts = source.split(/(\r\n|\r|\n)/);
 	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;
-	const tag: TagState = { inTag: false, quote: null, nesting: [] };
+	const tag: TagState = { inTag: false, quote: null, nesting: [], comment: false };
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
 		const line = parts[index];
@@ -47,6 +47,8 @@ interface TagState {
 	inTag: boolean;
 	quote: '"' | "'" | "`" | null;
 	nesting: Array<"{" | "${">;
+	/** Inside a `/* ... *\/` comment in braces, which may span lines. */
+	comment: boolean;
 }
 
 const INLINE_CODE = /`+[^`]*`+/y;
@@ -62,9 +64,9 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
  * `<` that neither gets another backslash nor starts a tag, while `\\<` is an
  * escaped backslash followed by a real `<`.
  *
- * Inside braces this is not a JavaScript parser: `//` and `/* *\/` comments and
- * regex literals are not recognised, so a quote character inside one would be
- * read as the start of a string.
+ * Inside braces this is not a JavaScript parser: `//` and `/* *\/` comments are
+ * skipped, but regex literals are not recognised, so a quote character inside
+ * one would be read as the start of a string.
  */
 function escapeLine(line: string, tag: TagState): string {
 	if (line.trim() === "" && tag.nesting.length === 0) {
@@ -116,6 +118,13 @@ function escapeLine(line: string, tag: TagState): string {
 function scanTagCharacter(line: string, index: number, tag: TagState): number {
 	const character = line[index];
 	const inBraces = tag.nesting.length > 0;
+	if (tag.comment) {
+		if (character === "*" && line[index + 1] === "/") {
+			tag.comment = false;
+			return 2;
+		}
+		return 1;
+	}
 	if (tag.quote) {
 		if (inBraces && character === "\\") return 2;
 		if (character === tag.quote) tag.quote = null;
@@ -125,6 +134,11 @@ function scanTagCharacter(line: string, index: number, tag: TagState): number {
 			return 2;
 		}
 		return 1;
+	}
+	if (inBraces && character === "/" && line[index + 1] === "/") return line.length - index;
+	if (inBraces && character === "/" && line[index + 1] === "*") {
+		tag.comment = true;
+		return 2;
 	}
 	if (character === '"' || character === "'" || (inBraces && character === "`")) {
 		tag.quote = character;
