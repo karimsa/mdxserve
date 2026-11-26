@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "../../src/rendering/vite.js";
+import { builtinNames } from "../helpers/components.js";
 import { RenderService } from "../../src/rendering/render.js";
 import { getPackageRoot } from "../../src/infra/pkg.js";
 
@@ -38,6 +39,7 @@ describe.skipIf(!workerBuilt)("RenderService#render — concurrency property", (
 		const cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-render-prop-cache-"));
 		const httpServer = http.createServer();
 		vite = await createDevServer({
+			components: builtinNames,
 			metadata: createMetadataPort(),
 			roots: [fixtureDir],
 			viteRoot,

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
 import { ExpandModal } from "../ui/ExpandModal";
-import Dropdown from "./Dropdown";
+import Dropdown from "../ui/Dropdown";
 import {
 	binValues,
 	countTicks,

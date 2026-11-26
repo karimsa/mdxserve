@@ -11,7 +11,7 @@ import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { PluggableList } from "unified";
-import { escapeBareLt } from "./mdx/lenient-md.js";
+import { escapeBareLt } from "../document/lenient.js";
 import { mdxCompileOptions } from "./mdx/mdx-options.js";
 import { remarkSections } from "./mdx/remark-sections.js";
 import { dependencyRoots, getPackageRoot, packageDir, resolveFromPkg } from "../infra/pkg.js";
@@ -23,6 +23,8 @@ export interface ViteAlias {
 
 export interface SharedViteConfigOptions {
 	metadata: MetadataPort;
+	/** Builtin component names a document may use; every other component is unwrapped. */
+	components: readonly string[];
 	/** Appended after remarkGfm in mdxCompileOptions (e.g. remarkSections for the dev server). */
 	remarkPlugins?: PluggableList;
 	/** Appended after rehypePrettyCode in mdxCompileOptions. */
@@ -201,19 +203,23 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		// validator must never see an MdSection wrapper, or it would report it
 		// as an unregistered component on every doc.
 		...mdx({
-			...mdxCompileOptions(options.metadata, { remarkPlugins, rehypePlugins }),
+			...mdxCompileOptions(
+				options.metadata,
+				{ components: options.components },
+				{ remarkPlugins, rehypePlugins },
+			),
 			mdxExtensions: [".mdx", ".md"],
 			mdExtensions: [],
 		}),
 		enforce: "pre" as const,
 	};
 
-	// Runs ahead of the MDX compiler; see escapeBareLt for why.
+	// Runs ahead of the MDX compiler for both extensions; see escapeBareLt for why.
 	const lenientMdPlugin = {
 		name: "mdxserve:lenient-md",
 		enforce: "pre" as const,
 		transform(code: string, id: string) {
-			if (!/\.md(\?|$)/.test(id)) return null;
+			if (!/\.mdx?(\?|$)/.test(id)) return null;
 			const escaped = escapeBareLt(code, options.metadata);
 			return escaped === code ? null : { code: escaped, map: null };
 		},
@@ -265,6 +271,8 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 
 export interface CreateDevServerOptions {
 	metadata: MetadataPort;
+	/** Builtin component names a document may use (the component registry). */
+	components: readonly string[];
 	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
 	roots: string[];
 	/**
@@ -281,7 +289,11 @@ export interface CreateDevServerOptions {
 export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
 	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
 	const pkgRoot = getPackageRoot();
-	const shared = sharedViteConfig({ metadata: options.metadata, remarkPlugins: [remarkSections] });
+	const shared = sharedViteConfig({
+		metadata: options.metadata,
+		components: options.components,
+		remarkPlugins: [remarkSections],
+	});
 
 	const vite = await createViteServer({
 		root: viteRoot,

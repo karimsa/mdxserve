@@ -45,7 +45,7 @@ Canonical links and Open Graph URL values must use absolute HTTP or HTTPS URLs. 
 
 Malformed metadata produces `frontmatter-metadata` warnings from `mdxserve validate`. Invalid metadata falls back to the filename title and omits the declared head metadata, while the document body can still render. YAML aliases, duplicate keys, oversized metadata, and unsupported tags are rejected for metadata extraction. Edit metadata in the source file; saving a body section preserves the leading YAML block.
 
-The frontmatter block must be at the beginning of the document. A YAML example in a code fence or a later thematic break does not declare page metadata. Expressions and imported React components do not compute frontmatter values. Native JSX head tags can still render in the browser, but they are not extracted into the initial response by this feature. Avoid mixing native head declarations with frontmatter for the same fields.
+The frontmatter block must be at the beginning of the document. A YAML example in a code fence or a later thematic break does not declare page metadata. Frontmatter is the only way to set page metadata: a document cannot import components or evaluate expressions, and head tags such as `<title>` and `<meta>` are not supported elements.
 
 ## Comments
 
@@ -230,14 +230,14 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 
 ### Verbs
 
-| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                             |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, unknown components, unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
-| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                  |
-| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                   |
-| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                    |
-| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                |
-| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                  |
+| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdxserve validate <paths...>`         | Compiles each `.md`/`.mdx` file and reports MDX compile errors, every break of the [document rules](#document-rules) (imports and exports, non-literal expressions, unknown or removed components, unsupported elements and attributes, link schemes), unknown props, mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
+| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ### What happens with no server, or no roots
 
@@ -253,7 +253,8 @@ The `--json` result carries `rendered` next to `ok`; the text output prints `Ren
 is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
 back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
 the page. `rendered: false` means only the static checks ran (compile, unknown component,
-unknown prop, mermaid chart fence, comments). Even with `rendered: true`, errors thrown inside `useEffect` /
+document rules, unknown prop, mermaid chart fence, comments). The render step runs only when
+the static checks found no error. Even with `rendered: true`, errors thrown inside `useEffect` /
 `useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
 
 A `pie`, `xychart-beta`, `quadrantChart`, or `sankey-beta` mermaid fence is always an `error`
@@ -261,6 +262,33 @@ diagnostic with code `mermaid-chart` — mdxserve doesn't render these, so the d
 builtin `<Chart>` component (bar, line, area, histogram) or a table instead. Every other mermaid
 diagram (flow, sequence, class, state, ER, gantt, timeline, gitGraph, mindmap, journey, …) is
 unaffected.
+
+### Document rules
+
+A document can use only the builtin components, a fixed set of lowercase elements, and literal
+values. `.md` and `.mdx` follow the same rules. Each break is an `error` diagnostic whose message
+names the fix, and the page still renders without the offending part:
+
+| Code                     | Raised for                                                                                           | What renders                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `esm-not-supported`      | An `import` or `export` statement                                                                    | Nothing; the statement is ignored  |
+| `non-literal-expression` | A brace expression that is not an array, object, string, number, boolean or null, or a `{...spread}` | Nothing; a prop is dropped         |
+| `unknown-component`      | A capitalized tag that is not a builtin                                                              | The tag's children                 |
+| `removed-component`      | `Button`, `Dropdown` or `Option`, which are no longer builtins                                       | The tag's children                 |
+| `unsupported-element`    | A lowercase tag outside the supported list; `script` and `style` lose their children too             | The tag's children                 |
+| `unsupported-attribute`  | `className`, `style`, any `on*` attribute, or a lowercase element's attribute off its allowlist      | The element, without the attribute |
+| `invalid-href`           | A link whose scheme is not http, https or mailto                                                     | The link text with an empty target |
+
+Supported lowercase elements: `kbd`, `abbr`, `sub`, `sup`, `mark`, `b`, `i`, `u`, `s`, `em`,
+`strong`, `small`, `br`, `span`, `details`, `summary`, `table`, `a` and `img`, plus `thead`,
+`tbody`, `tr`, `th` and `td` inside a `table`. Their allowed attributes are `title` on `abbr`,
+`open` and `id` on `details`, `href` and `title` on `a`, `src`, `alt`, `title`, `width` and
+`height` on `img`, and `colspan`, `rowspan` and `align` on `th` and `td`.
+
+A literal in a prop reaches the component as is. In prose, a string or number shows as its
+text, an array or object as its `JSON.stringify` text, and `true`, `false` and `null` show
+nothing. An empty or comment-only expression such as `{/* note */}` is allowed and shows
+nothing.
 
 The result also carries `hints`: an array of advisory strings that never affect `ok`. Today
 there is one — a Markdown image whose alt text or path mentions "screen" is probably a

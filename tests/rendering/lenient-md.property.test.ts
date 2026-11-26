@@ -1,7 +1,9 @@
 import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { escapeBareLt as escapeWithMetadata } from "../../src/rendering/mdx/lenient-md.js";
+import { escapeBareLt as escapeWithMetadata } from "../../src/document/lenient.js";
+import { validateSource } from "../../src/validation/validate.js";
+import { fixtureRegistry } from "../fixtures/registry.js";
 
 describe("escapeBareLt", () => {
 	it("is idempotent", () => {
@@ -83,6 +85,42 @@ describe("escapeBareLt", () => {
 					expect(result).toContain("`" + codeContent + "`");
 				},
 			),
+		);
+	});
+});
+
+describe("escapeBareLt applies to both extensions", () => {
+	const proseArb = fc
+		.array(
+			fc.oneof(
+				fc.stringMatching(/^[A-Za-z0-9 ]{1,8}$/),
+				fc.constantFrom("<1", "< ", "<=", "(<800px)"),
+			),
+			{
+				minLength: 1,
+				maxLength: 6,
+			},
+		)
+		.map((parts) => parts.join(" "));
+
+	it("validates prose with a bare `<` the same way as .md and .mdx, with no syntax error", async () => {
+		await fc.assert(
+			fc.asyncProperty(proseArb, async (prose) => {
+				const source = `# Title\n\n${prose}\n`;
+				const [md, mdx] = await Promise.all(
+					["md", "mdx"].map((extension) =>
+						validateSource({
+							metadata: createMetadataPort(),
+							source,
+							path: `doc.${extension}`,
+							registry: fixtureRegistry,
+						}),
+					),
+				);
+				expect(md.diagnostics).toEqual(mdx.diagnostics);
+				expect(md.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(false);
+			}),
+			{ numRuns: 25 },
 		);
 	});
 });

@@ -29,7 +29,7 @@ add clarity, and prefer features that degrade gracefully everywhere else.
    `quadrantChart`, or `sankey-beta` — mdxserve doesn't render them, `mdxserve validate` reports an
    error on them, and they draw data, which is `<Chart>`'s job (or a table). Mermaid is for a
    flow or a shape, not a dataset.
-4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Button>`, `<Diff>`, `<Card>`,
+4. **Builtin components** (`<Callout>`, `<Tabs>`, `<Badge>`, `<Tooltip>`, `<Diff>`, `<Card>`,
    `<Kbd>`, `<FileTree>`, `<DataTable>`, `<Chart>` (bar, line, area, histogram), `<Sparkline>`, `<Screenshot>`) only when they make
    the content clearer: a warning the reader must not miss, per-OS or per-language variants of the
    same instructions, a status label, a small dataset that's clearer as a shape than a table.
@@ -38,6 +38,20 @@ add clarity, and prefer features that degrade gracefully everywhere else.
 Don't: write raw HTML or inline styles; import or create custom components; use emoji as
 icons where a `Badge` or `Callout` would do; nest components for layout; put a component in a
 file the user will mainly read elsewhere (e.g. a README on GitHub) unless they asked.
+
+A document is content, not code. mdxserve does not run anything a document writes:
+
+- No `import` or `export`, and no component that is not a builtin.
+- Braces hold literals only: an array, object, string, number, boolean or null, as in
+  `data={[{ label: "Mon", value: 3 }]}`. Write a dataset inline in each component that uses it;
+  there is no way to declare it once. No `{1 + 1}`, no variables, no functions.
+- No `className`, `style` or event handlers (`onClick` and the rest).
+- The lowercase elements that work are `kbd`, `abbr`, `sub`, `sup`, `mark`, `b`, `i`, `u`, `s`,
+  `em`, `strong`, `small`, `br`, `span`, `details`, `summary`, `table` (with `thead`, `tbody`,
+  `tr`, `th` and `td` inside it), `a` and `img`. Prefer Markdown syntax over any of them.
+- Links use http, https, mailto, a relative path or an `#anchor`.
+
+`mdxserve validate` reports each break as an error, and the page renders without it.
 
 MDX is stricter than Markdown: a bare `{`, `}` or an unclosed `<tag>` in prose is a compile
 error, not literal text. Put such characters in backticks or escape them (`\{`).
@@ -123,8 +137,6 @@ Status: <Badge tone="ok" dot>Online</Badge>
 
 The <Tooltip content="Mean time to recovery">MTTR</Tooltip> improved.
 
-<Button href="./setup.md">Continue to setup</Button>
-
 <Diff before={`port: 3000`} after={`port: 4000`} />
 
 Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search.
@@ -160,12 +172,11 @@ unit preferences are saved locally under the document and ID. Give columns stabl
     { key: "success", label: "Success", type: "percent" },
     { key: "mean", label: "Mean", type: "time", unit: "ms", group: "Latency", bars: true },
     { key: "peak", label: "Peak", type: "time", unit: "ms", group: "Latency", bars: true },
-    { key: "payload", label: "Payload", type: "bytes", unit: "B" },
-    { key: "cost", label: "Cost", type: "currency", format: (value) => `$${value.toFixed(2)}` }
+    { key: "payload", label: "Payload", type: "bytes", unit: "B" }
   ]}
   data={[
-    { endpoint: "/search", success: 0.995, mean: 120, peak: 450, payload: 2048, cost: 12.50 },
-    { endpoint: "/export", success: 0.98, mean: 2400, peak: 8000, payload: 1048576, cost: 25 }
+    { endpoint: "/search", success: 0.995, mean: 120, peak: 450, payload: 2048 },
+    { endpoint: "/export", success: 0.98, mean: 2400, peak: 8000, payload: 1048576 }
   ]}
 />
 ```
@@ -180,8 +191,9 @@ unit preferences are saved locally under the document and ID. Give columns stabl
 - `bytes` uses numeric data and a required base `unit` accepted by `bytes` (`B`, `KB`, `MB`,
   `GB`, `TB`, `PB`). Units are binary (1 KB = 1024 B). The whole column shares a display unit;
   filters accept `10MB`, or bare numbers in the displayed unit.
-- `currency` keeps numeric data and **requires `format: (value) => string`**. Include the
-  intended currency in that formatter or label. Filters expand `10K`, `2M`, `1B`, and `1T`.
+- `currency` requires a `format` function, which a document cannot pass (braces hold literals
+  only), so do not use it in a document. Use `number` and name the currency in the label
+  (`"Cost (USD)"`).
 - Adjacent columns with the same `group` get a shared top-level heading.
 - Optional `align: "left" | "center" | "right"` overrides type-based alignment. Native Markdown tables preserve explicit GFM delimiter alignment.
 - Set `bars: true` only when comparing magnitudes is meaningful. Omit it for IDs, years,
@@ -286,7 +298,9 @@ comments:
 After saving any `.md`/`.mdx` file, run `mdxserve validate <absolute path>`. It works even when
 no `mdxserve serve` is running. Read the first line and every diagnostic under it: it is
 `OK: <path>`, `OK with N warnings: <path>`, or a list of problems. Fix every `error` (MDX
-compile errors, unknown components, `render-error`) and any `unknown-prop` warning where a real
+compile errors, the document-rule errors above such as `esm-not-supported`,
+`non-literal-expression`, `unknown-component` and `unsupported-attribute`, `render-error`) and
+any `unknown-prop` warning where a real
 prop was intended, then re-run until the first line is `OK` with only intended warnings. The
 exit code is 1 when any error was reported. Compile errors and unknown components blank the
 page or throw at render time — invisible until a human opens it — so this is not optional.
@@ -313,7 +327,8 @@ silently.
 - Every code fence has a language tag; titles and highlights only where they help.
 - Any diagram is a mermaid fence, small enough to read at a glance, and none of them draws a
   chart (no `pie`, `xychart-beta`, `quadrantChart`, `sankey-beta` — use `<Chart>` or a table).
-- No raw HTML, styles, imports, or custom components.
+- No raw HTML beyond the supported elements, no `className` or `style`, no imports or exports,
+  no custom components, and only literal values in braces.
 - Any builtin component used was checked with `components show` and genuinely clarifies.
 - The file still reads well as plain text.
 - `mdxserve validate` printed `OK`, ideally `Rendered OK`.

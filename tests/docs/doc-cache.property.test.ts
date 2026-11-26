@@ -151,3 +151,37 @@ describe("DocCache.read — frontmatter and the read window", () => {
 		expect(doc.bodyLines.join("\n")).toBe(body.slice(0, 64 * 1024));
 	});
 });
+
+describe("DocCache.read — h1 for both extensions", () => {
+	const headingArb = fc
+		.array(
+			fc.oneof(
+				wordArb,
+				fc.constantFrom("`code`", "*emphasis*", "<Kbd>K</Kbd>", "a < b", "(<800px)", "{name}"),
+			),
+			{ minLength: 1, maxLength: 4 },
+		)
+		.map((parts) => `# ${parts.join(" ")}`);
+
+	it(
+		"parses the same heading line the same way in .md and .mdx",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(headingArb, async (heading) => {
+					const docs = await Promise.all(
+						["md", "mdx"].map(async (extension) => {
+							const abs = path.join(fixtureDir, `heading-${fileCounter++}.${extension}`);
+							await fs.writeFile(abs, `${heading}\n\nBody.\n`, "utf8");
+							const { mtimeMs } = await fs.stat(abs);
+							const { h1, h1Html } = new DocCache().read(abs, mtimeMs);
+							return { h1, h1Html };
+						}),
+					);
+					expect(docs[0]).toEqual(docs[1]);
+				}),
+				{ numRuns: 20 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+});

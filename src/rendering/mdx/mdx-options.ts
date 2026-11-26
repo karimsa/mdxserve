@@ -8,15 +8,19 @@ import { remarkMetadata } from "./remark-metadata.js";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import { designTokenTheme } from "./shiki-theme.js";
+import { remarkRestrict, type RestrictOptions } from "../../document/restrict.js";
 
 /**
- * The MDX compiler options shared by the Vite dev server and the validator.
- * `extra.remarkPlugins` are appended after `remarkGfm` (e.g. to capture the
- * parsed tree for validation) without disturbing the rest of the pipeline.
- * `extra.rehypePlugins` are appended after `rehypePrettyCode`.
+ * The MDX compiler options shared by the Vite dev server and the validator. `restrict` configures the document rules (`remarkRestrict`),
+ * which run right after `remarkGfm` so every later plugin, the compiler and
+ * the validator all see the same restricted tree. `extra.remarkPlugins` are
+ * appended after the rest of the remark chain (e.g. to capture the parsed
+ * tree for validation) without disturbing the rest of the
+ * pipeline. `extra.rehypePlugins` are appended after `rehypePrettyCode`.
  */
 export function mdxCompileOptions(
 	metadata: MetadataPort,
+	restrict: RestrictOptions,
 	extra: { remarkPlugins?: PluggableList; rehypePlugins?: PluggableList } = {},
 ): CompileOptions {
 	return {
@@ -27,6 +31,7 @@ export function mdxCompileOptions(
 		remarkPlugins: [
 			remarkFrontmatter,
 			remarkGfm,
+			[remarkRestrict, restrict],
 			remarkTableIds,
 			[remarkMetadata, metadata],
 			...(extra.remarkPlugins ?? []),

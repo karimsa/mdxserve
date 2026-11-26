@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as runtime from "react/jsx-runtime";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options.js";
+import { builtinNames } from "../helpers/components.js";
 import { remarkSections } from "../../src/rendering/mdx/remark-sections.js";
 import { validateSource } from "../../src/validation/validate.js";
 import { fixtureRegistry } from "../fixtures/registry.js";
@@ -16,9 +17,13 @@ async function render(source: string, extension: string, sections = false): Prom
 	const compiled = await evaluate(
 		{ value: source, path: `frontmatter.${extension}` },
 		{
-			...mdxCompileOptions(createMetadataPort(), {
-				remarkPlugins: sections ? [remarkSections] : [],
-			}),
+			...mdxCompileOptions(
+				createMetadataPort(),
+				{ components: builtinNames },
+				{
+					remarkPlugins: sections ? [remarkSections] : [],
+				},
+			),
 			...runtime,
 			useMDXComponents: () => ({}),
 		},

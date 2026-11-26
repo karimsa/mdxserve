@@ -6,6 +6,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ViteDevServer } from "vite";
 import { createDevServer } from "../../src/rendering/vite.js";
+import { builtinNames } from "../helpers/components.js";
 import { RenderService } from "../../src/rendering/render.js";
 import { getPackageRoot } from "../../src/infra/pkg.js";
 import { build } from "esbuild";
@@ -38,6 +39,7 @@ beforeAll(async () => {
 	});
 	const httpServer = http.createServer();
 	vite = await createDevServer({
+		components: builtinNames,
 		metadata: createMetadataPort(),
 		roots: [fixtureDir],
 		viteRoot,
@@ -72,10 +74,26 @@ describe("RenderService#render", () => {
 		expect(markdownModule.__mdxserveMetadata).toEqual(mdxModule.__mdxserveMetadata);
 	});
 
+	// A document can no longer run code (remarkRestrict drops every
+	// non-literal expression and every import/export), so the render-failure
+	// and hang cases below load a plain module through the same render path.
+	it("drops a non-literal expression from a document, so it renders", async () => {
+		const abs = await writeDoc(
+			"bare-identifier-doc.md",
+			["# Hello", "", "Some prose with {foo} in it."].join("\n"),
+		);
+		expect(await renderer.render(abs)).toEqual({ ok: true });
+	});
+
 	it("reports a render-time ReferenceError with a matching line number", async () => {
 		const abs = await writeDoc(
-			"bare-identifier.md",
-			["# Hello", "", "Some prose with {foo} in it."].join("\n"),
+			"bare-identifier.jsx",
+			[
+				"// A module, not a document.",
+				"export default function Doc() {",
+				"  return foo;",
+				"}",
+			].join("\n"),
 		);
 		const outcome = await renderer.render(abs);
 		expect(outcome.ok).toBe(false);
@@ -86,7 +104,7 @@ describe("RenderService#render", () => {
 
 	it("recovers a render queued behind a timed-out one", async () => {
 		const hung = await writeDoc(
-			"hang-queued.md",
+			"hang-queued.js",
 			"export const x = (() => { while (true) {} })();\n",
 		);
 		const good = await writeDoc("good-queued.md", "# Fine\n\nplain prose\n");
@@ -102,24 +120,21 @@ describe("RenderService#render", () => {
 		expect(goodOutcome).toEqual({ ok: true });
 	});
 
-	it("re-renders a doc from disk after it changes", async () => {
-		const abs = await writeDoc("edited.md", "# Hello\n\nSome prose with {foo} in it.\n");
+	it("re-renders a module from disk after it changes", async () => {
+		const abs = await writeDoc("edited.jsx", "export default function Doc() { return foo; }\n");
 		const before = await renderer.render(abs);
 		expect(before.ok).toBe(false);
-		await writeDoc(
-			"edited.md",
-			"export const foo = 1\n\n# Hello\n\nSome prose with {foo} in it.\n",
-		);
+		await writeDoc("edited.jsx", "const foo = 1;\nexport default function Doc() { return foo; }\n");
 		const after = await renderer.render(abs);
 		expect(after).toEqual({ ok: true });
-		await writeDoc("edited.md", "# Hello\n\nSome prose with {bar} in it.\n");
+		await writeDoc("edited.jsx", "export default function Doc() { return bar; }\n");
 		const again = await renderer.render(abs);
 		expect(again.ok).toBe(false);
 		if (again.ok) throw new Error("unreachable");
 		expect(again.message).toContain("bar is not defined");
 	});
 
-	it("renders ok once the identifier is bound", async () => {
+	it("drops an export and the expression that used it, so the document renders", async () => {
 		const abs = await writeDoc(
 			"bound-identifier.md",
 			["export const foo = 1", "", "# Hello", "", "Some prose with {foo} in it."].join("\n"),
@@ -185,8 +200,8 @@ describe("RenderService#render", () => {
 	// termination itself.
 	it("times out on a document that hangs asynchronously", async () => {
 		const abs = await writeDoc(
-			"async-hang.mdx",
-			["export const x = await new Promise(() => {});", "", "# Never resolves"].join("\n"),
+			"async-hang.js",
+			"export const x = await new Promise(() => {});\nexport default () => null;\n",
 		);
 		const outcome = await renderer.render(abs, { timeoutMs: 300 });
 		expect(outcome.ok).toBe(false);
@@ -206,8 +221,8 @@ describe("RenderService#render", () => {
 	// to run.
 	it("times out on a document with a synchronous infinite loop, without hanging the process", async () => {
 		const abs = await writeDoc(
-			"sync-loop.mdx",
-			["export const x = (() => { while (true) {} })();", "", "# Never returns"].join("\n"),
+			"sync-loop.js",
+			"export const x = (() => { while (true) {} })();\nexport default () => null;\n",
 		);
 		const outcome = await renderer.render(abs, { timeoutMs: 300 });
 		expect(outcome.ok).toBe(false);

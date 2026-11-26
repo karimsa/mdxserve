@@ -15,7 +15,7 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import { z } from "zod";
 import { CrossFade } from "../CrossFade";
 import { TRANSITIONS, VARIANTS } from "../motion";
-import { Icon } from "../ui/Icon";
+import { Icon } from "./Icon";
 
 const dropdownOption = z.union([
 	z.string().describe("Option value and label, both the same string."),

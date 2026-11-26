@@ -2,8 +2,8 @@
 
 This folder is both a working example and a test fixture for `mdxserve`. It shows what a docs
 folder looks like and exercises the features `mdxserve` needs to render correctly: plain
-Markdown, MDX with JSX, custom components, Tailwind typography, nested folders, and non-Markdown
-files sitting alongside everything else.
+Markdown, builtin components and literal values, nested folders, and non-Markdown files sitting
+alongside everything else.
 
 ## What is mdxserve
 
@@ -18,8 +18,8 @@ MDX files as a browsable site. Point it at a directory and it will:
   (`showLineNumbers`), and highlighted lines (`{1,3-4}`) — see `01-markdown.md`
 - Support GitHub Flavored Markdown (tables, task lists, strikethrough, etc.) via `remark-gfm`
 - Switch between light and dark automatically based on your OS setting
-- Let `.mdx` files import and use React 19 components
-- Provide a small library of builtin components (like `Callout`) with no import required
+- Provide a small library of builtin components (like `Callout`) with no import required, in
+  `.md` and `.mdx` alike
 - Navigate between folders and docs client-side, with subtle enter/exit motion that
   respects `prefers-reduced-motion`
 
@@ -55,12 +55,9 @@ Browsing to a folder shows:
 | File | Description |
 | --- | --- |
 | [`01-markdown.md`](./01-markdown.md) | Plain Markdown tour: headings, text formatting, lists, tables, quotes, links, images, code blocks |
-| [`02-mdx-basics.mdx`](./02-mdx-basics.mdx) | Introduces MDX: frontmatter-style exports, inline JSX, and JS expressions inside a document |
-| [`03-custom-components.mdx`](./03-custom-components.mdx) | Imports and uses a custom React component (`Counter`), plus the builtin `Callout` |
-| [`04-tailwind.mdx`](./04-tailwind.mdx) | Tailwind utility classes inside MDX, dark mode variants, and opting out of `prose` |
-| [`components/Counter.tsx`](./components/Counter.tsx) | Example stateful React component used by `03-custom-components.mdx` |
+| [`02-mdx-basics.mdx`](./02-mdx-basics.mdx) | What a document can write beyond Markdown: builtins, supported lowercase elements, and literal values in braces |
 | [`nested/deep/05-nested-page.md`](./nested/deep/05-nested-page.md) | A page two folders deep, to show breadcrumb/folder navigation |
-| [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Button`, `Tooltip`, `Tabs`, `Badge`, `Diff`, `Card`, `Kbd`, `FileTree`, `Dropdown`) and the `mdxserve components` CLI |
+| [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Tooltip`, `Tabs`, `Badge`, `Diff`, `Card`, `Kbd`, `FileTree`, `Chart`, `Sparkline`, `Screenshot`) and the `mdxserve components` CLI |
 | [`07-charts.mdx`](./07-charts.mdx) | Data visualization with builtins: `Sparkline` in tables and prose, `Chart` as bar / horizontal bar / grouped bar / line / area / histogram, and one dataset in `Tabs` |
 | [`assets/logo.png`](./assets/logo.png) | A small PNG used by `01-markdown.md` to show image rendering |
 | [`assets/reader-light.jpg`](./assets/reader-light.jpg) | A screenshot of the reader, framed by `Screenshot` in `06-builtins.mdx` |
@@ -69,7 +66,7 @@ Browsing to a folder shows:
 ## Using this as a template for your own docs
 
 Copy this folder (or just start from an empty one) and run `npx mdxserve serve -w .` inside it. Any `.md`
-file works with no setup. If you want interactive components, write a `.tsx` file next to your
-`.mdx` file and `import` it — see `03-custom-components.mdx` for the pattern.
+file works with no setup. Reach for a builtin when it presents something better than prose; run
+`mdxserve components search` for the list. Documents cannot import their own components.
 
 Fenced blocks with the `mermaid` language render as diagrams, with a Diagram / Code toggle in the block header.

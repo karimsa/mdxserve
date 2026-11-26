@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
+import { builtinNames } from "../helpers/components.js";
 import { createMetadataPort } from "../helpers/metadata.js";
 import { Table } from "../../client/Table";
 import { MarkdownTable } from "../../client/MarkdownTable";
@@ -94,11 +95,27 @@ describe("typed table values", () => {
 	});
 });
 async function renderMarkdown(source: string, extension = "md") {
-	const { providerImportSource: _, ...options } = mdxCompileOptions(createMetadataPort());
+	const { providerImportSource: _, ...options } = mdxCompileOptions(createMetadataPort(), {
+		components: builtinNames,
+	});
 	const result = await evaluate(
 		{ value: source, path: `table.${extension}` },
 		{ ...options, ...runtime },
 	);
+	return renderToStaticMarkup(
+		createElement(result.default, {
+			components: { table: MarkdownTable, Table: MarkdownTable, DataTable },
+		}),
+	);
+}
+/**
+ * Render raw JSX through MDX with no document rules applied. Documents can no
+ * longer write `<Table>`, `className`, `style` or event handlers, but the
+ * client table components still receive such props from their own callers,
+ * so these tests author them directly.
+ */
+async function renderJsx(source: string) {
+	const result = await evaluate({ value: source, path: "table.mdx" }, { ...runtime });
 	return renderToStaticMarkup(
 		createElement(result.default, {
 			components: { table: MarkdownTable, Table: MarkdownTable, DataTable },
@@ -157,7 +174,7 @@ describe("Markdown integration", () => {
 	});
 
 	it("forwards attributes to the inner table when reconstructing a recognized header", async () => {
-		const html = await renderMarkdown(
+		const html = await renderJsx(
 			'<Table id="custom" aria-label="Custom label" aria-describedby="details" className="layout" style={{width:"50%"}} tabIndex={0}><thead><tr><th>Name</th></tr></thead><tbody><tr><td>API</td></tr></tbody></Table>',
 		);
 		expect(html).toContain('data-table-id="custom"');
@@ -216,8 +233,7 @@ describe("Markdown integration", () => {
 		],
 	])("preserves native structure for %s", async (_, children, expected) => {
 		const source = `<Table id="complex" aria-label="Native table">${children}</Table>`;
-		const html = await renderMarkdown(source);
-		expect(html).toBe(await renderMarkdown(source, "mdx"));
+		const html = await renderJsx(source);
 		expect(html.toLowerCase()).toContain(expected.toLowerCase());
 		expect(html).toContain('id="complex"');
 		expect(html).not.toContain("data-table-id");
@@ -228,8 +244,7 @@ describe("Markdown integration", () => {
 		async (tag) => {
 			const children = "<thead><tr><th>Name</th></tr></thead><tbody><tr><td>East</td></tr></tbody>";
 			const source = `<Table>${children.replace(`<${tag}>`, `<${tag} className="authored" style={{color:"red"}} aria-label="Custom descendant" title="Keep this" onClick={() => {}}>`)}</Table>`;
-			const html = await renderMarkdown(source);
-			expect(html).toBe(await renderMarkdown(source, "mdx"));
+			const html = await renderJsx(source);
 			expect(html).toContain(
 				`class="authored" style="color:red" aria-label="Custom descendant" title="Keep this"`,
 			);

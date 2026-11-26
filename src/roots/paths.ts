@@ -1,5 +1,4 @@
 import path from "node:path";
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import { isServable } from "./servable.js";
 
@@ -195,32 +194,4 @@ export async function resolveDirPath(
 	if (!st.isDirectory()) return { ok: false, error: `${hit.abs} is not a directory` };
 
 	return { ok: true, abs: hit.abs, root: hit.root };
-}
-
-/** Extensions Vite tries, in order, for an extensionless relative import. */
-const IMPORT_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js", ".mjs", ".mdx", ".md", ".json", ".css"];
-
-/**
- * Whether a relative import specifier from `fromFile` resolves to something
- * on disk the way Vite would: the literal path, the path plus a known
- * extension, or a directory index file.
- */
-export function importResolves(fromFile: string, specifier: string): boolean {
-	const base = path.resolve(path.dirname(fromFile), specifier);
-	const candidates = [base, ...IMPORT_EXTENSIONS.map((ext) => base + ext)];
-	for (const candidate of candidates) {
-		try {
-			if (fs.statSync(candidate).isFile()) return true;
-		} catch {
-			// keep looking
-		}
-	}
-	try {
-		if (fs.statSync(base).isDirectory()) {
-			return IMPORT_EXTENSIONS.some((ext) => fs.existsSync(path.join(base, `index${ext}`)));
-		}
-	} catch {
-		// not a directory either
-	}
-	return false;
 }

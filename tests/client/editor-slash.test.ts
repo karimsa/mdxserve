@@ -132,13 +132,16 @@ describe("slash block insertion", () => {
 		}
 	});
 
-	it("wraps Tab and Option in valid parents", () => {
-		for (const name of ["Tab", "Option"]) {
-			const source = blockContent(slashBlocks.find((block) => block.label === name)!).attrs as {
-				source: string;
-			};
-			expect(source.source).toContain(name === "Tab" ? "<Tabs>" : "<Dropdown");
-		}
+	it("wraps Tab in Tabs", () => {
+		const source = blockContent(slashBlocks.find((block) => block.label === "Tab")!).attrs as {
+			source: string;
+		};
+		expect(source.source).toContain("<Tabs>");
+	});
+
+	it("offers no template for a removed builtin", () => {
+		const labels = slashBlocks.map((block) => block.label);
+		for (const name of ["Button", "Dropdown", "Option"]) expect(labels).not.toContain(name);
 	});
 });
 

@@ -96,14 +96,13 @@ describe("ValidationService.validateDoc", () => {
 		expect(typeof diagnostic?.line).toBe("number");
 	});
 
-	it("reports a relative import that resolves to nothing", async () => {
+	it("reports an import as an error, whether or not it resolves", async () => {
 		const abs = await writeDoc("import.mdx", '# Doc\n\nimport Thing from "./nope.tsx";\n\nText.\n');
 		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
-		expect(outcome.result.diagnostics.some((entry) => entry.code === "unresolved-import")).toBe(
-			true,
-		);
+		expect(outcome.result.ok).toBe(false);
+		expect(outcome.result.diagnostics.map((entry) => entry.code)).toEqual(["esm-not-supported"]);
 	});
 
 	it("reports a path outside every root as not-found, without reading it", async () => {
@@ -291,15 +290,17 @@ describe("ValidationService.validateText", () => {
 		expect(result.rendered).toBe(false);
 	});
 
-	it("resolves relative imports against the given path's directory", async () => {
-		const abs = path.join(root, "nested", "doc.mdx");
-		await fs.mkdir(path.join(root, "nested"));
-		await fs.writeFile(path.join(root, "nested", "Widget.tsx"), "export default null;\n", "utf8");
-		const result = await serviceWith().validateText({
+	it("never runs the render step for a doc that breaks a document rule", async () => {
+		const abs = path.join(root, "imports.mdx");
+		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
+		const result = await serviceWith(render).validateText({
 			source: 'import Widget from "./Widget.tsx";\n\n# Doc\n\nText.\n',
 			absPath: abs,
+			allowRender: true,
 		});
-		expect(result.diagnostics.some((entry) => entry.code === "unresolved-import")).toBe(false);
+		expect(result.diagnostics.map((entry) => entry.code)).toEqual(["esm-not-supported"]);
+		expect(render).not.toHaveBeenCalled();
+		expect(result.rendered).toBe(false);
 	});
 });
 
@@ -403,5 +404,78 @@ describe("ValidationService.validateText — comments", () => {
 		const abs = await writeDoc("c.mdx", source);
 		const mdx = await serviceWith().validateText({ source, absPath: abs });
 		expect(mdx.diagnostics).toEqual([]);
+	});
+});
+
+describe("ValidationService.validateText — document rules", () => {
+	it.each<[string, string, string]>([
+		["esm-not-supported", 'import Thing from "./thing.tsx"\n', "Delete the line"],
+		[
+			"esm-not-supported",
+			"export const meta = { title: 1 }\n",
+			"write the value inline as a literal",
+		],
+		["non-literal-expression", "Sum: {1 + 1}\n", "literal array, object, string or number"],
+		["non-literal-expression", "<Callout title={meta.title}>Body</Callout>\n", "literal"],
+		["unknown-component", "<Counter />\n", "mdxserve components"],
+		["removed-component", '<Button href="/x">Go</Button>\n', "use `Tabs`"],
+		["unsupported-element", "<div>Boxed</div>\n", "Use markdown or one of the supported elements"],
+		["unsupported-attribute", '<Callout className="mt-4">Body</Callout>\n', "Remove the attribute"],
+		[
+			"unsupported-attribute",
+			'<span style={{ color: "red" }}>Red</span>\n',
+			"Remove the attribute",
+		],
+		["invalid-href", "[run](javascript:alert(1))\n", "Use http, https, mailto"],
+	])("reports %s for %j with the fix", async (code, body, fix) => {
+		for (const extension of ["md", "mdx"]) {
+			const result = await serviceWith().validateText({
+				source: `# Doc\n\n${body}`,
+				absPath: path.join(root, `doc.${extension}`),
+			});
+			expect(result.ok).toBe(false);
+			expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([code]);
+			expect(result.diagnostics[0]).toMatchObject({ severity: "error", line: 3 });
+			expect(result.diagnostics[0].message).toContain(fix);
+		}
+	});
+
+	it("reports exactly four errors for an import, a custom component, a className and an expression", async () => {
+		const source = [
+			"# Restricted",
+			"",
+			'import Counter from "./Counter.tsx"',
+			"",
+			"Intro paragraph survives.",
+			"",
+			"<Counter />",
+			"",
+			'<Callout tone="tip" className="mt-4">The callout body stays.</Callout>',
+			"",
+			"One plus one is {1 + 1}.",
+			"",
+		].join("\n");
+		for (const extension of ["md", "mdx"]) {
+			const result = await serviceWith().validateText({
+				source,
+				absPath: path.join(root, `restricted.${extension}`),
+			});
+			expect(result.diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.line])).toEqual([
+				["esm-not-supported", 3],
+				["unknown-component", 7],
+				["unsupported-attribute", 9],
+				["non-literal-expression", 11],
+			]);
+		}
+	});
+
+	it("accepts literals in props and prose and the supported elements", async () => {
+		const result = await serviceWith().validateText({
+			source:
+				'# Doc\n\n<Callout title={"Literal"} tone={`tip`}>Body {"text"} and {[1, 2]}.</Callout>\n\n<abbr title="HyperText">HTML</abbr>, <kbd>K</kbd> and <a href="#doc">a link</a>.\n',
+			absPath: path.join(root, "literals.mdx"),
+		});
+		expect(result.diagnostics).toEqual([]);
+		expect(result.ok).toBe(true);
 	});
 });

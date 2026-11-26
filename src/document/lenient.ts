@@ -1,13 +1,17 @@
-import type { MetadataPort } from "../../docs/metadata-port.js";
+import type { MetadataPort } from "../docs/metadata-port.js";
 
 /**
- * `.md` files are compiled as MDX so builtin components work in both
- * extensions, but that makes a bare `<` followed by a digit, whitespace or
- * `=` (e.g. "(<800px)", "a < b") a hard JSX parse error even though it is
- * perfectly valid Markdown. Such a `<` can never start a JSX tag, so escape it
- * as `\<` — outside fenced and inline code, which MDX already treats literally.
+ * Every document, `.md` or `.mdx`, is parsed as MDX so builtin components
+ * work in both extensions, but that makes a bare `<` followed by a digit,
+ * whitespace or `=` (e.g. "(<800px)", "a < b") a hard JSX parse error even
+ * though it is perfectly valid Markdown. Such a `<` can never start a JSX tag,
+ * so escape it as `\<` — outside fenced and inline code, which MDX already
+ * treats literally. Applied to both extensions alike.
  */
-export function escapeBareLt(source: string, metadata: MetadataPort): string {
+export function escapeBareLt(
+	source: string,
+	metadata: Pick<MetadataPort, "leadingFrontmatter">,
+): string {
 	const parts = source.split(/(\r\n|\r|\n)/);
 	const frontmatterEndLine = metadata.leadingFrontmatter(source)?.endLine ?? 0;
 	let fence: string | null = null;

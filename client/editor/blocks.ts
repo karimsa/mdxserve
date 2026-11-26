@@ -93,12 +93,6 @@ export const slashBlocks: SlashBlock[] = [
 		["note", "warning", "tip"],
 	),
 	component(
-		"Button",
-		"Link styled as a button",
-		'<Button href="https://example.com">\n  Open link\n</Button>',
-		["link", "action"],
-	),
-	component(
 		"Tooltip",
 		"Hover explanation for text",
 		'<Tooltip content="More information">\n  Explained term\n</Tooltip>',
@@ -155,18 +149,6 @@ export const slashBlocks: SlashBlock[] = [
 		"trend",
 		"line",
 	]),
-	component(
-		"Dropdown",
-		"Picker with choices",
-		'<Dropdown label="Choose one" options={["First", "Second"]} />',
-		["select", "menu"],
-	),
-	component(
-		"Option",
-		"A panel inside Dropdown",
-		'<Dropdown label="Choose one">\n  <Option label="First">First panel</Option>\n  <Option label="Second">Second panel</Option>\n</Dropdown>',
-		["choice"],
-	),
 	component(
 		"DataTable",
 		"Sortable data table",
