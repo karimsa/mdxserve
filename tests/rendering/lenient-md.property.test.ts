@@ -217,6 +217,11 @@ describe("escapeBareLt scanner states", () => {
 		);
 	});
 
+	it("handles a one-line MDX comment that holds a brace, and a definition-like prose line", () => {
+		expect(escapeBareLt("{/* { */}\nx < 5")).toBe("{/* { */}\nx \\< 5");
+		expect(escapeBareLt("[note]: x < 5")).toBe("[note]: x \\< 5");
+	});
+
 	it("only skips a link target that is a valid link", () => {
 		expect(escapeBareLt("](x < 5)")).toBe("](x \\< 5)");
 		expect(escapeBareLt("[label](x < 5)")).toBe("[label](x \\< 5)");

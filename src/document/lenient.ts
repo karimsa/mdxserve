@@ -71,6 +71,9 @@ const INLINE_CODE = /(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/y;
 const LINK_TARGET = /\]\([^\s()]*(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/y;
 // A line that ends the current paragraph, so no inline code span crosses it.
 const BLOCK_BOUNDARY = /^ {0,3}(?:#{1,6}(?:\s|$)|`{3,}|~{3,}|([-*_])(?: *\1){2,} *$)/;
+// A whole-line reference definition: `[label]: destination "optional title"`.
+const REFERENCE_DEFINITION =
+	/^ {0,3}\[[^\]]+\]:\s*(?:<[^>]*>|\S+)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*$/;
 const INLINE_EXPRESSION = /\{[^{}]*\}/y;
 
 /**
@@ -97,7 +100,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 		index = close + 3;
 		output = line.slice(0, index);
 		tag.comment = false;
-	} else if (!tag.inTag && /^ {0,3}\[[^\]]+\]:/.test(line)) {
+	} else if (!tag.inTag && REFERENCE_DEFINITION.test(line)) {
 		// A reference definition: its destination and title are literal.
 		return line;
 	}
@@ -150,9 +153,15 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 			}
 		}
 		if (line.startsWith("{/*", index)) {
-			// A comment that does not end on this line (a same-line one matched above).
-			tag.comment = true;
-			return output + line.slice(index);
+			// A comment holding a brace, or one that continues onto a later line.
+			const close = line.indexOf("*/}", index);
+			if (close < 0) {
+				tag.comment = true;
+				return output + line.slice(index);
+			}
+			output += line.slice(index, close + 3);
+			index = close + 3;
+			continue;
 		}
 		if (character === "`") {
 			// No closing run on this line: a span that continues onto a later line
