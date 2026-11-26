@@ -34,9 +34,13 @@ export function escapeBareLt(
 function escapeOutsideInlineCode(line: string): string {
 	// Indented code blocks are literal too.
 	if (/^(?: {4}|\t)/.test(line)) return line;
-	// Split on backtick runs and `{...}` expressions; odd-indexed segments are
-	// inline code or MDX expressions (where `<` is JavaScript, not JSX).
-	const parts = line.split(/(`+[^`]*`+|\{[^{}]*\})/);
+	// Split on backtick runs, `{...}` expressions and JSX opening tags; odd-indexed
+	// segments are inline code, MDX expressions (where `<` is JavaScript, not JSX)
+	// or a tag with its attributes. A quoted attribute value is literal text, so a
+	// backslash added there would be displayed: `title="Latency < 100 ms"`.
+	const parts = line.split(
+		/(`+[^`]*`+|\{[^{}]*\}|<[A-Za-z][\w.:-]*(?:\s+[\w:-]+(?:=(?:"[^"]*"|'[^']*'|\{[^{}]*\}))?)*\s*\/?>?)/,
+	);
 	for (let index = 0; index < parts.length; index += 2) {
 		parts[index] = parts[index].replace(/(^|[^\\])<(?=[\d\s=])/g, "$1\\<");
 	}

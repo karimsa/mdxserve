@@ -89,6 +89,35 @@ describe("escapeBareLt", () => {
 	});
 });
 
+describe("escapeBareLt and JSX attributes", () => {
+	it("leaves a quoted attribute value unchanged and still escapes prose on the same line", () => {
+		expect(escapeBareLt('<Callout title="Latency < 100 ms">under < 5 ms</Callout>')).toBe(
+			'<Callout title="Latency < 100 ms">under \\< 5 ms</Callout>',
+		);
+		expect(escapeBareLt("<img alt='a <= b' src=\"x.png\" /> and 3 < 4")).toBe(
+			"<img alt='a <= b' src=\"x.png\" /> and 3 \\< 4",
+		);
+	});
+
+	it("still escapes a quoted comparison in prose, outside any tag", () => {
+		expect(escapeBareLt('He wrote "x < 5" twice')).toBe('He wrote "x \\< 5" twice');
+	});
+
+	it("validates a builtin whose attribute holds a bare `<` in both extensions, keeping the value", async () => {
+		for (const extension of ["md", "mdx"]) {
+			const result = await validateSource({
+				metadata: createMetadataPort(),
+				source: '# Title\n\n<Callout title="Latency < 100 ms">Body</Callout>\n',
+				path: `doc.${extension}`,
+				registry: fixtureRegistry,
+			});
+			expect(result.diagnostics.filter((diagnostic) => diagnostic.severity === "error")).toEqual(
+				[],
+			);
+		}
+	});
+});
+
 describe("escapeBareLt applies to both extensions", () => {
 	const proseArb = fc
 		.array(
