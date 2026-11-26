@@ -1,4 +1,5 @@
 import { DiagramPreferences } from "../diagrams/Preferences";
+import { EditorActionBar } from "../EditorActionBar";
 import { AnimatePresence, motion, useSpring } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -42,7 +43,10 @@ import { SearchDialog, type SearchResult } from "../ui/SearchDialog";
 import { Footer } from "./Footer";
 import { NotFoundView } from "./NotFoundView";
 import { Sidebar } from "./Sidebar";
+import { TocAbove } from "./TocAbove";
+import { TocPopup } from "./TocPopup";
 import { TocRail } from "./TocRail";
+import { useDocToc } from "./useDocToc";
 import { TopBar } from "./TopBar";
 import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import { DESKTOP_MEDIA } from "../platform";
@@ -341,6 +345,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	// content take the space.
 	const showSidebar = desktopOpen && !sidebarHidden;
 
+	// Only docs have a table of contents; any other route has no article to scan.
+	const toc = useDocToc(route.kind === "doc" ? route.path : "", tocVersion);
+
 	return (
 		<div className="relative min-h-screen bg-surface-page">
 			<AnimatePresence>
@@ -369,6 +376,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				}
 				theme={theme}
 				onToggleTheme={toggle}
+				toc={toc.button}
 				comments={
 					route.kind === "doc" && comments.available
 						? {
@@ -475,7 +483,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 									: "xl:has-[[data-toc-rail]]:min-w-[var(--comments-track)]")
 							}
 						>
-							<TocRail path={route.path} version={tocVersion} />
+							<TocRail toc={toc} />
 						</div>
 					) : null}
 				</main>
@@ -495,6 +503,9 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 				</>
 			) : null}
 			{route.kind === "doc" && !comments.readOnly ? <SelectionButton model={comments} /> : null}
+			<EditorActionBar />
+			<TocAbove toc={toc} />
+			<TocPopup toc={toc} />
 			<SearchDialog
 				open={searchOpen}
 				query={query}

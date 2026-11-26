@@ -9,9 +9,31 @@ import { draftAtom, popoverThreadAtom } from "./state";
 
 const SETTLE_MS = 60;
 
+/** Gap between the docked button and the screen's bottom edge, or the open sheet's top. */
+const DOCK_GAP = 16;
+
 interface Pending {
 	anchor: AnchorFields;
 	range: Range;
+	/**
+	 * On touch, the distance from the bottom of the screen the button is docked
+	 * at; null with a mouse, where it floats beside the selection.
+	 */
+	dock: number | null;
+}
+
+/**
+ * Touch screens show their own selection menu (Copy, Look Up, …) beside the
+ * selection. A page cannot add to that menu or learn which side it took, so a
+ * button placed near the selection ends up underneath it. Dock ours at the
+ * bottom of the screen instead: the system menu only goes below a selection
+ * when there is room for it there, so it never reaches the dock. The comments
+ * sheet covers the bottom of the screen when open, so dock just above it.
+ */
+export function dockOffset(): number {
+	const sheet = document.querySelector("[data-comments-sheet]");
+	const covered = sheet ? Math.max(0, window.innerHeight - sheet.getBoundingClientRect().top) : 0;
+	return covered + DOCK_GAP;
 }
 
 /** The "Comment" button floating next to a selection. */
@@ -40,7 +62,12 @@ export function SelectionButton({ model }: { model: CommentsModel }) {
 			setPending(null);
 			return;
 		}
-		setPending({ anchor, range: selection.getRangeAt(0).cloneRange() });
+		const touch = pointerType.current === "touch" || window.matchMedia("(pointer: coarse)").matches;
+		setPending({
+			anchor,
+			range: selection.getRangeAt(0).cloneRange(),
+			dock: touch ? dockOffset() : null,
+		});
 	}, [enabled]);
 
 	useEffect(() => {
@@ -75,19 +102,19 @@ export function SelectionButton({ model }: { model: CommentsModel }) {
 		};
 	}, [enabled, refresh]);
 
-	// Above the selection with a pointer, below it on touch, where the system menu sits above.
+	// With a mouse the button floats above the selection. On touch it is docked
+	// (see dockOffset) and positioned by its style alone.
 	useLayoutEffect(() => {
 		const floating = buttonRef.current;
-		if (!pending || !floating) return;
+		if (!pending || pending.dock !== null || !floating) return;
 		const reference = {
 			getBoundingClientRect: () => pending.range.getBoundingClientRect(),
 			getClientRects: () => pending.range.getClientRects(),
 		};
-		const touch = pointerType.current === "touch" || window.matchMedia("(pointer: coarse)").matches;
 		return autoUpdate(reference, floating, () => {
 			void computePosition(reference, floating, {
 				strategy: "fixed",
-				placement: touch ? "bottom" : "top",
+				placement: "top",
 				middleware: [offset(8), flip(), shift({ padding: 8 })],
 			}).then(({ x, y }) => {
 				floating.style.left = `${x}px`;
@@ -108,7 +135,8 @@ export function SelectionButton({ model }: { model: CommentsModel }) {
 	}, [draft, setDraft]);
 
 	if (!pending) return null;
-	const { anchor, range } = pending;
+	const { anchor, range, dock } = pending;
+	const docked = dock !== null;
 
 	return (
 		<button
@@ -132,8 +160,26 @@ export function SelectionButton({ model }: { model: CommentsModel }) {
 				if (!isDesktop) setOpen(true);
 				setPending(null);
 			}}
-			style={{ position: "fixed", left: 0, top: 0, visibility: "hidden" }}
-			className="z-[var(--z-dropdown)] inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border-default bg-surface-raised px-2.5 font-sans text-[length:var(--size-sm)] font-semibold text-text-heading shadow-md hover:bg-surface-hover"
+			// Keyed by mode: the floating button's position is written to the element
+			// directly, and must not leak into the docked one.
+			key={docked ? "docked" : "floating"}
+			style={
+				docked
+					? {
+							position: "fixed",
+							left: "50%",
+							bottom: `calc(env(safe-area-inset-bottom, 0px) + ${dock}px)`,
+							translate: "-50% 0",
+						}
+					: { position: "fixed", left: 0, top: 0, visibility: "hidden" }
+			}
+			className={
+				"inline-flex cursor-pointer items-center border border-border-default bg-surface-raised font-sans font-semibold text-text-heading hover:bg-surface-hover " +
+				(docked
+					? // Above the sheet, which this can sit over the edge of.
+						"z-[var(--z-toast)] h-11 gap-2 rounded-full px-5 text-[length:var(--size-md)] shadow-lg"
+					: "z-[var(--z-dropdown)] h-8 gap-1.5 rounded-md px-2.5 text-[length:var(--size-sm)] shadow-md")
+			}
 		>
 			<Icon name="message-square" size="sm" />
 			Comment

@@ -49,6 +49,7 @@ import ImageIcon from "lucide-react/dist/esm/icons/image.mjs";
 import Info from "lucide-react/dist/esm/icons/info.mjs";
 import Lightbulb from "lucide-react/dist/esm/icons/lightbulb.mjs";
 import ListChecks from "lucide-react/dist/esm/icons/list-checks.mjs";
+import TableOfContents from "lucide-react/dist/esm/icons/table-of-contents.mjs";
 import Maximize from "lucide-react/dist/esm/icons/maximize.mjs";
 import MessageSquare from "lucide-react/dist/esm/icons/message-square.mjs";
 import Minus from "lucide-react/dist/esm/icons/minus.mjs";
@@ -92,6 +93,7 @@ export const staticIcons: Record<string, LucideIcon> = {
 	info: Info,
 	lightbulb: Lightbulb,
 	"list-checks": ListChecks,
+	"table-of-contents": TableOfContents,
 	maximize: Maximize,
 	"message-square": MessageSquare,
 	minus: Minus,

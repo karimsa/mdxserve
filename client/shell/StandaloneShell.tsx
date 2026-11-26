@@ -9,7 +9,10 @@ import { docModuleCache } from "../doc-module-cache";
 import { docWidthAtom } from "../state";
 import { useFullWidth } from "../hooks";
 import { Footer } from "./Footer";
+import { TocAbove } from "./TocAbove";
+import { TocPopup } from "./TocPopup";
 import { TocRail } from "./TocRail";
+import { useDocToc } from "./useDocToc";
 import { TopBar } from "./TopBar";
 import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import type { StandaloneMeta } from "../standalone-entry";
@@ -42,6 +45,8 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 		}
 	}, []);
 
+	const toc = useDocToc(meta.path, tocVersion);
+
 	return (
 		<div className="min-h-screen bg-surface-page">
 			<AnimatePresence>
@@ -52,7 +57,10 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 				onToggleTheme={toggle}
 				hostLabel={meta.label}
 				onDiagramPreferences={() => setSettingsOpen(true)}
+				toc={toc.button}
 			/>
+			<TocAbove toc={toc} />
+			<TocPopup toc={toc} />
 			<main className="flex flex-1 min-w-0 px-5 pt-6 pb-16 md:px-8 md:pt-10 md:pb-24">
 				<div ref={contentRef} data-content-area className="flex flex-1 min-w-0 justify-center">
 					<motion.div
@@ -72,7 +80,7 @@ export function StandaloneShell({ meta }: { meta: StandaloneMeta }) {
 						<Footer label={meta.label} mtime={meta.mtime} />
 					</motion.div>
 				</div>
-				<TocRail path={meta.path} version={tocVersion} />
+				<TocRail toc={toc} />
 			</main>
 		</div>
 	);

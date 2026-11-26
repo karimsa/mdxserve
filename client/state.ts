@@ -99,6 +99,67 @@ export const contentLayoutAtom = atomWithStorage<ContentLayout>(
 	{ getOnInit: true },
 );
 
-export const tocVisibleAtom = atomWithStorage<boolean>("mdxserve.toc.visible", true, undefined, {
-	getOnInit: true,
-});
+/**
+ * Where the "On this page" navigation lives:
+ * - `auto`: on the right on laptop-sized screens and up, `hidden` below that.
+ * - `hidden`: off the page, behind a top-bar button that brings it out.
+ * - `right`: the rail beside the doc, wherever there is room for one.
+ * - `above`: inline, between the doc's title and its content.
+ * - `disabled`: no table of contents at all.
+ */
+export type TocMode = "auto" | "hidden" | "right" | "above" | "disabled";
+
+export const TOC_MODES: readonly TocMode[] = ["auto", "hidden", "right", "above", "disabled"];
+
+function isTocMode(value: unknown): value is TocMode {
+	return TOC_MODES.includes(value as TocMode);
+}
+
+/** The boolean this preference used to be: `false` meant no table of contents. */
+const LEGACY_TOC_VISIBLE_KEY = "mdxserve.toc.visible";
+
+const TOC_MODE_KEY = "mdxserve.toc.mode";
+
+/** The saved mode, falling back to what the old boolean setting meant, then to `fallback`. */
+export function readTocMode(storage: Pick<Storage, "getItem">, fallback: TocMode): TocMode {
+	try {
+		const raw = storage.getItem(TOC_MODE_KEY);
+		if (raw !== null) {
+			const parsed: unknown = JSON.parse(raw);
+			return isTocMode(parsed) ? parsed : fallback;
+		}
+		// Someone who had turned the table of contents off keeps it off.
+		return storage.getItem(LEGACY_TOC_VISIBLE_KEY) === "false" ? "disabled" : fallback;
+	} catch {
+		return fallback;
+	}
+}
+
+const tocModeStorage = createJSONStorage<TocMode>(() => localStorage);
+const legacyAwareTocModeStorage = {
+	...tocModeStorage,
+	getItem(_key: string, initialValue: TocMode): TocMode {
+		try {
+			return readTocMode(localStorage, initialValue);
+		} catch {
+			return initialValue;
+		}
+	},
+};
+
+export const tocModeAtom = atomWithStorage<TocMode>(
+	TOC_MODE_KEY,
+	"auto",
+	legacyAwareTocModeStorage,
+	{ getOnInit: true },
+);
+
+/** What the open section editor offers the touch action bar (client/EditorActionBar.tsx). */
+export interface SectionEditorActions {
+	save: () => void;
+	cancel: () => void;
+	saving: boolean;
+}
+
+/** Set by the section editor while it is open; null otherwise. Not persisted. */
+export const sectionEditorActionsAtom = atom<SectionEditorActions | null>(null);

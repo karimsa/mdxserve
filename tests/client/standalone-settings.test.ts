@@ -6,7 +6,7 @@ import { getDefaultStore } from "jotai";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { StandaloneShell } from "../../client/shell/StandaloneShell";
 import { docModuleCache } from "../../client/doc-module-cache";
-import { contentLayoutAtom, tocVisibleAtom } from "../../client/state";
+import { contentLayoutAtom, tocModeAtom } from "../../client/state";
 
 vi.mock("../../client/api", () => {
 	throw new Error("Standalone settings must not import the server API");
@@ -42,7 +42,7 @@ beforeEach(() => {
 		this.open = false;
 	};
 	getDefaultStore().set(contentLayoutAtom, "flexible");
-	getDefaultStore().set(tocVisibleAtom, true);
+	getDefaultStore().set(tocModeAtom, "auto");
 	docModuleCache.set("guide.md", {
 		status: "ok",
 		Component: () => createElement("h2", { id: "overview" }, "Overview"),
@@ -78,13 +78,13 @@ it("opens local settings from the standalone toolbar and applies autosaved layou
 	expect(document.querySelector("#diagram-agent")).toBeNull();
 	expect(document.querySelector("dialog")!.textContent).not.toContain("Save settings");
 	await select("#content-layout", "full-width");
-	await select("#toc-visibility", "hidden");
+	await select("#toc-mode", "disabled");
 	expect(document.querySelector('[aria-label="Resize page"]')).toBeNull();
 	expect(document.querySelector('[aria-label="Resize table of contents"]')).toBeNull();
 	expect(localStorage.getItem("mdxserve.content.layout")).toBe('"full-width"');
-	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("false");
+	expect(localStorage.getItem("mdxserve.toc.mode")).toBe('"disabled"');
 	await select("#content-layout", "flexible");
-	await select("#toc-visibility", "visible");
+	await select("#toc-mode", "auto");
 	expect(document.querySelectorAll('[aria-label="Resize page"]')).toHaveLength(2);
 	expect(document.querySelector('[aria-label="Resize table of contents"]')).not.toBeNull();
 });

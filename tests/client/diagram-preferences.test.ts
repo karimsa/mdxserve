@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getDefaultStore } from "jotai";
-import { contentLayoutAtom, tocVisibleAtom } from "../../client/state";
+import { contentLayoutAtom, tocModeAtom } from "../../client/state";
 import { DiagramPreferences } from "../../client/diagrams/Preferences";
 import { useFullWidth } from "../../client/hooks";
 import { COMPACT_MEDIA } from "../../client/platform";
@@ -32,7 +32,7 @@ beforeEach(async () => {
 	}));
 	vi.stubGlobal("localStorage", new JSDOM("", { url: "http://localhost" }).window.localStorage);
 	getDefaultStore().set(contentLayoutAtom, "flexible");
-	getDefaultStore().set(tocVisibleAtom, true);
+	getDefaultStore().set(tocModeAtom, "auto");
 	rpc.get.mockResolvedValue({ agent: "codex", models: { codex: "gpt-6-luna", claude: "haiku" } });
 	rpc.list.mockImplementation(async ({ provider }) =>
 		provider === "codex"
@@ -168,25 +168,25 @@ it("hides the content layout choice on phones and fills the width without changi
 	);
 	await clickButton("Layout");
 	expect(document.querySelector("#content-layout")).toBeNull();
-	expect(document.querySelector("#toc-visibility")).not.toBeNull();
+	expect(document.querySelector("#toc-mode")).not.toBeNull();
 	expect(fullWidth).toBe(true);
 	expect(getDefaultStore().get(contentLayoutAtom)).toBe("flexible");
 });
 
-it("defaults to visible contents and autosaves visibility independently of diagram settings", async () => {
+it("defaults to an automatic table of contents and autosaves its placement independently of diagram settings", async () => {
 	await clickButton("Layout");
-	expect(document.querySelector<HTMLSelectElement>("#toc-visibility")!.value).toBe("visible");
-	await select("#toc-visibility", "hidden");
-	expect(getDefaultStore().get(tocVisibleAtom)).toBe(false);
-	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("false");
+	expect(document.querySelector<HTMLSelectElement>("#toc-mode")!.value).toBe("auto");
+	await select("#toc-mode", "disabled");
+	expect(getDefaultStore().get(tocModeAtom)).toBe("disabled");
+	expect(localStorage.getItem("mdxserve.toc.mode")).toBe('"disabled"');
 	expect(rpc.save).not.toHaveBeenCalled();
 	await act(async () => root.render(null));
 	await act(async () => root.render(createElement(DiagramPreferences, { onClose: vi.fn() })));
 	await clickButton("Layout");
-	expect(document.querySelector<HTMLSelectElement>("#toc-visibility")!.value).toBe("hidden");
-	await select("#toc-visibility", "visible");
-	expect(getDefaultStore().get(tocVisibleAtom)).toBe(true);
-	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("true");
+	expect(document.querySelector<HTMLSelectElement>("#toc-mode")!.value).toBe("disabled");
+	await select("#toc-mode", "auto");
+	expect(getDefaultStore().get(tocModeAtom)).toBe("auto");
+	expect(localStorage.getItem("mdxserve.toc.mode")).toBe('"auto"');
 });
 
 it("keeps the modal open through every dismissal path until an autosave failure is shown", async () => {
@@ -233,9 +233,9 @@ it("offers browser-local layout settings to remote viewers without accessing dia
 		),
 	).toBe(false);
 	await select("#content-layout", "full-width");
-	await select("#toc-visibility", "hidden");
+	await select("#toc-mode", "disabled");
 	expect(localStorage.getItem("mdxserve.content.layout")).toBe('"full-width"');
-	expect(localStorage.getItem("mdxserve.toc.visible")).toBe("false");
+	expect(localStorage.getItem("mdxserve.toc.mode")).toBe('"disabled"');
 	expect(rpc.get).not.toHaveBeenCalled();
 	expect(rpc.list).not.toHaveBeenCalled();
 	expect(rpc.save).not.toHaveBeenCalled();

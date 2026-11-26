@@ -1,8 +1,8 @@
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { LayoutGroup } from "framer-motion";
+import { useRef } from "react";
 import { useAtom } from "jotai";
-import { VARIANTS } from "../motion";
 import { Icon } from "../ui/Icon";
+import { BottomSheet } from "../ui/BottomSheet";
 import { IconButton } from "../ui/IconButton";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { ListingView } from "../ListingView";
@@ -96,62 +96,49 @@ export function Sidebar({
 	const [width, setWidth] = useAtom(sidebarWidthAtom);
 	const asideRef = useRef<HTMLDivElement>(null);
 
-	useEffect(() => {
-		if (!mobileOpen) return;
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") onCloseMobile();
-		}
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [mobileOpen, onCloseMobile]);
-
 	return (
 		<>
-			{/* Mobile overlay: fixed drawer + scrim, closed by default. */}
-			<AnimatePresence>
-				{mobileOpen ? (
-					<motion.div
-						key="sidebar-scrim"
-						data-print-hide
-						{...VARIANTS.scrim}
-						onClick={onCloseMobile}
-						className="fixed inset-0 z-[var(--z-scrim)] bg-[var(--scrim)] md:hidden"
-					/>
-				) : null}
-			</AnimatePresence>
-			<AnimatePresence>
-				{mobileOpen ? (
-					<motion.aside
-						key="sidebar-panel"
-						data-print-hide
-						{...VARIANTS.pop}
-						// Rows are plain links handled by the router, and tapping the already
-						// active doc never changes the route, so close on any link tap here.
-						onClick={(event) => {
-							if ((event.target as HTMLElement).closest("a[href]")) onCloseMobile();
-						}}
-						className={
-							"fixed inset-y-0 left-0 z-[var(--z-modal)] overflow-y-auto border-r border-border-subtle bg-surface-raised px-3 py-6 shadow-lg md:hidden w-sidebar max-w-[calc(100vw-3rem)]"
-						}
-					>
-						<div className="mb-3 flex justify-end">
+			{/* Phones: the same bottom sheet as the comments panel, over a scrim. */}
+			<BottomSheet
+				open={mobileOpen}
+				onClose={onCloseMobile}
+				label="Files"
+				scrim
+				// Rows are plain links handled by the router, and tapping the already
+				// active doc never changes the route, so close on any link tap here.
+				onClick={(event) => {
+					if ((event.target as HTMLElement).closest("a[href]")) onCloseMobile();
+				}}
+			>
+				{(dragHandlers) => (
+					<>
+						<div
+							{...dragHandlers}
+							className="flex h-[42px] shrink-0 touch-none items-center border-b border-border-subtle pr-2 pl-4"
+						>
+							<span className="flex-1 font-sans text-[length:var(--size-sm)] font-semibold text-text-heading">
+								Files
+							</span>
 							<IconButton
 								icon="x"
 								label="Close navigation"
-								className="h-11 w-11"
+								size="sm"
+								className="h-9 w-9"
 								onClick={onCloseMobile}
 							/>
 						</div>
-						<SidebarBody
-							rootDir={rootDir}
-							activePath={activePath}
-							docCount={docCount}
-							singleRoot={singleRoot}
-							layoutGroupId="sidebar-mobile"
-						/>
-					</motion.aside>
-				) : null}
-			</AnimatePresence>
+						<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-6">
+							<SidebarBody
+								rootDir={rootDir}
+								activePath={activePath}
+								docCount={docCount}
+								singleRoot={singleRoot}
+								layoutGroupId="sidebar-mobile"
+							/>
+						</div>
+					</>
+				)}
+			</BottomSheet>
 
 			{/* Desktop docked column. */}
 			{desktopOpen ? (

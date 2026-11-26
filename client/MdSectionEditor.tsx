@@ -29,7 +29,9 @@ import { Image } from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { AnimatePresence, motion } from "framer-motion";
 import { isTRPCClientError } from "@trpc/client";
+import { useSetAtom } from "jotai";
 import { trpcClient } from "./api";
+import { sectionEditorActionsAtom } from "./state";
 import { TRANSITIONS } from "./motion";
 import { isApplePlatform } from "./platform";
 import { modifiedLinkHref } from "./editor-link";
@@ -265,6 +267,26 @@ export default function MdSectionEditor({
 			setSaving(false);
 		}
 	}
+
+	// A phone has no Esc or ⌘S, so the shell shows these as buttons
+	// (client/EditorActionBar.tsx). The bar lives outside this component so it
+	// can animate out after the editor has gone. Refs keep the published
+	// callbacks stable while pointing at the latest closures.
+	const saveRef = useRef(save);
+	saveRef.current = save;
+	const doneRef = useRef(onDone);
+	doneRef.current = onDone;
+	const setActions = useSetAtom(sectionEditorActionsAtom);
+	useEffect(() => {
+		const actions = {
+			save: () => void saveRef.current(),
+			cancel: () => doneRef.current(),
+			saving,
+		};
+		setActions(actions);
+		// Another section's editor may have published its own by now: only clear ours.
+		return () => setActions((current) => (current === actions ? null : current));
+	}, [saving, setActions]);
 
 	// Cmd/ctrl+click follows a link (client/editor-link.ts says why the
 	// browser's own new-tab gesture is inert inside a contenteditable). A DOM

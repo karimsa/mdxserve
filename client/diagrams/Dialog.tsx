@@ -570,7 +570,7 @@ export function MermaidDialog({
 			)}
 
 			<AnimatePresence>
-				{preferences && <DiagramPreferences onClose={() => setPreferences(false)} />}
+				{preferences && <DiagramPreferences nested onClose={() => setPreferences(false)} />}
 			</AnimatePresence>
 		</Modal>
 	);
