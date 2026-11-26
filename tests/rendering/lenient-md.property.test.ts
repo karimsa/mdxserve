@@ -204,6 +204,19 @@ describe("escapeBareLt scanner states", () => {
 		expect(escapeBareLt("``a <W\nb`` c < 1")).toBe("``a <W\nb`` c \\< 1");
 	});
 
+	it("keeps a multiline MDX comment from starting a tag", () => {
+		expect(escapeBareLt("{/*\nExample: <Widget\n\nmore\n*/}\nx < 5")).toBe(
+			"{/*\nExample: <Widget\n\nmore\n*/}\nx \\< 5",
+		);
+		expect(escapeBareLt("{/* a\n*/} x < 5")).toBe("{/* a\n*/} x \\< 5");
+	});
+
+	it("leaves a reference definition and its title alone", () => {
+		expect(escapeBareLt('[ref]: https://example.com "<Widget"\nx < 5\n\n[ref]')).toBe(
+			'[ref]: https://example.com "<Widget"\nx \\< 5\n\n[ref]',
+		);
+	});
+
 	it("only skips a link target that is a valid link", () => {
 		expect(escapeBareLt("](x < 5)")).toBe("](x \\< 5)");
 		expect(escapeBareLt("[label](x < 5)")).toBe("[label](x \\< 5)");

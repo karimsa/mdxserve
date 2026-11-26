@@ -88,6 +88,19 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
  * one would be read as the start of a string.
  */
 function escapeLine(line: string, tag: TagState, rest: () => string): string {
+	let output = "";
+	let index = 0;
+	if (tag.comment && !tag.inTag) {
+		// Inside a multiline `{/* ... */}` MDX comment, which may hold blank lines.
+		const close = line.indexOf("*/}");
+		if (close < 0) return line;
+		index = close + 3;
+		output = line.slice(0, index);
+		tag.comment = false;
+	} else if (!tag.inTag && /^ {0,3}\[[^\]]+\]:/.test(line)) {
+		// A reference definition: its destination and title are literal.
+		return line;
+	}
 	if (line.trim() === "" && tag.nesting.length === 0) {
 		// A tag cannot continue across a blank line, so a `<word` in prose that
 		// never closes stops protecting the text after it.
@@ -97,9 +110,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 		return line;
 	}
 	// Indented code blocks are literal too.
-	if (!tag.inTag && !tag.codeRun && /^(?: {4}|\t)/.test(line)) return line;
-	let output = "";
-	let index = 0;
+	if (!tag.inTag && !tag.codeRun && index === 0 && /^(?: {4}|\t)/.test(line)) return line;
 	if (tag.codeRun) {
 		// Inside an inline code span opened on an earlier line.
 		const close = closingRun(tag.codeRun).exec(line);
@@ -137,6 +148,11 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 				index += literal[0].length;
 				continue;
 			}
+		}
+		if (line.startsWith("{/*", index)) {
+			// A comment that does not end on this line (a same-line one matched above).
+			tag.comment = true;
+			return output + line.slice(index);
 		}
 		if (character === "`") {
 			// No closing run on this line: a span that continues onto a later line
