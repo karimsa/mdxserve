@@ -189,7 +189,7 @@ regardless of the peer address. Select it explicitly when a reverse proxy connec
 to a loopback listener:
 
 ```bash
-mdxserve serve --permissions restricted -w ./site
+mdxserve serve --permissions restricted -w ./public
 ```
 
 To allow full permissions on a trusted network, specify both options:

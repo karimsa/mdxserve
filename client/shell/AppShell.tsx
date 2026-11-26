@@ -50,18 +50,15 @@ import { useContentWidth, useDocMaxWidth } from "./use-doc-width";
 import { DESKTOP_MEDIA } from "../platform";
 import { docWidthAtom, LISTING_MAX_WIDTH, LISTING_MIN_WIDTH, listingWidthAtom } from "../state";
 
-function sidebarStorageKey(): string {
-	// Keep hosted navigation preferences separate from local reader defaults.
-	return shellInfo.immutableSite ? "mdxserve-site-sidebar" : "mdxserve-sidebar";
-}
+const SIDEBAR_STORAGE_KEY = "mdxserve-sidebar";
 const SEARCH_DEBOUNCE_MS = 120;
 
 function readStoredSidebarOpen(): boolean {
 	try {
-		const value = localStorage.getItem(sidebarStorageKey());
-		return value === null ? !shellInfo.immutableSite : value === "1";
+		const value = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+		return value === null ? true : value === "1";
 	} catch {
-		return !shellInfo.immutableSite;
+		return true;
 	}
 }
 
@@ -240,7 +237,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 
 	useEffect(() => {
 		try {
-			localStorage.setItem(sidebarStorageKey(), desktopOpen ? "1" : "0");
+			localStorage.setItem(SIDEBAR_STORAGE_KEY, desktopOpen ? "1" : "0");
 		} catch {
 			// private mode / storage disabled: the choice just won't persist
 		}

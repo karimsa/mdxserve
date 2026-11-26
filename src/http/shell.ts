@@ -57,13 +57,12 @@ export function renderShell(
 	const routeJson = escapeForInlineScript(
 		JSON.stringify(route.kind === "doc" && metadata ? { ...route, metadata } : route),
 	);
-	const immutableSite = process.env.MDXSERVE_IMMUTABLE_SITE === "1";
 
 	// The root count rides along so the client knows whether to show
 	// multi-root navigation before the tree API has answered; same-machine
 	// and permission mode let the client show only available actions from its first paint.
 	const body = `    <div id="root"></div>
-    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}" data-permissions="${permissions}" data-immutable-site="${immutableSite ? "1" : "0"}">${routeJson}</script>
+    <script id="__mdxserve_route" type="application/json" data-root-count="${rootCount}" data-same-machine="${sameMachine ? "1" : "0"}" data-permissions="${permissions}">${routeJson}</script>
     <script type="module" src="${escapeHtml(entrySrc)}"></script>`;
 
 	return renderDocument({ title: titleFor(route), body, metadata });

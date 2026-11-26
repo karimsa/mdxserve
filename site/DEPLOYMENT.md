@@ -1,22 +1,42 @@
 # Site deployment
 
-Vercel builds the site from the connected Git repository. The project Root Directory is `.` and the root `vercel.json` routes requests to a container built with `site/Dockerfile.vercel`. A push to the production branch (`main`) starts a production deployment, but its custom production domains remain unassigned until the release workflow promotes it. The `/` redirect opens `/srv/docs/README.mdx`.
+The site is a static Vite and React app in `site/`. It has its own `package.json` and `yarn.lock` and is not a workspace of the mdxserve package, so it never affects what mdxserve publishes to npm. It imports nothing from `src/` or `client/` and needs no mdxserve server.
 
-Each pushed `v*` tag first runs the npm release job. Once npm publish succeeds, the workflow waits up to 15 minutes for a `READY` Vercel production deployment with the tag's exact commit SHA. Promotion jobs queue one at a time. The job checks the commit currently serving `mdxserve.karim.build` and skips an older or already-current tag; missing or unrelated commit metadata fails the job. For a newer tag, the job rebuilds the original deployment under the production queue lock, verifies the fresh deployment has the exact commit SHA, project, production branch, and `READY` state, then checks the live production commit again before promoting it. This rebuild restores the site's registry image if retention deleted the original candidate while the release was waiting in the queue. The tag must point to a commit on the configured production branch. A failed publish, failed build, mismatched commit, or missing deployment prevents promotion. A release candidate tag (a prerelease version such as `v0.6.0-rc.1`) publishes to npm only: the promotion job is skipped and the live site stays on the last stable release.
+To work on it locally:
 
-The Site deployment signal workflow has no checkout or secrets. Its successful completion starts retention from the trusted workflow revision. Retention also runs after Release completes, every six hours, and on manual dispatch.
+```bash
+cd site
+yarn install
+yarn dev        # dev server
+yarn build      # typecheck, then write static files to site/dist/
+yarn preview    # serve site/dist/
+```
 
-Retention keeps the image serving `mdxserve.karim.build` and the newest other tagged image, then deletes older and untagged images. The workflow uses a short-lived VCR OIDC token for registry requests and the project-scoped `VERCEL_TOKEN` for production alias and deployment metadata. The full Release workflow shares the `site-production` queue with retention. Before each deletion, retention checks the live production alias, image inventory, and active Release runs. A queued or running release defers cleanup until its completion event. For local preview, run `node site/deployment/retain-images.mjs` with a Vercel token that has VCR access; add `--apply` to delete with a GitHub Actions token in `GH_TOKEN`. Once deployments settle, the registry holds at most two images. A build or release in progress can temporarily add another.
+## How Vercel builds it
+
+Vercel builds the site from the connected Git repository. The project Root Directory is `.`, and the root `vercel.json` sets the build:
+
+- `framework` is `null` (no framework preset), so Vercel serves the output as static files.
+- `installCommand` runs `corepack yarn install --immutable` in `site/`, so the Yarn version comes from `site/package.json`'s `packageManager` field.
+- `buildCommand` runs `corepack yarn build` in `site/`.
+- `outputDirectory` is `site/dist`.
+- A catch-all rewrite sends every path that is not a built file to `index.html`, and the app routes on the client.
+- Redirects send the old `/srv/docs/*.mdx` addresses to the matching pages.
+
+A push to the production branch (`main`) starts a production deployment, but its custom production domains remain unassigned until the release workflow promotes it.
+
+## Promotion
+
+Each pushed `v*` tag first runs the npm release job. Once npm publish succeeds, the workflow waits up to 15 minutes for a `READY` Vercel production deployment with the tag's exact commit SHA. Promotion jobs queue one at a time. The job checks the commit currently serving `mdxserve.karim.build` and skips an older or already-current tag; missing or unrelated commit metadata fails the job. For a newer tag, the job promotes the deployment it found and waits until the production domain serves it. The tag must point to a commit on the configured production branch. A failed publish, failed build, mismatched commit, or missing deployment prevents promotion. A release candidate tag (a prerelease version such as `v0.6.0-rc.1`) publishes to npm only: the promotion job is skipped and the live site stays on the last stable release.
+
+The scripts the workflow runs are in `site/deployment/`. Their tests run in the Verify PR workflow and before every release with `node --test site/deployment/*.test.mjs`.
 
 ## One-time Vercel setup
 
-1. Connect this Git repository to a Vercel project. Set its Framework Preset to **Services**, Root Directory to `.`, and production branch to `main`. Keep Git deployments enabled.
-2. Set the project's **Ignored Build Step** command to `node site/deployment/prepare-context.mjs; exit 1`. The script stages the checked-out source in the Docker build context; `exit 1` tells Vercel to continue building. Keep this project setting enabled for every deployment.
+1. Connect this Git repository to a Vercel project. Set its Root Directory to `.` and its production branch to `main`. Keep Git deployments enabled. Use Node.js 22.x for builds; the build relies on the Corepack that ships with Node.
+2. Leave the project's **Ignored Build Step** empty (or set it to the default), so every commit builds.
 3. In the project's Production environment settings, disable **Auto-assign Custom Production Domains**. Vercel can then build each `main` commit without moving the live domain; the release workflow assigns it only after npm publish succeeds.
-4. Add a project-scoped `VERCEL_TOKEN` as a GitHub Actions repository secret with access to the project. Add `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as repository variables, using the IDs from Vercel project settings or `.vercel/project.json`. The workflow uses Vercel's team-scoped REST API to promote the deployment and verifies the production alias; the Vercel CLI requires a user lookup that a project-scoped token cannot satisfy. The workflow fails if a value is missing.
-5. Add a VCR OIDC policy in Vercel for GitHub Actions with `read-write:vcr` access to the `mdxserve` project only. Match repository ID `1409638395`, owner ID `2664912`, ref `refs/heads/main`, workflow ref `karimsa/mdxserve/.github/workflows/retain-site-images.yml@refs/heads/main`, and audience `https://github.com/karimsa`. Retention exchanges the GitHub job token for short-lived registry access and revokes it after use.
-6. Configure `mdxserve.karim.build` as the project's production domain and set `PORT=8080` in both Production and Preview. Before the first tagged release, assign the domain to a production deployment whose commit is an ancestor of that release tag; a PR-branch deployment may be unrelated after a squash merge. The freshness check fails closed if the domain has no current deployment or its commit is unrelated. The image allows `.vercel.app` and the exact `mdxserve.karim.build` hostname for Vite assets. If the domain changes, update the comma-separated `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` value in `site/Dockerfile.vercel` and the domain in `site/deployment/check-promotion-freshness.mjs`; do not allow a broad public suffix such as `.com`.
+4. Add a project-scoped `VERCEL_TOKEN` as a GitHub Actions repository secret with access to the project. Add `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as repository variables, using the IDs from Vercel project settings or `.vercel/project.json`. The workflow uses Vercel's team-scoped REST API to promote the deployment and verify the production alias; the Vercel CLI requires a user lookup that a project-scoped token cannot satisfy. The workflow fails if a value is missing.
+5. Configure `mdxserve.karim.build` as the project's production domain. Before the first tagged release, assign the domain to a production deployment whose commit is an ancestor of that release tag; a PR-branch deployment may be unrelated after a squash merge. The freshness check fails closed if the domain has no current deployment or its commit is unrelated. If the domain changes, update it in `site/deployment/check-promotion-freshness.mjs` and in the canonical and Open Graph links in `site/index.html`.
 
-The container starts mdxserve in restricted, read-only mode. Its writable state and cache live under `/tmp` because Vercel function filesystems are ephemeral. The service's `root` in `vercel.json` is `site`, which Vercel uses as the Docker build context, so the Dockerfile's `COPY` paths are relative to `site/`. The project Ignored Build Step first copies the checked-out package, source, scripts, and client into `site/.build-source/`; the Dockerfile fails if that staging step did not finish. The image's package and docs come from the same checkout without waiting for npm registry propagation.
-
-Before a tagged release, confirm that npm trusted publishing is configured for `.github/workflows/release.yml`. The `publish` job runs repository checks, builds, smoke-tests the npm tarball, and publishes with provenance. To check the container locally, run `node site/deployment/prepare-context.mjs` followed by `docker build -f site/Dockerfile.vercel site` from the repository root. This does not deploy the site.
+Before a tagged release, confirm that npm trusted publishing is configured for `.github/workflows/release.yml`. The `publish` job runs repository checks, builds, smoke-tests the npm tarball, and publishes with provenance.
