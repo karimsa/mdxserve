@@ -15,7 +15,6 @@ const common = {
 		.optional()
 		.describe("Opt-in magnitude bars; zero is always included in the scale."),
 };
-const formatter = z.custom<(value: number) => string>((value) => typeof value === "function");
 export const columnSchema = z.discriminatedUnion("type", [
 	z.object({ ...common, type: z.literal("text") }),
 	z.object({ ...common, type: z.literal("number") }),
@@ -25,9 +24,10 @@ export const columnSchema = z.discriminatedUnion("type", [
 	z.object({
 		...common,
 		type: z.literal("currency"),
-		format: formatter.describe(
-			"Required numeric-to-string currency formatter, e.g. value => `$${value}`",
-		),
+		currency: z
+			.string()
+			.regex(/^[A-Z]{3}$/, "Use an uppercase ISO 4217 currency code, e.g. USD")
+			.describe("Required ISO 4217 currency code, e.g. USD or EUR."),
 	}),
 ]);
 export type Column = z.infer<typeof columnSchema>;
@@ -121,7 +121,10 @@ export function formatValue(value: Value, column: Column, unit?: string): string
 	const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 20 });
 	if (column.type === "percent")
 		return `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 12 }).format(value * 100)}%`;
-	if (column.type === "currency") return column.format(value);
+	if (column.type === "currency")
+		return new Intl.NumberFormat("en-US", { style: "currency", currency: column.currency }).format(
+			value,
+		);
 	if (column.type === "time" || column.type === "bytes") {
 		const chosen = unit ?? column.unit;
 		return `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format((value * unitFactor(column.type, column.unit)) / unitFactor(column.type, chosen))} ${chosen}`;

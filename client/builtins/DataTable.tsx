@@ -28,7 +28,7 @@ export const dataTableProps = z.object({
 		.array(columnSchema)
 		.min(1)
 		.describe(
-			"Ordered columns: key, label, type; optional group and bars. Time/bytes require a base unit. Percent data uses fractions (0.15 displays 15%). Currency requires format(value).",
+			"Ordered columns: key, label, type; optional group and bars. Time/bytes require a base unit. Percent data uses fractions (0.15 displays 15%). Currency requires a currency code such as USD and formats values as money.",
 		),
 	data: z.array(z.record(z.string(), z.union([z.string(), z.number().finite(), z.null()]))),
 });

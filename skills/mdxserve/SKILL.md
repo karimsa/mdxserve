@@ -172,11 +172,12 @@ unit preferences are saved locally under the document and ID. Give columns stabl
     { key: "success", label: "Success", type: "percent" },
     { key: "mean", label: "Mean", type: "time", unit: "ms", group: "Latency", bars: true },
     { key: "peak", label: "Peak", type: "time", unit: "ms", group: "Latency", bars: true },
-    { key: "payload", label: "Payload", type: "bytes", unit: "B" }
+    { key: "payload", label: "Payload", type: "bytes", unit: "B" },
+    { key: "cost", label: "Cost", type: "currency", currency: "USD" }
   ]}
   data={[
-    { endpoint: "/search", success: 0.995, mean: 120, peak: 450, payload: 2048 },
-    { endpoint: "/export", success: 0.98, mean: 2400, peak: 8000, payload: 1048576 }
+    { endpoint: "/search", success: 0.995, mean: 120, peak: 450, payload: 2048, cost: 1234.5 },
+    { endpoint: "/export", success: 0.98, mean: 2400, peak: 8000, payload: 1048576, cost: 96.75 }
   ]}
 />
 ```
@@ -191,9 +192,10 @@ unit preferences are saved locally under the document and ID. Give columns stabl
 - `bytes` uses numeric data and a required base `unit` accepted by `bytes` (`B`, `KB`, `MB`,
   `GB`, `TB`, `PB`). Units are binary (1 KB = 1024 B). The whole column shares a display unit;
   filters accept `10MB`, or bare numbers in the displayed unit.
-- `currency` requires a `format` function, which a document cannot pass (braces hold literals
-  only), so do not use it in a document. Use `number` and name the currency in the label
-  (`"Cost (USD)"`).
+- `currency` uses numeric data and a required ISO 4217 `currency` code in uppercase
+  (`{ key: "cost", label: "Cost", type: "currency", currency: "USD" }`). Values display as
+  money (`$1,234.50`) and sort numerically. Filters accept plain numbers or `k`/`m`/`b`/`t`
+  suffixes (`10k`). A missing or malformed code is a validation error.
 - Adjacent columns with the same `group` get a shared top-level heading.
 - Optional `align: "left" | "center" | "right"` overrides type-based alignment. Native Markdown tables preserve explicit GFM delimiter alignment.
 - Set `bars: true` only when comparing magnitudes is meaningful. Omit it for IDs, years,

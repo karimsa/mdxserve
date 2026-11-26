@@ -1,8 +1,9 @@
 import { expect, it } from "vitest";
-import { assert, property, integer, array } from "fast-check";
+import { assert, property, integer, array, double } from "fast-check";
 import {
 	compareValues,
 	filterPredicate,
+	formatValue,
 	parseBound,
 	type Column,
 } from "../../client/data-table/model";
@@ -38,6 +39,14 @@ it("duration bounds represent the same amount across display units", () => {
 			const column: Column = { key: "duration", label: "Duration", type: "time", unit: "ms" };
 			expect(parseBound(String(seconds), column, "s")).toBe(seconds * 1000);
 			expect(parseBound(`${seconds}s`, column, "h")).toBe(seconds * 1000);
+		}),
+	);
+});
+it("currency formatting is total over finite numbers and always shows the symbol", () => {
+	assert(
+		property(double({ noNaN: true, noDefaultInfinity: true, min: -1e12, max: 1e12 }), (value) => {
+			const column: Column = { key: "cost", label: "Cost", type: "currency", currency: "USD" };
+			expect(formatValue(value, column)).toContain("$");
 		}),
 	);
 });

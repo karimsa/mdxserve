@@ -24,7 +24,7 @@ const number: Column = { key: "value", label: "Value", type: "number" };
 const percent: Column = { ...number, type: "percent" };
 const time: Column = { ...number, type: "time", unit: "milliseconds" };
 const size: Column = { ...number, type: "bytes", unit: "KB" };
-const currency: Column = { ...number, type: "currency", format: (value) => `$${value.toFixed(2)}` };
+const currency: Column = { ...number, type: "currency", currency: "USD" };
 describe("typed table values", () => {
 	it("keeps saved numeric duration bounds meaningful when auto display units change", () => {
 		expect(filterPredicate(time, { min: "1", unit: "s" }, "ms")(500)).toBe(false);
@@ -60,6 +60,28 @@ describe("typed table values", () => {
 		expect(parseBound("-2.5M", currency)).toBe(-2500000);
 		expect(formatValue(12.5, currency)).toBe("$12.50");
 	});
+	it("formats currency columns from a literal currency code", () => {
+		expect(formatValue(1234.5, currency)).toBe("$1,234.50");
+		expect(formatValue(-3, currency)).toBe("-$3.00");
+		expect(formatValue(1234.5, { ...currency, currency: "EUR" })).toBe("€1,234.50");
+		expect(formatValue(null, currency)).toBe("—");
+	});
+	it("sorts currency values numerically rather than by displayed text", () => {
+		const values = [1234.5, 96.75, null, 18250];
+		const sorted = [...values].sort((left, right) => compareValues(left, right, false));
+		expect(sorted).toEqual([96.75, 1234.5, 18250, null]);
+	});
+	it("renders currency columns declared with literals only", () => {
+		const html = renderToStaticMarkup(
+			createElement(DataTable, {
+				id: "costs",
+				columns: [{ key: "cost", label: "Cost", type: "currency", currency: "USD" }],
+				data: [{ cost: 1234.5 }, { cost: 96.75 }],
+			} as never),
+		);
+		expect(html).toContain("$1,234.50");
+		expect(html).toContain("$96.75");
+	});
 	it("matches regex case insensitively by default and reports invalid patterns", () => {
 		const text: Column = { ...number, type: "text" };
 		expect(filterPredicate(text, { pattern: "^api$" })("API")).toBe(true);
@@ -80,15 +102,30 @@ describe("typed table values", () => {
 			expect(values).toEqual(descending ? [10, 2, null] : [2, 10, null]);
 		}
 	});
-	it("requires identity, numeric measures, base units and currency formatters", () => {
+	it("requires identity, numeric measures, base units and currency codes", () => {
 		const render = (props: object) =>
 			renderToStaticMarkup(createElement(DataTable, props as never));
 		expect(() => render({ columns: [number], data: [] })).toThrow();
 		expect(() =>
 			render({ id: "table", columns: [{ ...number, type: "time" }], data: [] }),
 		).toThrow();
+		// A currency column without a code is a validation error, never a silent default.
 		expect(() =>
 			render({ id: "table", columns: [{ ...number, type: "currency" }], data: [] }),
+		).toThrow();
+		expect(() =>
+			render({
+				id: "table",
+				columns: [{ ...number, type: "currency", currency: "usd" }],
+				data: [],
+			}),
+		).toThrow();
+		expect(() =>
+			render({
+				id: "table",
+				columns: [{ ...number, type: "currency", format: () => "$1" }],
+				data: [],
+			}),
 		).toThrow();
 		expect(() => render({ id: "table", columns: [number], data: [{ value: "12" }] })).toThrow();
 		expect(() => render({ id: "table", columns: [number, number], data: [] })).toThrow();
