@@ -99,6 +99,29 @@ describe("escapeBareLt and JSX attributes", () => {
 		);
 	});
 
+	it("leaves a quoted value unchanged when there is whitespace around the equals sign", () => {
+		expect(escapeBareLt('<Callout title = "Latency < 100 ms">under < 5 ms</Callout>')).toBe(
+			'<Callout title = "Latency < 100 ms">under \\< 5 ms</Callout>',
+		);
+	});
+
+	it("leaves attribute values unchanged when the tag spans several lines", () => {
+		const source = [
+			"<Callout",
+			'  title="Latency < 100 ms"',
+			"      tone='a <= b'",
+			"  data={[1, 2].filter((value) => value < 2)}",
+			">",
+			"under < 5 ms",
+			"</Callout>",
+		].join("\n");
+		expect(escapeBareLt(source)).toBe(source.replace("under < 5", "under \\< 5"));
+	});
+
+	it("stops treating an unclosed `<word` in prose as a tag at the next blank line", () => {
+		expect(escapeBareLt("a <b c\n\nx < 5")).toBe("a <b c\n\nx \\< 5");
+	});
+
 	it("still escapes a quoted comparison in prose, outside any tag", () => {
 		expect(escapeBareLt('He wrote "x < 5" twice')).toBe('He wrote "x \\< 5" twice');
 	});
