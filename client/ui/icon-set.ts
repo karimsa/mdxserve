@@ -38,7 +38,6 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right.mjs";
 import CircleCheck from "lucide-react/dist/esm/icons/circle-check.mjs";
 import Code from "lucide-react/dist/esm/icons/code.mjs";
 import Copy from "lucide-react/dist/esm/icons/copy.mjs";
-import Download from "lucide-react/dist/esm/icons/download.mjs";
 import Expand from "lucide-react/dist/esm/icons/expand.mjs";
 import File from "lucide-react/dist/esm/icons/file.mjs";
 import FileText from "lucide-react/dist/esm/icons/file-text.mjs";
@@ -82,7 +81,6 @@ export const staticIcons: Record<string, LucideIcon> = {
 	"circle-check": CircleCheck,
 	code: Code,
 	copy: Copy,
-	download: Download,
 	expand: Expand,
 	file: File,
 	"file-text": FileText,

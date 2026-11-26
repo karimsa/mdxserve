@@ -26,7 +26,6 @@ export function makeContext(
 		roots,
 		registry,
 		isLoopback: false,
-		bundle: async () => ({ js: "", css: "", warnings: [] }),
 		docCache,
 		search: new SearchService(docCache),
 		docs: new DocsService(roots, registry),

@@ -104,7 +104,7 @@ MDXSERVE_HOME=/tmp/mdxserve-public mdxserve serve --permissions restricted -w ./
 
 Restricted mode requires one `-w` directory. It ignores saved roots
 and config changes. All HTTP mutations are denied, including editing, Trash, root changes,
-exports, and diagram agents, even when a reverse proxy connects over loopback. The reader,
+and diagram agents, even when a reverse proxy connects over loopback. The reader,
 navigation, and search remain available. A restricted instance will not reuse another server
 under the same `MDXSERVE_HOME`; give it its own directory.
 
@@ -151,7 +151,7 @@ flowchart LR
 
 ### Page metadata
 
-Add YAML frontmatter to set a page title, description, canonical URL, and Open Graph sharing tags. Metadata appears in the initial HTML response and in HTML exports, and updates as you navigate between documents. `.md` and `.mdx` use the same fields.
+Add YAML frontmatter to set a page title, description, canonical URL, and Open Graph sharing tags. Metadata appears in the initial HTML response and updates as you navigate between documents. `.md` and `.mdx` use the same fields.
 
 ```yaml
 ---
@@ -245,7 +245,7 @@ resizable. Pages link to their previous and next neighbour and show which file t
 and when it was last edited.
 
 - `⌘K` / `Ctrl K` searches every served folder by title, heading, and body.
-- The top bar toggles light and dark (it remembers your choice), prints, and exports.
+- The top bar toggles light and dark (it remembers your choice) and prints.
 - Double-click a section, or use its pencil, to edit it in place; `⌘S` saves,
   `Esc` cancels. The edit is written back to the file on disk.
 - Select text and press the comment button to start a thread on it. Agents reply by editing the
@@ -258,21 +258,6 @@ and when it was last edited.
 
 Navigation is client-side — moving between folders and pages doesn't reload — and every
 animation respects `prefers-reduced-motion`.
-
-## Exporting a page
-
-`mdxserve export` turns one document into a single HTML file that opens from `file://` on any
-machine, with the same theme, code blocks, diagrams, and components as the live viewer:
-
-```bash
-mdxserve export docs/guide.md                     # writes ./guide.html
-mdxserve export docs/guide.md -o ~/Desktop/guide.html
-mdxserve export docs/guide.md --mermaid bundle    # fully offline; inlines mermaid (~2.4 MB)
-```
-
-The same export is in the viewer's top bar on any page. See
-[`docs/advanced.md`](./docs/advanced.md#exporting) for exactly what the file does and doesn't
-carry.
 
 ## Using it with AI agents
 
@@ -304,9 +289,9 @@ oxmgr stop mdxserve      # stop it
 
 ## Going further
 
-| Read                                           | If you want to                                                                                                             |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [`docs/advanced.md`](./docs/advanced.md)       | Understand the one-server-per-user model, URL and root rules, LAN exposure, the cache, exports in depth, and the agent CLI |
-| [`docs/http-api.md`](./docs/http-api.md)       | Call the server's typed HTTP API directly                                                                                  |
-| [`docs/development.md`](./docs/development.md) | Work on mdxserve itself: build, test, add a builtin, and where things live                                                 |
-| [`AGENTS.md`](./AGENTS.md)                     | The architecture rules the codebase follows (also what coding agents read)                                                 |
+| Read                                           | If you want to                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [`docs/advanced.md`](./docs/advanced.md)       | Understand the one-server-per-user model, URL and root rules, LAN exposure, the cache, and the agent CLI |
+| [`docs/http-api.md`](./docs/http-api.md)       | Call the server's typed HTTP API directly                                                                |
+| [`docs/development.md`](./docs/development.md) | Work on mdxserve itself: build, test, add a builtin, and where things live                               |
+| [`AGENTS.md`](./AGENTS.md)                     | The architecture rules the codebase follows (also what coding agents read)                               |

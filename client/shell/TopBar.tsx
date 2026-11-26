@@ -1,20 +1,8 @@
-import type { ExportFormat } from "../../src/export/service";
-import Dropdown from "../builtins/Dropdown";
 import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/IconButton";
 import { Kbd } from "../ui/Kbd";
 import type { Theme } from "../theme";
 import { isApplePlatform } from "../platform";
-
-// The export formats the viewer offers; the server's `exportDoc` validates
-// against the same `EXPORT_FORMATS` list (src/export/service.ts).
-const EXPORT_FORMAT_OPTIONS: { value: ExportFormat; label: string; description: string }[] = [
-	{
-		value: "html",
-		label: "HTML",
-		description: "One self-contained page; diagrams load from a CDN",
-	},
-];
 
 function Wordmark({ href }: { href?: string }) {
 	const content = (
@@ -41,7 +29,6 @@ export function TopBar({
 	hostLabel,
 	sidebar,
 	search,
-	exportDoc,
 	theme,
 	onToggleTheme,
 	onDiagramPreferences,
@@ -56,8 +43,6 @@ export function TopBar({
 	sidebar?: { open: boolean; onToggle: () => void };
 	/** Search button; omitted when undefined. */
 	search?: { onOpen: () => void };
-	/** Export menu (doc pages, same-machine viewers only); omitted when undefined. */
-	exportDoc?: { pending: boolean; onExport: (format: ExportFormat) => void };
 	theme: Theme;
 	onToggleTheme: () => void;
 	onDiagramPreferences?: () => void;
@@ -112,16 +97,6 @@ export function TopBar({
 						<Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
 					</span>
 				</button>
-			) : null}
-			{exportDoc ? (
-				<Dropdown
-					icon="download"
-					label="Export page"
-					size="sm"
-					disabled={exportDoc.pending}
-					options={EXPORT_FORMAT_OPTIONS}
-					onChange={(format) => exportDoc.onExport(format as ExportFormat)}
-				/>
 			) : null}
 			{toc ? (
 				<IconButton

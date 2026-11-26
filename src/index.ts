@@ -1,7 +1,5 @@
-import { DocsService } from "./docs/service.js";
 import { setupDiagrams } from "./cli/setup-diagrams.js";
 import os from "node:os";
-import path from "node:path";
 import { Command } from "commander";
 import { startServer } from "./http/start.js";
 import { loadRegistry, formatComponent, formatComponentTable } from "./components/registry.js";
@@ -10,17 +8,8 @@ import { readPackageVersion } from "./infra/pkg.js";
 import { cleanCache, getCacheHome } from "./infra/cache.js";
 import { serverBaseUrl } from "./servers/remote.js";
 import { RootsService } from "./roots/service.js";
-import { expandHome } from "./roots/paths.js";
 import { ServerRegistry } from "./servers/server-registry.js";
 import { liveServerFrom } from "./servers/mounted-roots.js";
-import {
-	ExportService,
-	EXPORT_FORMATS,
-	MERMAID_MODES,
-	type ExportFormat,
-} from "./export/service.js";
-import { bundleStandalone } from "./rendering/bundle.js";
-import type { MermaidMode } from "./rendering/protocol.js";
 import { NO_SERVER_MESSAGE } from "./cli/format.js";
 import { printOutcome } from "./cli/outcome.js";
 import { runValidate } from "./cli/validate.js";
@@ -119,59 +108,6 @@ program
 			);
 		},
 	);
-
-program
-	.command("export <file>")
-	.description("Export one .md/.mdx file to a single self-contained file")
-	.option("-o, --out <file>", "output file path (default: <name>.<ext> in the current directory)")
-	.option("-f, --format <format>", "output format", "html")
-	.option("--mermaid <mode>", "mermaid handling: cdn, bundle, or none", "cdn")
-	.action(async (file: string, opts: { out?: string; format: string; mermaid: string }) => {
-		if (!(EXPORT_FORMATS as readonly string[]).includes(opts.format)) {
-			console.error(
-				`mdxserve: unsupported format "${opts.format}" (supported: ${EXPORT_FORMATS.join(", ")})`,
-			);
-			process.exitCode = 1;
-			return;
-		}
-		if (!MERMAID_MODES.includes(opts.mermaid as MermaidMode)) {
-			console.error(
-				`mdxserve: invalid --mermaid mode "${opts.mermaid}" (expected: ${MERMAID_MODES.join(", ")})`,
-			);
-			process.exitCode = 1;
-			return;
-		}
-
-		// Same treatment as every other path the CLI takes: a leading `~` is
-		// expanded here, since a quoted or non-shell-supplied argument arrives
-		// with it still literal.
-		const docPath = path.resolve(process.cwd(), expandHome(file, os.homedir()));
-		const outFile = opts.out
-			? path.resolve(process.cwd(), expandHome(opts.out, os.homedir()))
-			: undefined;
-		// `export` is independent of the one-server-per-user model: it never
-		// acquires ServerLock and never reads ServerRegistry, so it runs
-		// whether or not `mdxserve serve` is up.
-		const docs = new DocsService(new RootsService(process.cwd(), os.homedir(), []), loadRegistry());
-		const exportService = new ExportService((input) => bundleStandalone(input, docs), docs);
-		const result = await exportService.export({
-			docPath,
-			outFile,
-			format: opts.format as ExportFormat,
-			mermaid: opts.mermaid as MermaidMode,
-		});
-
-		if (result.kind === "ok") {
-			for (const warning of result.warnings) console.error(`mdxserve: warning: ${warning}`);
-			const kilobytes = (result.bytes / 1024).toFixed(0);
-			console.log(
-				`Wrote ${result.outFile} (${kilobytes} KB, ${opts.format}, mermaid: ${result.mermaid})`,
-			);
-			return;
-		}
-		console.error(`mdxserve: ${result.message}`);
-		process.exitCode = 1;
-	});
 
 const roots = program.command("roots").description("Manage the folders the running server serves");
 

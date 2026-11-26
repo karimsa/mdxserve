@@ -16,7 +16,7 @@ Import the hooks from `./useBlockState` and storage helpers/types from `./storag
 
 - Keep `blockId` stable across edits and unique within the document. `kind` separates component
   families; `version` identifies the persisted format. The scope uses `DocContext.path`, with the
-  browser pathname as a fallback for standalone pages.
+  browser pathname as a fallback outside a document.
 - Provide a schema with `safeParse` (Zod schemas work), a fresh default-state factory, and optional
   pure normalization against current block props. State must be JSON-compatible. Validation
   checks saved data; normalization handles changes to the block's current content or schema.

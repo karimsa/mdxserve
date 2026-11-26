@@ -20,7 +20,7 @@
 .mdx-section {
 	position: relative;
 }
-/* Standalone diagrams already provide Edit beside Copy in their toolbar. */
+/* A diagram alone in its section already provides Edit beside Copy in its toolbar. */
 .mdx-section:has(> [data-mermaid-editable]:first-child:nth-last-child(2)) > .mdx-section-edit {
 	display: none;
 }

@@ -13,7 +13,7 @@ calling it.
 ### Domain modules
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
-`listing/`, `search/`, `validation/`, `trash/`, `components/`, `export/`, `setup/`, `diagrams/`,
+`listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
 and `preferences/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
@@ -59,7 +59,7 @@ Adapters contain no business logic:
 | `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
 | `src/cli/`       | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                 |
 | `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
-| `src/rendering/` | Vite dev server, the SSR render worker, the MDX compile pipeline, and the standalone bundle (`bundle.ts`, a one-shot `vite build()` behind `ExportService`'s port) |
+| `src/rendering/` | Vite dev server, the SSR render worker, and the MDX compile pipeline                                                                                               |
 | `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
 | `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
 | `src/index.ts`   | the commander CLI                                                                                                                                                  |
@@ -74,7 +74,7 @@ today that is a single `import type { AppRouter } from "../src/api/router"`.
   preserve the last saved value on failure, and prevent overlapping writes from losing changes.
 
 - `.md` and `.mdx` must always have identical syntax and behavior. Never choose parsing,
-  rendering, validation, editing, or export behavior based on which extension a document has.
+  rendering, validation, or editing behavior based on which extension a document has.
   Any syntax rule or escape hatch must work the same way in both.
 - Every service should be cognizant of its service boundaries, revalidating assumptions across boundaries
 - All HTTP API methods made available should be strongly typed on both input parameters and result, using zod, ensuring we have both compile-time and runtime type safety

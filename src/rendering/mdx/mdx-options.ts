@@ -10,11 +10,10 @@ import rehypeSlug from "rehype-slug";
 import { designTokenTheme } from "./shiki-theme.js";
 
 /**
- * The MDX compiler options shared by the Vite dev server and the standalone
- * validator. `extra.remarkPlugins` are appended after `remarkGfm` (e.g. to
- * capture the parsed tree for validation) without disturbing the rest of the
- * pipeline. `extra.rehypePlugins` are appended after `rehypePrettyCode` (e.g.
- * the standalone build's image inliner).
+ * The MDX compiler options shared by the Vite dev server and the validator.
+ * `extra.remarkPlugins` are appended after `remarkGfm` (e.g. to capture the
+ * parsed tree for validation) without disturbing the rest of the pipeline.
+ * `extra.rehypePlugins` are appended after `rehypePrettyCode`.
  */
 export function mdxCompileOptions(
 	metadata: MetadataPort,

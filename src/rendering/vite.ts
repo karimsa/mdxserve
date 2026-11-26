@@ -26,17 +26,8 @@ export interface SharedViteConfigOptions {
 	metadata: MetadataPort;
 	/** Appended after remarkGfm in mdxCompileOptions (e.g. remarkSections for the dev server). */
 	remarkPlugins?: PluggableList;
-	/** Appended after rehypePrettyCode in mdxCompileOptions (e.g. rehypeInlineImages for the standalone build). */
+	/** Appended after rehypePrettyCode in mdxCompileOptions. */
 	rehypePlugins?: PluggableList;
-	/** Plugins appended after the base lenient-md/MDX/React/Tailwind chain. */
-	extraPlugins?: PluginOption[];
-	/**
-	 * Alias "find" values to drop from resolve.alias. Vite's alias plugin runs
-	 * before every user plugin (even enforce: "pre"), so a virtual
-	 * replacement for one of these specifiers (mermaid, lucide-react/*) only
-	 * wins if the matching alias entry is omitted here.
-	 */
-	omitAliases?: string[];
 }
 
 export interface SharedViteConfig {
@@ -48,13 +39,10 @@ export interface SharedViteConfig {
 
 /**
  * The alias list, the lenient-md/MDX/React/Tailwind plugin chain, and the
- * client dep-optimizer include list shared by the dev server
- * (`createDevServer`) and the standalone build (`src/rendering/bundle.ts`),
- * so the two never drift.
+ * client dep-optimizer include list for the dev server (`createDevServer`).
  */
 export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteConfig {
-	const { remarkPlugins, rehypePlugins, extraPlugins = [], omitAliases = [] } = options;
-	const omit = new Set(omitAliases);
+	const { remarkPlugins, rehypePlugins } = options;
 
 	const reactEntry = resolveFromPkg("react");
 	const reactDomEntry = resolveFromPkg("react-dom");
@@ -169,7 +157,7 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 	// so subpath aliases like "react/jsx-runtime" MUST be listed before
 	// the bare "react" alias, or "react" would prefix-match them first
 	// and mangle the replacement (e.g. ".../react/index.js/jsx-runtime").
-	const fullAlias: ViteAlias[] = [
+	const alias: ViteAlias[] = [
 		{ find: "react/jsx-runtime", replacement: jsxRuntime },
 		{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
 		{ find: "react-dom/client", replacement: reactDomClientEntry },
@@ -203,7 +191,6 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
 		{ find: "@trpc/server", replacement: trpcServerEntry },
 	];
-	const alias = fullAlias.filter((entry) => !omit.has(entry.find));
 
 	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
 	// files are compiled to JSX before the react plugin's babel transform.
@@ -241,7 +228,6 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		mdxPlugin,
 		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
 		tailwindcss(),
-		...extraPlugins,
 	];
 
 	// lucide-react is deliberately absent: nothing imports the bare entry

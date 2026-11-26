@@ -26,8 +26,6 @@ import {
 import { serverBaseUrl } from "../servers/remote.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { RenderService } from "../rendering/render.js";
-import { bundleStandalone } from "../rendering/bundle.js";
-import type { BundlePort } from "../rendering/protocol.js";
 import { DocCache } from "../docs/doc-cache.js";
 import { SearchService } from "../search/service.js";
 import { DocsService } from "../docs/service.js";
@@ -230,16 +228,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 
 	const renderer = restricted ? undefined : new RenderService(vite);
 
-	// One rolldown build at a time: exportDoc is CPU-heavy and two tabs (or a
-	// double-click) must queue rather than run concurrent builds.
-	let exportChain: Promise<unknown> = Promise.resolve();
-	const bundle: BundlePort = (input) => {
-		if (restricted) throw new Error("Export is disabled with restricted permissions");
-		const next = exportChain.then(() => bundleStandalone(input, docs));
-		exportChain = next.catch(() => undefined);
-		return next;
-	};
-
 	const docCache = new DocCache();
 	const search = new SearchService(docCache);
 	const diagrams = restricted
@@ -265,7 +253,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			vite,
 			cssFile,
 			render: renderer ? (absPath) => renderer.render(absPath) : undefined,
-			bundle,
 			docCache,
 			search,
 			docs,

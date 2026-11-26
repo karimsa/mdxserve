@@ -47,9 +47,8 @@ export const DocView = memo(function DocView({
 	path: string;
 	/**
 	 * The cached module for `path` (client/doc-module-cache.ts), read
-	 * by the caller rather than here: keeping this component's own import
-	 * graph free of router.ts (and the tRPC/react-query it pulls in) is what
-	 * lets client/standalone-entry.tsx reuse it without either.
+	 * by the caller rather than here, which keeps this component's own import
+	 * graph free of router.ts (and the tRPC/react-query it pulls in).
 	 */
 	module: DocModuleState | undefined;
 	/**

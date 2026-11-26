@@ -19,6 +19,4 @@ test "$("$bin" --version)" = "$(node -p "require('./package.json').version")"
 "$bin" components search Callout | grep -q Callout
 "$bin" components show Callout --json | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))'
 MDXSERVE_HOME="$tmp/home" "$bin" validate example/01-markdown.md     # static checks, no server
-XDG_CACHE_HOME="$tmp/cache" "$bin" export example/01-markdown.md -o "$tmp/out.html"
-test -s "$tmp/out.html"
 echo "smoke ok"
