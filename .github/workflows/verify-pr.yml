@@ -80,14 +80,27 @@ jobs:
       - name: Smoke test the packed tarball
         run: yarn smoke
 
-  site-container:
-    name: Site container
+  site:
+    name: Site
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and smoke test the site image
-        run: bash site/deployment/smoke-container.sh
+      - name: Set Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install site dependencies
+        working-directory: site
+        run: yarn install --immutable
+
+      - name: Typecheck and build the site
+        working-directory: site
+        run: yarn build

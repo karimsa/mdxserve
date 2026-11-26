@@ -94,12 +94,10 @@ function ensureDocModule(path: string, refresh = false): Promise<void> {
  */
 export const shellInfo: {
 	rootCount: number | null;
-	immutableSite: boolean;
 	sameMachine: boolean;
 	permissions: "full" | "restricted";
 } = {
 	rootCount: null,
-	immutableSite: false,
 	sameMachine: false,
 	permissions: "full",
 };

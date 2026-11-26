@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>mdxserve</title>
+		<meta name="description" content="A folder of Markdown, ready to read in your browser." />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="canonical" href="https://mdxserve.karim.build/" />
+		<meta property="og:title" content="mdxserve" />
+		<meta
+			property="og:description"
+			content="A folder of Markdown, ready to read in your browser."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://mdxserve.karim.build/" />
+		<meta property="og:site_name" content="mdxserve" />
+		<meta property="og:image" content="https://mdxserve.karim.build/reader-light.jpg" />
+		<meta property="og:image:alt" content="Markdown displayed in the mdxserve reader" />
+		<script>
+			// Pick the theme before first paint so a dark-mode visitor never sees a white flash.
+			(function () {
+				var theme = null;
+				try {
+					theme = localStorage.getItem("mdxserve-site-theme");
+				} catch (error) {}
+				if (theme !== "light" && theme !== "dark") {
+					theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+				}
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

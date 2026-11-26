@@ -1,24 +1,35 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
-	"services": {
-		"site": {
-			"root": "site",
-			"entrypoint": "Dockerfile.vercel"
-		}
-	},
+	"framework": null,
+	"installCommand": "cd site && corepack yarn install --immutable",
+	"buildCommand": "cd site && corepack yarn build",
+	"outputDirectory": "site/dist",
 	"redirects": [
 		{
-			"source": "/",
-			"destination": "/srv/docs/README.mdx",
+			"source": "/srv/docs/README.mdx",
+			"destination": "/",
+			"permanent": true
+		},
+		{
+			"source": "/srv/docs/get-started.mdx",
+			"destination": "/get-started",
+			"permanent": true
+		},
+		{
+			"source": "/srv/docs/tour.mdx",
+			"destination": "/tour",
+			"permanent": true
+		},
+		{
+			"source": "/srv/docs/:path*",
+			"destination": "/",
 			"permanent": false
 		}
 	],
 	"rewrites": [
 		{
 			"source": "/(.*)",
-			"destination": {
-				"service": "site"
-			}
+			"destination": "/index.html"
 		}
 	]
 }

@@ -99,7 +99,7 @@ The effective mode is printed at startup. Use `--permissions restricted` to sele
 public reader restrictions explicitly, including behind a proxy connected over loopback:
 
 ```bash
-MDXSERVE_HOME=/tmp/mdxserve-public mdxserve serve --permissions restricted -w ./site --host 0.0.0.0 -p "${PORT:-4040}"
+MDXSERVE_HOME=/tmp/mdxserve-public mdxserve serve --permissions restricted -w ./public --host 0.0.0.0 -p "${PORT:-4040}"
 ```
 
 Restricted mode requires one `-w` directory. It ignores saved roots
@@ -108,7 +108,7 @@ and diagram agents, even when a reverse proxy connects over loopback. The reader
 navigation, and search remain available. A restricted instance will not reuse another server
 under the same `MDXSERVE_HOME`; give it its own directory.
 
-Treat every file in `./site` as public. Visitors can fetch MDX source and visible assets,
+Treat every file in `./public` as public. Visitors can fetch MDX source and visible assets,
 including imported CSS and JSX. Vite also serves the mdxserve client and dependency modules
 needed by the page. Hidden files, links to hidden targets, and links outside the served root
 are blocked; links to visible files inside the root still work.
