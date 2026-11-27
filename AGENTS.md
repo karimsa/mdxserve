@@ -32,13 +32,18 @@ output. The web client's build writes into the server package's `dist/`.
 `apps/mobile/` is an Expo app (SDK 58, Expo Router). `yarn mobile <script>` runs one of its
 scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CLI command:
 
-- `yarn mobile start` starts Metro (`expo start`). Open the app by scanning its QR code with
-  Expo Go on an iPhone on the same network
+- The app runs in two hosts. `yarn mobile start --go` starts Metro for Expo Go: scan its QR
+  code on an iPhone on the same network. `yarn mobile start` (no flag) starts it for the
+  development build, because `expo-dev-client` is installed
+- The development build is the app with its own native code, installed on a registered device
+  from the EAS `development` profile (`developmentClient: true`, internal distribution). Some
+  behaviour only exists there: Expo Go 58.0.5 has no `ExpoStatusBar` native module, so
+  `verticalBarBehaviorIOS` (iPhone Duo's top bar when unfolded) does nothing in Expo Go
+- Keep the app runnable in Expo Go until phase 4: use only modules Expo Go ships (Expo SDK 58's
+  `bundledNativeModules.json`) and no config plugin that needs a native build. Once phase 4
+  adds native modules of its own (Bonjour, the selection menu), Expo Go stops working
 - `yarn mobile ios` (`expo run:ios`) builds the app and opens it in the iOS simulator, which
   needs Xcode and an iOS simulator runtime
-- Expo Go is enough for now: the app uses only modules Expo Go ships. Once phase 4 adds native
-  modules of its own (Bonjour, the selection menu), it needs a development build
-  (`expo-dev-client`) and Expo Go stops working
 - Test anything that touches the local network on a device: the iOS simulator does not enforce
   local network privacy
 - `yarn mobile test` runs the jest-expo component tests in `apps/mobile/tests/`; the root
