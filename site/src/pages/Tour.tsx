@@ -8,6 +8,11 @@ const calloutSource = `<Callout tone="note" title="A good place to leave some co
 
 Status: <Badge tone="ok" dot>Ready to read</Badge>`;
 
+const tabsSource = `<Tabs id="install-tabs">
+	<Tab label="macOS">\`brew install foo\`</Tab>
+	<Tab label="Linux">\`apt install foo\`</Tab>
+</Tabs>`;
+
 const diagramSource = `flowchart LR
   Idea[An idea] --> File[A Markdown file]
   File --> Reader[A page to read]
@@ -64,8 +69,8 @@ export function Tour() {
 				]}
 			/>
 			<p>
-				The builtin components also include tooltips, buttons, cards, keyboard shortcuts, file
-				trees, dropdowns, screenshots, and code diffs.
+				The builtin components also include tooltips, cards, keyboard shortcuts, file trees,
+				screenshots, and code diffs.
 			</p>
 
 			<h2 id="give-an-explanation-a-shape">Give an explanation a shape</h2>
@@ -131,12 +136,17 @@ export function Tour() {
 				code={codeSample}
 			/>
 
-			<h2 id="bring-your-own-react">Bring your own React</h2>
-			<p>A document can import a component from a neighboring React file and render it inline.</p>
+			<h2 id="let-the-reader-choose">Let the reader choose</h2>
 			<p>
-				Use JSX for the interactive part and Markdown for the explanation. Both <code>.md</code> and{" "}
-				<code>.mdx</code> go through the same pipeline, including JSX and imports.
+				<code>Tabs</code> shows one variant of the content at a time, such as instructions for each
+				operating system. A document switches content with <code>Tabs</code>, not with code, so it
+				stays plain text that an agent can write and check.
 			</p>
+			<p>
+				A stateful component needs an <code>id</code> that is unique in the document. The reader
+				uses it to remember which tab is selected.
+			</p>
+			<CodeBlock language="mdx" code={tabsSource} />
 
 			<h2 id="explore-the-reader-too">Explore the reader, too</h2>
 			<p>

@@ -198,7 +198,7 @@ export function MermaidDiagram({
 				// error it rethrows *before* that cleanup (mermaid 10.9: the
 				// `parseEncounteredException` check precedes the `remove()`), so
 				// every failed render would leave a "Syntax error in text" SVG at
-				// the bottom of the page. Each HMR pass on a broken diagram adds
+				// the bottom of the page. Each render of a broken diagram adds
 				// another; take ours down here.
 				document.getElementById(`d${renderId}`)?.remove();
 				if (cancelled) return;

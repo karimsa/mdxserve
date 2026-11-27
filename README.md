@@ -18,7 +18,7 @@
 Point it at a folder of `.md` / `.mdx` files and it serves them as a site you can browse: a
 listing of every folder, each file rendered as a page with syntax-highlighted code, mermaid
 diagrams, and a set of builtin components, in light and dark. Save a file and the open page
-updates. Write JSX in an `.mdx` file and it renders too.
+updates. Files ending in `.mdx` render the same way as `.md`.
 
 ![A rendered Markdown page in the light theme: sidebar file tree, prose column, table of contents](docs/screenshots/reader-light.jpg)
 
@@ -306,8 +306,8 @@ and it gives the agent tools to write for it well:
   all take `--json`, so an agent can check a file, see the tree a reader gets, find docs, and
   manage served folders from a shell.
 
-`validate` works without a server (syntax errors, the document rules, unknown components, prop
-names and values, and `id`s) but only renders the doc when an `mdxserve serve` is running.
+`validate` never needs a server and never renders the doc. It checks syntax, the document rules,
+unknown components, prop names and values, and `id`s.
 `mdxserve document <file> --json` prints the JSON document tree a client renders.
 [`docs/advanced.md`](./docs/advanced.md#the-agent-cli) covers the verbs in detail.
 

@@ -6,7 +6,7 @@ import { documentTreeSchema } from "../document/schema.js";
 export const getDocSourceInput = z.object({ path: z.string().min(1).max(4096) });
 
 export const docSourceSchema = z.object({
-	/** The raw on-disk text, not the compiled module. */
+	/** The raw on-disk text. */
 	text: z.string(),
 	/**
 	 * Opaque token for the bytes `text` was read from; echoed back to
@@ -48,7 +48,7 @@ export const saveDocNodeResultSchema = z.object({
 });
 
 const getDocSource = procedure(
-	"Returns the raw on-disk text of one .md/.mdx doc together with a version token for those exact bytes, so the in-place section editor can seed itself from what is on disk (not the compiled module) and later detect concurrent edits. Used by the section editor when a section is opened.",
+	"Returns the raw on-disk text of one .md/.mdx doc together with a version token for those exact bytes, so the in-place section editor can seed itself from what is on disk and later detect concurrent edits. Used by the section editor when a section is opened.",
 )
 	.input(getDocSourceInput)
 	.output(docSourceSchema)

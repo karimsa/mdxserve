@@ -107,8 +107,8 @@ interface RootsChangedDetail {
  */
 async function refreshRoots(): Promise<boolean> {
 	// Diff against the roots last reported, not the cached tree: another
-	// refetch of the tree (a listing signal, an HMR update, one made while the
-	// socket was down) may already have replaced the cache with the new roots,
+	// refetch of the tree (a listing signal, or one made while the socket was
+	// down) may already have replaced the cache with the new roots,
 	// and the removal would go unseen. Before any report, that is the roots
 	// the tree first loaded with (see `recordInitialRoots`).
 	const before = lastReportedRoots ?? cachedRootDirs() ?? new Set<string>();

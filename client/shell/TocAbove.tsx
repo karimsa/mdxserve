@@ -28,9 +28,9 @@ function place(article: Element, host: HTMLElement): void {
 
 /**
  * The table of contents inline, between the doc's title and its content. The
- * article is the doc module's own output, so the list is portalled into a host
- * element this component inserts right after the h1 and keeps there: the doc
- * module never has to know about it, and a section editor or an in-place doc
+ * article is drawn by the document view, so the list is portalled into a host
+ * element this component inserts right after the h1 and keeps there: the
+ * document view never has to know about it, and a section editor or an in-place doc
  * update that replaces the title does not strand it.
  */
 export function TocAbove({ toc }: { toc: DocToc }) {

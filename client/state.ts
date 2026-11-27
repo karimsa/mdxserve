@@ -81,11 +81,11 @@ export const docWidthAtom = atomWithStorage<number | null>("mdxserve.doc.width",
 });
 
 /**
- * The key (`${path}:${startLine}:${endLine}`) of the `MdSection` currently in
- * edit mode, or null. Plain in-memory atom — not persisted, since an open
- * editor holding unsaved edits should never survive a reload. Only one
- * section edits at a time: a `Section` that isn't this atom's value drops
- * back to read mode, discarding whatever it had open (see client/MdSection.tsx).
+ * The key (`${path}:${id}`) of the document node currently in edit mode, or
+ * null. Plain in-memory atom, not persisted, since an open editor holding
+ * unsaved edits should never survive a reload. Only one node edits at a time:
+ * a node that isn't this atom's value drops back to read mode, discarding
+ * whatever it had open (see client/MdSection.tsx).
  */
 export const openSectionAtom = atom<string | null>(null);
 

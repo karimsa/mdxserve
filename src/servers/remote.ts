@@ -12,8 +12,8 @@ export type RemoteOutcome<Value> =
 /**
  * The CLI's view of the server: proxies `validate`, `search`, `docs` and the
  * roots procedures to the single running `mdxserve serve` instance, over a
- * tRPC client (see `getServer` below), so the server's warm search index,
- * render worker, and mounted roots are the single source of truth.
+ * tRPC client (see `getServer` below), so the server's warm search index
+ * and mounted roots are the single source of truth.
  * `{ kind: "unavailable" }` means no server is running, or the request
  * itself failed to reach it; `validate`'s caller falls back to local,
  * static-only handling in that case.
