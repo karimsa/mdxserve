@@ -1,0 +1,93 @@
+{
+	"name": "@karimsa/mdxserve",
+	"version": "0.6.0-rc.5",
+	"description": "Serve a directory of Markdown/MDX files, like `serve` but for docs",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/karimsa/mdxserve.git"
+	},
+	"homepage": "https://github.com/karimsa/mdxserve#readme",
+	"bugs": "https://github.com/karimsa/mdxserve/issues",
+	"keywords": [
+		"markdown",
+		"mdx",
+		"docs",
+		"cli"
+	],
+	"type": "module",
+	"bin": {
+		"mdxserve": "dist/cli.js"
+	},
+	"files": [
+		"dist",
+		"skills"
+	],
+	"scripts": {
+		"build": "tsx scripts/build.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"prepack": "yarn run -T build && cp ../../README.md ../../LICENSE .",
+		"postpack": "rm -f README.md LICENSE",
+		"smoke": "bash scripts/smoke-pack.sh"
+	},
+	"packageManager": "yarn@4.18.0",
+	"engines": {
+		"node": ">=22.14"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@trpc/client": "11.18.0",
+		"@trpc/server": "11.18.0",
+		"better-sqlite3": "13.2.0",
+		"chokidar": "5.0.0",
+		"commander": "15.0.0",
+		"cross-spawn": "7.0.6",
+		"github-slugger": "2.0.0",
+		"hast-util-to-html": "9.0.5",
+		"jsdom": "27.4.0",
+		"lockfile": "1.0.4",
+		"mdast-util-from-markdown": "2.0.3",
+		"mdast-util-frontmatter": "2.0.1",
+		"mdast-util-mdx": "3.0.0",
+		"mdast-util-to-hast": "13.2.1",
+		"mdast-util-to-string": "4.0.0",
+		"mermaid": "10.9.8",
+		"micromark-extension-frontmatter": "2.0.0",
+		"micromark-extension-mdxjs": "3.0.0",
+		"minisearch": "7.2.0",
+		"remark-frontmatter": "5.0.0",
+		"remark-gfm": "4.0.1",
+		"remark-mdx": "3.1.1",
+		"remark-parse": "11.0.0",
+		"sharp": "0.35.5",
+		"socket.io": "4.8.4",
+		"trash": "10.1.1",
+		"unified": "11.0.5",
+		"update-notifier": "7.3.1",
+		"vfile-message": "4.0.3",
+		"yaml": "2.9.1",
+		"zod": "4.4.3",
+		"zx": "8.8.5"
+	},
+	"devDependencies": {
+		"@mdxserve/shared": "workspace:*",
+		"@types/better-sqlite3": "9.6.0",
+		"@types/cross-spawn": "6.0.6",
+		"@types/estree": "1.0.9",
+		"@types/jsdom": "30.0.0",
+		"@types/lockfile": "1.0.4",
+		"@types/mdast": "4.0.4",
+		"@types/node": "26.2.0",
+		"@types/unist": "3.0.3",
+		"@types/update-notifier": "6.0.8",
+		"esbuild": "0.28.2",
+		"fast-check": "4.9.0",
+		"socket.io-client": "4.8.4",
+		"tsx": "4.23.12",
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
+	}
+}

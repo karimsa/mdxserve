@@ -1,13 +1,13 @@
 {
-	"name": "mdxserve-site",
+	"name": "@mdxserve/site",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc --noEmit && vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"typecheck": "tsc --noEmit"
 	},
-	"packageManager": "yarn@4.18.0",
 	"engines": {
 		"node": ">=22.12"
 	},

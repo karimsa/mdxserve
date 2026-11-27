@@ -1,0 +1,32 @@
+{
+	"name": "@mdxserve/shared",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./builtins": "./builtins/index.ts",
+		"./builtins/*": "./builtins/*.ts",
+		"./mermaid-chart": "./mermaid-chart.ts",
+		"./realtime": "./realtime.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"zod": "4.4.3"
+	},
+	"peerDependencies": {
+		"react": "19.2.8"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/react": "19.2.18",
+		"react": "19.2.8",
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
+	}
+}
