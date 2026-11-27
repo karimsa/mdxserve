@@ -55,11 +55,6 @@ export default function Library() {
 					accessibilityLabel="Gallery"
 					onPress={() => router.push("/gallery")}
 				/>
-				<Stack.Toolbar.Button
-					icon="gearshape"
-					accessibilityLabel="Settings"
-					onPress={() => router.push("/settings")}
-				/>
 			</Stack.Toolbar>
 			{loaded && servers.length === 0 ? (
 				<View style={styles.empty}>

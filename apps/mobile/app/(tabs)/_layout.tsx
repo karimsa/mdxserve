@@ -22,6 +22,10 @@ export default function TabsLayout() {
 				<NativeTabs.Trigger.Icon sf="server.rack" />
 				<NativeTabs.Trigger.Label>Servers</NativeTabs.Trigger.Label>
 			</NativeTabs.Trigger>
+			<NativeTabs.Trigger name="settings">
+				<NativeTabs.Trigger.Icon sf="gearshape" />
+				<NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+			</NativeTabs.Trigger>
 		</NativeTabs>
 	);
 }

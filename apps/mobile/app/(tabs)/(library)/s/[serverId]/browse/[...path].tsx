@@ -5,6 +5,7 @@ import { LISTING_SORT_OPTIONS, sortListingEntries } from "@mdxserve/client/listi
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { FolderEntryRow } from "../../../../../../src/library/FolderEntryRow";
 import { useListingSort } from "../../../../../../src/library/ListingSortProvider";
+import { ServerName } from "../../../../../../src/servers/ServerName";
 import {
 	baseName,
 	childPath,
@@ -36,7 +37,7 @@ export default function Folder() {
 
 function FolderListing({ server, dir }: { server: KnownServer; dir: string }) {
 	const router = useRouter();
-	const { sort, setSort } = useListingSort();
+	const { sort, setSort, saving, problem } = useListingSort();
 	const serverQuery = useServerQueryOptions();
 	const sideInsets = useSideInsets();
 	const listing = useQuery(
@@ -59,8 +60,8 @@ function FolderListing({ server, dir }: { server: KnownServer; dir: string }) {
 			testID="folder-content"
 		>
 			<Stack.Screen options={{ title: name }} />
-			{/* Native bar items with icons, so iOS can put them in the vertical bar beside a folded
-			    display's content, as on the Library. */}
+			{/* Sort is a native bar item with an icon, so iOS can put it in the vertical bar beside a
+			    folded display's content. The server's name ends the header, as plain text. */}
 			<Stack.Toolbar placement="right">
 				<Stack.Toolbar.Menu icon="arrow.up.arrow.down" accessibilityLabel="Sort" title="Sort by">
 					{LISTING_SORT_OPTIONS.map((option) => (
@@ -73,16 +74,26 @@ function FolderListing({ server, dir }: { server: KnownServer; dir: string }) {
 						</Stack.Toolbar.MenuAction>
 					))}
 				</Stack.Toolbar.Menu>
-				<Stack.Toolbar.Button
-					icon="gearshape"
-					accessibilityLabel="Settings"
-					onPress={() => router.push("/settings")}
-				/>
+				<Stack.Toolbar.View hidesSharedBackground={true}>
+					<ServerName name={displayName(server)} />
+				</Stack.Toolbar.View>
 			</Stack.Toolbar>
 			<Heading level={2}>{name}</Heading>
-			<Text size="sm" tone="muted">
-				{`${displayName(server)} · ${dir}`}
+			{/* The path, cut at its start when long; the server is named in the header. */}
+			<Text size="sm" tone="muted" numberOfLines={1} ellipsizeMode="head" testID="folder-path">
+				{dir}
 			</Text>
+			{problem === undefined ? (
+				saving ? (
+					<Text size="sm" tone="muted">
+						Saving the sort order…
+					</Text>
+				) : null
+			) : (
+				<Text size="sm" accessibilityRole="alert">
+					{problem}
+				</Text>
+			)}
 			{listing.isPending ? (
 				<View style={styles.state}>
 					<ActivityIndicator size="small" />

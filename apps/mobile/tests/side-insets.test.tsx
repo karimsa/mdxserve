@@ -89,34 +89,26 @@ describe("layout beside the system's vertical bar", () => {
 		expect(contentPadding("library-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("puts the wordmark in the header, and Settings and Gallery in the native bar, where iOS can move them", async () => {
+	it("puts the wordmark in the header, and Gallery in the native bar, where iOS can move it", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
 		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
 		// A native bar button with an icon, not a custom view: UIKit places it in the top bar or
 		// in the vertical bar itself.
 		expect(header.props.headerRightBarButtonItems).toEqual([
-			// UIKit orders the right-hand items from the edge inwards.
-			expect.objectContaining({
-				type: "button",
-				accessibilityLabel: "Settings",
-				icon: { type: "sfSymbol", name: "gearshape" },
-			}),
 			expect.objectContaining({
 				type: "button",
 				accessibilityLabel: "Gallery",
 				icon: { type: "sfSymbol", name: "square.grid.2x2" },
 			}),
 		]);
-		expect(findHost(header.children, "RNSScreenStackHeaderSubview")!.props.type).toBe("center");
-		expect(screen.getByText("mdx")).toBeOnTheScreen();
-		expect(screen.getByText("serve")).toBeOnTheScreen();
+		expect(findHost(header.children, "RNSScreenStackHeaderSubview")!.props.type).toBe("left");
+		expect(screen.getAllByText("mdx").length).toBeGreaterThan(0);
 	});
 
-	it("opens Settings from the bar item, inside the same insets", async () => {
-		await renderRouter(routes);
+	it("keeps Settings, now a tab of its own, inside the same insets", async () => {
+		await renderRouter(routes, { initialUrl: "/settings" });
 		await setInsets(FOLDED);
-		await pressBarItem("Settings");
 		expect(screen).toHavePathname("/settings");
 		expect(contentPadding("settings-content")).toEqual({ left: 16, right: 16 + 84 });
 	});

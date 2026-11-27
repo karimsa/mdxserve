@@ -181,7 +181,7 @@ describe("the Library's classes", () => {
 			const names = [
 				...classesInAppSource("src/library/LibraryRowView.tsx"),
 				...classesInAppSource("src/library/FolderEntryRow.tsx"),
-				...classesInAppSource("app/(tabs)/(library)/settings.tsx"),
+				...classesInAppSource("app/(tabs)/settings/index.tsx"),
 			];
 			expect(names.length).toBeGreaterThan(8);
 			expect(names.filter((name) => !(name in classes))).toEqual([]);
@@ -357,11 +357,16 @@ describe("a folder inside the Library tab", () => {
 		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
 		expect(await screen.findByText("This folder is empty.")).toBeOnTheScreen();
 		const tabs = allHosts(screen.toJSON(), "RNSTabsScreenIOS");
-		expect(tabs.map((tab) => tab.props.title)).toEqual(["Library", "Search", "Servers"]);
+		expect(tabs.map((tab) => tab.props.title)).toEqual([
+			"Library",
+			"Search",
+			"Servers",
+			"Settings",
+		]);
 		expect(hasTestId(tabs[0], "folder-content")).toBe(true);
 	});
 
-	it("shows the same wordmark header on the Library and on a folder, with the folder as the page's heading", async () => {
+	it("shows the same leading wordmark header on the Library and on a folder, with the folder as the page's heading", async () => {
 		await openNotes([]);
 		await renderRouter(APP_ROUTES);
 		await fireEvent.press(await library().findByLabelText("notes on Studio"));
@@ -371,7 +376,7 @@ describe("a folder inside the Library tab", () => {
 		expect(headers.map((header) => header.props.title)).toEqual(["Library", "notes"]);
 		for (const header of headers) {
 			const [title] = allHosts(header, "RNSScreenStackHeaderSubview");
-			expect(title.props.type).toBe("center");
+			expect(title.props.type).toBe("left");
 			expect(textOf(title)).toBe("mdxserve");
 		}
 		// A back item with no title: `backButtonDisplayMode` on iOS 14 and later, which the test
@@ -432,5 +437,165 @@ describe("a folder inside the Library tab", () => {
 				screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
 			).toEqual(["Document b.md", "Document a.md"]),
 		);
+	});
+});
+
+describe("the header: the wordmark leading, the server trailing", () => {
+	it("leads every tab's header with the wordmark and draws no title beside it", async () => {
+		await openNotes([]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		await screen.findByText("This folder is empty.");
+		const headers = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").filter(
+			(header) => header.props.hidden !== true,
+		);
+		expect(headers.map((header) => header.props.title)).toEqual([
+			"notes",
+			"Search",
+			"Servers",
+			"Settings",
+		]);
+		for (const header of headers) {
+			const subviews = allHosts(header, "RNSScreenStackHeaderSubview");
+			const left = subviews.filter((subview) => subview.props.type === "left");
+			const center = subviews.filter((subview) => subview.props.type === "center");
+			expect(left).toHaveLength(1);
+			expect(textOf(left[0])).toBe("mdxserve");
+			// No glass bubble behind the wordmark (iOS 26 and later).
+			expect(left[0].props.hidesSharedBackground).toBe(true);
+			// The centre holds an empty view, so iOS does not draw the title beside the wordmark.
+			expect(center).toHaveLength(1);
+			expect(textOf(center[0])).toBe("");
+		}
+		// The folder, pushed in the Library stack, keeps its back item beside the wordmark.
+		expect(headers[0].props.hideBackButton).toBe(false);
+	});
+
+	it("ends a folder's header with its server's name, after the Sort item, and shows only the path under the heading", async () => {
+		await openNotes([]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		const path = await screen.findByTestId("folder-path");
+		expect(path.props.children).toBe("/Users/me/notes");
+		expect(path.props.numberOfLines).toBe(1);
+		expect(path.props.ellipsizeMode).toBe("head");
+		const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+			(candidate) => candidate.props.title === "notes",
+		)!;
+		const right = allHosts(header, "RNSScreenStackHeaderSubview").filter(
+			(subview) => subview.props.type === "right",
+		);
+		expect(right.map(textOf)).toEqual(["Studio"]);
+		expect(right[0].props.hidesSharedBackground).toBe(true);
+		// The Sort menu stays a native bar item, which iOS may move beside a folded display.
+		expect(
+			header.props.headerRightBarButtonItems.map((item: { type: string }) => item.type),
+		).toEqual(["menu"]);
+		const content = within(screen.getByTestId("folder-content"));
+		expect(content.queryByText("Studio")).toBeNull();
+	});
+
+	it("names the server under each Library folder, as before", async () => {
+		await openNotes([]);
+		await renderRouter(APP_ROUTES);
+		const row = await library().findByLabelText("notes on Studio");
+		expect(within(row).getByText("notes")).toBeOnTheScreen();
+		expect(within(row).getByText("Studio")).toBeOnTheScreen();
+	});
+});
+
+/**
+ * Make the next write of the sort order go through `fail` instead of storage. Writes of other
+ * keys (the server list records each server it reaches) still reach storage.
+ */
+function interceptNextSortWrite(fail: () => Promise<void>): () => void {
+	const setItem = jest.mocked(AsyncStorage.setItem);
+	const original = setItem.getMockImplementation()!;
+	let intercepted = false;
+	setItem.mockImplementation((key: string, value: string) => {
+		if (key === "mdxserve.listing.sort" && !intercepted) {
+			intercepted = true;
+			return fail();
+		}
+		return original(key, value);
+	});
+	return () => setItem.mockImplementation(original);
+}
+
+describe("saving the sort order", () => {
+	it("keeps a newer choice when an earlier write fails, and says the earlier one was not saved", async () => {
+		await openNotes([
+			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
+			{ name: "zulu.md", isDir: false, isDoc: true, mtime: 900 },
+		]);
+		await AsyncStorage.setItem("mdxserve.listing.sort", "modified");
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		await screen.findByLabelText("Document alpha.md");
+		await waitFor(() =>
+			expect(screen.getAllByLabelText(/^Document /)[0].props.accessibilityLabel).toBe(
+				"Document zulu.md",
+			),
+		);
+		let failFirst: (error: Error) => void = () => {};
+		const restore = interceptNextSortWrite(
+			() => new Promise<void>((_resolve, reject) => (failFirst = reject)),
+		);
+		const choose = async (title: string) => {
+			const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+				(candidate) => candidate.props.title === "notes",
+			)!;
+			const menu = header.props.headerRightBarButtonItems.find(
+				(item: { type: string }) => item.type === "menu",
+			);
+			const item = menu.menu.items.find(
+				(candidate: { title: string }) => candidate.title === title,
+			);
+			await act(async () => {
+				header.props.onPressHeaderBarButtonMenuItem({ nativeEvent: { menuId: item.menuId } });
+			});
+		};
+		await choose("Last modified");
+		expect(screen.getByText("Saving the sort order…")).toBeOnTheScreen();
+		await choose("Name");
+		await act(async () => failFirst(new Error("disk full")));
+		// Polled outside act: an async waitFor callback overlaps React's act scopes.
+		for (
+			let tries = 0;
+			(await AsyncStorage.getItem("mdxserve.listing.sort")) !== "name";
+			tries += 1
+		) {
+			if (tries > 100) throw new Error("the newer sort order was never saved");
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		restore();
+		expect(
+			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
+		).toEqual(["Document alpha.md", "Document zulu.md"]);
+	});
+
+	it("goes back to the saved order and says why when the only write fails", async () => {
+		await openNotes([
+			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
+			{ name: "zulu.md", isDir: false, isDoc: true, mtime: 900 },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		await screen.findByLabelText("Document alpha.md");
+		const restore = interceptNextSortWrite(() => Promise.reject(new Error("disk full")));
+		const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+			(candidate) => candidate.props.title === "notes",
+		)!;
+		const menu = header.props.headerRightBarButtonItems.find(
+			(item: { type: string }) => item.type === "menu",
+		);
+		await act(async () => {
+			header.props.onPressHeaderBarButtonMenuItem({
+				nativeEvent: { menuId: menu.menu.items[1].menuId },
+			});
+		});
+		expect(
+			await screen.findByText("The sort order was not saved on this device: Error: disk full"),
+		).toBeOnTheScreen();
+		expect(
+			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
+		).toEqual(["Document alpha.md", "Document zulu.md"]);
+		restore();
 	});
 });

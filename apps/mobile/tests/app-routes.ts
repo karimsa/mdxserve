@@ -11,7 +11,8 @@ import AddServer from "../app/(tabs)/servers/add";
 import ServerDetails from "../app/(tabs)/servers/[serverId]";
 import Folder from "../app/(tabs)/(library)/s/[serverId]/browse/[...path]";
 import DocumentPlaceholder from "../app/(tabs)/(library)/s/[serverId]/doc/[...path]";
-import Settings from "../app/(tabs)/(library)/settings";
+import SettingsStack from "../app/(tabs)/settings/_layout";
+import Settings from "../app/(tabs)/settings/index";
 import Gallery from "../app/(tabs)/(library)/gallery";
 
 export const APP_ROUTES = {
@@ -27,6 +28,7 @@ export const APP_ROUTES = {
 	"(tabs)/servers/[serverId]": ServerDetails,
 	"(tabs)/(library)/s/[serverId]/browse/[...path]": Folder,
 	"(tabs)/(library)/s/[serverId]/doc/[...path]": DocumentPlaceholder,
-	"(tabs)/(library)/settings": Settings,
+	"(tabs)/settings/_layout": SettingsStack,
+	"(tabs)/settings/index": Settings,
 	"(tabs)/(library)/gallery": Gallery,
 };

@@ -49,15 +49,16 @@ function headerTitles(tree: RenderedTree): string[] {
 }
 
 describe("the app's first screen", () => {
-	it("is the Library tab, under the wordmark, beside the Search and Servers tabs", async () => {
+	it("is the Library tab, under the wordmark, beside the Search, Servers and Settings tabs", async () => {
 		await renderRouter(APP_ROUTES);
 
 		expect(screen).toHavePathname("/");
 		expect(screen.getByTestId("library-content")).toBeOnTheScreen();
 		// The navigation bars of the three tabs' stacks; the root stack hides its own.
-		expect(headerTitles(screen.toJSON())).toEqual(["Library", "Search", "Servers"]);
-		expect(screen.getByText("mdx")).toBeOnTheScreen();
-		expect(tabTitles(screen.toJSON())).toEqual(["Library", "Search", "Servers"]);
+		expect(headerTitles(screen.toJSON())).toEqual(["Library", "Search", "Servers", "Settings"]);
+		// Each tab's header leads with the wordmark.
+		expect(screen.getAllByText("mdx")).toHaveLength(4);
+		expect(tabTitles(screen.toJSON())).toEqual(["Library", "Search", "Servers", "Settings"]);
 	});
 });
 
