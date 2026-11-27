@@ -19,7 +19,7 @@ export function escapeBareLt(
 	for (let index = 0; index < parts.length; index += 2) {
 		if (index / 2 < frontmatterEndLine) continue;
 		const line = parts[index];
-		const match = tag.inTag ? null : line.match(/^\s{0,3}(`{3,}|~{3,})/);
+		const match = inExpression(tag) ? null : line.match(/^\s{0,3}(`{3,}|~{3,})/);
 		if (match) {
 			const marker = match[1];
 			if (!fence) fence = marker;
@@ -75,11 +75,10 @@ const BLOCK_BOUNDARY = /^ {0,3}(?:#{1,6}(?:\s|$)|`{3,}|~{3,}|([-*_])(?: *\1){2,}
 // A whole-line reference definition: `[label]: destination "optional title"`.
 const REFERENCE_DEFINITION =
 	/^ {0,3}\[[^\]]+\]:\s*(?:<[^>]*>|\S+)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*$/;
-const INLINE_EXPRESSION = /\{[^{}]*\}/y;
 
 /**
  * Escape each bare `<` on one line. Inline code and `{...}` expressions are
- * skipped (there `<` is literal or JavaScript), and so is everything between
+ * skipped (there `<` is literal or JavaScript, possibly over several lines), and so is everything between
  * a tag's `<Name` and its closing `>`: a quoted attribute value is literal
  * text, so a backslash added to `title="Latency < 100 ms"` would be displayed.
  *
@@ -94,14 +93,7 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
 function escapeLine(line: string, tag: TagState, closesLater: (run: string) => boolean): string {
 	let output = "";
 	let index = 0;
-	if (tag.comment && !tag.inTag) {
-		// Inside a multiline `{/* ... */}` MDX comment, which may hold blank lines.
-		const close = line.indexOf("*/}");
-		if (close < 0) return line;
-		index = close + 3;
-		output = line.slice(0, index);
-		tag.comment = false;
-	} else if (!tag.inTag && !tag.codeRun && REFERENCE_DEFINITION.test(line)) {
+	if (!inExpression(tag) && !tag.codeRun && REFERENCE_DEFINITION.test(line)) {
 		// A reference definition: its destination and title are literal.
 		return line;
 	}
@@ -114,7 +106,7 @@ function escapeLine(line: string, tag: TagState, closesLater: (run: string) => b
 		return line;
 	}
 	// Indented code blocks are literal too.
-	if (!tag.inTag && !tag.codeRun && index === 0 && /^(?: {4}|\t)/.test(line)) return line;
+	if (!inExpression(tag) && !tag.codeRun && /^(?: {4}|\t)/.test(line)) return line;
 	if (tag.codeRun) {
 		// Inside an inline code span opened on an earlier line.
 		const close = closingRun(tag.codeRun).exec(line);
@@ -125,7 +117,7 @@ function escapeLine(line: string, tag: TagState, closesLater: (run: string) => b
 	}
 	while (index < line.length) {
 		const character = line[index];
-		if (tag.inTag) {
+		if (inExpression(tag)) {
 			const width = scanTagCharacter(line, index, tag);
 			output += line.slice(index, index + width);
 			index += width;
@@ -139,11 +131,9 @@ function escapeLine(line: string, tag: TagState, closesLater: (run: string) => b
 		const skipped =
 			character === "`"
 				? INLINE_CODE
-				: character === "{"
-					? INLINE_EXPRESSION
-					: character === "]" && line.lastIndexOf("[", index) >= 0
-						? LINK_TARGET
-						: null;
+				: character === "]" && line.lastIndexOf("[", index) >= 0
+					? LINK_TARGET
+					: null;
 		if (skipped) {
 			skipped.lastIndex = index;
 			const literal = skipped.exec(line);
@@ -153,15 +143,11 @@ function escapeLine(line: string, tag: TagState, closesLater: (run: string) => b
 				continue;
 			}
 		}
-		if (line.startsWith("{/*", index)) {
-			// A comment holding a brace, or one that continues onto a later line.
-			const close = line.indexOf("*/}", index);
-			if (close < 0) {
-				tag.comment = true;
-				return output + line.slice(index);
-			}
-			output += line.slice(index, close + 3);
-			index = close + 3;
+		if (character === "{") {
+			// A prose expression is JavaScript, scanned like one inside a tag.
+			tag.nesting.push("{");
+			output += character;
+			index += 1;
 			continue;
 		}
 		if (character === "`") {
@@ -187,6 +173,11 @@ function escapeLine(line: string, tag: TagState, closesLater: (run: string) => b
 		index += 1;
 	}
 	return output;
+}
+
+/** Whether the scan is inside a JSX opening tag or a `{...}` expression, where `<` is not prose. */
+function inExpression(tag: TagState): boolean {
+	return tag.inTag || tag.nesting.length > 0;
 }
 
 /** Advance the tag state over the character at `index`; returns how many characters it consumed. */

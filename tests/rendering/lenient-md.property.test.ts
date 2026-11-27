@@ -230,6 +230,12 @@ describe("escapeBareLt scanner states", () => {
 		expect(Date.now() - started).toBeLessThan(2000);
 	});
 
+	it("scans prose expressions as JavaScript: nested braces, strings and spaced comment ends", () => {
+		expect(escapeBareLt("{['<Widget', {}]} and x < 5")).toBe("{['<Widget', {}]} and x \\< 5");
+		expect(escapeBareLt("{/*\nA comment\n*/ }\nx < 5")).toBe("{/*\nA comment\n*/ }\nx \\< 5");
+		expect(escapeBareLt("{/* x < 1 */} y < 2")).toBe("{/* x < 1 */} y \\< 2");
+	});
+
 	it("only skips a link target that is a valid link", () => {
 		expect(escapeBareLt("](x < 5)")).toBe("](x \\< 5)");
 		expect(escapeBareLt("[label](x < 5)")).toBe("[label](x \\< 5)");
@@ -325,7 +331,7 @@ describe("escapeBareLt scanner states", () => {
 		const pieceArb = fc.constantFrom(" ", "5", "=", "<", "\\<", "\\\\<", "\\\\");
 		fc.assert(
 			fc.property(fc.array(pieceArb, { maxLength: 12 }), (pieces) => {
-				const output = escapeBareLt(pieces.join(""));
+				const output = escapeBareLt("x" + pieces.join(""));
 				expect(output).toBe(escapeBareLt(output));
 				// A real `<` is one preceded by an even run of backslashes.
 				expect(/(?<!\\)(?:\\\\)*<[\d\s=]/.test(output)).toBe(false);
@@ -346,7 +352,7 @@ describe("escapeBareLt applies to both extensions", () => {
 				maxLength: 6,
 			},
 		)
-		.map((parts) => parts.join(" "));
+		.map((parts) => "p " + parts.join(" "));
 
 	it("validates prose with a bare `<` the same way as .md and .mdx, with no syntax error", async () => {
 		await fc.assert(
