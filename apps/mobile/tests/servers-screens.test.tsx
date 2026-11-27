@@ -1,15 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 import { Uniwind } from "uniwind";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
-import RootLayout from "../app/_layout";
-import Home from "../app/index";
-import Servers from "../app/servers/index";
-import AddServer from "../app/servers/add";
-import ServerDetails from "../app/servers/[serverId]";
+import { APP_ROUTES } from "./app-routes";
 import type { ProbeResult } from "../src/servers/connection";
 import { SERVERS_KEY } from "../src/servers/store";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
@@ -46,13 +42,12 @@ jest.mock("../src/servers/probe", () => ({
 		},
 }));
 
-const ROUTES = {
-	_layout: RootLayout,
-	index: Home,
-	"servers/index": Servers,
-	"servers/add": AddServer,
-	"servers/[serverId]": ServerDetails,
-};
+const ROUTES = APP_ROUTES;
+
+/** The Servers tab's list; the Library tab is rendered beside it and names servers too. */
+function serverList() {
+	return within(screen.getByTestId("servers-content"));
+}
 
 /** Type an address and press Add once the stored list has loaded (Add is disabled until then). */
 async function addAddress(address: string) {
@@ -105,8 +100,8 @@ describe("the server screens' classes", () => {
 			const { classes } = resolveTheme(sheet, theme);
 			const names = [
 				...classesInAppSource("src/servers/ServerRow.tsx", ["STATUS_DOTS"]),
-				...classesInAppSource("app/servers/add.tsx"),
-				...classesInAppSource("app/servers/[serverId].tsx"),
+				...classesInAppSource("app/(tabs)/servers/add.tsx"),
+				...classesInAppSource("app/(tabs)/servers/[serverId].tsx"),
 			];
 			expect(names.length).toBeGreaterThan(15);
 			expect(names.filter((name) => !(name in classes))).toEqual([]);
@@ -128,7 +123,7 @@ describe.each(["light", "dark"] as const)("the server screens (%s)", (theme) => 
 
 	it("say there are no servers yet", async () => {
 		await renderRouter(ROUTES, { initialUrl: "/servers" });
-		expect(await screen.findByText("No servers yet")).toBeOnTheScreen();
+		expect(await serverList().findByText("No servers yet")).toBeOnTheScreen();
 	});
 
 	it("add a server that answers, with its tailnet address, and show it reachable (C1)", async () => {
@@ -136,15 +131,14 @@ describe.each(["light", "dark"] as const)("the server screens (%s)", (theme) => 
 		mockAnswers.set(TAILNET, { kind: "ok", info: info() });
 		await renderRouter(ROUTES, { initialUrl: "/servers/add" });
 		await addAddress(" http://192.168.1.10:4040/notes ");
-		await waitFor(() => expect(screen.queryByLabelText("Server address")).toBeNull());
+		expect(await serverList().findByText("box")).toBeOnTheScreen();
+		expect(screen).toHavePathname("/servers");
 		const [server] = await storedServers();
 		expect(server.addresses).toEqual([
 			expect.objectContaining({ url: "http://192.168.1.10:4040", source: "manual" }),
 			expect.objectContaining({ url: TAILNET, source: "manual" }),
 		]);
-		// With no screen to go back to, Add leaves for the server list.
-		expect(await screen.findByText("box")).toBeOnTheScreen();
-		expect(await screen.findByText("Reachable at box.tail1.ts.net:4040")).toBeOnTheScreen();
+		expect(await serverList().findByText("Reachable at box.tail1.ts.net:4040")).toBeOnTheScreen();
 	});
 
 	it("refuse an address that does not answer and say why, adding nothing (C2)", async () => {
@@ -183,7 +177,7 @@ describe("a known server", () => {
 	it("is listed as unreachable when its address does not answer (R5)", async () => {
 		await seed();
 		await renderRouter(ROUTES, { initialUrl: "/servers" });
-		expect(await screen.findByText("Unreachable")).toBeOnTheScreen();
+		expect(await serverList().findByText("Unreachable")).toBeOnTheScreen();
 	});
 
 	it("is listed as a different server when its address answers with another id", async () => {
@@ -194,14 +188,14 @@ describe("a known server", () => {
 		});
 		await renderRouter(ROUTES, { initialUrl: "/servers" });
 		expect(
-			await screen.findByText("box.tail1.ts.net:4040 is now a different server"),
+			await serverList().findByText("box.tail1.ts.net:4040 is now a different server"),
 		).toBeOnTheScreen();
 	});
 
 	it("asks for an app update when its tree schema is newer than the app's", async () => {
 		await seed({ treeSchemaVersion: 2 });
 		await renderRouter(ROUTES, { initialUrl: "/servers" });
-		expect(await screen.findByText("Update the app to read this server")).toBeOnTheScreen();
+		expect(await serverList().findByText("Update the app to read this server")).toBeOnTheScreen();
 	});
 
 	it("is renamed as the name is typed, and back to its own name when emptied (C4)", async () => {
@@ -265,11 +259,11 @@ describe("a known server", () => {
 	it("is checked again when an address that answers is added to it", async () => {
 		await seed();
 		await renderRouter(ROUTES, { initialUrl: "/servers" });
-		expect(await screen.findByText("Unreachable")).toBeOnTheScreen();
+		expect(await serverList().findByText("Unreachable")).toBeOnTheScreen();
 		mockAnswers.set("http://192.168.1.10:4040", { kind: "ok", info: info({ tailnetUrls: [] }) });
 		await act(() => router.push("/servers/add"));
 		await addAddress("http://192.168.1.10:4040");
-		expect(await screen.findByText("Reachable at 192.168.1.10:4040")).toBeOnTheScreen();
+		expect(await serverList().findByText("Reachable at 192.168.1.10:4040")).toBeOnTheScreen();
 	});
 
 	it("is removed after the reader confirms (C4)", async () => {

@@ -1,10 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { renderRouter, screen } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
-import RootLayout from "../app/_layout";
-import Gallery from "../app/gallery";
-import Home from "../app/index";
-import Settings from "../app/settings";
+import { APP_ROUTES } from "./app-routes";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
 
 jest.mock("expo-constants", () => ({
@@ -54,10 +51,7 @@ describe("the app's compiled stylesheet", () => {
 
 describe("screens with the compiled stylesheet", () => {
 	it("render the gallery with the tokens' colours", async () => {
-		await renderRouter(
-			{ _layout: RootLayout, index: Home, settings: Settings, gallery: Gallery },
-			{ initialUrl: "/gallery" },
-		);
+		await renderRouter(APP_ROUTES, { initialUrl: "/gallery" });
 		const title = screen.getByText("Tip");
 		const { variables } = resolveTheme(sheet, "light");
 		expect(StyleSheet.flatten(title.props.style).color).toBe(variables["--text-accent"]);

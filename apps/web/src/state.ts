@@ -1,11 +1,13 @@
 import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import {
+	DEFAULT_LISTING_SORT,
+	isListingSortKey as isSortKey,
+	LISTING_SORT_STORAGE_KEY,
+	type ListingSortKey,
+} from "@mdxserve/client/listing-sort";
 
-export type SortKey = "name" | "modified";
-
-function isSortKey(value: unknown): value is SortKey {
-	return value === "name" || value === "modified";
-}
+export type SortKey = ListingSortKey;
 
 // The pre-jotai code stored the sort as a bare string (`modified`), which
 // jotai's JSON storage can't parse. Accept both forms so an existing choice
@@ -31,8 +33,8 @@ const legacyAwareSortStorage = {
 
 /** Folder listing sort order. */
 export const listingSortAtom = atomWithStorage<SortKey>(
-	"mdxserve.listing.sort",
-	"name",
+	LISTING_SORT_STORAGE_KEY,
+	DEFAULT_LISTING_SORT,
 	legacyAwareSortStorage,
 	{ getOnInit: true },
 );

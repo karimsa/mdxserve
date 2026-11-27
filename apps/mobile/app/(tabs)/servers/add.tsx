@@ -3,8 +3,8 @@ import { useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Text } from "@mdxserve/ui/primitives/Text";
-import { useServers } from "../../src/servers/ServersProvider";
-import { useSideInsets } from "../../src/side-insets";
+import { useServers } from "../../../src/servers/ServersProvider";
+import { useSideInsets } from "../../../src/side-insets";
 
 /**
  * Add a server by typing its address. The app asks it for `getServerInfo` (five seconds at
@@ -27,8 +27,8 @@ export default function AddServer() {
 			setError(result.message);
 			return;
 		}
-		if (router.canGoBack()) router.back();
-		else router.replace("/servers");
+		// Back to the list, also when Add was opened by a link with nothing under it.
+		router.dismissTo("/servers");
 	}
 
 	const canAdd = loaded && !adding && address.trim().length > 0;

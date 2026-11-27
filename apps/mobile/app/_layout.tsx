@@ -9,6 +9,7 @@ import { ClipboardContext } from "@mdxserve/ui/primitives/clipboard";
 import "../src/global.css";
 import { copyText } from "../src/clipboard";
 import { useAppFonts } from "../src/fonts";
+import { ListingSortProvider } from "../src/library/ListingSortProvider";
 import { deviceStorage } from "../src/servers/device-storage";
 import { recheckOnNetworkError, wireQueryLifecycle } from "../src/servers/lifecycle";
 import { createProbe } from "../src/servers/probe";
@@ -41,14 +42,18 @@ export default function RootLayout() {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<ServersProvider storage={deviceStorage} probe={probe}>
-				<BlockStateStorageContext value={blockStorage}>
-					<ClipboardContext.Provider value={copyText}>
-						<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-							<Stack />
-							<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
-						</ThemeProvider>
-					</ClipboardContext.Provider>
-				</BlockStateStorageContext>
+				<ListingSortProvider storage={deviceStorage}>
+					<BlockStateStorageContext value={blockStorage}>
+						<ClipboardContext.Provider value={copyText}>
+							<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+								<Stack>
+									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+								</Stack>
+								<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
+							</ThemeProvider>
+						</ClipboardContext.Provider>
+					</BlockStateStorageContext>
+				</ListingSortProvider>
 			</ServersProvider>
 		</QueryClientProvider>
 	);

@@ -9,6 +9,7 @@
 		"./document/plain-text": "./document/plain-text.ts",
 		"./document/tree-types": "./document/tree-types.ts",
 		"./format": "./format.ts",
+		"./listing-sort": "./listing-sort.ts",
 		"./realtime": "./realtime.ts"
 	},
 	"scripts": {

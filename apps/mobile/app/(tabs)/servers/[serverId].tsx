@@ -3,9 +3,9 @@ import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Text } from "@mdxserve/ui/primitives/Text";
-import { useServers } from "../../src/servers/ServersProvider";
-import { displayName, type KnownServer } from "../../src/servers/store";
-import { useSideInsets } from "../../src/side-insets";
+import { useServers } from "../../../src/servers/ServersProvider";
+import { displayName, type KnownServer } from "../../../src/servers/store";
+import { useSideInsets } from "../../../src/side-insets";
 
 /**
  * One server: the reader's name for it, which saves as it is typed, its addresses, and Remove
@@ -47,8 +47,7 @@ function ServerForm({ server }: { server: KnownServer }) {
 					style: "destructive",
 					onPress: () => {
 						remove(server.id);
-						if (router.canGoBack()) router.back();
-						else router.replace("/servers");
+						router.dismissTo("/servers");
 					},
 				},
 			],

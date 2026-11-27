@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { queryClient, trpc } from "./api";
 import { formatModified, formatSize } from "@mdxserve/client/format";
+import { LISTING_SORT_OPTIONS, sortListingEntries } from "@mdxserve/client/listing-sort";
 import { useFullWidth } from "./hooks";
 import { stagger, TRANSITIONS, VARIANTS } from "./motion";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
@@ -20,19 +21,6 @@ import {
 	listingWidthAtom,
 	type SortKey,
 } from "./state";
-
-function sortEntries(entries: ListingEntry[], sort: SortKey): ListingEntry[] {
-	const byName = (first: ListingEntry, second: ListingEntry) =>
-		first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
-	return [...entries].sort((first, second) => {
-		if (first.isDir !== second.isDir) return first.isDir ? -1 : 1;
-		if (sort === "modified") {
-			const diff = (second.mtime ?? 0) - (first.mtime ?? 0);
-			if (diff !== 0) return diff;
-		}
-		return byName(first, second);
-	});
-}
 
 const rowVariants = {
 	initial: { opacity: 0, y: 4 },
@@ -344,10 +332,7 @@ function SelectMenu({
 	);
 }
 
-const SORT_OPTIONS = [
-	{ value: "name", label: "Name" },
-	{ value: "modified", label: "Last modified" },
-];
+const SORT_OPTIONS = [...LISTING_SORT_OPTIONS];
 
 export interface ListingViewRoute {
 	path: string;
@@ -384,7 +369,7 @@ export function ListingView({
 	const showParentRow = !atRootTop || !singleRoot;
 
 	const [sort, setSort] = useAtom(listingSortAtom);
-	const sorted = useMemo(() => sortEntries(entries, sort), [entries, sort]);
+	const sorted = useMemo(() => sortListingEntries(entries, sort), [entries, sort]);
 	// Non-doc files aren't navigable in the sidebar rail and just cost space there.
 	const visible = useMemo(
 		() => (sidebar ? sorted.filter((entry) => entry.isDir || entry.isDoc) : sorted),

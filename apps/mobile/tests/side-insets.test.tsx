@@ -2,10 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
 import type { EdgeInsets } from "react-native-safe-area-context";
-import RootLayout from "../app/_layout";
-import Gallery from "../app/gallery";
-import Home from "../app/index";
-import Settings from "../app/settings";
+import { APP_ROUTES } from "./app-routes";
 
 jest.mock("expo-constants", () => ({
 	__esModule: true,
@@ -39,13 +36,29 @@ function findHost(tree: unknown, type: string): HostElement | null {
 	return findHost(element.children ?? [], type);
 }
 
-/** What the native safe area view reports when the window's insets change, as on a fold. */
+/** Every host element of `type` under `tree`. */
+function findAllHosts(tree: unknown, type: string): HostElement[] {
+	if (tree === null || typeof tree !== "object") return [];
+	if (Array.isArray(tree)) return tree.flatMap((child) => findAllHosts(child, type));
+	const element = tree as HostElement;
+	return [
+		...(element.type === type ? [element] : []),
+		...findAllHosts(element.children ?? [], type),
+	];
+}
+
+/**
+ * What the native safe area views report when the window's insets change, as on a fold. Each
+ * native tab has a safe area view of its own, and each reports the window's insets.
+ */
 async function setInsets(insets: EdgeInsets) {
-	const provider = findHost(screen.toJSON(), "RNCSafeAreaProvider")!;
+	const providers = findAllHosts(screen.toJSON(), "RNCSafeAreaProvider");
 	await act(async () => {
-		provider.props.onInsetsChange({
-			nativeEvent: { insets, frame: { x: 0, y: 0, width: 393, height: 852 } },
-		});
+		for (const provider of providers) {
+			provider.props.onInsetsChange({
+				nativeEvent: { insets, frame: { x: 0, y: 0, width: 393, height: 852 } },
+			});
+		}
 	});
 }
 
@@ -54,7 +67,7 @@ function contentPadding(testID: string) {
 	return { left: style.paddingLeft, right: style.paddingRight };
 }
 
-const routes = { _layout: RootLayout, index: Home, settings: Settings, gallery: Gallery };
+const routes = APP_ROUTES;
 
 /** Presses the native bar item with `label`, as UIKit reports it. */
 async function pressBarItem(label: string) {
@@ -70,13 +83,13 @@ async function pressBarItem(label: string) {
 }
 
 describe("layout beside the system's vertical bar", () => {
-	it("keeps the home screen's content inside the left and right insets", async () => {
+	it("keeps the Library's content inside the left and right insets", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
-		expect(contentPadding("home-content")).toEqual({ left: 16, right: 16 + 84 });
+		expect(contentPadding("library-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("puts the wordmark in the header, and Settings, Gallery and Servers in the native bar, where iOS can move them", async () => {
+	it("puts the wordmark in the header, and Settings and Gallery in the native bar, where iOS can move them", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
 		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
@@ -93,11 +106,6 @@ describe("layout beside the system's vertical bar", () => {
 				type: "button",
 				accessibilityLabel: "Gallery",
 				icon: { type: "sfSymbol", name: "square.grid.2x2" },
-			}),
-			expect.objectContaining({
-				type: "button",
-				accessibilityLabel: "Servers",
-				icon: { type: "sfSymbol", name: "server.rack" },
 			}),
 		]);
 		expect(findHost(header.children, "RNSScreenStackHeaderSubview")!.props.type).toBe("center");

@@ -1,9 +1,9 @@
 import { Stack, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@mdxserve/ui/primitives/Text";
-import { ServerRow } from "../../src/servers/ServerRow";
-import { useServers } from "../../src/servers/ServersProvider";
-import { useSideInsets } from "../../src/side-insets";
+import { ServerRow } from "../../../src/servers/ServerRow";
+import { useServers } from "../../../src/servers/ServersProvider";
+import { useSideInsets } from "../../../src/side-insets";
 
 /** The reader's servers: each one's state, and the way to add, rename and remove them (C1, C4). */
 export default function Servers() {
