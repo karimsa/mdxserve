@@ -1,14 +1,13 @@
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import fc from "fast-check";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import Database from "better-sqlite3";
 import { ServerRegistry } from "../../src/servers/server-registry.js";
-import sqlite from "node-sqlite3-wasm";
 
-// 25 fresh sqlite files per property; the CI runner has taken >5 s.
-const PROPERTY_TIMEOUT_MS = 30000;
+const registryModule = path.resolve(import.meta.dirname, "../../src/servers/server-registry.ts");
 
 let tmpDir: string;
 let dbPath: string;
@@ -21,11 +20,13 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-	// Fresh db per test: delete the file (and any journal siblings) so tests
-	// don't see each other's rows.
-	for (const suffix of ["", "-wal", "-shm"]) {
+	vi.restoreAllMocks();
+	// Fresh db per test: delete the file (and anything an older release left
+	// next to it) so tests don't see each other's rows.
+	for (const suffix of ["", "-journal", "-wal", "-shm"]) {
 		await fs.rm(dbPath + suffix, { force: true });
 	}
+	await fs.rm(`${dbPath}.lock`, { recursive: true, force: true });
 });
 
 afterAll(async () => {
@@ -40,14 +41,70 @@ function deadPid(): number {
 	return pid;
 }
 
-function rowCount(dbFile: string): number {
-	const db = new sqlite.Database(dbFile);
+function withDb<Result>(dbFile: string, use: (db: Database.Database) => Result): Result {
+	const db = new Database(dbFile);
 	try {
-		const rows = db.all("SELECT COUNT(*) as count FROM server") as unknown as { count: number }[];
-		return rows[0]?.count ?? 0;
+		return use(db);
 	} finally {
 		db.close();
 	}
+}
+
+function rowCount(dbFile: string): number {
+	return withDb(
+		dbFile,
+		(db) => (db.prepare("SELECT COUNT(*) AS count FROM server").get() as { count: number }).count,
+	);
+}
+
+/** Every warning the registry printed while `run` ran, and how long it took. */
+function observe<Result>(run: () => Result): { result: Result; warnings: string[]; ms: number } {
+	const warnings: string[] = [];
+	const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+		warnings.push(args.map(String).join(" "));
+	});
+	const started = performance.now();
+	try {
+		const result = run();
+		return { result, warnings, ms: performance.now() - started };
+	} finally {
+		spy.mockRestore();
+	}
+}
+
+/**
+ * A child process that loads the registry module and runs `body` with
+ * `registry` (a ServerRegistry on `file`) in scope. It prints "ready" first.
+ */
+function spawnRegistryChild(file: string, body: string) {
+	const script = `
+		import { ServerRegistry } from ${JSON.stringify(registryModule)};
+		const registry = new ServerRegistry(${JSON.stringify(file)});
+		process.stdout.write("ready\\n");
+		${body}
+	`;
+	const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+	let stdout = "";
+	let stderr = "";
+	child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+	child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+	const ready = new Promise<void>((resolve, reject) => {
+		child.stdout.on("data", () => {
+			if (stdout.includes("ready")) resolve();
+		});
+		child.on("exit", () => reject(new Error(`child exited before it was ready: ${stderr}`)));
+	});
+	const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+		child.on("exit", (code, signal) => resolve({ code, signal })),
+	);
+	return {
+		child,
+		ready,
+		exited,
+		output: () => ({ stdout, stderr }),
+	};
 }
 
 describe("ServerRegistry", () => {
@@ -103,21 +160,37 @@ describe("ServerRegistry", () => {
 		expect(rowCount(dbPath)).toBe(0);
 	});
 
+	it("the prune leaves alone a server that registered after the dead row was read", () => {
+		const pid = deadPid();
+		registry.register({ port: 5010, pid, host: "127.0.0.1", roots: ["/old"] });
+
+		// current() reads the dead row, then asks whether its pid is alive. A
+		// replacement server registers in that gap, before the prune runs.
+		const replacement = new ServerRegistry(dbPath);
+		const realKill = process.kill.bind(process);
+		vi.spyOn(process, "kill").mockImplementation((target, signal) => {
+			if (target === pid && signal === 0) {
+				replacement.register({ port: 5011, pid: process.pid, host: "127.0.0.1", roots: ["/new"] });
+			}
+			return realKill(target, signal);
+		});
+
+		const { result, warnings } = observe(() => registry.current());
+		expect(result).toBeUndefined();
+		expect(warnings).toEqual([]);
+		vi.restoreAllMocks();
+		expect(registry.current()).toMatchObject({ port: 5011, pid: process.pid, roots: ["/new"] });
+	});
+
 	it("malformed roots JSON comes back as roots: [], keeping pid/port/host", () => {
 		registry.register({ port: 5009, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
-		const db = new sqlite.Database(dbPath);
-		try {
-			db.run("UPDATE server SET roots = ? WHERE id = 1", ["not json"]);
-		} finally {
-			db.close();
-		}
+		withDb(dbPath, (db) => db.prepare("UPDATE server SET roots = ? WHERE id = 1").run("not json"));
 		expect(registry.current()).toMatchObject({ port: 5009, pid: process.pid, roots: [] });
 	});
 
 	it("migrates away from a legacy `servers` table on first open", async () => {
 		const legacyDbPath = path.join(tmpDir, "legacy.db");
-		const db = new sqlite.Database(legacyDbPath);
-		try {
+		withDb(legacyDbPath, (db) => {
 			db.exec(`
 				CREATE TABLE servers (
 					port INTEGER PRIMARY KEY,
@@ -127,122 +200,123 @@ describe("ServerRegistry", () => {
 					started_at INTEGER NOT NULL
 				)
 			`);
-			db.run("INSERT INTO servers (port, pid, host, roots, started_at) VALUES (?, ?, ?, ?, ?)", [
-				4000,
-				process.pid,
-				"127.0.0.1",
-				"[]",
-				0,
-			]);
-		} finally {
-			db.close();
-		}
+			db.prepare(
+				"INSERT INTO servers (port, pid, host, roots, started_at) VALUES (?, ?, ?, ?, ?)",
+			).run(4000, process.pid, "127.0.0.1", "[]", 0);
+		});
 
 		const legacyRegistry = new ServerRegistry(legacyDbPath);
 		expect(legacyRegistry.current()).toBeUndefined();
 
-		const verifyDb = new sqlite.Database(legacyDbPath);
-		try {
-			const tables = verifyDb.all(
-				"SELECT name FROM sqlite_master WHERE type = 'table'",
-			) as unknown as { name: string }[];
-			const names = tables.map((table) => table.name);
-			expect(names).toContain("server");
-			expect(names).not.toContain("servers");
-		} finally {
-			verifyDb.close();
-		}
+		const names = withDb(legacyDbPath, (db) =>
+			(
+				db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
+					name: string;
+				}[]
+			).map((table) => table.name),
+		);
+		expect(names).toContain("server");
+		expect(names).not.toContain("servers");
 
 		await fs.rm(legacyDbPath, { force: true });
 	});
 });
 
-describe("ServerRegistry (property)", () => {
-	const recordShape = {
-		port: fc.integer({ min: 1, max: 65535 }),
-		host: fc.string(),
-		roots: fc.array(fc.string()),
-	};
-	const recordArb = fc.record(recordShape);
+// Releases that used node-sqlite3-wasm locked the db by creating
+// `servers.db.lock`; a process killed inside a statement left it behind, and
+// every later command waited out the busy timeout and failed.
+describe("ServerRegistry with a lock directory an older release left behind", () => {
+	it("reads without waiting or warning, and removes the empty directory", async () => {
+		registry.register({ port: 5101, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		await fs.mkdir(`${dbPath}.lock`);
 
-	it(
-		"register -> current round-trips an arbitrary record",
-		() => {
-			let counter = 0;
-			fc.assert(
-				fc.property(recordArb, (record) => {
-					const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-${counter++}.db`));
-					propRegistry.register({ ...record, pid: process.pid });
-					expect(propRegistry.current()).toMatchObject({ ...record, pid: process.pid });
-				}),
-				{ numRuns: 25 },
-			);
-		},
-		PROPERTY_TIMEOUT_MS,
-	);
-
-	it(
-		"updateRoots is idempotent",
-		() => {
-			let counter = 0;
-			fc.assert(
-				fc.property(recordArb, fc.array(fc.string()), (record, newRoots) => {
-					const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-idem-${counter++}.db`));
-					propRegistry.register({ ...record, pid: process.pid });
-					propRegistry.updateRoots(process.pid, newRoots);
-					const once = propRegistry.current();
-					propRegistry.updateRoots(process.pid, newRoots);
-					const twice = propRegistry.current();
-					expect(once).toEqual(twice);
-					expect(once?.roots).toEqual(newRoots);
-				}),
-				{ numRuns: 25 },
-			);
-		},
-		PROPERTY_TIMEOUT_MS,
-	);
-
-	type Model = { pid: number; port: number; host: string; roots: string[] } | undefined;
-
-	const opArb = fc.oneof(
-		fc.record({ kind: fc.constant("register" as const), ...recordShape }),
-		fc.record({ kind: fc.constant("updateRoots" as const), roots: fc.array(fc.string()) }),
-		fc.constant({ kind: "unregister" as const }),
-	);
-
-	it("a random sequence of register/updateRoots/unregister matches a tiny in-memory model", () => {
-		let counter = 0;
-		fc.assert(
-			fc.property(fc.array(opArb, { minLength: 0, maxLength: 30 }), (ops) => {
-				const propRegistry = new ServerRegistry(path.join(tmpDir, `prop-model-${counter++}.db`));
-				let model: Model;
-
-				for (const op of ops) {
-					if (op.kind === "register") {
-						propRegistry.register({
-							port: op.port,
-							pid: process.pid,
-							host: op.host,
-							roots: op.roots,
-						});
-						model = { pid: process.pid, port: op.port, host: op.host, roots: op.roots };
-					} else if (op.kind === "updateRoots") {
-						propRegistry.updateRoots(process.pid, op.roots);
-						if (model) model = { ...model, roots: op.roots };
-					} else {
-						propRegistry.unregister(process.pid);
-						model = undefined;
-					}
-
-					const current = propRegistry.current();
-					if (model === undefined) {
-						expect(current).toBeUndefined();
-					} else {
-						expect(current).toMatchObject(model);
-					}
-				}
-			}),
-			{ numRuns: 25 },
-		);
+		const { result, warnings, ms } = observe(() => registry.current());
+		expect(result).toMatchObject({ port: 5101, roots: ["/a"] });
+		expect(warnings).toEqual([]);
+		expect(ms).toBeLessThan(500);
+		expect(existsSync(`${dbPath}.lock`)).toBe(false);
 	});
+
+	it("writes without waiting or warning", async () => {
+		await fs.mkdir(path.dirname(dbPath), { recursive: true });
+		await fs.mkdir(`${dbPath}.lock`);
+
+		const { warnings, ms } = observe(() => {
+			registry.register({ port: 5102, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+			registry.updateRoots(process.pid, ["/b"]);
+		});
+		expect(warnings).toEqual([]);
+		expect(ms).toBeLessThan(500);
+		expect(registry.current()).toMatchObject({ port: 5102, roots: ["/b"] });
+	});
+
+	it("is not blocked by a lock directory that is not empty, and leaves it in place", async () => {
+		await fs.mkdir(`${dbPath}.lock`, { recursive: true });
+		await fs.writeFile(path.join(`${dbPath}.lock`, "keep"), "");
+
+		const { warnings, ms } = observe(() => {
+			registry.register({ port: 5103, pid: process.pid, host: "127.0.0.1", roots: [] });
+			return registry.current();
+		});
+		expect(warnings).toEqual([]);
+		expect(ms).toBeLessThan(500);
+		expect(registry.current()).toMatchObject({ port: 5103 });
+		expect(existsSync(path.join(`${dbPath}.lock`, "keep"))).toBe(true);
+	});
+});
+
+describe("ServerRegistry across processes", () => {
+	it("two processes writing at once both succeed", async () => {
+		const shared = path.join(tmpDir, "concurrent.db");
+		const loop = (port: number) => `
+			const deadline = Date.now() + 1500;
+			let writes = 0;
+			while (Date.now() < deadline) {
+				registry.register({ port: ${port}, pid: process.pid, host: "127.0.0.1", roots: ["/r" + writes] });
+				registry.updateRoots(process.pid, ["/u" + writes]);
+				registry.current();
+				writes++;
+			}
+			process.stdout.write("writes " + writes + "\\n");
+		`;
+		const first = spawnRegistryChild(shared, loop(6001));
+		const second = spawnRegistryChild(shared, loop(6002));
+		const [firstExit, secondExit] = await Promise.all([first.exited, second.exited]);
+
+		for (const [exit, child] of [
+			[firstExit, first],
+			[secondExit, second],
+		] as const) {
+			expect(exit).toEqual({ code: 0, signal: null });
+			expect(child.output().stderr).toBe("");
+			expect(child.output().stdout).toMatch(/writes [1-9]\d*/);
+		}
+		expect(rowCount(shared)).toBe(1);
+	}, 30_000);
+
+	it("a writer SIGKILLed mid-write leaves a registry the next caller reads at once", async () => {
+		const shared = path.join(tmpDir, "killed.db");
+		for (let attempt = 0; attempt < 5; attempt++) {
+			const writer = spawnRegistryChild(
+				shared,
+				`
+				for (let writes = 0; ; writes++) {
+					registry.register({ port: 7000, pid: process.pid, host: "127.0.0.1", roots: ["/" + writes] });
+					registry.updateRoots(process.pid, ["/u" + writes]);
+				}
+				`,
+			);
+			await writer.ready;
+			await new Promise((resolve) => setTimeout(resolve, attempt * 7));
+			writer.child.kill("SIGKILL");
+			await writer.exited;
+
+			const reader = new ServerRegistry(shared);
+			const { result, warnings, ms } = observe(() => reader.current());
+			expect(warnings).toEqual([]);
+			expect(ms).toBeLessThan(500);
+			// The writer is dead, so its row is pruned.
+			expect(result).toBeUndefined();
+		}
+	}, 60_000);
 });

@@ -21,7 +21,7 @@ export function GetStarted() {
 
 			<h2 id="open-your-first-folder">Open your first folder</h2>
 			<p>
-				You need <strong>Node.js 22.12 or newer</strong>. From a terminal, run this with the path to
+				You need <strong>Node.js 22.14 or newer</strong>. From a terminal, run this with the path to
 				your docs:
 			</p>
 			<CodeBlock language="bash" code="npx @karimsa/mdxserve serve -w ./docs" />

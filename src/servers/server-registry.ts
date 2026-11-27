@@ -1,12 +1,10 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-// WASM build of SQLite: no native module, so `yarn install` needs no build
-// scripts and the same binary runs on every node version the launcher pins.
-import sqlite from "node-sqlite3-wasm";
-
-const { Database } = sqlite;
-type Database = InstanceType<typeof Database>;
+// A native SQLite build, so locking uses the OS's file locks. The kernel drops
+// them when a process dies, even under SIGKILL, so a killed process leaves
+// nothing behind for the next one to wait on.
+import Database from "better-sqlite3";
 
 export interface ServerRecord {
 	port: number;
@@ -26,7 +24,7 @@ export function mdxserveHome(): string {
 }
 
 /** `<mdxserveHome>/servers.db` — despite the name, holds the single running server's row. */
-export function defaultRegistryPath(): string {
+function defaultRegistryPath(): string {
 	return path.join(mdxserveHome(), "servers.db");
 }
 
@@ -37,13 +35,44 @@ function warn(action: string, dbPath: string, error: unknown): void {
 	console.error(`mdxserve: failed to ${action} ${dbPath}: ${message}`);
 }
 
-function openDb(dbPath: string): Database {
+/**
+ * The better-sqlite3 prebuilds target Node-API 10 (Node 22.14 and newer). An
+ * older node crashes while loading the addon instead of throwing, so refuse
+ * first and let the caller carry on without the registry.
+ */
+function assertNodeApiSupported(): void {
+	if (Number(process.versions.napi) < 10) {
+		throw new Error(
+			`the server registry needs Node.js 22.14 or newer (this is ${process.version})`,
+		);
+	}
+}
+
+/**
+ * Releases before better-sqlite3 used a WASM SQLite that locked by creating a
+ * `servers.db.lock` directory, which a killed process could leave behind.
+ * SQLite no longer looks at it, so remove it when it is empty to keep it from
+ * suggesting otherwise. rmdir refuses a missing or non-empty directory, and
+ * either is fine to leave alone.
+ */
+function removeLegacyLockDir(dbPath: string): void {
+	try {
+		fs.rmdirSync(`${dbPath}.lock`);
+	} catch {
+		// Missing, not empty, or not ours to remove.
+	}
+}
+
+function openDb(dbPath: string): Database.Database {
+	assertNodeApiSupported();
 	fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-	const db = new Database(dbPath);
-	// The row is tiny and written rarely (server start, and whenever roots
-	// change), so a short busy timeout is enough for a starter racing the
-	// still-shutting-down previous instance.
-	db.exec("PRAGMA busy_timeout = 2000");
+	removeLegacyLockDir(dbPath);
+	// Default rollback journal. The row is tiny and written rarely (server
+	// start, and whenever roots change), and a lock is held only by a live
+	// process for the length of one statement. The busy timeout covers a
+	// starter racing the still-shutting-down previous instance; nobody waits
+	// on it when no live process holds the lock.
+	const db = new Database(dbPath, { timeout: 2000 });
 	// Legacy multi-server table from the fan-out era: nothing in it is worth
 	// migrating (a dead process's row is meaningless, and a live one will
 	// re-register itself as the single row below on its next write).
@@ -82,8 +111,8 @@ interface ServerRow {
 /**
  * The single `mdxserve serve` instance currently running on this machine,
  * backed by a sqlite db at `dbPath` holding exactly one row (id = 1). The CLI
- * and the CLI read this row to find the running server; the
- * server itself keeps it current as its roots change.
+ * reads this row to find the running server; the server itself keeps it
+ * current as its roots change.
  */
 export class ServerRegistry {
 	constructor(private readonly dbPath: string = defaultRegistryPath()) {}
@@ -93,10 +122,9 @@ export class ServerRegistry {
 		try {
 			const db = openDb(this.dbPath);
 			try {
-				db.run(
+				db.prepare(
 					`INSERT OR REPLACE INTO server (id, pid, port, host, roots, started_at) VALUES (1, ?, ?, ?, ?, ?)`,
-					[record.pid, record.port, record.host, JSON.stringify(record.roots), Date.now()],
-				);
+				).run(record.pid, record.port, record.host, JSON.stringify(record.roots), Date.now());
 			} finally {
 				db.close();
 			}
@@ -110,10 +138,10 @@ export class ServerRegistry {
 		try {
 			const db = openDb(this.dbPath);
 			try {
-				db.run(`UPDATE server SET roots = ? WHERE id = 1 AND pid = ?`, [
+				db.prepare(`UPDATE server SET roots = ? WHERE id = 1 AND pid = ?`).run(
 					JSON.stringify(roots),
 					pid,
-				]);
+				);
 			} finally {
 				db.close();
 			}
@@ -131,7 +159,7 @@ export class ServerRegistry {
 		try {
 			const db = openDb(this.dbPath);
 			try {
-				db.run(`DELETE FROM server WHERE id = 1 AND pid = ?`, [pid]);
+				db.prepare(`DELETE FROM server WHERE id = 1 AND pid = ?`).run(pid);
 			} finally {
 				db.close();
 			}
@@ -151,15 +179,19 @@ export class ServerRegistry {
 		try {
 			const db = openDb(this.dbPath);
 			try {
-				const rows = db.all(
-					`SELECT pid, port, host, roots, started_at FROM server WHERE id = 1`,
-				) as unknown as ServerRow[];
-				const row = rows[0];
+				const row = db
+					.prepare(`SELECT pid, port, host, roots, started_at FROM server WHERE id = 1`)
+					.get() as ServerRow | undefined;
 				if (!row) return undefined;
 
 				if (!isAlive(row.pid)) {
+					// Delete only the row judged dead. A replacement server may have
+					// registered since the SELECT, and its row must survive.
 					try {
-						db.run(`DELETE FROM server WHERE id = 1 AND pid = ?`, [row.pid]);
+						db.prepare(`DELETE FROM server WHERE id = 1 AND pid = ? AND started_at = ?`).run(
+							row.pid,
+							row.started_at,
+						);
 					} catch (error) {
 						warn("prune dead server from", this.dbPath, error);
 					}

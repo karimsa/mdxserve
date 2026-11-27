@@ -30,7 +30,7 @@ open the URL, and read. Use `--permissions restricted` to publish one folder as 
 
 ## Install
 
-You need Node 22.12 or newer.
+You need Node 22.14 or newer.
 
 ```bash
 npm install -g @karimsa/mdxserve
