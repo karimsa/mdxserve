@@ -231,20 +231,22 @@ function DocumentReader({
 		() => (origin === undefined ? null : realtimeFor(server.id, origin, queryClient)),
 		[origin, server.id, queryClient],
 	);
+	// The listener comes first: joining a document this socket joined before signals "stale" at
+	// once, and that signal is what fetches the edits made while the screen was closed.
 	useFocusEffect(
 		useCallback(() => {
 			if (!realtime) return;
+			const unsubscribe = realtime.onDocChanged((changed) => {
+				if (changed !== path) return;
+				void queryClient.invalidateQueries({ queryKey: [server.id, "getDocument", { path }] });
+			});
 			realtime.joinDocument(path);
-			return () => realtime.leaveDocument(path);
-		}, [realtime, path]),
+			return () => {
+				realtime.leaveDocument(path);
+				unsubscribe();
+			};
+		}, [realtime, path, server.id, queryClient]),
 	);
-	useEffect(() => {
-		if (!realtime) return;
-		return realtime.onDocChanged((changed) => {
-			if (changed !== path) return;
-			void queryClient.invalidateQueries({ queryKey: [server.id, "getDocument", { path }] });
-		});
-	}, [realtime, path, server.id, queryClient]);
 
 	const index = useMemo(() => (tree ? indexDocument(tree) : null), [tree]);
 	const rows = useMemo(() => (tree ? documentRows(tree) : null), [tree]);
@@ -331,15 +333,16 @@ function DocumentReader({
 		if (id !== null) reveal(id);
 	}, [target, rows, resolve, reveal]);
 
-	// The latest of each, for the environment, which stays one object for the screen's life so a
-	// refetch does not redraw every node.
-	const latest = useRef({ origin, reveal, resolve });
-	latest.current = { origin, reveal, resolve };
+	// The latest of each, for the environment, which stays one object while the server's address
+	// stays the same, so a refetch does not redraw every node.
+	const latest = useRef({ reveal, resolve });
+	latest.current = { reveal, resolve };
 
 	const environment = useMemo<DocumentEnvironment>(
 		() => ({
 			...appDocumentEnvironment,
-			assetUrl: (src) => assetUrlOn(latest.current.origin, src),
+			// A new address makes a new environment, so every image reloads from it.
+			assetUrl: (src) => assetUrlOn(origin, src),
 			renderTaskBox: (item) => <DocumentTaskBox item={item} />,
 			openLink: (href) => {
 				const link = resolveLink(href, path);
@@ -367,8 +370,7 @@ function DocumentReader({
 						});
 						return;
 					case "file":
-						if (current.origin !== undefined)
-							void Linking.openURL(fileUrl(current.origin, link.path));
+						if (origin !== undefined) void Linking.openURL(fileUrl(origin, link.path));
 						return;
 					case "web":
 						void Linking.openURL(link.url);
@@ -378,7 +380,7 @@ function DocumentReader({
 				}
 			},
 		}),
-		[path, router, documentRoute, server.id],
+		[origin, path, router, documentRoute, server.id],
 	);
 	const docContext = useMemo(() => ({ path }), [path]);
 

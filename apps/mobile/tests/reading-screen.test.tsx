@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
+import { router } from "expo-router";
 import { Alert, Linking } from "react-native";
 import { Uniwind } from "uniwind";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
@@ -174,11 +175,21 @@ type MockDocListeners = Set<(path: string, cause: string) => void>;
 const mockSockets = new Map<string, { joined: string[]; docListeners: MockDocListeners }>();
 
 jest.mock("@mdxserve/client/realtime", () => ({
+	// Like the real client: joining a document this socket joined before signals "stale" at once.
 	createRealtime: (origin: string) => {
-		const socket = { joined: [] as string[], docListeners: new Set() as MockDocListeners };
+		const socket = {
+			joined: [] as string[],
+			joinedBefore: new Set() as Set<string>,
+			docListeners: new Set() as MockDocListeners,
+		};
 		mockSockets.set(origin, socket);
 		return {
-			joinDocument: (path: string) => socket.joined.push(path),
+			joinDocument: (path: string) => {
+				socket.joined.push(path);
+				const stale = socket.joinedBefore.has(path);
+				socket.joinedBefore.add(path);
+				if (stale) for (const listener of [...socket.docListeners]) listener(path, "stale");
+			},
 			leaveDocument: (path: string) => {
 				socket.joined = socket.joined.filter((joined) => joined !== path);
 			},
@@ -378,6 +389,39 @@ describe.each(["light", "dark"] as const)("a document (%s)", (theme) => {
 			for (const listener of socket?.docListeners ?? []) listener(DOC, "changed");
 		});
 		expect(await screen.findByText(/edited on the Mac/)).toBeOnTheScreen();
+	});
+});
+
+describe("a document opened again", () => {
+	it("shows the edits made while it was closed", async () => {
+		await seed(known());
+		mockProbeAnswers.set(STUDIO_URL, { kind: "ok", info: info() });
+		let extra = "";
+		mockDocuments.set(DOC, () => ({ document: guide({ extra }), version: `v-${extra}` }));
+		mockDocuments.set("/srv/example/index.md", () => ({
+			version: "v1",
+			document: {
+				schemaVersion: 1,
+				metadata: { openGraph: [] },
+				toc: [],
+				children: [
+					paragraph({
+						type: "link",
+						href: "./guide.md",
+						title: null,
+						children: [text("Open the guide")],
+					}),
+				],
+			},
+		}));
+		await renderRouter(APP_ROUTES, { initialUrl: `/s/${STUDIO}/doc/srv/example/index.md` });
+		await fireEvent.press(await screen.findByText("Open the guide"));
+		await screen.findByRole("heading", { name: "Guide" });
+		await act(async () => router.back());
+		await waitFor(() => expect(screen.queryByRole("heading", { name: "Guide" })).toBeNull());
+		extra = " (edited while closed)";
+		await fireEvent.press(screen.getByText("Open the guide"));
+		expect(await screen.findByText(/edited while closed/)).toBeOnTheScreen();
 	});
 });
 
