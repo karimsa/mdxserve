@@ -29,6 +29,7 @@ import {
 	SectionHeading,
 	Strong,
 	TightText,
+	textOf,
 } from "./elements";
 import { useDocumentEnvironment } from "./environment";
 import { MarkdownTableView } from "./MarkdownTableView";
@@ -215,7 +216,7 @@ const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 		case "error":
 			return <FailedSection node={node} />;
 		case "text":
-			return node.value;
+			return textOf(node.value);
 		case "emphasis":
 			return (
 				<Emphasis>

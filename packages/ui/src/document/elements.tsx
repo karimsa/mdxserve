@@ -4,7 +4,7 @@ import { Animated, Image, Pressable, ScrollView, Text, View } from "react-native
 import { useResolveClassNames } from "uniwind";
 import type { ErrorNode } from "@mdxserve/client/document/tree-types";
 import Kbd from "../builtins/Kbd";
-import { Code, Heading, Link } from "../primitives/Text";
+import { Heading, Link } from "../primitives/Text";
 import { SPRINGS } from "../tokens/springs";
 import { useDocumentEnvironment } from "./environment";
 
@@ -209,9 +209,53 @@ export function Delete({ children }: Children) {
 	return <Text className="line-through">{children}</Text>;
 }
 
-export function InlineCode({ value }: { value: string }) {
-	return <Code>{value}</Code>;
+/**
+ * A text node's characters as HTML shows them: a `Text` keeps every newline and run of spaces,
+ * so a Markdown soft line break (a newline inside a paragraph) would break the line. Each run of
+ * spaces, tabs and newlines becomes one space; a no-break space is kept. A hard line break is a
+ * `break` node, drawn by `LineBreak`, and code keeps its own whitespace.
+ */
+export function textOf(value: string): string {
+	return value.replace(/[ \t\n\r\f]+/g, " ");
 }
+
+/** JetBrains Mono's descender, as a share of its size (hhea: −300 of 1000 units). */
+const MONO_DESCENT = 0.3;
+/** Code no longer than this, with no space in it, is drawn as a chip. */
+const CHIP_LIMIT = 24;
+
+/**
+ * Inline code, sized to sit with the prose (`--size-sm`, JetBrains Mono) and never changing the
+ * line height of the text around it.
+ *
+ * iOS draws a nested `Text`'s background over the whole line box and cannot pad or round it,
+ * so a short code word with no space in it (an identifier, a flag, a short path) is a chip of
+ * its own: a view inside the line, as tall as the code's own glyphs, rounded and padded like the
+ * web's `<code>`. React Native sets an inline view's bottom on the line's baseline, so the chip
+ * moves down by the code's descender to put its text on that baseline. Anything longer, or with
+ * a space, must be able to wrap, and a view cannot: it is accent-coloured monospaced text with no
+ * background, so a wrapped path never becomes a slab.
+ */
+export function InlineCode({ value }: { value: string }) {
+	const { fontSize } = useResolveClassNames(CODE_SIZE);
+	const size = typeof fontSize === "number" ? fontSize : FALLBACK_CODE_SIZE;
+	if (value.length > CHIP_LIMIT || /\s/.test(value)) {
+		return <Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>;
+	}
+	return (
+		<View
+			style={{ transform: [{ translateY: Math.round(size * MONO_DESCENT * 2) / 2 }] }}
+			className="rounded-xs bg-code-bg-inline px-1"
+		>
+			<Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>
+		</View>
+	);
+}
+
+const CODE_TEXT = "font-mono font-medium text-text-accent";
+const CODE_SIZE = "text-[length:var(--size-sm)]";
+/** `--size-sm`, until the stylesheet answers. */
+const FALLBACK_CODE_SIZE = 13;
 
 export function Anchor({
 	href,
