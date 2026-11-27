@@ -293,7 +293,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 				return [
 					{
 						type: "footnoteDefinition",
-						label: node.label ?? node.identifier,
+						label: node.identifier,
 						children: convertContainer(node.children as FlowNode[], scope),
 					},
 				];
@@ -679,7 +679,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 				];
 			}
 			case "footnoteReference":
-				return [{ type: "footnoteReference", label: node.label ?? node.identifier }];
+				return [{ type: "footnoteReference", label: node.identifier }];
 			case "mdxJsxTextElement":
 				return [convertJsx(node, scope, "text") as InlineNode];
 			case "html":

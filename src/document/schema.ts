@@ -36,6 +36,7 @@ export type InlineNode =
 	| { type: "link"; href: string; title: string | null; children: InlineNode[] }
 	| { type: "image"; src: string; alt: string; title: string | null }
 	| { type: "break" }
+	/** `label` is the normalized footnote key, equal on a reference and its definition. */
 	| { type: "footnoteReference"; label: string }
 	| ComponentNode
 	| ElementNode;
@@ -115,6 +116,7 @@ export type BlockNode =
 	| { type: "tabs"; id: string; defaultValue: string; tabs: TabNode[] }
 	| ComponentNode
 	| ElementNode
+	/** `label` is the normalized footnote key, equal on a reference and its definition. */
 	| { type: "footnoteDefinition"; label: string; children: BlockNode[] }
 	| { type: "error"; id: string; message: string; source: string };
 

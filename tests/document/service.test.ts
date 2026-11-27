@@ -415,6 +415,17 @@ describe("DocumentService.parse — nodes", () => {
 		expect(text).toContain('"type":"footnoteDefinition","label":"1"');
 	});
 
+	it("gives a footnote reference and its definition the same normalized label, whatever the case", () => {
+		const { tree } = parse("Text[^NOTE].\n\n[^note]: Explanation\n");
+		const labels: string[] = [];
+		JSON.stringify(tree, (key, value) => {
+			if (value && (value.type === "footnoteReference" || value.type === "footnoteDefinition"))
+				labels.push(`${value.type}:${value.label}`);
+			return value;
+		});
+		expect(labels).toEqual(["footnoteReference:note", "footnoteDefinition:note"]);
+	});
+
 	it("leaves no import, expression, script or unknown component in the tree", () => {
 		const { tree, diagnostics } = parse(
 			'import X from "./x.js"\n\n# Doc\n\n<Counter>kept</Counter> {1 + 1} <script>alert(1)</script>\n',
