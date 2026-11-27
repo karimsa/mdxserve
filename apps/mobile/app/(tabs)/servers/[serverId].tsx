@@ -21,10 +21,14 @@ export default function ServerDetails() {
 	if (!loaded) return <Stack.Screen options={{ title: "Server" }} />;
 	if (!server) {
 		return (
-			<View style={[styles.screen, sideInsets]}>
+			// A scroll view, so the text starts below the translucent header.
+			<ScrollView
+				contentInsetAdjustmentBehavior="automatic"
+				contentContainerStyle={[styles.screen, sideInsets]}
+			>
 				<Stack.Screen options={{ title: "Server" }} />
 				<Text tone="muted">This server is no longer in the list.</Text>
-			</View>
+			</ScrollView>
 		);
 	}
 	// A save that failed puts the stored name back; start the field again from it.

@@ -28,10 +28,14 @@ export default function Folder() {
 	const sideInsets = useSideInsets();
 	if (!server) {
 		return (
-			<View style={[styles.screen, sideInsets]}>
+			// A scroll view, so the text starts below the translucent header.
+			<ScrollView
+				contentInsetAdjustmentBehavior="automatic"
+				contentContainerStyle={[styles.screen, sideInsets]}
+			>
 				<Stack.Screen options={{ title: "Folder" }} />
 				<Text tone="muted">This server is no longer in the list.</Text>
-			</View>
+			</ScrollView>
 		);
 	}
 	return <FolderListing server={server} dir={dir} />;
