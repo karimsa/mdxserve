@@ -85,6 +85,12 @@ function quotesOf(line: string): number {
 	return (/^(?:[ \t]*>)*/.exec(line)?.[0].match(/>/g) ?? []).length;
 }
 
+/**
+ * A fence's closing run: only the run, after any blockquote markers and indentation. A list
+ * marker before it (`- \`\`\``) opens a fence in a list inside the code, not the end of it.
+ */
+const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
+
 export type TaskEdit =
 	| { kind: "ok"; markdown: string }
 	/** The lines do not hold the task the tree describes: the file changed, or the scan cannot tell. */
@@ -110,14 +116,8 @@ export function setTaskInSource(
 		// A fence inside a blockquote also ends where the blockquote does, closed or not.
 		if (fence && quotesOf(line) < fence.quotes) fence = null;
 		if (fence) {
-			const close = FENCE.exec(line);
-			if (
-				close &&
-				close[1][0] === fence.marker &&
-				close[1].length >= fence.length &&
-				close[2].trim() === ""
-			)
-				fence = null;
+			const close = CLOSING_FENCE.exec(line);
+			if (close && close[1][0] === fence.marker && close[1].length >= fence.length) fence = null;
 			return;
 		}
 		if (commentEnd !== null) {

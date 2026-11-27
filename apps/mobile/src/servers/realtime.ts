@@ -36,8 +36,11 @@ export function realtimeFor(
 	const offListing = client.onListingChanged(() => {
 		void queryClient.invalidateQueries({ queryKey: [serverId, "getFolderListing"] });
 	});
+	// A folder that left the server takes its documents with it: read them again, so a reader
+	// showing one says it is gone.
 	const offRoots = client.onRootsChanged(() => {
 		void queryClient.invalidateQueries({ queryKey: [serverId, "listRoots"] });
+		void queryClient.invalidateQueries({ queryKey: [serverId, "getDocument"] });
 	});
 	live.set(serverId, {
 		origin,

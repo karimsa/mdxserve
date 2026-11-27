@@ -158,6 +158,14 @@ describe("setTaskInSource", () => {
 		});
 	});
 
+	it("does not take a list item's fence inside a code sample for the sample's end", () => {
+		const sample = "```md\n- ```\n- [ ] example\n```\n\n- [ ] Ship it";
+		expect(setTaskInSource(sample, { ordinal: 0, count: 1 }, true)).toEqual({
+			kind: "ok",
+			markdown: sample.replace("- [ ] Ship it", "- [x] Ship it"),
+		});
+	});
+
 	it("keeps Windows line endings", () => {
 		const crlf = "- [ ] one\r\n- [ ] two\r\n";
 		expect(setTaskInSource(crlf, { ordinal: 1, count: 2 }, true)).toEqual({
