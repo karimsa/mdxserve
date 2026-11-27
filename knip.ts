@@ -87,6 +87,8 @@ const config: KnipConfig = {
 				// knip expects expo-updates unless app.config.ts turns updates off; the app has no
 				// over-the-air updates, so it has no expo-updates yet.
 				"expo-updates",
+				// app.config.ts names it as a config plugin, which knip does not read as an import.
+				"expo-splash-screen",
 			],
 		},
 		"apps/site": {
