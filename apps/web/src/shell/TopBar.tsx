@@ -3,26 +3,7 @@ import { IconButton } from "../ui/IconButton";
 import { Kbd } from "../ui/Kbd";
 import type { Theme } from "../theme";
 import { isApplePlatform } from "../platform";
-
-function Wordmark({ href }: { href?: string }) {
-	const content = (
-		<>
-			<span className="font-extrabold text-text-heading">mdx</span>
-			<span className="font-normal text-text-accent">serve</span>
-		</>
-	);
-	if (!href) {
-		return <span className="flex shrink-0 items-baseline gap-px text-[15px]">{content}</span>;
-	}
-	return (
-		<a
-			href={href}
-			className="flex shrink-0 items-baseline gap-px text-[15px] no-underline [letter-spacing:var(--tracking-tight)]"
-		>
-			{content}
-		</a>
-	);
-}
+import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
 
 export function TopBar({
 	homeHref,

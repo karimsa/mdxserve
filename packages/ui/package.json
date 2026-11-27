@@ -3,7 +3,8 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		"./builtins/*": "./src/builtins/*.tsx"
+		"./builtins/*": "./src/builtins/*.tsx",
+		"./brand/*": "./src/brand/*.tsx"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit"
