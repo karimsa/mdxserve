@@ -6,7 +6,7 @@ import { CrossFade } from "../CrossFade";
 import { Icon } from "../ui/Icon";
 
 import { CodeFrameHeader } from "../CodeBlock";
-import { type DiffProps } from "../../shared/builtins/diff";
+import { type DiffProps } from "@mdxserve/shared/builtins/diff";
 
 /*
  * Diff computation

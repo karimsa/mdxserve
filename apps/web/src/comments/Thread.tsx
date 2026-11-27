@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtom, useStore } from "jotai";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { CommentMessage, CommentThread } from "../../src/comments/schema";
+import type { CommentMessage, CommentThread } from "@karimsa/mdxserve/src/comments/schema";
 import { Icon } from "../ui/Icon";
 import { CtlButton } from "./CtlButton";
 import { replyDraftOf, withReplyDraft } from "./drafts";

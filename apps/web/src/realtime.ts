@@ -6,7 +6,7 @@ import {
 	roomAckSchema,
 	roomRequestSchema,
 	serverEventArgsSchema,
-} from "../shared/realtime";
+} from "@mdxserve/shared/realtime";
 
 /**
  * Why the open document may be stale: the server said it changed, or this

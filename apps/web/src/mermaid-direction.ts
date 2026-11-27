@@ -14,7 +14,7 @@
  * flowchart header.
  */
 
-import { mermaidHeaderLineIndex } from "./mermaid-chart.js";
+import { mermaidHeaderLineIndex } from "@mdxserve/shared/mermaid-chart";
 
 /** @internal Exported for its tests. */
 export const FLOW_DIRECTIONS = ["TB", "BT", "LR", "RL"] as const;

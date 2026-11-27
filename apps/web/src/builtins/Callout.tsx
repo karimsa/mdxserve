@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { fadeRise } from "../motion";
 import { Icon } from "../ui/Icon";
-import { type CalloutProps } from "../../shared/builtins/callout";
+import { type CalloutProps } from "@mdxserve/shared/builtins/callout";
 
 type Tone = NonNullable<CalloutProps["tone"]>;
 

@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CommentThread } from "../../src/comments/schema";
+import type { CommentThread } from "@karimsa/mdxserve/src/comments/schema";
 import { useMediaQuery } from "../hooks";
 import { DESKTOP_MEDIA } from "../platform";
 import { shellInfo } from "../router";

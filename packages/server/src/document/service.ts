@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import type { Registry } from "../components/registry.js";
 import { leadingFrontmatter } from "../docs/frontmatter.js";
 import { parseMetadata } from "../docs/metadata.js";
-import { builtinPropSchemas } from "../../shared/builtins/index.js";
+import { builtinPropSchemas } from "@mdxserve/shared/builtins";
 import { escapeBareLt } from "./lenient.js";
 import { restrictTree } from "./restrict.js";
 import { unravelJsxParagraphs } from "./unravel.js";

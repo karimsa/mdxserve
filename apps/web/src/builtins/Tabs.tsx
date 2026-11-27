@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { TRANSITIONS, fadeSwapTransition } from "../motion";
 import { DocContext } from "../DocContext";
 import { selectTabs, tabSelectionAtom, tabSelectionKey } from "../document/tabs-state";
-import type { TabProps } from "../../shared/builtins/tabs";
+import type { TabProps } from "@mdxserve/shared/builtins/tabs";
 
 /**
  * Never rendered: the document tree turns each `<Tab>` into an entry of its

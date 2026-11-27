@@ -13,7 +13,7 @@ import { TableCell } from "../data-table/TableCell";
 import { useDocumentBlockScope } from "../block-state/useBlockState";
 import { blockStateKey, type BlockStateScope } from "../block-state/storage";
 import { unitFactor } from "../data-table/model";
-import { dataTableProps, type DataTableProps } from "../../shared/builtins/data-table";
+import { dataTableProps, type DataTableProps } from "@mdxserve/shared/builtins/data-table";
 
 type InternalProps = DataTableProps & {
 	renderCell?: (row: number, key: string) => ReactNode;

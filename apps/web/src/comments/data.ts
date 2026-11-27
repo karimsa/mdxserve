@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { CommentThread } from "../../src/comments/schema";
+import type { CommentThread } from "@karimsa/mdxserve/src/comments/schema";
 import { queryClient, trpc, trpcClient } from "../api";
 import { pushToast } from "../ui/Toast";
 import { markSelfWrite } from "./self-writes";

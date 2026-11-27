@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { TRANSITIONS } from "../motion";
 import { IconButton } from "../ui/IconButton";
 import { ExpandModal } from "../ui/ExpandModal";
-import { type ScreenshotProps } from "../../shared/builtins/screenshot";
+import { type ScreenshotProps } from "@mdxserve/shared/builtins/screenshot";
 
 // macOS traffic-light colours; the same in both themes, like the real thing.
 const TRAFFIC_LIGHTS = ["#ff5f57", "#febc2e", "#28c840"];

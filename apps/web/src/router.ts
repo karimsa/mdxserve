@@ -5,8 +5,8 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { queryClient, trpc } from "./api";
 import { realtime } from "./realtime";
 // Type-only: see the comment in client/api.ts — no server code enters the client bundle.
-import type { AppRouter } from "../src/api/router";
-import type { DocumentMetadata } from "../src/docs/metadata";
+import type { AppRouter } from "@karimsa/mdxserve/src/api/router";
+import type { DocumentMetadata } from "@karimsa/mdxserve/src/docs/metadata";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type DocTreeOutput = RouterOutputs["getDocTree"];

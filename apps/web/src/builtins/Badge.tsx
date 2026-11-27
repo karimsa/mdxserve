@@ -1,4 +1,4 @@
-import { type BadgeProps } from "../../shared/builtins/badge";
+import { type BadgeProps } from "@mdxserve/shared/builtins/badge";
 
 type Tone = NonNullable<BadgeProps["tone"]>;
 type Variant = NonNullable<BadgeProps["variant"]>;

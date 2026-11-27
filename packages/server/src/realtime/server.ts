@@ -8,7 +8,7 @@ import {
 	type ClientToServerEvents,
 	type RoomAck,
 	type ServerToClientEvents,
-} from "../../shared/realtime.js";
+} from "@mdxserve/shared/realtime";
 import type { DocsService } from "../docs/service.js";
 import type { PermissionMode } from "../servers/bind-host.js";
 

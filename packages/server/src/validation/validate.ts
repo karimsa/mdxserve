@@ -6,7 +6,7 @@ import { assetUrl } from "../assets/url.js";
 import type { Registry } from "../components/registry.js";
 import { parseComments } from "../comments/frontmatter.js";
 import { anchorDiagnostics } from "../comments/anchor.js";
-import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
+import { chartDiagramKeyword, chartDiagramMessage } from "@mdxserve/shared/mermaid-chart";
 
 /** Every code `mdxserve validate` reports: the document's own, then the checks layered on top. */
 export const DIAGNOSTIC_CODES = [

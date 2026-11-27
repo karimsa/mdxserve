@@ -1,7 +1,7 @@
 import ms from "ms";
 import bytes from "bytes";
 import type { z } from "zod";
-import { columnSchema } from "../../shared/builtins/data-table";
+import { columnSchema } from "@mdxserve/shared/builtins/data-table";
 
 export type Column = z.infer<typeof columnSchema>;
 export type Value = string | number | null;

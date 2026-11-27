@@ -13,7 +13,7 @@ import {
 	niceMax,
 	toNumber,
 } from "./chart-data";
-import { type ChartProps, type ChartDatum } from "../../shared/builtins/chart";
+import { type ChartProps, type ChartDatum } from "@mdxserve/shared/builtins/chart";
 
 const SERIES_COLORS = [
 	"var(--chart-1)",

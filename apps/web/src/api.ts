@@ -3,7 +3,7 @@ import { createTRPCClient, httpLink, type TRPCClient } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 // client/ may only import types from src/ (AGENTS.md): this import is erased
 // by the compiler, so no server code reaches the client bundle.
-import type { AppRouter } from "../src/api/router";
+import type { AppRouter } from "@karimsa/mdxserve/src/api/router";
 import type { inferRouterOutputs } from "@trpc/server";
 import { realtime } from "./realtime";
 

@@ -8,7 +8,7 @@ import {
 	chartDiagramKeyword,
 	chartDiagramMessage,
 	type ChartDiagramKeyword,
-} from "./mermaid-chart.js";
+} from "@mdxserve/shared/mermaid-chart";
 
 type State =
 	| { kind: "loading" }

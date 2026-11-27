@@ -1,5 +1,5 @@
 import { slug } from "github-slugger";
-import { AUTHORED_ID_PATTERN } from "../../shared/builtins/id.js";
+import { AUTHORED_ID_PATTERN } from "@mdxserve/shared/builtins/id";
 
 /**
  * IDs identify a node across parses. A slug and an authored `id` never

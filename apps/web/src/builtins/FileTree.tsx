@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../ui/Icon";
-import { type FileTreeProps, type FileNode } from "../../shared/builtins/file-tree";
+import { type FileTreeProps, type FileNode } from "@mdxserve/shared/builtins/file-tree";
 
 function Row({ node, depth, activePath }: { node: FileNode; depth: number; activePath?: string }) {
 	const [open, setOpen] = useState(node.open !== false);

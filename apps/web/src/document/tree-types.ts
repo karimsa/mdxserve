@@ -6,7 +6,7 @@ import type {
 	ElementNode,
 	InlineNode,
 	TocEntry,
-} from "../../src/document/schema";
+} from "@karimsa/mdxserve/src/document/schema";
 
 export type { BlockNode, ComponentNode, DocumentTree, ElementNode, InlineNode, TocEntry };
 

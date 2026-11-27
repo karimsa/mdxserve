@@ -1,4 +1,4 @@
-import type { DocumentMetadata } from "../src/docs/metadata";
+import type { DocumentMetadata } from "@karimsa/mdxserve/src/docs/metadata";
 
 const marker = "data-mdxserve-metadata";
 

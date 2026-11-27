@@ -1,6 +1,6 @@
 import { useRef, type RefObject } from "react";
 import Tippy from "@tippyjs/react";
-import { type TooltipProps } from "../../shared/builtins/tooltip";
+import { type TooltipProps } from "@mdxserve/shared/builtins/tooltip";
 
 // tippy.js's base CSS is pulled in via client/app.css (`@import
 // "tippy.js/dist/tippy.css"`) instead of a side-effect import here: this

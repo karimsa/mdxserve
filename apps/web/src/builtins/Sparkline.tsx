@@ -1,4 +1,4 @@
-import { type SparklineProps } from "../../shared/builtins/sparkline";
+import { type SparklineProps } from "@mdxserve/shared/builtins/sparkline";
 
 export default function Sparkline({
 	values = [],

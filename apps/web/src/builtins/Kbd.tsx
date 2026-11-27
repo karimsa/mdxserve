@@ -1,4 +1,4 @@
-import { type KbdProps } from "../../shared/builtins/kbd";
+import { type KbdProps } from "@mdxserve/shared/builtins/kbd";
 
 export default function Kbd({ children }: KbdProps) {
 	return (

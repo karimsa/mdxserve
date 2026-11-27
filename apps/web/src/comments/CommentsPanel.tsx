@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { CommentThread } from "../../src/comments/schema";
+import type { CommentThread } from "@karimsa/mdxserve/src/comments/schema";
 import type { SheetDragHandlers } from "../ui/BottomSheet";
 import { CtlButton } from "./CtlButton";
 import { DraftThread } from "./DraftThread";

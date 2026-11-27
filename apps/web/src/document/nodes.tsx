@@ -13,7 +13,7 @@ import { RenderErrorBoundary } from "../RenderErrorBoundary";
 import { TaskCheckbox } from "../TaskCheckbox";
 import Tabs from "../builtins/Tabs";
 import { builtinComponents } from "../builtins/index";
-import { STATEFUL_COMPONENTS } from "../../shared/builtins/index";
+import { STATEFUL_COMPONENTS } from "@mdxserve/shared/builtins";
 import { MarkdownTableView } from "./MarkdownTableView";
 import type {
 	BlockNode,
