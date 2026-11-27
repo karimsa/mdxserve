@@ -21,7 +21,7 @@ type ResolveInputsResult =
 
 type SetConflict = { kind: "refused"; message: string } | { kind: "nested"; message: string };
 
-export interface RootsChange {
+interface RootsChange {
 	added: string[];
 	removed: string[];
 	roots: RootInfo[];

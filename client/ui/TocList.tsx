@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { motion } from "framer-motion";
 import { TRANSITIONS } from "../motion";
 
-export interface TocItem {
+interface TocItem {
 	id: string;
 	label: ReactNode;
 	/** Heading level, 2-4. */

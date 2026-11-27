@@ -1,9 +1,9 @@
 import { ensureConfig, readConfig, writeConfig } from "../infra/config.js";
 export const DIAGRAM_AGENTS = ["codex", "claude", "disabled"] as const;
-export const DEFAULT_DIAGRAM_MODELS = { codex: "gpt-6-luna", claude: "haiku" };
+const DEFAULT_DIAGRAM_MODELS = { codex: "gpt-6-luna", claude: "haiku" };
 export type DiagramModels = typeof DEFAULT_DIAGRAM_MODELS;
 export type DiagramAgent = (typeof DIAGRAM_AGENTS)[number];
-export function isDiagramAgent(value: unknown): value is DiagramAgent {
+function isDiagramAgent(value: unknown): value is DiagramAgent {
 	return DIAGRAM_AGENTS.some((agent) => agent === value);
 }
 export function isDiagramModel(value: unknown): value is string {

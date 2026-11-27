@@ -13,18 +13,18 @@ const absolutePath = z
 	.max(4096)
 	.refine((value) => path.isAbsolute(value), { message: "must be an absolute path" });
 
-export const rootInfoSchema = z.object({ name: z.string(), dir: z.string() });
+const rootInfoSchema = z.object({ name: z.string(), dir: z.string() });
 
-export const listRootsResultSchema = z.object({ roots: z.array(rootInfoSchema) });
+const listRootsResultSchema = z.object({ roots: z.array(rootInfoSchema) });
 
-export const addRootsInput = z.object({ dirs: z.array(absolutePath).min(1).max(50) });
-export const addRootsResultSchema = z.object({
+const addRootsInput = z.object({ dirs: z.array(absolutePath).min(1).max(50) });
+const addRootsResultSchema = z.object({
 	added: z.array(z.string()),
 	roots: z.array(rootInfoSchema),
 });
 
-export const removeRootsInput = z.object({ dirs: z.array(absolutePath).min(1).max(50) });
-export const removeRootsResultSchema = z.object({
+const removeRootsInput = z.object({ dirs: z.array(absolutePath).min(1).max(50) });
+const removeRootsResultSchema = z.object({
 	removed: z.array(z.string()),
 	roots: z.array(rootInfoSchema),
 });
@@ -90,7 +90,5 @@ const removeRoots = procedure(
 export const rootsController = { listRoots, addRoots, removeRoots };
 
 export type ListRootsOutput = z.infer<typeof listRootsResultSchema>;
-export type AddRootsInput = z.infer<typeof addRootsInput>;
 export type AddRootsOutput = z.infer<typeof addRootsResultSchema>;
-export type RemoveRootsInput = z.infer<typeof removeRootsInput>;
 export type RemoveRootsOutput = z.infer<typeof removeRootsResultSchema>;

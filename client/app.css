@@ -39,7 +39,7 @@
 @import "./editor/component-fields.css";
 @import "./diagrams/style.css";
 
-/* `:root[...]` (not bare `[data-theme]`) because rehype-pretty-code stamps
+/* `:root[...]` (not bare `[data-theme]`) because client/CodeBlock.tsx stamps
    data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
 @custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
 
@@ -218,29 +218,16 @@ body {
    its root keeps its own typography. No rule is needed for the class itself. */
 
 /* Code blocks: hand off entirely to CodeFrame/Pre (client/CodeBlock.tsx) — prose
-   must not impose padding, background, or figcaption styling on them. Scoped to
-   rehype-pretty-code's figure so component <figure>s (Chart, Diagram) keep their
-   own radius and the prose block gap. The `.mdx-prose code` inline chip rule must
-   not hit code inside a <pre> either. */
+   must not impose padding or background on them. The `.mdx-prose code` inline
+   chip rule must not hit code inside a <pre> either. */
 .mdx-prose pre,
-.mdx-prose pre code,
-.mdx-prose figure[data-rehype-pretty-code-figure] {
+.mdx-prose pre code {
 	margin: 0;
 	padding: 0;
 	background: transparent;
 	font: var(--type-code);
 	color: var(--code-fg);
 	border-radius: 0;
-}
-
-/* Same `:is()` widening as prose.css's direct-child rhythm rules — a code
-   block can sit inside a `.mdx-section` wrapper or a section's own edit-mode
-   `.ProseMirror` surface, not just bare under `.mdx-prose`. */
-:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror) > figure[data-rehype-pretty-code-figure] + *,
-:is(.mdx-prose, .mdx-section, .mdx-prose .ProseMirror)
-	> *
-	+ figure[data-rehype-pretty-code-figure] {
-	margin-top: var(--prose-gap);
 }
 
 /* Padding lives here (not in utility classes) so the unlayered reset above
@@ -251,8 +238,8 @@ body {
 }
 
 /*
- * rehype-pretty-code line rendering (client/CodeBlock.tsx owns the surrounding
- * card; this handles the per-line grid rows it emits):
+ * Code block line rendering (client/CodeBlock.tsx owns the surrounding card;
+ * this handles the per-line grid rows it emits):
  *   - every line is a `<span data-line>` inside a `<code style="display:grid">`,
  *     so it stretches to the full (possibly scrolled) width by default.
  *   - `showLineNumbers` meta sets `data-line-numbers` on `<code>` and
@@ -323,16 +310,6 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	color: var(--text-accent);
 	padding: 0.12em 0.34em;
 	border-radius: var(--radius-xs);
-}
-
-/* Wide tables scroll within the prose column instead of overflowing it. The
-   wrapper takes the table's block margin so the prose gap is unchanged. */
-.mdx-table-scroll {
-	max-width: 100%;
-	overflow-x: auto;
-}
-.mdx-table-scroll > table {
-	margin-bottom: 0;
 }
 
 /* client/ui/Toast.tsx's attention bounce for a repeat push. Two keyframe sets

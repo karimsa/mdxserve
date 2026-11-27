@@ -1,6 +1,6 @@
 import type { Editor, Range } from "@tiptap/core";
 
-export type BlockGroup = "Basic blocks" | "Media and structure" | "Components";
+type BlockGroup = "Basic blocks" | "Media and structure" | "Components";
 export interface SlashBlock {
 	id: string;
 	label: string;
@@ -39,6 +39,7 @@ const component = (
 	template,
 });
 
+/** @internal Exported for its tests. */
 export const slashBlocks: SlashBlock[] = [
 	native("paragraph", "Text", "Plain paragraph", ["paragraph", "body"]),
 	native("link", "Link", "Text linked to a web address", ["url", "hyperlink"]),
@@ -179,6 +180,7 @@ export function matchingBlocks(query: string): SlashBlock[] {
 
 const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
 
+/** @internal Exported for its tests. */
 export function blockContent(block: SlashBlock): Record<string, unknown> {
 	if (block.kind === "component") return { type: "mdxBlock", attrs: { source: block.template } };
 	if (block.id.startsWith("heading"))

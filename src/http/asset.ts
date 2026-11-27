@@ -7,15 +7,13 @@ import { isSameOrigin } from "./host.js";
 import { notFound, sendFile } from "./files.js";
 
 /** The query of `GET /__mdxserve/getAsset`. Other query parameters are ignored. */
-export const getAssetInputSchema = z.object({
+const getAssetInputSchema = z.object({
 	path: z
 		.string()
 		.min(1)
 		.max(4096)
 		.refine((value) => path.isAbsolute(value), "path must be absolute"),
 });
-
-export type GetAssetInput = z.infer<typeof getAssetInputSchema>;
 
 /**
  * Files in a root change while a page is open (a screenshot retaken), so a browser

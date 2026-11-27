@@ -39,7 +39,6 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"searchDocs",
 	"moveDocsToTrash",
 	"validateDoc",
-	"getDocSource",
 	"getDocument",
 	"getNodeSource",
 	"saveDocNode",
@@ -143,7 +142,8 @@ it("restricted policy blocks direct mutation callers even when their context cla
 			origin: "http://127.0.0.1:4040",
 		}),
 	);
-	const source = await api.getDocSource({ path: docPath });
+	const before = await fs.readFile(docPath, "utf8");
+	const source = await api.getDocument({ path: docPath });
 	await expect(
 		api.saveDocNode({
 			path: docPath,
@@ -157,5 +157,5 @@ it("restricted policy blocks direct mutation callers even when their context cla
 	});
 	await expect(api.validateDoc({ path: docPath })).rejects.toMatchObject({ code: "FORBIDDEN" });
 	await expect(api.getDiagramPreferences({})).rejects.toMatchObject({ code: "FORBIDDEN" });
-	expect(await fs.readFile(docPath, "utf8")).toBe(source.text);
+	expect(await fs.readFile(docPath, "utf8")).toBe(before);
 });

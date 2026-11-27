@@ -3,7 +3,7 @@ import type { LiveServer } from "../../src/servers/mounted-roots.js";
 import type { Remote } from "../../src/servers/remote.js";
 
 /** Every `Remote` method reporting `unavailable`, for tests that only care about one of them. */
-export function unavailableRemote(): Remote {
+function unavailableRemote(): Remote {
 	return {
 		validateDoc: async () => ({ kind: "unavailable" }),
 		searchDocs: async () => ({ kind: "unavailable" }),

@@ -5,7 +5,7 @@ import path from "node:path";
 import { contentTypeOf, isActiveContentType } from "../assets/content-type.js";
 
 /** Built client files are content-hashed, so a name never changes meaning. */
-export const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
+const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 
 export interface ServedFile {
 	abs: string;

@@ -12,8 +12,7 @@ import {
 } from "./anchor";
 
 /** The innermost match of this selector inside the article is a block. */
-export const BLOCK_SELECTOR =
-	"p, li, td, th, h1, h2, h3, h4, h5, h6, pre, dt, dd, figcaption, summary";
+const BLOCK_SELECTOR = "p, li, td, th, h1, h2, h3, h4, h5, h6, pre, dt, dd, figcaption, summary";
 const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
 /**
  * Never part of a block or its text. `.mdx-anchor` is the hover "#" link
@@ -27,7 +26,7 @@ const EXCLUDED_SELECTOR = "[data-editing], svg, button, .mdx-anchor";
  */
 const HIDDEN_SELECTOR = '[inert], [aria-hidden="true"]';
 
-export interface DomBlock {
+interface DomBlock {
 	el: Element;
 	nodes: Text[];
 	/** Normalized text. */
@@ -36,7 +35,7 @@ export interface DomBlock {
 	section: number;
 }
 
-export interface DomHeading {
+interface DomHeading {
 	/** `headingKey` of the text. */
 	key: string;
 	/** Index into `DomDoc.blocks`. */

@@ -11,7 +11,7 @@ import type { Json } from "./literal.js";
 /** Bumped when a node type or field changes meaning. */
 export const DOCUMENT_SCHEMA_VERSION = 1;
 
-export interface DocMetadata {
+interface DocMetadata {
 	title?: string;
 	description?: string;
 	canonical?: string;
@@ -61,7 +61,7 @@ export interface ElementNode {
 	children: (BlockNode | InlineNode)[];
 }
 
-export interface ListItem {
+interface ListItem {
 	/** null for an ordinary item, true or false for a task list item. */
 	checked: boolean | null;
 	children: BlockNode[];
@@ -77,7 +77,7 @@ export interface TabNode {
 
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type TableAlign = "left" | "center" | "right" | null;
+type TableAlign = "left" | "center" | "right" | null;
 
 export type BlockNode =
 	| {
@@ -128,7 +128,7 @@ export interface DocumentTree {
 	children: BlockNode[];
 }
 
-export const jsonSchema: z.ZodType<Json> = z.lazy(() =>
+const jsonSchema: z.ZodType<Json> = z.lazy(() =>
 	z.union([
 		z.string(),
 		z.number(),
@@ -139,14 +139,14 @@ export const jsonSchema: z.ZodType<Json> = z.lazy(() =>
 	]),
 );
 
-export const docMetadataSchema = z.object({
+const docMetadataSchema = z.object({
 	title: z.string().optional(),
 	description: z.string().optional(),
 	canonical: z.string().optional(),
 	openGraph: z.array(z.object({ property: z.string(), content: z.string() })),
 });
 
-export const tocEntrySchema: z.ZodType<TocEntry> = z.object({
+const tocEntrySchema: z.ZodType<TocEntry> = z.object({
 	id: z.string(),
 	label: z.string(),
 	kind: z.enum(["heading", "tab"]),
@@ -155,7 +155,7 @@ export const tocEntrySchema: z.ZodType<TocEntry> = z.object({
 	},
 });
 
-export const componentNodeSchema: z.ZodType<ComponentNode> = z.object({
+const componentNodeSchema: z.ZodType<ComponentNode> = z.object({
 	type: z.literal("component"),
 	id: z.string().nullable(),
 	name: z.string(),
@@ -165,7 +165,7 @@ export const componentNodeSchema: z.ZodType<ComponentNode> = z.object({
 	},
 });
 
-export const elementNodeSchema: z.ZodType<ElementNode> = z.object({
+const elementNodeSchema: z.ZodType<ElementNode> = z.object({
 	type: z.literal("element"),
 	id: z.string().nullable(),
 	tag: z.string(),
@@ -175,7 +175,7 @@ export const elementNodeSchema: z.ZodType<ElementNode> = z.object({
 	},
 });
 
-export const inlineNodeSchema: z.ZodType<InlineNode> = z.lazy(() =>
+const inlineNodeSchema: z.ZodType<InlineNode> = z.lazy(() =>
 	z.union([
 		z.object({ type: z.literal("text"), value: z.string() }),
 		z.object({ type: z.literal("emphasis"), children: z.array(inlineNodeSchema) }),
@@ -210,14 +210,14 @@ const headingLevelSchema = z.union([
 	z.literal(6),
 ]);
 
-export const listItemSchema: z.ZodType<ListItem> = z.object({
+const listItemSchema: z.ZodType<ListItem> = z.object({
 	checked: z.boolean().nullable(),
 	get children() {
 		return z.array(blockNodeSchema);
 	},
 });
 
-export const tabNodeSchema: z.ZodType<TabNode> = z.object({
+const tabNodeSchema: z.ZodType<TabNode> = z.object({
 	id: z.string(),
 	value: z.string(),
 	label: z.string(),
@@ -226,7 +226,7 @@ export const tabNodeSchema: z.ZodType<TabNode> = z.object({
 	},
 });
 
-export const blockNodeSchema: z.ZodType<BlockNode> = z.lazy(() =>
+const blockNodeSchema: z.ZodType<BlockNode> = z.lazy(() =>
 	z.union([
 		z.object({
 			type: z.literal("section"),

@@ -18,6 +18,7 @@ export function discoverSkills(skillsRoot: string): string[] {
 		.sort();
 }
 
+/** @internal Exported for its tests. */
 export function skillsInstallCommand(skillsRoot: string): { command: "npx"; args: string[] } {
 	return {
 		command: "npx",

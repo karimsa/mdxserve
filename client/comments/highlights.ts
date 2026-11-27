@@ -3,10 +3,10 @@
  * and a doc re-render cannot clash with the marks. Browsers without it show the
  * panel and no marks. Styles live in client/app.css (`::highlight()`).
  */
-export const HIGHLIGHT_NAME = "mdxserve-comment";
-export const ACTIVE_HIGHLIGHT_NAME = "mdxserve-comment-active";
+const HIGHLIGHT_NAME = "mdxserve-comment";
+const ACTIVE_HIGHLIGHT_NAME = "mdxserve-comment-active";
 
-export function supportsHighlights(): boolean {
+function supportsHighlights(): boolean {
 	return typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight !== "undefined";
 }
 

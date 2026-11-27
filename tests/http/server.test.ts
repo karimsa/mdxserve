@@ -335,7 +335,8 @@ describe("restricted permissions", () => {
 			links: [httpLink({ url: `${base}/__mdxserve/trpc`, headers: { origin: base } })],
 		});
 		const docPath = path.join(fixtureDir, "good.md");
-		const source = await client.getDocSource.query({ path: docPath });
+		const before = await fs.readFile(docPath, "utf8");
+		const source = await client.getDocument.query({ path: docPath });
 		const tree = await client.getDocTree.query({});
 		expect(tree.roots).toHaveLength(1);
 		const page = await fetch(`${base}${encodeURI(docPath)}`, { headers: { accept: "text/html" } });
@@ -361,7 +362,7 @@ describe("restricted permissions", () => {
 		await expect(client.getDiagramPreferences.query({})).rejects.toMatchObject({
 			data: { code: "FORBIDDEN" },
 		});
-		expect(await fs.readFile(docPath, "utf8")).toBe(source.text);
+		expect(await fs.readFile(docPath, "utf8")).toBe(before);
 	});
 
 	it("blocks hidden files and links out of the root through both file routes", async () => {
@@ -430,13 +431,14 @@ describe("restricted permissions", () => {
 			expect(paths).not.toContain(outsideLink);
 			expect((await client.searchDocs.query({ query: "Private phrase" })).results).toEqual([]);
 			expect((await client.searchDocs.query({ query: "Outside phrase" })).results).toEqual([]);
-			await expect(client.getDocSource.query({ path: hiddenLink })).rejects.toMatchObject({
+			await expect(client.getDocument.query({ path: hiddenLink })).rejects.toMatchObject({
 				data: { code: "NOT_FOUND" },
 			});
-			await expect(client.getDocSource.query({ path: outsideLink })).rejects.toMatchObject({
+			await expect(client.getDocument.query({ path: outsideLink })).rejects.toMatchObject({
 				data: { code: "NOT_FOUND" },
 			});
-			expect((await client.getDocSource.query({ path: visibleLink })).text).toContain("Hello.");
+			const visible = await client.getDocument.query({ path: visibleLink });
+			expect(JSON.stringify(visible.document)).toContain("Hello.");
 		} finally {
 			await Promise.all([
 				fs.rm(hidden, { force: true }),
@@ -470,9 +472,10 @@ describe("restricted permissions", () => {
 				});
 				for (const { alias } of aliases) {
 					if (permissions === "full") {
-						expect((await client.getDocSource.query({ path: alias })).text).toContain("guide");
+						const guide = await client.getDocument.query({ path: alias });
+						expect(JSON.stringify(guide.document)).toContain("guide");
 					} else {
-						await expect(client.getDocSource.query({ path: alias })).rejects.toMatchObject({
+						await expect(client.getDocument.query({ path: alias })).rejects.toMatchObject({
 							data: { code: "NOT_FOUND" },
 						});
 					}

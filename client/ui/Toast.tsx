@@ -15,7 +15,7 @@ import { isSelfWrite } from "../comments/self-writes";
 import { realtime } from "../realtime";
 import { rootFor } from "../router";
 
-export type ToastTone = "info" | "ok" | "warn" | "danger";
+type ToastTone = "info" | "ok" | "warn" | "danger";
 
 export interface ToastInput {
 	tone: ToastTone;
@@ -119,9 +119,6 @@ export function pushToast(input: ToastInput): string {
 	liveIds.add(toastId);
 	return toastId;
 }
-
-/** Re-exported for symmetry with `pushToast`. */
-export const dismissToast = toast.dismiss;
 
 const TOAST_STYLE: CSSProperties = {
 	background: "var(--surface-raised)",

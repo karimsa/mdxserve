@@ -2,39 +2,17 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { procedure } from "../api/trpc.js";
 import { ValidationService } from "./service.js";
+import { DIAGNOSTIC_CODES } from "./validate.js";
 
 // A single path string, nothing more — no batching like moveDocsToTrash,
 // since validation is a per-doc, agent-in-the-loop check.
-export const validateDocInput = z.object({ path: z.string().min(1).max(4096) });
+const validateDocInput = z.object({ path: z.string().min(1).max(4096) });
 
-// src/cli/validate.ts reuses this shape for its `--json` output so they can't
-// drift.
-export const diagnosticSchema = z.object({
+// The codes come from DIAGNOSTIC_CODES, the list the validator's own type is
+// built from, so the schema and the type cannot drift.
+const diagnosticSchema = z.object({
 	severity: z.enum(["error", "warning"]),
-	code: z.enum([
-		"mdx-syntax",
-		"esm-not-supported",
-		"non-literal-expression",
-		"unknown-component",
-		"removed-component",
-		"unsupported-element",
-		"unsupported-attribute",
-		"invalid-href",
-		"unknown-prop",
-		"invalid-prop",
-		"missing-id",
-		"invalid-id",
-		"duplicate-id",
-		"id-conflicts-with-heading",
-		"duplicate-heading",
-		"duplicate-tab-value",
-		"invalid-tab-default",
-		"invalid-tabs-structure",
-		"mermaid-chart",
-		"frontmatter-metadata",
-		"frontmatter-comments",
-		"comment-anchor",
-	]),
+	code: z.enum(DIAGNOSTIC_CODES),
 	message: z.string(),
 	line: z.number().optional(),
 	column: z.number().optional(),
@@ -45,6 +23,7 @@ export const diagnosticSchema = z.object({
 	suggestions: z.array(z.string()).optional(),
 });
 
+/** @internal Exported for its tests. */
 export const validationResultSchema = z.object({
 	ok: z.boolean(),
 	path: z.string(),
@@ -77,5 +56,3 @@ const validateDoc = procedure(
 	});
 
 export const validationController = { validateDoc };
-
-export type ValidateDocInput = z.infer<typeof validateDocInput>;

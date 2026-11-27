@@ -4,7 +4,7 @@ import { procedure } from "../api/trpc.js";
 import { ComponentsService } from "./service.js";
 
 /** Matches src/components/service.ts's ComponentSummary. */
-export const componentSummarySchema = z.object({
+const componentSummarySchema = z.object({
 	name: z.string(),
 	description: z.string(),
 	whenToUse: z.string(),
@@ -13,7 +13,7 @@ export const componentSummarySchema = z.object({
 });
 
 /** Matches src/components/registry.ts's RegistryComponent. */
-export const registryComponentSchema = z.object({
+const registryComponentSchema = z.object({
 	name: z.string(),
 	description: z.string(),
 	whenToUse: z.string(),
@@ -23,14 +23,16 @@ export const registryComponentSchema = z.object({
 	children: z.string().optional(),
 });
 
-export const listComponentsInput = z.object({ query: z.string().optional() });
+const listComponentsInput = z.object({ query: z.string().optional() });
 
+/** @internal Exported for its tests. */
 export const listComponentsResultSchema = z.object({
 	components: z.array(componentSummarySchema),
 });
 
-export const getComponentInput = z.object({ name: z.string().min(1).max(128) });
+const getComponentInput = z.object({ name: z.string().min(1).max(128) });
 
+/** @internal Exported for its tests. */
 export const getComponentResultSchema = z.object({ component: registryComponentSchema });
 
 const listComponents = procedure(
@@ -62,8 +64,3 @@ const getComponent = procedure(
 	});
 
 export const componentsController = { listComponents, getComponent };
-
-export type ListComponentsInput = z.infer<typeof listComponentsInput>;
-export type ListComponentsResult = z.infer<typeof listComponentsResultSchema>;
-export type GetComponentInput = z.infer<typeof getComponentInput>;
-export type GetComponentResult = z.infer<typeof getComponentResultSchema>;

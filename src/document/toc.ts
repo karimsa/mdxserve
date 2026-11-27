@@ -79,7 +79,7 @@ function tabEntry(tab: TabNode): TocEntry {
 }
 
 /** The plain text of inline nodes, the way a heading reads as a table of contents label. */
-export function inlineText(nodes: readonly (InlineNode | BlockNode)[]): string {
+function inlineText(nodes: readonly (InlineNode | BlockNode)[]): string {
 	let text = "";
 	for (const node of nodes) {
 		switch (node.type) {

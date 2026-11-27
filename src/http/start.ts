@@ -64,6 +64,7 @@ function networkAddress(host: string): string | undefined {
 	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
 }
 
+/** @internal Exported for its tests. */
 export function printBanner(
 	port: number,
 	host: string,

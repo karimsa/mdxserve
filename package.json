@@ -34,7 +34,8 @@
 		"test": "vitest run",
 		"prepack": "yarn build",
 		"smoke": "bash scripts/smoke-pack.sh",
-		"changelog": "tsx scripts/changelog.ts"
+		"changelog": "tsx scripts/changelog.ts",
+		"deadcode": "knip --no-config-hints && knip --production --no-config-hints"
 	},
 	"packageManager": "yarn@4.18.0",
 	"engines": {
@@ -81,7 +82,6 @@
 		"@floating-ui/dom": "1.8.0",
 		"@fontsource-variable/jetbrains-mono": "5.3.0",
 		"@fontsource-variable/manrope": "5.3.0",
-		"@mdx-js/mdx": "3.1.1",
 		"@tailwindcss/vite": "4.3.3",
 		"@tanstack/react-query": "5.101.4",
 		"@tippyjs/react": "4.2.6",
@@ -121,6 +121,7 @@
 		"@types/better-sqlite3": "9.6.0",
 		"@types/bytes": "3.1.6",
 		"@types/cross-spawn": "6.0.6",
+		"@types/estree": "1.0.9",
 		"@types/jsdom": "30.0.0",
 		"@types/lockfile": "1.0.4",
 		"@types/mdast": "4.0.4",
@@ -128,7 +129,7 @@
 		"@types/node": "26.2.0",
 		"@types/react": "19.2.18",
 		"@types/react-dom": "19.2.4",
-		"@types/svg-pan-zoom": "3.4.0",
+		"@types/unist": "3.0.3",
 		"@types/update-notifier": "6.0.8",
 		"@vitejs/plugin-react": "6.0.5",
 		"@yarnpkg/types": "4.0.1",
@@ -140,6 +141,7 @@
 		"framer-motion": "13.0.0",
 		"git-cliff": "2.14.2",
 		"jotai": "2.20.2",
+		"knip": "6.48.0",
 		"lucide-react": "1.30.0",
 		"ms": "2.1.3",
 		"oxlint": "1.77.0",

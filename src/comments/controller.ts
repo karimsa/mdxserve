@@ -15,35 +15,35 @@ export * from "./schema.js";
 const pathSchema = z.string().min(1).max(4096);
 const idSchema = z.string().regex(COMMENT_ID_PATTERN);
 
-export const getDocCommentsInput = z.object({ path: pathSchema });
-export const getDocCommentsResultSchema = z.object({
+const getDocCommentsInput = z.object({ path: pathSchema });
+const getDocCommentsResultSchema = z.object({
 	threads: z.array(commentThreadSchema),
 	diagnostics: z.array(commentDiagnosticSchema),
 });
 
-export const addCommentThreadInput = z.object({
+const addCommentThreadInput = z.object({
 	path: pathSchema,
 	anchor: commentAnchorInputSchema,
 	body: commentBodyInputSchema,
 });
-export const addCommentReplyInput = z.object({
+const addCommentReplyInput = z.object({
 	path: pathSchema,
 	threadId: idSchema,
 	body: commentBodyInputSchema,
 });
-export const editCommentInput = z.object({
+const editCommentInput = z.object({
 	path: pathSchema,
 	threadId: idSchema,
 	messageId: idSchema,
 	body: commentBodyInputSchema,
 });
-export const setCommentThreadResolvedInput = z.object({
+const setCommentThreadResolvedInput = z.object({
 	path: pathSchema,
 	threadId: idSchema,
 	resolved: z.boolean(),
 });
-export const commentThreadsResultSchema = z.object({ threads: z.array(commentThreadSchema) });
-export const addCommentThreadResultSchema = z.object({
+const commentThreadsResultSchema = z.object({ threads: z.array(commentThreadSchema) });
+const addCommentThreadResultSchema = z.object({
 	threads: z.array(commentThreadSchema),
 	threadId: idSchema,
 });
@@ -149,12 +149,3 @@ export const commentsController = {
 	editComment,
 	setCommentThreadResolved,
 };
-
-export type GetDocCommentsInput = z.infer<typeof getDocCommentsInput>;
-export type GetDocCommentsResult = z.infer<typeof getDocCommentsResultSchema>;
-export type AddCommentThreadInput = z.infer<typeof addCommentThreadInput>;
-export type AddCommentReplyInput = z.infer<typeof addCommentReplyInput>;
-export type EditCommentInput = z.infer<typeof editCommentInput>;
-export type SetCommentThreadResolvedInput = z.infer<typeof setCommentThreadResolvedInput>;
-export type AddCommentThreadResult = z.infer<typeof addCommentThreadResultSchema>;
-export type CommentThreadsResult = z.infer<typeof commentThreadsResultSchema>;

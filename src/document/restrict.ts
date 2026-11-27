@@ -11,18 +11,25 @@ import type {
 import type { Program } from "estree";
 import type { Position } from "unist";
 import { suggestFrom } from "../components/registry.js";
-import { foldProgram, literalProgram, type Json } from "./literal.js";
+import { foldProgram, type Json } from "./literal.js";
 
-export type RestrictDiagnosticCode =
-	| "esm-not-supported"
-	| "non-literal-expression"
-	| "unknown-component"
-	| "removed-component"
-	| "unsupported-element"
-	| "unsupported-attribute"
-	| "invalid-href";
+/** The codes `restrictTree` reports; `DOCUMENT_DIAGNOSTIC_CODES` builds on them. */
+export const RESTRICT_DIAGNOSTIC_CODES = [
+	"esm-not-supported",
+	"non-literal-expression",
+	"unknown-component",
+	"removed-component",
+	"unsupported-element",
+	"unsupported-attribute",
+	"invalid-href",
+] as const;
 
-/** One rule the document broke. The tree has already been repaired when this is reported. */
+type RestrictDiagnosticCode = (typeof RESTRICT_DIAGNOSTIC_CODES)[number];
+
+/**
+ * One rule the document broke. The tree has already been repaired when this is reported.
+ * @internal Exported for its tests.
+ */
 export interface RestrictDiagnostic {
 	code: RestrictDiagnosticCode;
 	message: string;
@@ -42,7 +49,10 @@ export interface RestrictOptions {
 	onDiagnostic?: (diagnostic: RestrictDiagnostic) => void;
 }
 
-/** Lowercase elements a document may write anywhere. */
+/**
+ * Lowercase elements a document may write anywhere.
+ * @internal Exported for its tests.
+ */
 export const SUPPORTED_ELEMENTS: readonly string[] = [
 	"kbd",
 	"abbr",
@@ -65,11 +75,14 @@ export const SUPPORTED_ELEMENTS: readonly string[] = [
 	"img",
 ];
 
-/** Lowercase elements a document may write only inside a `table` element. */
+/**
+ * Lowercase elements a document may write only inside a `table` element.
+ * @internal Exported for its tests.
+ */
 export const TABLE_ELEMENTS: readonly string[] = ["thead", "tbody", "tr", "th", "td"];
 
 /** Builtins that no longer exist. Each is unwrapped like an unknown component, with its own message. */
-export const REMOVED_COMPONENTS: readonly string[] = ["Button", "Dropdown", "Option"];
+const REMOVED_COMPONENTS: readonly string[] = ["Button", "Dropdown", "Option"];
 
 /**
  * Props of builtins that become a link's `href`, scheme-checked like `<a href>`.
@@ -100,17 +113,16 @@ type JsxElement = MdxJsxFlowElement | MdxJsxTextElement;
 type Expression = MdxFlowExpression | MdxTextExpression;
 
 /**
- * A remark plugin that limits a document to builtin components, supported
- * lowercase elements and literal values. It repairs the tree in place so
- * what is left still renders, and reports each repair through
- * `options.onDiagnostic`:
+ * Limit a document to builtin components, supported lowercase elements and
+ * literal values. It repairs `tree` in place so what is left still renders,
+ * and reports each repair through `options.onDiagnostic`:
  *
  * - `import`/`export` blocks are removed.
  * - A brace expression in prose becomes text when it is a literal (an array
  *   or object as its JSON text, a string or number as its text, `true`,
  *   `false` and `null` as nothing) and is removed when it is not.
- * - An attribute expression is rewritten as the literal it folds to, or the
- *   attribute is dropped when it is not a literal.
+ * - An attribute expression is kept when it folds to a literal (the document
+ *   converter folds it again) and dropped when it does not.
  * - An unknown or removed component and an unsupported lowercase element are
  *   unwrapped: the tag goes, its children stay. `script` and `style` go with
  *   their children.
@@ -118,13 +130,6 @@ type Expression = MdxFlowExpression | MdxTextExpression;
  *   `style` and `on*`) is dropped.
  * - A link whose scheme is not http, https or mailto gets an empty href.
  */
-export function remarkRestrict(options: RestrictOptions) {
-	return (tree: Root): void => {
-		restrictTree(tree, options);
-	};
-}
-
-/** Apply the document rules to `tree` in place. See `remarkRestrict`. */
 export function restrictTree(tree: Root, options: RestrictOptions): void {
 	const components = new Set(options.components);
 	const componentNames = [...components];
@@ -342,7 +347,6 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 					});
 					continue;
 				}
-				value.data = { ...value.data, estree: literalProgram(folded.value) };
 				if (tag === "a" && attributeName === "href" && !isAllowedHrefValue(folded.value)) {
 					reportHref(String(folded.value), attribute.position ?? node.position);
 					attribute.value = "";
@@ -409,7 +413,10 @@ function esmMessage(text: string): string {
 	return `\`${snippet(text)}\`: ${keyword} statements are not supported in documents, so it is ignored. Delete the line and use a builtin component (run \`mdxserve components\`), or write the value inline as a literal.`;
 }
 
-/** The text a literal shows in prose: JSON for arrays and objects, the value itself for strings and numbers, nothing for booleans and null. */
+/**
+ * The text a literal shows in prose: JSON for arrays and objects, the value itself for strings and numbers, nothing for booleans and null.
+ * @internal Exported for its tests.
+ */
 export function proseText(value: Json): string {
 	if (value === null || typeof value === "boolean") return "";
 	if (typeof value === "string") return value;
@@ -420,7 +427,10 @@ export function proseText(value: Json): string {
 const SCHEME = /^([A-Za-z][A-Za-z0-9+.-]*):/;
 const ALLOWED_SCHEMES = new Set(["http", "https", "mailto"]);
 
-/** True for http, https and mailto URLs, relative paths and in-page anchors. */
+/**
+ * True for http, https and mailto URLs, relative paths and in-page anchors.
+ * @internal Exported for its tests.
+ */
 export function isAllowedHref(href: string): boolean {
 	// Browsers drop ASCII whitespace and control characters inside a URL's
 	// scheme (`java\tscript:`), so test what the browser would see.

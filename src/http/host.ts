@@ -3,7 +3,10 @@ import type { PermissionMode } from "../servers/bind-host.js";
 
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
-/** The hostname part of a `Host` header: port stripped, IPv6 brackets removed, lower-cased. */
+/**
+ * The hostname part of a `Host` header: port stripped, IPv6 brackets removed, lower-cased.
+ * @internal Exported for its tests.
+ */
 export function hostnameOf(hostHeader: string): string {
 	const trimmed = hostHeader.trim().toLowerCase();
 	if (trimmed.startsWith("[")) {

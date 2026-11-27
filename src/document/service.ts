@@ -201,7 +201,10 @@ export class DocumentService {
 	}
 }
 
-/** Lines in `text` as `spliceLines` counts them: a trailing line ending ends the last line. */
+/**
+ * Lines in `text` as `spliceLines` counts them: a trailing line ending ends the last line.
+ * @internal Exported for its tests.
+ */
 export function countLines(text: string): number {
 	if (text === "") return 0;
 	const lines = text.split(/\r?\n/);

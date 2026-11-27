@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-export const rootsConfigSchema = z.object({ roots: z.array(z.string().min(1)) }).passthrough();
+const rootsConfigSchema = z.object({ roots: z.array(z.string().min(1)) }).passthrough();
 export type ConfigSnapshot = { content: string; value: z.infer<typeof rootsConfigSchema> };
 
 export function readConfig(file: string): ConfigSnapshot {

@@ -17,10 +17,11 @@ const listingEntrySchema = z.object({
 	mtime: z.number().optional(),
 });
 
-export const getFolderListingInput = z.object({ path: z.string() });
+const getFolderListingInput = z.object({ path: z.string() });
 
 // Matches src/listing/folder.ts's FolderListing; the "listing" kind on the
 // client-side Route is added separately.
+/** @internal Exported for its tests. */
 export const folderListingSchema = z.object({
 	path: z.string(),
 	rootName: z.string(),
@@ -28,13 +29,14 @@ export const folderListingSchema = z.object({
 	entries: z.array(listingEntrySchema),
 });
 
-export const getDocTreeInput = z.object({
+const getDocTreeInput = z.object({
 	path: z.string().optional(),
 	maxDepth: z.number().int().min(1).max(8).default(8),
 });
 
 // Recursive schema via zod 4 getter syntax: `children` refers back to
 // `treeNodeSchema` itself, so the reference must be lazy.
+/** @internal Exported for its tests. */
 export const treeNodeSchema: z.ZodType<TreeNode> = z.object({
 	name: z.string(),
 	/** Absolute filesystem path; directories end in "/". */
@@ -48,13 +50,13 @@ export const treeNodeSchema: z.ZodType<TreeNode> = z.object({
 	},
 });
 
-export const docTreeRootSchema = z.object({
+const docTreeRootSchema = z.object({
 	name: z.string(),
 	dir: z.string(),
 	nodes: z.array(treeNodeSchema),
 });
 
-export const docTreeSchema = z.object({
+const docTreeSchema = z.object({
 	roots: z.array(docTreeRootSchema),
 });
 
@@ -96,8 +98,4 @@ const getDocTree = procedure(
 
 export const listingController = { getFolderListing, getDocTree };
 
-export type GetFolderListingInput = z.infer<typeof getFolderListingInput>;
-export type FolderListingOutput = z.infer<typeof folderListingSchema>;
-export type GetDocTreeInput = z.infer<typeof getDocTreeInput>;
-export type DocTree = z.infer<typeof docTreeSchema>;
 export type DocTreeRoot = z.infer<typeof docTreeRootSchema>;

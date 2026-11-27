@@ -4,7 +4,6 @@ import {
 	NO_SERVER_MESSAGE,
 	formatDiagnostic,
 	formatDocTree,
-	formatRoots,
 	formatSearchResults,
 	formatValidationResult,
 } from "../../src/cli/format.js";
@@ -96,10 +95,5 @@ describe("formatters", () => {
 		);
 		expect(text).toBe("docs (/docs)\n  sub/\n  a.md\n\nempty (/empty)\n  (no docs)");
 		expect(formatDocTree([{ name: "docs", dir: "/docs", nodes: [] }], "/x")).toContain("docs (/x)");
-	});
-
-	it("formatRoots lists name and dir, or says none are served", () => {
-		expect(formatRoots([])).toBe("(no folders served)");
-		expect(formatRoots([{ name: "docs", dir: "/docs" }])).toBe("docs  /docs");
 	});
 });

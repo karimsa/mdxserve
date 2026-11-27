@@ -12,7 +12,7 @@ export type AgentStatus = {
 	provider: Provider;
 	state: "ready" | "missing" | "signed-out" | "unsupported" | "error";
 };
-export type DiagramInput = { text: string; image?: Buffer; model: string };
+type DiagramInput = { text: string; image?: Buffer; model: string };
 export type AgentModel = { id: string; label: string };
 export interface AgentPort {
 	models(provider: Provider, signal?: AbortSignal): Promise<AgentModel[]>;

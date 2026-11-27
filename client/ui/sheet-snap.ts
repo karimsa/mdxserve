@@ -1,5 +1,5 @@
 /** Resting heights of the phone bottom sheets, as fractions of the viewport height. */
-export const SHEET_SNAPS = [0.3, 0.6, 0.92] as const;
+const SHEET_SNAPS = [0.3, 0.6, 0.92] as const;
 
 /** The snap the sheet opens at. */
 export const SHEET_DEFAULT_SNAP = 1;

@@ -4,7 +4,7 @@ import type { DocCache } from "../docs/doc-cache.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { isPublicPath, isServable } from "../roots/servable.js";
 
-export interface ListingEntry {
+interface ListingEntry {
 	name: string;
 	isDir: boolean;
 	isDoc: boolean;

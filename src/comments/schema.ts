@@ -20,9 +20,9 @@ export const commentAnchorSchema = z.object({
 	quote: z.string().min(1).max(MAX_ANCHOR_TEXT),
 });
 
-export const commentAuthorSchema = z.enum(["human", "agent"]);
+const commentAuthorSchema = z.enum(["human", "agent"]);
 
-export const commentMessageSchema = z.object({
+const commentMessageSchema = z.object({
 	id: idSchema,
 	author: commentAuthorSchema,
 	body: z.string().min(1).max(MAX_MESSAGE_BODY),
@@ -68,4 +68,3 @@ export type CommentAuthor = z.infer<typeof commentAuthorSchema>;
 export type CommentMessage = z.infer<typeof commentMessageSchema>;
 export type CommentThread = z.infer<typeof commentThreadSchema>;
 export type CommentDiagnostic = z.infer<typeof commentDiagnosticSchema>;
-export type CommentAnchorInput = z.infer<typeof commentAnchorInputSchema>;

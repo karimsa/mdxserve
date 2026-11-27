@@ -21,8 +21,11 @@ import {
 	type MetadataDiagnostic,
 } from "./metadata.js";
 
-// A doc above this size isn't a "quick prose fix" candidate; refuse to load
-// it into the (in-memory, un-virtualized) Tiptap editor at all.
+/**
+ * A doc above this size isn't a "quick prose fix" candidate; refuse to load
+ * it into the (in-memory, un-virtualized) Tiptap editor at all.
+ * @internal Exported for its tests.
+ */
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 
 export interface DocSource {
@@ -43,6 +46,7 @@ export interface DocSource {
  * editor splices its line range into a file that has already moved underneath
  * it. A content digest cannot miss a change (and, as a bonus, treats an edit
  * that was undone back to the original bytes as no change at all).
+ * @internal Exported for its tests.
  */
 export function versionOf(text: string): string {
 	return createHash("sha256").update(text, "utf8").digest("hex");
@@ -102,8 +106,7 @@ export type SaveNodeResult =
 	/** The spliced file has errors the original did not; nothing was written. */
 	| { kind: "invalid-doc"; message: string; diagnostics: Diagnostic[] };
 
-export type FrontmatterUpdate<Abort> =
-	{ kind: "write"; yaml: string } | { kind: "abort"; value: Abort };
+type FrontmatterUpdate<Abort> = { kind: "write"; yaml: string } | { kind: "abort"; value: Abort };
 
 export type UpdateFrontmatterResult<Abort> =
 	| { kind: "ok"; version: string; source: string }

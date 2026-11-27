@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { evaluate } from "@mdx-js/mdx";
-import * as runtime from "react/jsx-runtime";
 import { DocumentService } from "../../src/document/service";
 import { builtinRegistry } from "../helpers/components.js";
 import { NodeList } from "../../client/document/nodes";
-import { Table } from "../../client/Table";
-import { MarkdownTable } from "../../client/MarkdownTable";
 import DataTable from "../../client/builtins/DataTable";
 import {
 	autoUnit,
@@ -139,58 +135,7 @@ async function renderMarkdown(source: string, extension = "md") {
 	);
 	return renderToStaticMarkup(createElement(NodeList, { nodes: tree.children }));
 }
-/**
- * Render raw JSX through MDX with no document rules applied. Documents can no
- * longer write `<Table>`, `className`, `style` or event handlers, but the
- * client table components still receive such props from their own callers,
- * so these tests author them directly.
- */
-async function renderJsx(source: string) {
-	const result = await evaluate({ value: source, path: "table.mdx" }, { ...runtime });
-	return renderToStaticMarkup(
-		createElement(result.default, {
-			components: { table: MarkdownTable, Table: MarkdownTable, DataTable },
-		}),
-	);
-}
 describe("Markdown integration", () => {
-	it.each([MarkdownTable, Table])(
-		"forwards native table attributes when no header is recognized (%#)",
-		(Component) => {
-			const html = renderToStaticMarkup(
-				createElement(
-					Component,
-					{
-						id: "custom-table",
-						className: "custom-layout",
-						style: { width: "50%", borderSpacing: "4px" },
-						"aria-label": "Accessible custom table",
-						"aria-describedby": "table-description",
-						role: "grid",
-						tabIndex: 0,
-						title: "Custom title",
-					},
-					createElement(
-						"tbody",
-						null,
-						createElement("tr", null, createElement("td", null, "Content")),
-					),
-				),
-			);
-
-			const tableTag = html.match(/<table\b[^>]*>/)?.[0];
-			expect(tableTag).toContain('id="custom-table"');
-			expect(tableTag).toContain('class="custom-layout"');
-			expect(tableTag).toContain('style="width:50%;border-spacing:4px"');
-			expect(tableTag).toContain('aria-label="Accessible custom table"');
-			expect(tableTag).toContain('aria-describedby="table-description"');
-			expect(tableTag).toContain('role="grid"');
-			expect(tableTag).toContain('tabindex="0"');
-			expect(tableTag).toContain('title="Custom title"');
-			expect(html).toContain("<td>Content</td>");
-		},
-	);
-
 	it.each(["md", "mdx"])("preserves formatted and linked headers in %s", async (extension) => {
 		const html = await renderMarkdown(
 			"| `--flag` | **Bold** | [Help](#help) |\n| --- | --- | --- |\n| yes | value | link |",
@@ -204,84 +149,15 @@ describe("Markdown integration", () => {
 			expect(button).not.toContain("<a ");
 	});
 
-	it("forwards attributes to the inner table when reconstructing a recognized header", async () => {
-		const html = await renderJsx(
-			'<Table id="custom" aria-label="Custom label" aria-describedby="details" className="layout" style={{width:"50%"}} tabIndex={0}><thead><tr><th>Name</th></tr></thead><tbody><tr><td>API</td></tr></tbody></Table>',
+	it("keeps a written <table>'s native structure instead of rebuilding it as a DataTable", async () => {
+		const html = await renderMarkdown(
+			"<table>\n<thead><tr><th>First</th></tr><tr><th>Second</th></tr></thead>\n<tbody><tr><td>Value</td></tr></tbody>\n</table>\n",
 		);
-		expect(html).toContain('data-table-id="custom"');
-		const tag = html.match(/<table\b[^>]*>/)?.[0];
-		for (const attribute of [
-			'id="custom"',
-			'aria-label="Custom label"',
-			'aria-describedby="details"',
-			'class="layout"',
-			'style="width:50%"',
-			'tabindex="0"',
-		])
-			expect(tag).toContain(attribute);
-	});
-
-	it.each([
-		[
-			"multiple header rows",
-			"<thead><tr><th>First</th></tr><tr><th>Second</th></tr></thead><tbody><tr><td>Value</td></tr></tbody>",
-			"<th>Second</th>",
-		],
-		[
-			"header colspan",
-			"<thead><tr><th colSpan={2}>Group</th></tr></thead><tbody><tr><td>One</td><td>Two</td></tr></tbody>",
-			'colSpan="2"',
-		],
-		[
-			"body rowspan",
-			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td rowSpan={2}>Both</td></tr><tr></tr></tbody>",
-			'rowSpan="2"',
-		],
-		[
-			"body colspan",
-			"<thead><tr><th>One</th><th>Two</th></tr></thead><tbody><tr><td colSpan={2}>Both</td></tr></tbody>",
-			'colSpan="2"',
-		],
-		[
-			"footer",
-			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody><tfoot><tr><td>Total</td></tr></tfoot>",
-			"<tfoot>",
-		],
-		[
-			"caption",
-			"<caption>Important caption</caption><thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody>",
-			"<caption>Important caption</caption>",
-		],
-		[
-			"multiple bodies",
-			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td></tr></tbody><tbody><tr><td>Two</td></tr></tbody>",
-			"<td>Two</td>",
-		],
-		[
-			"uneven rows",
-			"<thead><tr><th>Name</th></tr></thead><tbody><tr><td>One</td><td>Extra</td></tr></tbody>",
-			"<td>Extra</td>",
-		],
-	])("preserves native structure for %s", async (_, children, expected) => {
-		const source = `<Table id="complex" aria-label="Native table">${children}</Table>`;
-		const html = await renderJsx(source);
-		expect(html.toLowerCase()).toContain(expected.toLowerCase());
-		expect(html).toContain('id="complex"');
+		expect(html).toContain(
+			"<table><thead><tr><th>First</th></tr><tr><th>Second</th></tr></thead><tbody><tr><td>Value</td></tr></tbody></table>",
+		);
 		expect(html).not.toContain("data-table-id");
 	});
-
-	it.each(["thead", "tbody", "tr", "th", "td"])(
-		"preserves authored attributes on %s descendants",
-		async (tag) => {
-			const children = "<thead><tr><th>Name</th></tr></thead><tbody><tr><td>East</td></tr></tbody>";
-			const source = `<Table>${children.replace(`<${tag}>`, `<${tag} className="authored" style={{color:"red"}} aria-label="Custom descendant" title="Keep this" onClick={() => {}}>`)}</Table>`;
-			const html = await renderJsx(source);
-			expect(html).toContain(
-				`class="authored" style="color:red" aria-label="Custom descendant" title="Keep this"`,
-			);
-			expect(html).not.toContain("data-table-id");
-		},
-	);
 
 	it("keeps identities with heading context when identical-header tables are inserted or moved", async () => {
 		const table = "| Name | Count |\n| --- | --- |\n| East | 12 |";
@@ -306,27 +182,6 @@ describe("Markdown integration", () => {
 		expect(await renderMarkdown(table)).toContain('data-table-persist="true"');
 	});
 
-	it("preserves alignment from native cell attributes", () => {
-		const html = renderToStaticMarkup(
-			createElement(
-				MarkdownTable,
-				{ id: "alignment" },
-				createElement(
-					"thead",
-					null,
-					createElement("tr", null, createElement("th", { align: "right" }, "Name")),
-				),
-				createElement(
-					"tbody",
-					null,
-					createElement("tr", null, createElement("td", { align: "right" }, "East")),
-				),
-			),
-		);
-
-		expect(html).toMatch(/<th\b[^>]*data-align="right"/);
-		expect(html).toMatch(/<td\b[^>]*data-align="right"/);
-	});
 	it.each(["md", "mdx"])(
 		"preserves explicit GFM alignment independently of inferred types in %s",
 		async (extension) => {

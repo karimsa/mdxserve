@@ -4,23 +4,24 @@ import { procedure, requireLoopback, type ApiContext } from "../api/trpc.js";
 import { DIAGRAM_AGENTS, isDiagramModel } from "../preferences/service.js";
 import { draftSchema } from "./types.js";
 import type { Outcome } from "./service.js";
-export const diagramAgentSchema = z.enum(DIAGRAM_AGENTS);
-export const diagramModelsSchema = z.object({
+const diagramAgentSchema = z.enum(DIAGRAM_AGENTS);
+const diagramModelsSchema = z.object({
 	codex: z.string().refine(isDiagramModel),
 	claude: z.string().refine(isDiagramModel),
 });
-export const diagramPreferencesSchema = z.object({
+const diagramPreferencesSchema = z.object({
 	agent: diagramAgentSchema,
 	configured: z.boolean(),
 	models: diagramModelsSchema,
 });
-export const diagramSessionSchema = z.object({ session: z.uuid() });
+const diagramSessionSchema = z.object({ session: z.uuid() });
+/** @internal Exported for its tests. */
 export const convertDiagramInput = diagramSessionSchema.extend({
 	revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 	text: z.string().max(16000),
 	imageId: z.uuid().optional(),
 });
-export const diagramDraftSchema = draftSchema.extend({ provider: z.enum(["codex", "claude"]) });
+const diagramDraftSchema = draftSchema.extend({ provider: z.enum(["codex", "claude"]) });
 function service(ctx: ApiContext) {
 	if (!ctx.diagrams)
 		throw new TRPCError({

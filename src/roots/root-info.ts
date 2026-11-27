@@ -6,7 +6,7 @@ export interface RootInfo {
 	dir: string;
 }
 
-export function rootNameOf(root: string): string {
+function rootNameOf(root: string): string {
 	return path.basename(root) || root;
 }
 

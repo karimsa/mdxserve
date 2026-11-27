@@ -9,7 +9,7 @@ import { staticIcons } from "./icon-set";
 
 const SIZES = { sm: 14, md: 16, lg: 20, xl: 24 } as const;
 
-export type IconSize = keyof typeof SIZES | number;
+type IconSize = keyof typeof SIZES | number;
 
 export interface IconProps extends Omit<LucideProps, "size" | "strokeWidth" | "ref"> {
 	/** Lucide icon name in kebab-case, e.g. "search", "chevron-right", "file-text". */

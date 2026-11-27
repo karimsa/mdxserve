@@ -1,5 +1,5 @@
 export { zxCommandRunner } from "../infra/process-runner.js";
-export interface CommandResult {
+interface CommandResult {
 	code: number;
 	stderr: string;
 }

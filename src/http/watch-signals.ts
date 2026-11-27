@@ -35,7 +35,10 @@ export function isWatchIgnored(roots: RootInfo[], changedPath: string): boolean 
 	return segments.some(isIgnoredDir);
 }
 
-/** Waits after the first event of a burst before signalling, so a bulk op fires once. */
+/**
+ * Waits after the first event of a burst before signalling, so a bulk op fires once.
+ * @internal Exported for its tests.
+ */
 export const SIGNAL_DEBOUNCE_MS = 100;
 
 /**

@@ -5,21 +5,10 @@ import type {
 	DocumentTree,
 	ElementNode,
 	InlineNode,
-	ListItem,
-	TabNode,
 	TocEntry,
 } from "../../src/document/schema";
 
-export type {
-	BlockNode,
-	ComponentNode,
-	DocumentTree,
-	ElementNode,
-	InlineNode,
-	ListItem,
-	TabNode,
-	TocEntry,
-};
+export type { BlockNode, ComponentNode, DocumentTree, ElementNode, InlineNode, TocEntry };
 
 export type SectionNode = Extract<BlockNode, { type: "section" }>;
 export type CodeNode = Extract<BlockNode, { type: "code" }>;

@@ -3,7 +3,6 @@ import bytes from "bytes";
 import type { z } from "zod";
 import { columnSchema } from "../../shared/builtins/data-table";
 
-export { columnSchema };
 export type Column = z.infer<typeof columnSchema>;
 export type Value = string | number | null;
 export type Row = Record<string, Value>;

@@ -1,19 +1,23 @@
 import type { Root, RootContent } from "mdast";
 import type { MetadataPort } from "../docs/metadata-port.js";
 import { DocumentService } from "../document/service.js";
-import type { DocumentDiagnosticCode } from "../document/diagnostics.js";
+import { DOCUMENT_DIAGNOSTIC_CODES } from "../document/diagnostics.js";
 import { assetUrl } from "../assets/url.js";
 import type { Registry } from "../components/registry.js";
 import { parseComments } from "../comments/frontmatter.js";
 import { anchorDiagnostics } from "../comments/anchor.js";
 import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
 
-export type DiagnosticCode =
-	| DocumentDiagnosticCode
-	| "mermaid-chart"
-	| "frontmatter-metadata"
-	| "frontmatter-comments"
-	| "comment-anchor";
+/** Every code `mdxserve validate` reports: the document's own, then the checks layered on top. */
+export const DIAGNOSTIC_CODES = [
+	...DOCUMENT_DIAGNOSTIC_CODES,
+	"mermaid-chart",
+	"frontmatter-metadata",
+	"frontmatter-comments",
+	"comment-anchor",
+] as const;
+
+type DiagnosticCode = (typeof DIAGNOSTIC_CODES)[number];
 
 export interface Diagnostic {
 	severity: "error" | "warning";
@@ -43,6 +47,7 @@ export interface ValidationResult {
  * `mermaid-chart` errors for mermaid blocks that draw a chart the `<Chart>`
  * builtin draws better. Reads the restricted mdast `DocumentService.parse`
  * returns, for the source position of each block. Pure and synchronous.
+ * @internal Exported for its tests.
  */
 export function analyzeTree(tree: Root): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
@@ -79,6 +84,7 @@ const SCREEN_WORD = /screen/i;
  * images whose alt text or path mention "screen" are probably screenshots,
  * which the `<Screenshot>` builtin frames better than a bare `<img>`. Pure
  * and synchronous, like `analyzeTree`.
+ * @internal Exported for its tests.
  */
 export function collectHints(tree: Root): string[] {
 	const screenshotLines: number[] = [];

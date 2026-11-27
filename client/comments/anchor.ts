@@ -7,7 +7,9 @@
  * two copies agree.
  */
 
+/** @internal Exported for its tests. */
 export const MAX_ANCHOR_TEXT = 500;
+/** @internal Exported for its tests. */
 export const MAX_ANCHOR_HEADING = 300;
 export const MAX_MESSAGE_BODY = 4000;
 
@@ -32,14 +34,17 @@ export interface AnchorFields {
 
 // ── offset mapping ──────────────────────────────────────────────────────────
 
-export interface NormalizedText {
+interface NormalizedText {
 	/** `normalizeText(nodes.join(""))`. */
 	text: string;
 	/** For each normalized character, its index in the joined raw text. */
 	rawIndex: number[];
 }
 
-/** Normalizes the concatenated text nodes and remembers where each character came from. */
+/**
+ * Normalizes the concatenated text nodes and remembers where each character came from.
+ * @internal Exported for its tests.
+ */
 export function normalizeWithMap(nodes: readonly string[]): NormalizedText {
 	const raw = nodes.join("");
 	let text = "";
@@ -141,14 +146,14 @@ export function captureAnchor(
 
 // ── resolve ─────────────────────────────────────────────────────────────────
 
-export interface ResolveBlock {
+interface ResolveBlock {
 	/** Normalized text of the block. */
 	text: string;
 	/** Index into `headings` of the block's section, or -1 before the first heading. */
 	section: number;
 }
 
-export interface ResolveHeading {
+interface ResolveHeading {
 	/** `headingKey` of the heading's text. */
 	key: string;
 	/** Index into `blocks` of the heading's own block. */
@@ -166,8 +171,6 @@ export type Resolution =
 	/** `block` is the heading's block, or -1 for the top of the article. */
 	| { state: "section"; block: number }
 	| { state: "detached" };
-
-export type AnchorState = Resolution["state"];
 
 /** Where the thread sorts in the document: a block index, -1 for the top, Infinity when detached. */
 export function resolutionPosition(resolution: Resolution): number {

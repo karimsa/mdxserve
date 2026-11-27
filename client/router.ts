@@ -68,7 +68,7 @@ function mapRoots(data: DocTreeOutput): RootTree[] {
 }
 
 /** Fetch the doc tree once and cache it; subsequent calls reuse the react-query cache. */
-export async function loadTree(): Promise<{ roots: RootTree[] | null }> {
+async function loadTree(): Promise<{ roots: RootTree[] | null }> {
 	try {
 		const data = await queryClient.ensureQueryData(
 			trpc.getDocTree.queryOptions({}, { staleTime: Infinity }),
@@ -140,13 +140,14 @@ export interface FolderListing {
 
 /**
  * Query options for a folder's listing: disabled for the empty path (the
- * roots home page has no folder of its own), always refetched on mount (an
- * h1 edit only ships as a module HMR update, not a listing-changed event, so
- * a cached listing can be stale the moment it's shown), and never cached
+ * roots home page has no folder of its own), always refetched on mount (a
+ * doc's first h1, which the listing shows as its title, changes without a
+ * listing-changed signal, so a cached listing can be stale the moment it's
+ * shown), and never cached
  * across navigations (`staleTime: 0`) so re-opening a folder mid-session
  * always sees the latest disk state.
  */
-export function listingQueryOptions(folder: string) {
+function listingQueryOptions(folder: string) {
 	const base = trpc.getFolderListing.queryOptions(
 		{ path: folder },
 		{ enabled: folder !== "", staleTime: 0, refetchOnMount: "always" },
@@ -168,7 +169,7 @@ export function listingQueryOptions(folder: string) {
 }
 
 /** Seed the cache for a folder from data already fetched elsewhere (e.g. the initial route). */
-export function seedListing(listing: FolderListingOutput): void {
+function seedListing(listing: FolderListingOutput): void {
 	queryClient.setQueryData(trpc.getFolderListing.queryKey({ path: listing.path }), listing);
 }
 

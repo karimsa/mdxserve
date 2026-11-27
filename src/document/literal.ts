@@ -3,7 +3,7 @@ import type { Expression, Program, Property, SpreadElement } from "estree";
 /** A JSON value: what a document may write inside braces. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-export type FoldResult = { kind: "literal"; value: Json } | { kind: "non-literal" };
+type FoldResult = { kind: "literal"; value: Json } | { kind: "non-literal" };
 
 /** The result of folding the program MDX attaches to a brace expression. */
 export type ProgramFoldResult = FoldResult | { kind: "empty" };
@@ -20,7 +20,7 @@ const NON_LITERAL: FoldResult = { kind: "non-literal" };
  * key (which a JS object literal would treat as a prototype, not a key), is
  * non-literal.
  */
-export function foldExpression(node: Expression | SpreadElement): FoldResult {
+function foldExpression(node: Expression | SpreadElement): FoldResult {
 	switch (node.type) {
 		case "Literal": {
 			if (isRegexOrBigint(node)) return NON_LITERAL;
@@ -108,44 +108,4 @@ export function foldProgram(program: Program | undefined | null): ProgramFoldRes
 	const statement = program.body[0];
 	if (statement.type !== "ExpressionStatement") return NON_LITERAL;
 	return foldExpression(statement.expression);
-}
-
-/** Build the ESTree expression for a JSON value, the inverse of `foldExpression`. */
-export function literalExpression(value: Json): Expression {
-	if (Array.isArray(value)) {
-		return { type: "ArrayExpression", elements: value.map(literalExpression) };
-	}
-	if (value !== null && typeof value === "object") {
-		return {
-			type: "ObjectExpression",
-			properties: Object.entries(value).map(([key, item]): Property => ({
-				type: "Property",
-				key: { type: "Literal", value: key, raw: JSON.stringify(key) },
-				value: literalExpression(item),
-				kind: "init",
-				method: false,
-				shorthand: false,
-				computed: false,
-			})),
-		};
-	}
-	if (typeof value === "number" && value < 0) {
-		return {
-			type: "UnaryExpression",
-			operator: "-",
-			prefix: true,
-			argument: { type: "Literal", value: -value, raw: String(-value) },
-		};
-	}
-	return { type: "Literal", value, raw: JSON.stringify(value) };
-}
-
-/** A program holding one expression statement for `value`, in the shape MDX attaches to an expression. */
-export function literalProgram(value: Json): Program {
-	return {
-		type: "Program",
-		sourceType: "module",
-		body: [{ type: "ExpressionStatement", expression: literalExpression(value) }],
-		comments: [],
-	};
 }

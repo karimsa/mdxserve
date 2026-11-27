@@ -12,13 +12,17 @@ import {
  * Why the open document may be stale: the server said it changed, or this
  * tab could not hear it change (the socket reconnected, or the tab rejoined a
  * document it had left).
+ * @internal Exported for its tests.
  */
 export type DocChangeCause = "changed" | "stale";
 
 type DocListener = (path: string, cause: DocChangeCause) => void;
 type Listener = () => void;
 
-/** The part of a socket.io client socket this module uses, so tests can pass a fake. */
+/**
+ * The part of a socket.io client socket this module uses, so tests can pass a fake.
+ * @internal Exported for its tests.
+ */
 export interface RealtimeSocket {
 	readonly connected: boolean;
 	/** The socket's manager, which owns the reconnection backoff. */
@@ -30,10 +34,17 @@ export interface RealtimeSocket {
 	emit(event: string, payload: unknown, ack: (result: unknown) => void): unknown;
 }
 
-/** socket.io's own reconnection backoff, used while the server is merely unreachable. */
+/**
+ * socket.io's own reconnection backoff, used while the server is merely unreachable.
+ * @internal Exported for its tests.
+ */
 export const RETRY_DELAY_MS = 1000;
+/** @internal Exported for its tests. */
 export const RETRY_DELAY_MAX_MS = 5000;
-/** The retry delay once the server has refused this tab's handshake. */
+/**
+ * The retry delay once the server has refused this tab's handshake.
+ * @internal Exported for its tests.
+ */
 export const REFUSED_RETRY_DELAY_MS = 60_000;
 
 /**
@@ -41,7 +52,7 @@ export const REFUSED_RETRY_DELAY_MS = 60_000;
  * engine.io handshake answered 403, see `acceptsRealtimePeer`), as opposed
  * to a server that is down or restarting, which answers nothing.
  */
-export function isRefusedHandshake(error: unknown): boolean {
+function isRefusedHandshake(error: unknown): boolean {
 	return (
 		typeof error === "object" &&
 		error !== null &&
@@ -74,6 +85,7 @@ function subscribe<Fn>(set: Set<Fn>, listener: Fn): () => void {
  * missed one it signals "stale" itself: on every reconnect (for the open
  * document, the listings and the roots), and when it rejoins a document it
  * had left.
+ * @internal Exported for its tests.
  */
 export function createRealtimeClient(socket: RealtimeSocket): RealtimeClient {
 	const docListeners = new Set<DocListener>();
