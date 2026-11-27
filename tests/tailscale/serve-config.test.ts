@@ -27,6 +27,7 @@ describe("parseServeStatus", () => {
 		expect(config?.entries).toContainEqual({
 			hostname: NAME,
 			port: 443,
+			https: true,
 			path: "/",
 			proxy: { protocol: "http", hostname: "127.0.0.1", port: 8080 },
 			funnel: false,
@@ -41,6 +42,37 @@ describe("parseServeStatus", () => {
 		});
 		const funnelled = config?.entries.filter((entry) => entry.funnel).map((entry) => entry.port);
 		expect(funnelled).toEqual([443]);
+	});
+
+	it("reads the config of a foreground `tailscale serve` (no --bg)", () => {
+		const config = parseServeStatus({
+			Foreground: {
+				"session-1": {
+					TCP: { "8443": { HTTPS: true } },
+					Web: { [`${NAME}:8443`]: { Handlers: { "/": { Proxy: "http://127.0.0.1:4040" } } } },
+					AllowFunnel: { [`${NAME}:8443`]: true },
+				},
+			},
+		});
+		expect(config?.usedPorts).toEqual([8443]);
+		expect(matchingAddresses(config?.entries ?? [], loopbackServer(4040))).toEqual([
+			{ host: `${NAME}:8443`, url: `https://${NAME}:8443/`, funnel: true },
+		]);
+	});
+
+	it("does not report a plain HTTP listener (--http) as an HTTPS address", () => {
+		const config = parseServeStatus({
+			TCP: { "80": { HTTP: true }, "8080": { HTTP: true } },
+			Web: {
+				[`${NAME}:80`]: { Handlers: { "/": { Proxy: "http://127.0.0.1:4040" } } },
+				[`${NAME}:8080`]: { Handlers: { "/docs": { Proxy: "http://127.0.0.1:4040" } } },
+			},
+		});
+		expect(config?.entries.map((entry) => entry.https)).toEqual([false, false]);
+		expect(matchingAddresses(config?.entries ?? [], loopbackServer(4040))).toEqual([]);
+		expect(unsupportedPaths(config?.entries ?? [], loopbackServer(4040))).toEqual([
+			`http://${NAME}:8080/docs`,
+		]);
 	});
 
 	it("reads an empty config as no entries", () => {

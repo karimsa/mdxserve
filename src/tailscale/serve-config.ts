@@ -5,8 +5,10 @@ import { loopbackBindHost } from "../servers/bind-host.js";
 interface ServeEntry {
 	/** `karims-macbook-air.tailda6846.ts.net`, lower-cased. */
 	hostname: string;
-	/** The HTTPS port Tailscale listens on, for example 443 or 4040. */
+	/** The port Tailscale listens on, for example 443 or 4040. */
 	port: number;
+	/** False for a plain HTTP listener (`tailscale serve --http`). */
+	https: boolean;
 	/** The mount path of the handler, for example `/`. */
 	path: string;
 	/** The handler's `Proxy` target, when it is one. */
@@ -38,8 +40,13 @@ export interface ServerEndpoint {
 
 // Only the keys read here are described; Tailscale adds others between
 // versions, and they pass through.
-const serveStatusSchema = z.object({
-	TCP: z.record(z.string(), z.unknown()).optional(),
+const configSchema = z.object({
+	TCP: z
+		.record(
+			z.string(),
+			z.object({ HTTP: z.boolean().optional(), HTTPS: z.boolean().optional() }).loose(),
+		)
+		.optional(),
 	Web: z
 		.record(
 			z.string(),
@@ -51,6 +58,10 @@ const serveStatusSchema = z.object({
 		)
 		.optional(),
 	AllowFunnel: z.record(z.string(), z.boolean()).optional(),
+});
+
+const serveStatusSchema = configSchema.extend({
+	Foreground: z.record(z.string(), configSchema).optional(),
 });
 
 const statusSchema = z.object({
@@ -102,25 +113,34 @@ function parseProxy(target: string | undefined): ServeEntry["proxy"] {
 export function parseServeStatus(json: unknown): ServeConfig | undefined {
 	const parsed = serveStatusSchema.safeParse(json);
 	if (!parsed.success) return undefined;
-	const { TCP: tcp = {}, Web: web = {}, AllowFunnel: allowFunnel = {} } = parsed.data;
 	const entries: ServeEntry[] = [];
 	const usedPorts = new Set<number>();
-	for (const key of Object.keys(tcp)) {
-		const port = parsePort(key);
-		if (port !== undefined) usedPorts.add(port);
-	}
-	for (const [key, site] of Object.entries(web)) {
-		const address = splitHostPort(key);
-		if (address === undefined) continue;
-		usedPorts.add(address.port);
-		for (const [mountPath, handler] of Object.entries(site.Handlers ?? {})) {
-			entries.push({
-				hostname: address.hostname,
-				port: address.port,
-				path: mountPath,
-				proxy: parseProxy(handler.Proxy),
-				funnel: allowFunnel[key] === true,
-			});
+	// A `tailscale serve` run without `--bg` keeps its config under
+	// `Foreground`, one per session, in the same shape as the top level.
+	const configs = [parsed.data, ...Object.values(parsed.data.Foreground ?? {})];
+	for (const { TCP: tcp = {}, Web: web = {}, AllowFunnel: allowFunnel = {} } of configs) {
+		for (const key of Object.keys(tcp)) {
+			const port = parsePort(key);
+			if (port !== undefined) usedPorts.add(port);
+		}
+		for (const [key, site] of Object.entries(web)) {
+			const address = splitHostPort(key);
+			if (address === undefined) continue;
+			usedPorts.add(address.port);
+			const listener = tcp[String(address.port)];
+			// `--http` listeners have web handlers too; anything not marked
+			// plain HTTP is the HTTPS default.
+			const https = !(listener?.HTTP === true && listener.HTTPS !== true);
+			for (const [mountPath, handler] of Object.entries(site.Handlers ?? {})) {
+				entries.push({
+					hostname: address.hostname,
+					port: address.port,
+					https,
+					path: mountPath,
+					proxy: parseProxy(handler.Proxy),
+					funnel: allowFunnel[key] === true,
+				});
+			}
 		}
 	}
 	return { entries, usedPorts: [...usedPorts].sort((left, right) => left - right) };
@@ -151,27 +171,30 @@ function targetsServer(entry: ServeEntry, server: ServerEndpoint): boolean {
 	return listensOnLoopback && LOOPBACK_TARGETS.has(proxy.hostname);
 }
 
-/** The addresses whose `/` proxies to this server. */
+/** The `Host` a browser sends for an entry: the default port for its scheme is left out. */
+function hostOf(entry: ServeEntry): string {
+	const defaultPort = entry.https ? 443 : 80;
+	return entry.port === defaultPort ? entry.hostname : `${entry.hostname}:${entry.port}`;
+}
+
+/** The HTTPS addresses whose `/` proxies to this server. A plain HTTP listener is not one. */
 export function matchingAddresses(entries: ServeEntry[], server: ServerEndpoint): TailnetAddress[] {
 	const addresses = new Map<string, TailnetAddress>();
 	for (const entry of entries) {
-		if (entry.path !== "/" || !targetsServer(entry, server)) continue;
-		const host = entry.port === 443 ? entry.hostname : `${entry.hostname}:${entry.port}`;
+		if (!entry.https || entry.path !== "/" || !targetsServer(entry, server)) continue;
+		const host = hostOf(entry);
 		addresses.set(host, { host, url: `https://${host}/`, funnel: entry.funnel });
 	}
 	return [...addresses.values()];
 }
 
 /**
- * The `https://<address><path>` of each entry that proxies to this server
- * under a path other than `/`. The client asks for absolute `/__mdxserve/...`
- * URLs, so such a mount cannot serve it.
+ * The URL of each entry that proxies to this server under a path other than
+ * `/`. The client asks for absolute `/__mdxserve/...` URLs, so such a mount
+ * cannot serve it.
  */
 export function unsupportedPaths(entries: ServeEntry[], server: ServerEndpoint): string[] {
 	return entries
 		.filter((entry) => entry.path !== "/" && targetsServer(entry, server))
-		.map((entry) => {
-			const host = entry.port === 443 ? entry.hostname : `${entry.hostname}:${entry.port}`;
-			return `https://${host}${entry.path}`;
-		});
+		.map((entry) => `${entry.https ? "https" : "http"}://${hostOf(entry)}${entry.path}`);
 }
