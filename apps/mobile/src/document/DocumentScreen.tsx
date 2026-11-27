@@ -31,6 +31,7 @@ import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { SectionHeading } from "@mdxserve/ui/document/elements";
 import {
 	DocumentEnvironmentProvider,
+	useDocumentEnvironment,
 	type DocumentEnvironment,
 } from "@mdxserve/ui/document/environment";
 import {
@@ -178,6 +179,26 @@ function StateView({
 		</ScrollView>
 	);
 }
+
+/** A card whose link goes where a Markdown link goes: through the screen's link handler. */
+function DocumentCard({ href, ...props }: ComponentProps<typeof Card>) {
+	const { openLink } = useDocumentEnvironment();
+	return (
+		<Card {...props} href={href} onPress={href && openLink ? () => openLink(href) : undefined} />
+	);
+}
+
+/** A screenshot whose file loads from the server, as a Markdown image does. */
+function DocumentScreenshot(props: ComponentProps<typeof Screenshot>) {
+	const { assetUrl } = useDocumentEnvironment();
+	return <Screenshot {...props} src={assetUrl(props.src)} />;
+}
+
+const SCREEN_COMPONENTS = {
+	...appDocumentEnvironment.components,
+	Card: DocumentCard,
+	Screenshot: DocumentScreenshot,
+};
 
 /** One row of the document: its nodes, drawn by the shared renderers. */
 const RowView = memo(function RowView({ nodes }: { nodes: readonly TreeNode[] }) {
@@ -388,16 +409,7 @@ function DocumentReader({
 		const assetUrl = (src: string) => assetUrlOn(origin, src);
 		return {
 			...appDocumentEnvironment,
-			components: {
-				...appDocumentEnvironment.components,
-				// A card's link and a screenshot's file go where a Markdown link and image go.
-				Card: ({ href, ...props }: ComponentProps<typeof Card>) => (
-					<Card {...props} href={href} onPress={href ? () => openLink(href) : undefined} />
-				),
-				Screenshot: (props: ComponentProps<typeof Screenshot>) => (
-					<Screenshot {...props} src={assetUrl(props.src)} />
-				),
-			},
+			components: SCREEN_COMPONENTS,
 			// A new address makes a new environment, so every image reloads from it.
 			assetUrl,
 			renderTaskBox: (item) => <DocumentTaskBox item={item} />,
