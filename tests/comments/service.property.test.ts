@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { CommentsService } from "../../src/comments/service.js";
 import { parseComments } from "../../src/comments/frontmatter.js";
 import { MAX_YAML_BYTES, parseMetadata } from "../../src/docs/metadata.js";

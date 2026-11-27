@@ -1,5 +1,5 @@
 import path from "node:path";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { afterAll, beforeAll, describe, it } from "vitest";
 import type { Socket } from "socket.io-client";
 import type { PermissionMode } from "../../src/servers/bind-host.js";

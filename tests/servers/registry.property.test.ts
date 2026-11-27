@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { ServerRegistry } from "../../src/servers/server-registry.js";
 
 // 25 fresh sqlite files per property; the CI runner has taken >5 s.

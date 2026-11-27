@@ -1,6 +1,6 @@
 import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";

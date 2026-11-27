@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { isServable } from "../../src/roots/servable.js";
 import { TrashService } from "../../src/trash/service.js";
 

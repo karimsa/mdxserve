@@ -19,6 +19,7 @@ vi.mock("../../client/api", () => ({
 }));
 
 beforeEach(() => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("matchMedia", () => ({
 		matches: false,
 		addEventListener() {},
@@ -29,6 +30,7 @@ beforeEach(() => {
 afterEach(() => {
 	shellInfo.permissions = "full";
 	getNodeSource.mockClear();
+	vi.unstubAllGlobals();
 });
 
 async function render(view: ReturnType<typeof createElement>) {

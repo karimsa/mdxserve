@@ -8,6 +8,7 @@ import { Modal } from "../../client/ui/Modal";
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	// jsdom does not implement the native dialog lifecycle. Browser verification
 	// covers focus trapping and native Escape dispatch; these tests cover policy.
 	HTMLDialogElement.prototype.showModal = function () {
@@ -24,6 +25,7 @@ afterEach(async () => {
 	await act(async () => root.unmount());
 	host.remove();
 	document.body.style.overflow = "";
+	vi.unstubAllGlobals();
 });
 
 function outsideClick(dialog: HTMLDialogElement, startOutside = true) {

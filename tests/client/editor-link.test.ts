@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { modifiedLinkHref } from "../../client/editor-link.js";
 
 const click = (over: Partial<{ button: number; metaKey: boolean; ctrlKey: boolean }> = {}) => ({

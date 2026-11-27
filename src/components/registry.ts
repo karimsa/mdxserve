@@ -28,7 +28,9 @@ export function loadRegistry(): Registry {
 		raw = fs.readFileSync(registryPath, "utf8");
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-			throw new Error(`${missingBuildArtifact("dist/registry.json")} (looked in ${registryPath})`);
+			throw new Error(`${missingBuildArtifact("dist/registry.json")} (looked in ${registryPath})`, {
+				cause: error,
+			});
 		}
 		throw error;
 	}

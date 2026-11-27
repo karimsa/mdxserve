@@ -30,6 +30,6 @@ export function bodyLines(source: string): string[] {
 	const lines = source.split(/\r\n|\r|\n/);
 	// Avoid parsing ordinary documents just to establish that they have no metadata.
 	if (!/^\uFEFF?---[\t ]*(?:\r\n|\r|\n|$)/.test(source)) return lines;
-	const frontmatter = leadingFrontmatter(source);
-	return frontmatter ? lines.slice(frontmatter.endLine) : lines;
+	const metadata = leadingFrontmatter(source);
+	return metadata ? lines.slice(metadata.endLine) : lines;
 }

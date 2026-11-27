@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxExpressionAttribute } from "mdast-util-mdx";
 import { foldProgram } from "../../src/document/literal.js";

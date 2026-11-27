@@ -43,6 +43,7 @@ const result = {
 	provider: "codex",
 };
 beforeEach(async () => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.useFakeTimers();
 	vi.clearAllMocks();
 	rpc.parse.mockResolvedValue(false);
@@ -71,6 +72,7 @@ afterEach(async () => {
 	await act(async () => root.unmount());
 	host.remove();
 	vi.useRealTimers();
+	vi.unstubAllGlobals();
 });
 async function enter(text: string) {
 	const input = document.querySelector<HTMLTextAreaElement>("#diagram-input")!;

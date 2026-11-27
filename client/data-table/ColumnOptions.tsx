@@ -116,8 +116,8 @@ export function ColumnOptions({
 							)}
 							)
 						</option>
-						{(column.type === "time" ? timeUnits : byteUnits).map((unit) => (
-							<option key={unit}>{unit}</option>
+						{(column.type === "time" ? timeUnits : byteUnits).map((choice) => (
+							<option key={choice}>{choice}</option>
 						))}
 					</select>
 				</label>

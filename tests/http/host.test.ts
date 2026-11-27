@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import type http from "node:http";
 import { hostnameOf, isSameOrigin, isTrustedHost, realtimePeerCheck } from "../../src/http/host.js";
 

@@ -8,6 +8,23 @@
 	"ignorePatterns": ["dist", "node_modules", ".yarn", "example", "skills"],
 	"rules": {
 		"react/react-in-jsx-scope": "off",
+		// Stylesheets are imported for their side effect; Vite bundles them.
+		"import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+		// The `__mdxserve*` window slots keep one instance per tab across HMR
+		// re-executions; `_def` is tRPC's own router field.
+		"eslint/no-underscore-dangle": [
+			"warn",
+			{
+				"allow": [
+					"__mdxserveQueryClient",
+					"__mdxserveTrpcClient",
+					"__mdxserveRealtimeBound",
+					"__mdxserveRealtime",
+					"__mdxserveRoot",
+					"_def"
+				]
+			}
+		],
 		// AGENTS.md: never use single-letter variable names, even for small
 		// things like `.map(e => e)` or try/catch statements.
 		//

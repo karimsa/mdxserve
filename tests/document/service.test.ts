@@ -258,8 +258,8 @@ describe("DocumentService.parse — fallback parse", () => {
 		["an unclosed <Callout", "<Callout"],
 		["an unclosed inline code run", "text `` open {"],
 	])("keeps %s in its own section, so later sections still escape a bare <", (_, broken) => {
-		const source = `## A\n\n${broken}\n\n## B\n\nx < 5\n\n## C\n\nfine\n`;
-		const { tree, diagnostics } = parse(source);
+		const markdown = `## A\n\n${broken}\n\n## B\n\nx < 5\n\n## C\n\nfine\n`;
+		const { tree, diagnostics } = parse(markdown);
 		expect(tree.children.map((node) => [node.type, (node as { id: string }).id])).toEqual([
 			["error", "a"],
 			["section", "b"],

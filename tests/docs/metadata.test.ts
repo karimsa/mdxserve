@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_METADATA_PREFIX_BYTES, parseMetadata } from "../../src/docs/metadata.js";
-import fc from "fast-check";
+import * as fc from "fast-check";
 
 describe("frontmatter metadata", () => {
 	it.each(["md", "mdx"])("normalizes ordered and repeated Open Graph values for .%s", () => {

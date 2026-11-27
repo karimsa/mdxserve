@@ -1,4 +1,4 @@
-import fc from "fast-check";
+import * as fc from "fast-check";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { describeDocChange } from "../../src/http/doc-change.js";

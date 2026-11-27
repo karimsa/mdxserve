@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
 
 // Printable ASCII, no \r or \n by construction — exactly the "line" alphabet

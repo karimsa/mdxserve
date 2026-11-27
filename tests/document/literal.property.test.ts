@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { foldProgram, type Json } from "../../src/document/literal.js";
 import { programOf } from "./estree.js";
 

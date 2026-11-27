@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { getDefaultStore } from "jotai";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryClient, trpc } from "../../client/api";
 import { DocumentView } from "../../client/document/DocumentView";
 import { revealNode } from "../../client/document/reveal";
@@ -113,6 +113,18 @@ function seed(document: DocumentTree) {
 		version: "version",
 	});
 }
+
+// The matchMedia stub below matches every query, prefers-reduced-motion
+// included, so framer-motion skips animations and warns about it once.
+const REDUCED_MOTION_NOTICE = "You have Reduced Motion enabled on your device.";
+const consoleWarn = console.warn;
+beforeAll(() => {
+	vi.spyOn(console, "warn").mockImplementation((message?: unknown, ...rest: unknown[]) => {
+		if (typeof message === "string" && message.startsWith(REDUCED_MOTION_NOTICE)) return;
+		consoleWarn(message, ...rest);
+	});
+});
+afterAll(() => vi.mocked(console.warn).mockRestore());
 
 let root: Root;
 let host: HTMLDivElement;

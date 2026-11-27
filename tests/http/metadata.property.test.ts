@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { JSDOM } from "jsdom";
 import { renderShell } from "../../src/http/shell.js";
 import { shellTemplate } from "../helpers/http.js";

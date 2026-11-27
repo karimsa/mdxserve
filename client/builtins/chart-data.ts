@@ -108,7 +108,7 @@ export function binValues(values: number[], bins?: number): HistogramBin[] {
 	});
 	for (const value of finite) {
 		// Use the rounded edges so boundary values agree with the displayed ranges.
-		const index = result.findIndex((bin, index) => index === count - 1 || value < bin.end);
+		const index = result.findIndex((bin, binIndex) => binIndex === count - 1 || value < bin.end);
 		result[index]!.value++;
 	}
 	return result;

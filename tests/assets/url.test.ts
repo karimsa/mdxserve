@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { assetUrl, GET_ASSET_PATH, getAssetUrl } from "../../src/assets/url.js";
 
 /** The absolute path a `getAsset` URL names, and its fragment. */

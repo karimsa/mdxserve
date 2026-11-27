@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { MCP_CLEANUPS, planSetup } from "../../src/setup/plan.js";
 
 const availableArb = fc.subarray(["claude", "codex", "other"]).map((names) => new Set(names));
