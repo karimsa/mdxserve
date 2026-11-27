@@ -19,6 +19,13 @@ const config: ExpoConfig = {
 		bundleIdentifier: "co.alibhai.mdxserve",
 		appleTeamId: "2C843H3ZG6",
 		supportsTablet: true,
+		// Plain HTTP to a server on the local network (`http://192.168.1.10:4040`): App Transport
+		// Security allows it to IP addresses, unqualified names and `.local` with this key. HTTPS
+		// `*.ts.net` needs nothing. Expo Go has its own Info.plist, so this applies only to a
+		// development or TestFlight build, and is untested on a device until there is one.
+		infoPlist: {
+			NSAppTransportSecurity: { NSAllowsLocalNetworking: true },
+		},
 	},
 	android: {
 		package: "co.alibhai.mdxserve",

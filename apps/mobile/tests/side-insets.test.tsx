@@ -62,7 +62,7 @@ describe("layout beside the system's vertical bar", () => {
 		expect(contentPadding("home-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("puts the wordmark in the header and Settings in the native bar, where iOS can move it", async () => {
+	it("puts the wordmark in the header and Settings and Servers in the native bar, where iOS can move it", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
 		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
@@ -73,6 +73,11 @@ describe("layout beside the system's vertical bar", () => {
 				type: "button",
 				accessibilityLabel: "Settings",
 				icon: { type: "sfSymbol", name: "gearshape" },
+			}),
+			expect.objectContaining({
+				type: "button",
+				accessibilityLabel: "Servers",
+				icon: { type: "sfSymbol", name: "server.rack" },
 			}),
 		]);
 		expect(findHost(header.children, "RNSScreenStackHeaderSubview")!.props.type).toBe("center");
