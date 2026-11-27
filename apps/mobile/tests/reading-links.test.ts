@@ -73,6 +73,11 @@ describe("resolveLink", () => {
 			fragment: "",
 		});
 		expect(resolveLink("../../../x.md", "C:\\docs\\intro.md")).toMatchObject({ path: "C:\\x.md" });
+		expect(resolveLink("\\\\nas\\share\\notes\\other.md", "C:\\docs\\guide\\intro.md")).toEqual({
+			kind: "document",
+			path: "\\\\nas\\share\\notes\\other.md",
+			fragment: "",
+		});
 	});
 
 	it("never climbs above the root and always gives an absolute path (property)", () => {

@@ -51,10 +51,16 @@ export function resolveLink(href: string, docPath: string): LinkTarget {
 	const pathPart = before.split("?")[0] ?? "";
 	if (pathPart === "") return fragment === "" ? { kind: "none" } : { kind: "here", fragment };
 
-	const absolute = pathPart.startsWith("/") || /^[a-z]:[\\/]/i.test(pathPart);
+	// A UNC path (two backslashes, a host, a share) starts at its share, kept whole as `pathSegments` keeps it.
+	const unc = pathPart.startsWith("\\\\");
+	const absolute = unc || pathPart.startsWith("/") || /^[a-z]:[\\/]/i.test(pathPart);
 	const docSegments = pathSegments(docPath);
-	const segments = absolute ? [] : docSegments.slice(0, -1);
-	const written = pathPart.split(/[\\/]/);
+	const segments = unc
+		? pathSegments(pathPart).slice(0, 1)
+		: absolute
+			? []
+			: docSegments.slice(0, -1);
+	const written = unc ? pathSegments(pathPart).slice(1) : pathPart.split(/[\\/]/);
 	for (const raw of written) {
 		const segment = decode(raw);
 		if (segment === "" || segment === ".") continue;
