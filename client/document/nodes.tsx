@@ -38,6 +38,9 @@ const EditScopeContext = createContext<EditScope>("root");
 /** Inside a paragraph, heading or table cell a component or element is inline. */
 const InlineContext = createContext(false);
 
+/** The id of the generated "Footnotes" heading, as GFM names it. */
+export const FOOTNOTES_ID = "footnote-label";
+
 /** What a footnote reference needs: its footnote's number and its own place among that footnote's references. */
 export interface FootnoteInfo {
 	numbers: ReadonlyMap<string, number>;
@@ -386,17 +389,6 @@ function elementProps(node: ElementNode): Record<string, unknown> {
 
 function ElementView({ node }: { node: ElementNode }) {
 	if (!ELEMENT_TAGS.has(node.tag)) return <Placeholder what={`element <${node.tag}>`} />;
-	if (node.tag === "table") {
-		return (
-			<div className="data-table">
-				<div className="data-table-scroll">
-					<table>
-						<NodeList nodes={node.children} />
-					</table>
-				</div>
-			</div>
-		);
-	}
 	const props = elementProps(node);
 	if (VOID_TAGS.has(node.tag)) return createElement(node.tag, props);
 	if (node.tag === "details") {
@@ -431,7 +423,7 @@ function FootnoteReference({ node }: { node: Extract<InlineNode, { type: "footno
 				href={`#${ids.definition}`}
 				id={ids.reference}
 				data-footnote-ref=""
-				aria-describedby="footnote-label"
+				aria-describedby={FOOTNOTES_ID}
 			>
 				{number ?? "?"}
 			</a>

@@ -373,9 +373,14 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		scope: Scope,
 		position: "flow" | "text",
 	): (BlockNode | InlineNode)[] {
-		return position === "flow"
-			? convertContainer(node.children as FlowNode[], scope)
-			: convertInlines(node.children as PhrasingContent[], scope);
+		// A one-line `<Callout>text</Callout>` is inline JSX lifted to flow: its
+		// children stay inline, as MDX renders them, not wrapped in a paragraph.
+		const inline =
+			position === "text" ||
+			(node.children.length > 0 && node.children.every((child) => PHRASING_TYPES.has(child.type)));
+		return inline
+			? convertInlines(node.children as PhrasingContent[], scope)
+			: convertContainer(node.children as FlowNode[], scope);
 	}
 
 	function convertComponent(

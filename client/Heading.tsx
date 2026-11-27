@@ -9,15 +9,17 @@ import type { ReactNode } from "react";
 export function Heading({
 	level,
 	id,
+	className,
 	children,
 }: {
 	level: 1 | 2 | 3 | 4 | 5 | 6;
 	id: string;
+	className?: string;
 	children: ReactNode;
 }) {
 	const Tag = `h${level}` as const;
 	return (
-		<Tag id={id}>
+		<Tag id={id} className={className}>
 			{children}
 			{level >= 2 && level <= 4 ? (
 				<a className="mdx-anchor" href={"#" + id} aria-label="Link to this section">

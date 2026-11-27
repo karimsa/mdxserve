@@ -563,3 +563,15 @@ describe("DocumentService.parse — invalid-prop, one per builtin", () => {
 		expect(JSON.stringify(tree)).toContain('"props":{"tone":"ok"}');
 	});
 });
+
+describe("DocumentService.parse — block builtin content", () => {
+	it("keeps the text of a one-line builtin inline, and wraps a multi-line body in a paragraph", () => {
+		const { tree } = parse(
+			'<Callout title="One">Inline **body**.</Callout>\n\n<Callout title="Two">\nBlock body.\n</Callout>\n',
+		);
+		const preamble = tree.children[0] as Extract<BlockNode, { type: "preamble" }>;
+		const [one, two] = preamble.children as Extract<BlockNode, { type: "component" }>[];
+		expect(one.children.map((child) => child.type)).toEqual(["text", "strong", "text"]);
+		expect(two.children.map((child) => child.type)).toEqual(["paragraph"]);
+	});
+});

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryClient, trpc } from "../../client/api";
 import { DocumentView } from "../../client/document/DocumentView";
 import { revealNode } from "../../client/document/reveal";
+import { useToc } from "../../client/shell/useToc";
 import { tabSelectionAtom } from "../../client/document/tabs-state";
 import { DocumentService } from "../../src/document/service";
 import { builtinRegistry } from "../helpers/components.js";
@@ -237,6 +238,44 @@ describe("footnotes and literal children", () => {
 			link.getAttribute("href"),
 		);
 		expect(backrefs).toEqual(["#user-content-fnref-n", "#user-content-fnref-n-2"]);
+	});
+
+	it("gives the footnotes heading its anchor link", async () => {
+		seed(parse("One[^n].\n\n[^n]: The note.\n"));
+		await mount();
+		const heading = host.querySelector("h2#footnote-label")!;
+		expect(heading.classList.contains("sr-only")).toBe(true);
+		expect(heading.querySelector("a.mdx-anchor")?.getAttribute("href")).toBe("#footnote-label");
+	});
+
+	it("lists the footnotes heading last in the table of contents", async () => {
+		seed(parse("## Body\n\nOne[^n].\n\n[^n]: The note.\n"));
+		let labels: string[] = [];
+		function Probe() {
+			labels = useToc(PATH, 0).items.map((item) => `${item.id}:${item.label}`);
+			return null;
+		}
+		await act(async () =>
+			root.render(
+				createElement(QueryClientProvider, { client: queryClient }, createElement(Probe)),
+			),
+		);
+		expect(labels).toEqual(["body:Body", "footnote-label:Footnotes"]);
+	});
+
+	it("renders an authored table as a plain table with its spans and alignment", async () => {
+		seed(
+			parse(
+				'<table><thead><tr><th>H1</th><th>H2</th></tr></thead><tbody><tr><td colspan={2} align="center">spans two</td></tr><tr><td rowspan={2}>a</td><td>b</td></tr></tbody></table>\n',
+			),
+		);
+		await mount();
+		const table = host.querySelector("article table")!;
+		expect(table.closest(".data-table")).toBeNull();
+		const cells = [...table.querySelectorAll("td")];
+		expect(cells[0].colSpan).toBe(2);
+		expect(cells[0].getAttribute("align")).toBe("center");
+		expect(cells[1].rowSpan).toBe(2);
 	});
 
 	it("renumbers references in unchanged sections when a reference moves", async () => {

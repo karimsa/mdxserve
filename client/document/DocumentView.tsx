@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { queryClient, trpc } from "../api";
 import { DocContext } from "../DocContext";
+import { Heading } from "../Heading";
 import { ErrorBox } from "../ErrorBox";
 import { useFullWidth } from "../hooks";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "../state";
 import { fragmentOf, indexDocument, resolveFragment, type DocumentIndex } from "./document-index";
-import { FootnoteContext, NodeList, footnoteIds, type FootnoteInfo } from "./nodes";
+import { FOOTNOTES_ID, FootnoteContext, NodeList, footnoteIds, type FootnoteInfo } from "./nodes";
 import { documentQueryOptions } from "./query";
 import { clearOpenDocument, revealNode, setOpenDocument } from "./reveal";
 import type { DocumentTree } from "./tree-types";
@@ -56,9 +57,9 @@ const Footnotes = memo(function Footnotes({ index }: { index: DocumentIndex }) {
 	if (index.footnotes.length === 0) return null;
 	return (
 		<section data-footnotes="" className="footnotes">
-			<h2 className="sr-only" id="footnote-label">
+			<Heading level={2} id={FOOTNOTES_ID} className="sr-only">
 				Footnotes
-			</h2>
+			</Heading>
 			<ol>
 				{index.footnotes.map((definition) => {
 					const ids = footnoteIds(definition.label);
