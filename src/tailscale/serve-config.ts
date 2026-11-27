@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { z } from "zod";
 import { loopbackBindHost } from "../servers/bind-host.js";
 
@@ -160,17 +161,30 @@ const LOOPBACK_TARGETS = new Set(["127.0.0.1", "localhost", "::1"]);
 const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
 
 /**
- * Whether an entry's proxy target is this server, whatever path it is
- * mounted at. A loopback target only reaches a server that listens on
- * loopback: one bound to loopback, or to every interface.
+ * Whether a connection to `target` reaches a listener bound to `bound`.
+ * A concrete address only answers on itself; `localhost` is dialled on both
+ * families, so it reaches either loopback. `0.0.0.0` answers every IPv4
+ * address, and `::` (dual-stack) every address.
  */
+function reaches(target: string, bound: string): boolean {
+	if (target === bound) return true;
+	if (target === "localhost") {
+		return WILDCARD_HOSTS.has(bound) || bound === "127.0.0.1" || bound === "::1";
+	}
+	if (bound === "::") return LOOPBACK_TARGETS.has(target) || isIPv4Loopback(target);
+	if (bound === "0.0.0.0") return isIPv4Loopback(target);
+	return false;
+}
+
+function isIPv4Loopback(address: string): boolean {
+	return isIP(address) === 4 && loopbackBindHost(address) !== undefined;
+}
+
+/** Whether an entry's proxy target is this server, whatever path it is mounted at. */
 function targetsServer(entry: ServeEntry, server: ServerEndpoint): boolean {
 	const proxy = entry.proxy;
 	if (proxy === null || proxy.protocol !== "http" || proxy.port !== server.port) return false;
-	const bound = server.boundHost.toLowerCase();
-	if (proxy.hostname === bound) return true;
-	const listensOnLoopback = WILDCARD_HOSTS.has(bound) || loopbackBindHost(bound) !== undefined;
-	return listensOnLoopback && LOOPBACK_TARGETS.has(proxy.hostname);
+	return reaches(proxy.hostname, server.boundHost.toLowerCase());
 }
 
 /** The `Host` a browser sends for an entry: the default port for its scheme is left out. */

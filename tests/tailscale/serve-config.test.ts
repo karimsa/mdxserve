@@ -173,6 +173,24 @@ describe("matchingAddresses", () => {
 		expect(matchingAddresses(local, { port: 4040, boundHost: "192.168.1.10" })).toEqual([]);
 	});
 
+	it("matches a concrete loopback target only to a listener that answers on it", () => {
+		const entriesFor = (target: string) =>
+			parseServeStatus({
+				Web: { [`${NAME}:443`]: { Handlers: { "/": { Proxy: `http://${target}:4040` } } } },
+			})?.entries ?? [];
+		const matches = (target: string, boundHost: string) =>
+			matchingAddresses(entriesFor(target), { port: 4040, boundHost }).length === 1;
+		expect(matches("[::1]", "127.0.0.1")).toBe(false);
+		expect(matches("127.0.0.1", "::1")).toBe(false);
+		expect(matches("127.0.0.2", "127.0.0.1")).toBe(false);
+		expect(matches("[::1]", "0.0.0.0")).toBe(false);
+		expect(matches("127.0.0.2", "0.0.0.0")).toBe(true);
+		expect(matches("[::1]", "::")).toBe(true);
+		expect(matches("127.0.0.1", "::")).toBe(true);
+		expect(matches("[::1]", "::1")).toBe(true);
+		expect(matches("localhost", "127.0.0.1")).toBe(true);
+	});
+
 	it("matches a target that is the bound address", () => {
 		const config = parseServeStatus({
 			Web: { [`${NAME}:443`]: { Handlers: { "/": { Proxy: "http://192.168.1.10:4040" } } } },
