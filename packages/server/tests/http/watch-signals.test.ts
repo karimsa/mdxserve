@@ -115,4 +115,20 @@ describe("isWatchIgnored", () => {
 		expect(isWatchIgnored(hiddenRoots, "/home/.codex/plans/a.md")).toBe(false);
 		expect(isWatchIgnored(hiddenRoots, "/home/.codex/plans/.cache/a.md")).toBe(true);
 	});
+
+	it("watches a root nested in another root's hidden folder, in either order", () => {
+		const outer = { name: "home", dir: "/home" };
+		const inner = { name: "plans", dir: "/home/.codex/plans" };
+		for (const nested of [
+			[outer, inner],
+			[inner, outer],
+		]) {
+			expect(isWatchIgnored(nested, "/home/.codex/plans")).toBe(false);
+			expect(isWatchIgnored(nested, "/home/.codex/plans/a.md")).toBe(false);
+			expect(isWatchIgnored(nested, "/home/.codex/plans/.cache/a.md")).toBe(true);
+			expect(isWatchIgnored(nested, "/home/.codex/config.toml")).toBe(true);
+			expect(isWatchIgnored(nested, "/home/.claude/worktrees/a/README.md")).toBe(true);
+			expect(isWatchIgnored(nested, "/home/notes/a.md")).toBe(false);
+		}
+	});
 });

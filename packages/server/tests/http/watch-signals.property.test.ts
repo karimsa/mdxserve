@@ -48,4 +48,23 @@ describe("isWatchIgnored properties", () => {
 			),
 		);
 	});
+
+	it("does not depend on the order of the roots", () => {
+		fc.assert(
+			fc.property(
+				fc.array(fc.oneof(plainSegment, hiddenSegment), { minLength: 1, maxLength: 2 }),
+				fc.array(fc.oneof(plainSegment, skippedSegment), { minLength: 1, maxLength: 2 }),
+				fc.array(fc.oneof(plainSegment, skippedSegment), { maxLength: 3 }),
+				ext,
+				(outerSegs, innerSegs, fileSegs, extension) => {
+					const outer = { name: "outer", dir: "/" + outerSegs.join("/") };
+					const inner = { name: "inner", dir: path.join(outer.dir, ...innerSegs) };
+					const file = path.join(inner.dir, ...fileSegs, "file" + extension);
+					const alone = isWatchIgnored([inner], file);
+					expect(isWatchIgnored([outer, inner], file)).toBe(alone);
+					expect(isWatchIgnored([inner, outer], file)).toBe(alone);
+				},
+			),
+		);
+	});
 });
