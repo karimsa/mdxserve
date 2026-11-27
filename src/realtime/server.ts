@@ -17,8 +17,8 @@ export interface RealtimeDeps {
 	docs: Pick<DocsService, "locateDocument">;
 	/** Restricted mode applies the public reader's path rules to a join, as it does to `getDocument`. */
 	permissions: PermissionMode;
-	/** Runs on every handshake; false refuses the connection. */
-	acceptsPeer: (req: http.IncomingMessage) => boolean;
+	/** Runs on every handshake; false, a rejection or a throw refuses the connection. */
+	acceptsPeer: (req: http.IncomingMessage) => boolean | Promise<boolean>;
 }
 
 /** What `start.ts` calls when the watcher or the roots service reports a change. */
@@ -70,7 +70,14 @@ export function attachRealtime(httpServer: http.Server, deps: RealtimeDeps): Rea
 	const io = new Server<ClientToServerEvents, ServerToClientEvents, never, SocketData>(httpServer, {
 		path: REALTIME_PATH,
 		serveClient: false,
-		allowRequest: (req, callback) => callback(null, deps.acceptsPeer(req)),
+		allowRequest: (req, callback) => {
+			Promise.resolve()
+				.then(() => deps.acceptsPeer(req))
+				.then(
+					(accepted) => callback(null, accepted === true),
+					() => callback(null, false),
+				);
+		},
 	});
 	const publicOnly = deps.permissions === "restricted";
 

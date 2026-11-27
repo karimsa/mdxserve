@@ -192,6 +192,45 @@ to a loopback listener:
 mdxserve serve --permissions restricted -w ./public
 ```
 
+### Through `tailscale serve`
+
+To read and edit from your other devices, keep the server on loopback and publish it to your
+tailnet with `tailscale serve`, which proxies HTTPS on the tailnet to the local port. When
+Tailscale is running and nothing publishes the server yet, startup prints the command on
+stderr, for example:
+
+```text
+Tailscale is running. To open this server from your other devices over HTTPS:
+  tailscale serve --bg --https=4040 http://127.0.0.1:4040
+It will be at https://my-laptop.tail1234.ts.net:4040 (tailnet only).
+```
+
+Once an entry proxies `/` to the server's port, startup lists its address as
+`- Tailnet:  https://…`. The server looks for the CLI on `PATH`, then in
+`/Applications/Tailscale.app/Contents/MacOS/Tailscale` on macOS and
+`%ProgramFiles%\Tailscale\tailscale.exe` on Windows. Set `MDXSERVE_TAILSCALE_CLI` to use
+another one, `MDXSERVE_DEBUG=1` to see why detection failed, or pass `--no-tailscale` to skip
+it. Detection runs after the server is listening and never delays it.
+
+What a tailnet reader gets:
+
+- Live updates. In full mode the live update socket only accepts a `Host` that names this
+  machine, as a defence against DNS rebinding. It also accepts the addresses
+  `tailscale serve status --json` reports as proxying `/` to this port, and only on
+  connections from loopback, where `tailscale serve` connects from. When an unknown name is
+  refused, the server reads the serve config again (at most once every 10 seconds), so an
+  entry added after startup works on the page's next retry (within a minute) or reload.
+- Reading and editing, with full permissions. Every device on the tailnet can edit.
+- Not the same-machine privileges: a request with a tailnet `Host` cannot mount or unmount
+  roots.
+
+Mount the proxy at `/`; a sub-path (`--set-path`) does not work, and startup says so.
+`tailscale funnel` makes the address public on the internet; startup warns when a Funnel
+address reaches a server with full permissions. Turn it off with
+`tailscale funnel --https=<port> off`, or run with `--permissions restricted`.
+
+### On a trusted network
+
 To allow full permissions on a trusted network, specify both options:
 
 ```bash
@@ -340,7 +379,10 @@ the diagnostics.
 `skills/mdxserve/SKILL.md` teaches an agent how to write Markdown that renders well here while
 staying portable: prefer plain GFM, tag every code fence, keep diagrams small, use a builtin
 only when it clarifies, and validate the file afterwards. It points the agent at
-`mdxserve components` and `mdxserve validate`. `mdxserve setup` installs it with
+`mdxserve components` and `mdxserve validate`. `skills/mdxserve-run/SKILL.md`
+(`mdxserve:run`) tells an agent how to run the server: check for one, start it (under `oxmgr`
+when it is installed), manage roots, stop it, and publish it with `tailscale serve`.
+`mdxserve setup` installs both with
 `npx skills add` for Claude Code, Codex, and `~/.agents/skills`; re-run `mdxserve setup` after
 upgrading (or, in a checkout, after editing anything under `skills/`), since the skills CLI
 copies rather than symlinks.
@@ -357,8 +399,10 @@ mdxserve cache clean          # remove what older releases left in the cache fol
 
 ## Environment variables
 
-| Variable              | Default             | Controls                                                   |
-| --------------------- | ------------------- | ---------------------------------------------------------- |
-| `MDXSERVE_HOME`       | `~/.mdxserve`       | Where the server lock and `servers.db` live                |
-| `MDXSERVE_CACHE_HOME` | `~/.cache/mdxserve` | The cache folder `mdxserve cache clean` removes            |
-| `XDG_CACHE_HOME`      | `~/.cache`          | Honoured for the cache when `MDXSERVE_CACHE_HOME` is unset |
+| Variable                 | Default              | Controls                                                   |
+| ------------------------ | -------------------- | ---------------------------------------------------------- |
+| `MDXSERVE_HOME`          | `~/.mdxserve`        | Where the server lock and `servers.db` live                |
+| `MDXSERVE_CACHE_HOME`    | `~/.cache/mdxserve`  | The cache folder `mdxserve cache clean` removes            |
+| `XDG_CACHE_HOME`         | `~/.cache`           | Honoured for the cache when `MDXSERVE_CACHE_HOME` is unset |
+| `MDXSERVE_TAILSCALE_CLI` | `PATH`, then the app | The Tailscale CLI the server asks about `tailscale serve`  |
+| `MDXSERVE_DEBUG`         | unset                | When set, startup says why Tailscale detection failed      |

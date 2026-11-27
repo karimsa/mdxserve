@@ -51,6 +51,10 @@ program
 		(value: string, acc: string[]) => acc.concat(value),
 		[] as string[],
 	)
+	.option(
+		"--no-tailscale",
+		"do not look for `tailscale serve` (otherwise its addresses get live updates and are printed)",
+	)
 	.action(
 		async (opts: {
 			port: string;
@@ -58,6 +62,7 @@ program
 			watch: string[];
 			dangerousAllowNetwork?: boolean;
 			permissions?: string;
+			tailscale: boolean;
 		}) => {
 			const inputs = opts.watch;
 
@@ -84,6 +89,7 @@ program
 				host: opts.host,
 				dangerousAllowNetwork: opts.dangerousAllowNetwork,
 				permissions: opts.permissions,
+				tailscale: opts.tailscale,
 			});
 			if (outcome.kind === "ok") return;
 			process.exitCode = 1;
@@ -326,7 +332,7 @@ cache
 program
 	.command("setup")
 	.description(
-		"Install the mdxserve writing skill for Claude Code and Codex (via `npx skills add`), and remove the MCP registration earlier versions created. Safe to re-run; re-run after upgrading.",
+		"Install the mdxserve skills (writing docs, running the server) for Claude Code and Codex (via `npx skills add`), and remove the MCP registration earlier versions created. Safe to re-run; re-run after upgrading.",
 	)
 	.action(async () => {
 		console.log("==> Installing skills");

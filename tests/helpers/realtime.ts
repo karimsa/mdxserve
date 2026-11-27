@@ -5,7 +5,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { io as connect, type Socket } from "socket.io-client";
 import { attachRealtime, type Realtime } from "../../src/realtime/server.js";
-import { acceptsRealtimePeer } from "../../src/http/host.js";
+import { realtimePeerCheck } from "../../src/http/host.js";
 import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 import type { PermissionMode } from "../../src/servers/bind-host.js";
@@ -25,7 +25,10 @@ export interface Harness {
 }
 
 /** A root with two docs, a hidden doc, a public alias of the hidden doc, and a doc outside it. */
-export async function startHarness(permissions: PermissionMode = "full"): Promise<Harness> {
+export async function startHarness(
+	permissions: PermissionMode = "full",
+	tailnet?: Parameters<typeof realtimePeerCheck>[1],
+): Promise<Harness> {
 	const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-realtime-")));
 	const outside = await fs.realpath(
 		await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-realtime-outside-")),
@@ -45,7 +48,7 @@ export async function startHarness(permissions: PermissionMode = "full"): Promis
 	const realtime = attachRealtime(server, {
 		docs,
 		permissions,
-		acceptsPeer: (req) => acceptsRealtimePeer(req, permissions),
+		acceptsPeer: realtimePeerCheck(permissions, tailnet),
 	});
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 	const { port } = server.address() as AddressInfo;

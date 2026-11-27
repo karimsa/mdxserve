@@ -306,6 +306,16 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 		const genuine = await request(base, "/__mdxserve/trpc/addRoots", `127.0.0.1:${port}`, body);
 		expect(genuine.status).toBe(200);
 	});
+
+	it("S3: addRoots is FORBIDDEN through tailscale serve, which arrives from loopback with the tailnet Host", async () => {
+		const { base } = await startWith();
+		const body = JSON.stringify({ dirs: [fixtureDir] });
+		for (const host of ["box.tail1234.ts.net", "box.tail1234.ts.net:8443"]) {
+			const tailnet = await request(base, "/__mdxserve/trpc/addRoots", host, body);
+			expect(tailnet.status).toBe(403);
+			expect(tailnet.text).toContain("FORBIDDEN");
+		}
+	});
 });
 
 describe("restricted permissions", () => {

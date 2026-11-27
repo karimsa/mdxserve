@@ -11,6 +11,15 @@ it("passes user input on stdin without interpreting it as shell", async () => {
 	});
 	expect(result).toEqual({ code: 0, stdout: content });
 });
+it("keeps the ENOENT code when the executable does not exist", async () => {
+	await expect(
+		runProcess("/nonexistent/mdxserve-no-such-binary", [], {
+			cwd: os.tmpdir(),
+			signal: new AbortController().signal,
+			timeoutMs: 2000,
+		}),
+	).rejects.toMatchObject({ code: "ENOENT" });
+});
 it("terminates a cancelled process", async () => {
 	const abort = new AbortController();
 	const pending = runProcess(process.execPath, ["-e", "setInterval(()=>{},1000)"], {

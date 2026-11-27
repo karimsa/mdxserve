@@ -10,7 +10,8 @@ import { watch } from "chokidar";
 import { getPackageRoot } from "../infra/pkg.js";
 import { isWatchIgnored, signalFileChanges } from "./watch-signals.js";
 import { loadShellTemplate } from "./shell.js";
-import { acceptsRealtimePeer } from "./host.js";
+import { realtimePeerCheck } from "./host.js";
+import { announceTailscale, serverTailnetHosts } from "../tailscale/startup.js";
 import { attachRealtime } from "../realtime/server.js";
 import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
@@ -36,6 +37,8 @@ export interface StartServerOptions {
 	host: string;
 	dangerousAllowNetwork?: boolean;
 	permissions?: string;
+	/** False (`--no-tailscale`) skips Tailscale detection, the tailnet hosts and their output. */
+	tailscale?: boolean;
 }
 
 function getLocalIPs(): string[] {
@@ -234,12 +237,20 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		});
 	});
 
+	// Per-process state: the `Host` values `tailscale serve` publishes this
+	// server under. Detection needs the port, so it waits for the listener.
+	let endpoint: { port: number; boundHost: string } | undefined;
+	const tailnetHosts =
+		options.tailscale === false
+			? undefined
+			: serverTailnetHosts(() => endpoint, process.platform, process.env);
+
 	// After the request listener: engine.io takes over the listeners already
 	// registered and forwards every request outside its own path to them.
 	const realtime = attachRealtime(httpServer, {
 		docs,
 		permissions,
-		acceptsPeer: (req) => acceptsRealtimePeer(req, permissions),
+		acceptsPeer: realtimePeerCheck(permissions, tailnetHosts),
 	});
 
 	// Auto-refresh open listings and docs.
@@ -279,6 +290,18 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		host,
 		roots: rootsService.list().map((info) => info.dir),
 	});
+
+	// Not awaited: the server is already listening, and a slow or broken CLI
+	// must not hold up startup. A missing or stopped Tailscale prints nothing.
+	endpoint = { port: actualPort, boundHost: host };
+	if (tailnetHosts) {
+		void announceTailscale(tailnetHosts, {
+			port: actualPort,
+			boundHost: host,
+			permissions,
+			debug: Boolean(process.env.MDXSERVE_DEBUG),
+		});
+	}
 
 	// Both are idempotent and synchronous, so they are safe to repeat from the
 	// `exit` handler — the only hook that still runs after an uncaught throw.

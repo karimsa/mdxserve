@@ -34,10 +34,10 @@ You need Node 22.12 or newer.
 
 ```bash
 npm install -g @karimsa/mdxserve
-mdxserve setup      # optional: installs the writing skill for Claude Code and Codex
+mdxserve setup      # optional: installs the agent skills for Claude Code and Codex
 ```
 
-`mdxserve setup` copies the agent writing skill into your Claude Code and Codex skill folders
+`mdxserve setup` copies the agent skills (writing docs, and running the server) into your Claude Code and Codex skill folders
 (through `npx skills add`) and removes the MCP registration that older versions created. It is
 safe to re-run; run it again after upgrading so the installed skill matches the CLI.
 
@@ -91,6 +91,13 @@ the JSON file is the source of truth for which roots should exist.
 | `--host`                    | `127.0.0.1`     | Interface to bind; determines default permission mode     |
 | `--dangerous-allow-network` | off             | Authorize full permissions on a non-loopback interface    |
 | `--permissions <mode>`      | interface-based | `full` on loopback, `restricted` on other interfaces      |
+| `--no-tailscale`            | off             | Skip looking for `tailscale serve`                        |
+
+To open the server from your other devices, you do not need `--host` or
+`--dangerous-allow-network`: keep it on loopback and publish it with `tailscale serve`. When
+Tailscale is running, startup prints the exact command, and once it is set up, the tailnet
+address and live updates work through it. See
+[Through `tailscale serve`](docs/advanced.md#through-tailscale-serve).
 
 ## Hosting a public reader
 
@@ -302,6 +309,9 @@ and it gives the agent tools to write for it well:
 - **A writing skill.** `skills/mdxserve/SKILL.md` teaches an agent to write Markdown that
   renders richly here while staying plain and portable, and to check the builtin components
   before using them. `mdxserve setup` installs it for Claude Code and Codex.
+- **A run skill.** `skills/mdxserve-run/SKILL.md` (`mdxserve:run`) tells an agent how to
+  check for a running server, start it under `oxmgr`, manage roots, stop it, and reach it
+  from another device with `tailscale serve`. `mdxserve setup` installs it too.
 - **CLI verbs.** `mdxserve validate`, `document`, `search`, `docs`, `roots`, and `components`
   all take `--json`, so an agent can check a file, see the tree a reader gets, find docs, and
   manage served folders from a shell.
