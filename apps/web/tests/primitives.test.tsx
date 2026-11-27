@@ -44,6 +44,19 @@ describe("text primitives", () => {
 		expect(host.querySelector("div")).toBeNull();
 	});
 
+	it("leaves a link's click to the browser", () => {
+		const open = vi.fn();
+		vi.stubGlobal("open", open);
+		draw(<Link href="#install">Install</Link>);
+		const anchor = host.querySelector("a")!;
+		const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+		act(() => {
+			anchor.dispatchEvent(click);
+		});
+		expect(open).not.toHaveBeenCalled();
+		expect(click.defaultPrevented).toBe(false);
+	});
+
 	it("renders each heading level as its element, with its anchor", () => {
 		draw(
 			<>

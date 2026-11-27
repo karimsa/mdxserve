@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import { Linking, Text as NativeText, type TextProps as NativeTextProps } from "react-native";
+import {
+	Linking,
+	Platform,
+	Text as NativeText,
+	type TextProps as NativeTextProps,
+} from "react-native";
 import { webProps } from "./web-props";
 
 const TONES = {
@@ -99,14 +104,16 @@ export interface LinkProps {
 
 /**
  * A link: an `<a href>` on the web, so the browser's own navigation, middle-click and copy
- * link work. In the app, pressing it opens `href` unless `onPress` handles it.
+ * link work, and nothing else runs on a click unless `onPress` handles it. In the app, pressing
+ * it opens `href` unless `onPress` handles it.
  */
 export function Link({ href, onPress, className = "", children }: LinkProps) {
+	const openHref = Platform.OS === "web" ? undefined : () => void Linking.openURL(href);
 	return (
 		<NativeText
 			role="link"
 			{...webProps({ href })}
-			onPress={onPress ?? (() => void Linking.openURL(href))}
+			onPress={onPress ?? openHref}
 			className={`text-text-link web:hover:text-text-link-hover ${className}`}
 		>
 			{children}
