@@ -61,6 +61,25 @@ async function addAddress(address: string) {
 	await fireEvent.press(screen.getByRole("button", { name: "Add" }));
 }
 
+/**
+ * Wait until the stored list passes `check`. It polls storage outside `act`: an async `waitFor`
+ * callback overlaps React's act scopes.
+ */
+async function untilStored(
+	check: (servers: Awaited<ReturnType<typeof storedServers>>) => void,
+): Promise<void> {
+	const deadline = Date.now() + 2000;
+	for (;;) {
+		try {
+			check(await storedServers());
+			return;
+		} catch (error) {
+			if (Date.now() > deadline) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+	}
+}
+
 async function storedServers(): Promise<
 	Array<{ id: string; label?: string; addresses: unknown[] }>
 > {
@@ -190,9 +209,9 @@ describe("a known server", () => {
 		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
 		const field = await screen.findByLabelText("Name for this server");
 		await fireEvent.changeText(field, "Studio");
-		await waitFor(async () => expect((await storedServers())[0].label).toBe("Studio"));
+		await untilStored((servers) => expect(servers[0].label).toBe("Studio"));
 		await fireEvent.changeText(field, "");
-		await waitFor(async () => expect((await storedServers())[0]).not.toHaveProperty("label"));
+		await untilStored((servers) => expect(servers[0]).not.toHaveProperty("label"));
 	});
 
 	it("shows its saved name when its page is the first one opened", async () => {
@@ -231,7 +250,7 @@ describe("a known server", () => {
 		});
 		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
 		await fireEvent.press(await screen.findByLabelText("Remove box"));
-		await waitFor(async () => expect(await storedServers()).toEqual([]));
+		await untilStored((servers) => expect(servers).toEqual([]));
 		alert.mockRestore();
 	});
 });
