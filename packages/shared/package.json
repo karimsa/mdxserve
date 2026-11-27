@@ -6,7 +6,8 @@
 		"./builtins": "./builtins/index.ts",
 		"./builtins/*": "./builtins/*.ts",
 		"./mermaid-chart": "./mermaid-chart.ts",
-		"./realtime": "./realtime.ts"
+		"./realtime": "./realtime.ts",
+		"./server-info": "./server-info.ts"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",

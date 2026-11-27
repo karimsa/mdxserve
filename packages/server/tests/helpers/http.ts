@@ -10,6 +10,7 @@ import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
 import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
+import { testServerInfo } from "./server-info.js";
 
 /**
  * The web client's source folder. Its `index.html` carries the same fill markers as the built
@@ -47,6 +48,7 @@ export function makeRequestContext(
 		docCache,
 		search,
 		docs: new DocsService(roots, registry),
+		serverInfo: testServerInfo(),
 		...overrides,
 	};
 }

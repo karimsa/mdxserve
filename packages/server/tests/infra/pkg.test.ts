@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { getPackageRoot, missingBuildArtifact, readPackageVersion } from "../../src/infra/pkg.js";
+import {
+	getPackageRoot,
+	missingBuildArtifact,
+	readMermaidVersion,
+	readPackageVersion,
+} from "../../src/infra/pkg.js";
 
 describe("readPackageVersion", () => {
 	it("matches the version in package.json", () => {
@@ -9,6 +14,15 @@ describe("readPackageVersion", () => {
 			fs.readFileSync(path.join(getPackageRoot(), "package.json"), "utf8"),
 		) as { version: string };
 		expect(readPackageVersion()).toBe(manifest.version);
+	});
+});
+
+describe("readMermaidVersion", () => {
+	it("matches the mermaid version the server package pins", () => {
+		const manifest = JSON.parse(
+			fs.readFileSync(path.join(getPackageRoot(), "package.json"), "utf8"),
+		) as { dependencies: Record<string, string> };
+		expect(readMermaidVersion()).toBe(manifest.dependencies.mermaid);
 	});
 });
 

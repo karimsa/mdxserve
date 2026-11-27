@@ -51,6 +51,7 @@ program
 		(value: string, acc: string[]) => acc.concat(value),
 		[] as string[],
 	)
+	.option("--name <name>", "what apps call this server (default: this computer's hostname)")
 	.option(
 		"--no-tailscale",
 		"do not look for `tailscale serve` (otherwise its addresses get live updates and are printed)",
@@ -63,6 +64,7 @@ program
 			dangerousAllowNetwork?: boolean;
 			permissions?: string;
 			tailscale: boolean;
+			name?: string;
 		}) => {
 			const inputs = opts.watch;
 
@@ -90,6 +92,7 @@ program
 				dangerousAllowNetwork: opts.dangerousAllowNetwork,
 				permissions: opts.permissions,
 				tailscale: opts.tailscale,
+				name: opts.name,
 			});
 			if (outcome.kind === "ok") return;
 			process.exitCode = 1;

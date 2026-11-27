@@ -21,6 +21,7 @@ import { handleGetAsset, serveRootFile } from "./asset.js";
 import { notFound, sendClientAsset, sendFile } from "./files.js";
 import type { PermissionMode } from "../servers/bind-host.js";
 import type { DocumentMetadata } from "../docs/metadata.js";
+import type { ServerInfoService } from "../server-info/service.js";
 
 const MDXSERVE_PREFIX = "/__mdxserve/";
 /** Where the built client's `assets/` folder is served (Vite's `base` plus `assetsDir`). */
@@ -58,6 +59,8 @@ export interface RequestContext {
 	/** Per-process state, created once in startServer: it owns the per-file save lock. */
 	docs: DocsService;
 	permissions?: PermissionMode;
+	/** Per-process state, created once in startServer: what this server is. */
+	serverInfo: ServerInfoService;
 }
 
 export async function handleRequest(
@@ -140,6 +143,7 @@ export async function handleRequest(
 				docs,
 				origin: req.headers.origin,
 				host: req.headers.host,
+				serverInfo: ctx.serverInfo,
 			}),
 			onError: ({ error }) => {
 				if (error.code === "INTERNAL_SERVER_ERROR") console.error(error);

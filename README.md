@@ -92,6 +92,7 @@ the JSON file is the source of truth for which roots should exist.
 | `--dangerous-allow-network` | off             | Authorize full permissions on a non-loopback interface    |
 | `--permissions <mode>`      | interface-based | `full` on loopback, `restricted` on other interfaces      |
 | `--no-tailscale`            | off             | Skip looking for `tailscale serve`                        |
+| `--name <name>`             | hostname        | The name apps show for this server; at most 63 bytes      |
 
 To open the server from your other devices, you do not need `--host` or
 `--dangerous-allow-network`: keep it on loopback and publish it with `tailscale serve`. When
