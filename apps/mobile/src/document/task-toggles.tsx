@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useCallback, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
+import { plainText } from "@mdxserve/client/document/plain-text";
 import type { DocumentTree } from "@mdxserve/client/document/tree-types";
 import { TaskBox } from "@mdxserve/ui/document/elements";
 import type { ListItemNode } from "@mdxserve/ui/document/environment";
@@ -25,8 +26,14 @@ export const TaskTogglesProvider = TaskTogglesContext.Provider;
 /** A task item's box in the document screen: what the file says, or the tick being saved. */
 export function DocumentTaskBox({ item }: { item: ListItemNode }) {
 	const toggles = use(TaskTogglesContext);
-	const box = toggles?.boxFor(item) ?? { checked: item.checked === true, disabled: false };
-	return <TaskBox checked={box.checked} onToggle={box.onToggle} disabled={box.disabled} />;
+	const box = toggles?.boxFor(item) ?? { checked: item.checked === true, disabled: true };
+	const label = useMemo(() => {
+		const first = item.children.find((child) => child.type === "paragraph");
+		return first ? plainText(first.children).replace(/\s+/g, " ").trim() : undefined;
+	}, [item]);
+	return (
+		<TaskBox checked={box.checked} onToggle={box.onToggle} disabled={box.disabled} label={label} />
+	);
 }
 
 function messageOf(error: unknown): string {
@@ -39,7 +46,8 @@ function messageOf(error: unknown): string {
  * character changed, and `saveDocNode` with the version the document was read at, so a file
  * that changed since is refused rather than overwritten. A failure puts the box back and says
  * why. One tick is saved at a time; the others wait, disabled, until the document has reloaded.
- * A restricted server refuses every write, so there the boxes only show what the file says.
+ * A restricted server refuses every write, so there the boxes are dimmed and only show what the
+ * file says.
  */
 export function useTaskToggles({
 	server,
@@ -105,7 +113,9 @@ export function useTaskToggles({
 		() => ({
 			boxFor(item) {
 				const shown = pending?.item === item ? pending.checked : item.checked === true;
-				if (readOnly || !places?.has(item)) return { checked: shown, disabled: false };
+				// Shown but dimmed and untouchable: the server would refuse the write, or the box is
+				// where the app cannot find its line.
+				if (readOnly || !places?.has(item)) return { checked: shown, disabled: true };
 				return { checked: shown, onToggle: () => void toggle(item), disabled: pending !== null };
 			},
 		}),
