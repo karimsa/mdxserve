@@ -26,6 +26,8 @@ export interface DocumentIndex {
 	footnoteReferenceCounts: ReadonlyMap<string, number>;
 	/** Each reference node's position among the references to its footnote, from 1. */
 	footnoteOccurrences: WeakMap<object, number>;
+	/** Every footnote reference node, in document order. */
+	footnoteReferences: readonly object[];
 	/** Each referenced footnote's definition, in number order. */
 	footnotes: readonly FootnoteDefinitionNode[];
 }
@@ -40,6 +42,7 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 	const footnoteNumbers = new Map<string, number>();
 	const footnoteReferenceCounts = new Map<string, number>();
 	const footnoteOccurrences = new WeakMap<object, number>();
+	const footnoteReferences: object[] = [];
 	const definitions = new Map<string, FootnoteDefinitionNode>();
 
 	function visitAll(nodes: readonly AnyNode[], steps: readonly TabStep[]): void {
@@ -98,6 +101,7 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 			case "footnoteReference":
 				footnoteReferenceCounts.set(node.label, (footnoteReferenceCounts.get(node.label) ?? 0) + 1);
 				footnoteOccurrences.set(node, footnoteReferenceCounts.get(node.label) ?? 1);
+				footnoteReferences.push(node);
 				if (!footnoteNumbers.has(node.label))
 					footnoteNumbers.set(node.label, footnoteNumbers.size + 1);
 				return;
@@ -122,6 +126,7 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 		footnoteNumbers,
 		footnoteReferenceCounts,
 		footnoteOccurrences,
+		footnoteReferences,
 		footnotes,
 	};
 }

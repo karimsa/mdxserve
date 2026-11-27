@@ -43,11 +43,14 @@ export interface FootnoteInfo {
 	numbers: ReadonlyMap<string, number>;
 	counts: ReadonlyMap<string, number>;
 	occurrences: WeakMap<object, number>;
+	/** The reference nodes the occurrences were counted over, in document order. */
+	references: readonly object[];
 }
 export const FootnoteContext = createContext<FootnoteInfo>({
 	numbers: new Map(),
 	counts: new Map(),
 	occurrences: new WeakMap(),
+	references: [],
 });
 
 /**
@@ -257,10 +260,12 @@ function ListView({ node }: { node: Extract<BlockNode, { type: "list" }> }) {
  * renders, so a task item's checkbox stays beside its text.
  */
 function ListItemContent({ nodes }: { nodes: readonly BlockNode[] }) {
+	// Two paragraphs in one item make it loose: they keep their own boxes.
+	const tight = nodes.filter((child) => child.type === "paragraph").length <= 1;
 	return (
 		<>
 			{nodes.map((child, index) =>
-				child.type === "paragraph" ? (
+				tight && child.type === "paragraph" ? (
 					<InlineList key={keyOf(child, index)} nodes={child.children} />
 				) : (
 					<NodeView key={keyOf(child, index)} node={child} />

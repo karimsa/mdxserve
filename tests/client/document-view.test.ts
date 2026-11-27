@@ -239,6 +239,27 @@ describe("footnotes and literal children", () => {
 		expect(backrefs).toEqual(["#user-content-fnref-n", "#user-content-fnref-n-2"]);
 	});
 
+	it("renumbers references in unchanged sections when a reference moves", async () => {
+		const before = "## A\n\nAlpha[^n].\n\n## B\n\nBeta[^n].\n\n## C\n\nGamma.\n\n[^n]: The note.\n";
+		seed(parse(before));
+		await mount();
+		await act(async () =>
+			seed(parse(before.replace("Alpha[^n].", "Alpha.").replace("Gamma.", "Gamma[^n]."))),
+		);
+		await settle();
+		const references = [...host.querySelectorAll("[data-footnote-ref]")].map((link) => link.id);
+		expect(references).toEqual(["user-content-fnref-n", "user-content-fnref-n-2"]);
+	});
+
+	it("keeps both paragraphs of a loose list item apart", async () => {
+		seed(parse("- First paragraph.\n\n  Second paragraph.\n"));
+		await mount();
+		expect([...host.querySelectorAll("li > p")].map((paragraph) => paragraph.textContent)).toEqual([
+			"First paragraph.",
+			"Second paragraph.",
+		]);
+	});
+
 	it("keeps a builtin's literal children prop when the element has no content", async () => {
 		seed(parse('Status: <Badge children="Ready" />\n'));
 		await mount();

@@ -21,12 +21,14 @@ const NO_FOOTNOTES: FootnoteInfo = {
 	numbers: new Map(),
 	counts: new Map(),
 	occurrences: new WeakMap(),
+	references: [],
 };
 
 /**
- * The same object as last time while the numbering and reference counts hold,
- * so footnote references skip a render; it always carries the latest
- * occurrence table.
+ * The same object as last time while the numbering holds and the same
+ * reference nodes appear in the same order, so footnote references skip a
+ * render. A reference that moves, appears or goes makes a new object, and
+ * every reference re-reads its number and occurrence.
  */
 function useStableFootnotes(index: DocumentIndex | null): FootnoteInfo {
 	const previous = useRef<FootnoteInfo>(NO_FOOTNOTES);
@@ -35,15 +37,17 @@ function useStableFootnotes(index: DocumentIndex | null): FootnoteInfo {
 	if (
 		current !== NO_FOOTNOTES &&
 		sameEntries(current.numbers, index.footnoteNumbers) &&
-		sameEntries(current.counts, index.footnoteReferenceCounts)
-	) {
-		current.occurrences = index.footnoteOccurrences;
+		current.references.length === index.footnoteReferences.length &&
+		current.references.every(
+			(reference, position) => reference === index.footnoteReferences[position],
+		)
+	)
 		return current;
-	}
 	previous.current = {
 		numbers: index.footnoteNumbers,
 		counts: index.footnoteReferenceCounts,
 		occurrences: index.footnoteOccurrences,
+		references: index.footnoteReferences,
 	};
 	return previous.current;
 }
