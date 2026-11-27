@@ -149,7 +149,9 @@
 								"message": "The shared components import neither the server nor a client; the clients import them."
 							},
 							{
-								"group": ["react-dom", "react-dom/**", "expo", "expo/**", "expo-*", "@expo/**"],
+								// A Name.web.tsx may import `react-dom` itself, for `createPortal` (the
+								// DataTable's column menu); the override below bans it everywhere else.
+								"group": ["react-dom/**", "expo", "expo/**", "expo-*", "@expo/**"],
 								"message": "The shared components render with React Native primitives only: no react-dom and no Expo module."
 							}
 						]

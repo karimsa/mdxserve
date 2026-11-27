@@ -254,7 +254,7 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	}
 }
 
-/* Document-style tables. Menus are portaled, but anchored to their header. */
+/* Document-style tables (packages/ui/src/builtins/DataTable.web.tsx). Menus are portaled, but anchored to their header. */
 .data-table {
 	margin: 1.5rem 0;
 	border: 1px solid var(--border-default);

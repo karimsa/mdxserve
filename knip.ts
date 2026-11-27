@@ -44,7 +44,7 @@ const config: KnipConfig = {
 				// Each subpath in its package.json `exports` is an entry; a bundler picks a component's
 				// `Name.web.tsx` over its `Name.tsx` by extension, which knip does not follow.
 				"src/builtins/*.tsx!",
-				"src/**/*.web.tsx!",
+				"src/**/*.web.{ts,tsx}!",
 				// Both clients' stylesheets import it by path (apps/web/src/app.css,
 				// apps/mobile/src/global.css).
 				"src/theme.css!",

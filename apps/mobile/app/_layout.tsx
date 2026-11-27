@@ -3,26 +3,33 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { useColorScheme } from "react-native";
+import { BlockStateStorageContext } from "@mdxserve/ui/block-state/useBlockState";
+import { createMemoryBlockStorage } from "@mdxserve/ui/block-state/storage";
 import "../src/global.css";
 import { useAppFonts } from "../src/fonts";
 import { useVerticalBarBehavior } from "../src/vertical-bar";
 
 /**
- * The providers every screen runs inside: the query cache and the system light or dark theme.
+ * The providers every screen runs inside: the query cache, the system light or dark theme, and
+ * where builtins keep reader state (a table's sort), in memory until the app stores it on the
+ * device.
  * Nothing renders until the typefaces have loaded, so no text first shows in the system font.
  */
 export default function RootLayout() {
 	const [queryClient] = useState(() => new QueryClient());
+	const [blockStorage] = useState(createMemoryBlockStorage);
 	const colorScheme = useColorScheme();
 	const verticalBarBehavior = useVerticalBarBehavior();
 	const fontsReady = useAppFonts();
 	if (!fontsReady) return null;
 	return (
 		<QueryClientProvider client={queryClient}>
-			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-				<Stack />
-				<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
-			</ThemeProvider>
+			<BlockStateStorageContext value={blockStorage}>
+				<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+					<Stack />
+					<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
+				</ThemeProvider>
+			</BlockStateStorageContext>
 		</QueryClientProvider>
 	);
 }

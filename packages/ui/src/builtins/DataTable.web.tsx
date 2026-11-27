@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode, type TableHTMLAttributes } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { TableHeaderCell } from "../data-table/TableHeaderCell";
+import { TableHeaderCell } from "../data-table/TableHeaderCell.web";
 import { useTableState } from "../data-table/useTableState";
 import {
 	clearFilter,
@@ -9,42 +9,18 @@ import {
 	filterSummary,
 	type ActiveCell,
 } from "../data-table/table-state";
-import { TableCell } from "../data-table/TableCell";
+import { TableCell } from "../data-table/TableCell.web";
 import { useDocumentBlockScope } from "../block-state/useBlockState";
 import { blockStateKey, type BlockStateScope } from "../block-state/storage";
-import { unitFactor } from "../data-table/model";
-import { dataTableProps, type DataTableProps } from "@mdxserve/shared/builtins/data-table";
+import { validateTableProps, type DataTableViewProps } from "../data-table/props";
 
-type InternalProps = DataTableProps & {
-	renderCell?: (row: number, key: string) => ReactNode;
-	renderHeader?: (key: string) => ReactNode;
-	tableProps?: Omit<TableHTMLAttributes<HTMLTableElement>, "children">;
-	persistState?: boolean;
-};
-
-function validateTableProps(props: InternalProps) {
-	const parsed = dataTableProps.parse(props);
-	const keys = new Set(parsed.columns.map((column) => column.key));
-	if (keys.size !== parsed.columns.length) throw new Error("DataTable column keys must be unique.");
-	for (const column of parsed.columns) {
-		if (column.type === "time" || column.type === "bytes") unitFactor(column.type, column.unit);
-		if (
-			parsed.data.some(
-				(row) =>
-					row[column.key] !== undefined &&
-					row[column.key] !== null &&
-					typeof row[column.key] !== (column.type === "text" ? "string" : "number"),
-			)
-		)
-			throw new Error(
-				`DataTable: ${column.key} requires ${column.type === "text" ? "text" : "numeric"} values.`,
-			);
-	}
-
-	return parsed;
-}
-
-export default function DataTable(props: InternalProps) {
+/**
+ * The web's `DataTable`: a real `<table>`, so it keeps its semantics, copies as a table and
+ * anchors comments in its cells. Column menus, keyboard movement between cells and the row
+ * animations are the web's own; the state, sorting and filtering are shared with the app's
+ * grid (DataTable.tsx).
+ */
+export default function DataTable(props: DataTableViewProps) {
 	const parsed = validateTableProps(props);
 
 	const scope = useDocumentBlockScope({ kind: "table", version: 1, blockId: parsed.id });
@@ -72,7 +48,7 @@ function TableView({
 	tableProps,
 	persistState = true,
 	scope,
-}: InternalProps & { scope: BlockStateScope }) {
+}: DataTableViewProps & { scope: BlockStateScope }) {
 	const [state, setState] = useTableState(scope, columns, persistState);
 	const [openColumn, setOpenColumn] = useState<string | null>(null);
 	const [active, setActive] = useState<ActiveCell>(null);

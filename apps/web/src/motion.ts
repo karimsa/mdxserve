@@ -4,7 +4,7 @@ import type { Transition, Variants } from "framer-motion";
 const subtleEase = [0.22, 1, 0.36, 1] as const;
 
 export const enterTransition: Transition = { duration: 0.2, ease: subtleEase };
-export const exitTransition: Transition = { duration: 0.15, ease: subtleEase };
+const exitTransition: Transition = { duration: 0.15, ease: subtleEase };
 export const fadeSwapTransition: Transition = { duration: 0.12, ease: subtleEase };
 
 /**

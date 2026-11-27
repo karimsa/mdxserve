@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
-import { assert, property, integer, array, double } from "fast-check";
+import { assert, property, integer, array, double, string } from "fast-check";
 import {
 	compareValues,
 	filterPredicate,
 	formatValue,
 	parseBound,
 	type Column,
-} from "../src/data-table/model";
+} from "@mdxserve/ui/data-table/model";
+import { columnWidths } from "@mdxserve/ui/data-table/layout";
 
 it("numeric sorting preserves all values and produces monotonic order", () => {
 	assert(
@@ -47,6 +48,20 @@ it("currency formatting is total over finite numbers and always shows the symbol
 		property(double({ noNaN: true, noDefaultInfinity: true, min: -1e12, max: 1e12 }), (value) => {
 			const column: Column = { key: "cost", label: "Cost", type: "currency", currency: "USD" };
 			expect(formatValue(value, column)).toContain("$");
+		}),
+	);
+});
+
+it("the app's grid sizes every column within bounds, never narrower for longer text", () => {
+	const column: Column = { key: "name", label: "Name", type: "text" };
+	assert(
+		property(array(string()), string(), (values, extra) => {
+			const data = values.map((name) => ({ name }));
+			const [width] = columnWidths([column], data, {});
+			expect(width).toBeGreaterThanOrEqual(72);
+			expect(width).toBeLessThanOrEqual(240);
+			const [wider] = columnWidths([column], [...data, { name: `${extra}${values.join("")}` }], {});
+			expect(wider).toBeGreaterThanOrEqual(width);
 		}),
 	);
 });

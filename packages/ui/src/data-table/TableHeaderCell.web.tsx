@@ -1,9 +1,9 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
-import { ColumnOptions } from "./ColumnOptions";
-import { ColumnMenu } from "./ColumnMenu";
+import { ColumnOptions } from "./ColumnOptions.web";
+import { ColumnMenu } from "./ColumnMenu.web";
 import { type Column, type Row, type TableState } from "./model";
 import { cycleSort, hasFilter, type ActiveCell, type VisibleRow } from "./table-state";
-import { navigateTable } from "./navigation";
+import { navigateTable } from "./navigation.web";
 
 export interface TableHeaderCellProps {
 	renderHeader?: (key: string) => ReactNode;

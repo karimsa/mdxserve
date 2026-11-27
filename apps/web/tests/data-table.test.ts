@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DocumentService } from "@karimsa/mdxserve/src/document/service";
 import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
 import { NodeList } from "../src/document/nodes";
-import DataTable from "../src/builtins/DataTable";
+import DataTable from "@mdxserve/ui/builtins/DataTable";
 import {
 	autoUnit,
 	inferColumn,
@@ -14,7 +14,7 @@ import {
 	parseBound,
 	unitFactor,
 	type Column,
-} from "../src/data-table/model";
+} from "@mdxserve/ui/data-table/model";
 
 const number: Column = { key: "value", label: "Value", type: "number" };
 const percent: Column = { ...number, type: "percent" };

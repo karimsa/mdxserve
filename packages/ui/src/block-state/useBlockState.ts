@@ -1,4 +1,5 @@
 import {
+	createContext,
 	useCallback,
 	useContext,
 	useEffect,
@@ -7,16 +8,26 @@ import {
 	type Dispatch,
 	type SetStateAction,
 } from "react";
-import { DocContext } from "../DocContext";
+import { DocContext } from "../document/DocContext";
+import { defaultBlockStorage, pagePath } from "./environment";
 import {
 	blockStateKey,
-	browserBlockStorage,
+	isPromise,
 	restoreBlockState,
 	saveBlockState,
 	serializeBlockState,
 	type BlockStateSchema,
 	type BlockStateScope,
+	type BlockStateStorage,
 } from "./storage";
+
+/**
+ * Where every block's reader state is kept. The web's default is `localStorage`; the app
+ * provides its own storage at its root.
+ */
+export const BlockStateStorageContext = createContext<BlockStateStorage | undefined>(
+	defaultBlockStorage,
+);
 
 export interface BlockStateOptions<State> {
 	schema: BlockStateSchema<State>;
@@ -37,7 +48,7 @@ export function useDocumentBlockScope(
 	block: Omit<BlockStateScope, "documentPath">,
 ): BlockStateScope {
 	const context = useContext(DocContext);
-	const documentPath = context?.path ?? (typeof location === "undefined" ? "" : location.pathname);
+	const documentPath = context?.path ?? pagePath();
 
 	return { ...block, documentPath };
 }
@@ -47,9 +58,10 @@ export function useBlockState<State>(
 	scope: BlockStateScope,
 	options: BlockStateOptions<State>,
 ): readonly [State, Dispatch<SetStateAction<State>>] {
+	const storage = useContext(BlockStateStorageContext);
 	const key = JSON.stringify([blockStateKey(scope), options.persist !== false]);
-	const latest = useRef({ scope, options, key });
-	latest.current = { scope, options, key };
+	const latest = useRef({ scope, options, key, storage });
+	latest.current = { scope, options, key, storage };
 
 	const [snapshot, setSnapshot] = useState<StateSnapshot<State>>(() => ({
 		key,
@@ -70,18 +82,32 @@ export function useBlockState<State>(
 			currentOptions.persist === false
 				? undefined
 				: restoreBlockState(
-						browserBlockStorage(),
+						storage,
 						currentScope,
 						currentOptions.schema,
 						currentOptions.legacyKeys?.(currentScope),
 					);
 
-		setSnapshot({
-			key,
-			value: restored === undefined ? currentOptions.initialState() : restored,
-			loaded: true,
+		const settle = (value: State | undefined) =>
+			setSnapshot({
+				key,
+				value: value === undefined ? currentOptions.initialState() : value,
+				loaded: true,
+			});
+
+		if (!isPromise(restored)) {
+			settle(restored);
+			return;
+		}
+		// An asynchronous storage answers later; a scope change or unmount meanwhile drops it.
+		let cancelled = false;
+		void restored.then((value) => {
+			if (!cancelled && latest.current.key === key) settle(value);
 		});
-	}, [key]);
+		return () => {
+			cancelled = true;
+		};
+	}, [key, storage]);
 
 	useEffect(() => {
 		if (!current.loaded || latest.current.key !== key) return;
@@ -96,7 +122,7 @@ export function useBlockState<State>(
 			return { ...previous, value: normalized };
 		});
 		if (latest.current.options.persist !== false)
-			saveBlockState(browserBlockStorage(), latest.current.scope, normalized);
+			saveBlockState(latest.current.storage, latest.current.scope, normalized);
 	}, [key, current.loaded, normalized]);
 
 	const setState = useCallback<Dispatch<SetStateAction<State>>>(

@@ -1,9 +1,13 @@
 import { useId, useRef, type ReactNode, type KeyboardEvent, type FocusEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { enterTransition, exitTransition } from "../motion";
+import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 import { createPortal } from "react-dom";
-import { useColumnMenu } from "./useColumnMenu";
+import { useColumnMenu } from "./useColumnMenu.web";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
+
+/** The web client's enter and exit timings (apps/web/src/motion.ts). */
+const subtleEase = [0.22, 1, 0.36, 1] as const;
+const enterTransition: Transition = { duration: 0.2, ease: subtleEase };
+const exitTransition: Transition = { duration: 0.15, ease: subtleEase };
 
 function closeColumnMenu(onOpenChange: (open: boolean) => void, trigger: HTMLDivElement | null) {
 	onOpenChange(false);

@@ -9,7 +9,7 @@ import Kbd from "@mdxserve/ui/builtins/Kbd";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Chart from "./Chart";
 import Sparkline from "./Sparkline";
-import DataTable from "./DataTable";
+import DataTable from "@mdxserve/ui/builtins/DataTable";
 import Screenshot from "./Screenshot";
 
 /** Each builtin's component by name; builtinCatalog (catalog.ts) describes the same names. */

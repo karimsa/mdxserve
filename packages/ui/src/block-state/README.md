@@ -12,11 +12,18 @@ const [state, setState] = useBlockState(scope, {
 });
 ```
 
-Import the hooks from `./useBlockState` and storage helpers/types from `./storage`.
+Import the hooks from `@mdxserve/ui/block-state/useBlockState` and storage helpers/types from
+`@mdxserve/ui/block-state/storage`.
 
 - Keep `blockId` stable across edits and unique within the document. `kind` separates component
-  families; `version` identifies the persisted format. The scope uses `DocContext.path`, with the
-  browser pathname as a fallback outside a document.
+  families; `version` identifies the persisted format. The scope uses `DocContext.path`
+  (`../document/DocContext.ts`), with the browser pathname as a fallback outside a document on
+  the web and an empty path in the app.
+- State is kept in the `BlockStateStorage` that `BlockStateStorageContext` provides. The web's
+  default is `localStorage` (`environment.web.ts`). The app has no default and provides one at
+  its root: an in-memory storage (`createMemoryBlockStorage`) until it keeps state on the device.
+  A storage may answer with promises, as AsyncStorage does: the block then shows its defaults
+  until the saved state arrives, and a change the reader makes before that is replaced by it.
 - Provide a schema with `safeParse` (Zod schemas work), a fresh default-state factory, and optional
   pure normalization against current block props. State must be JSON-compatible. Validation
   checks saved data; normalization handles changes to the block's current content or schema.
@@ -35,5 +42,6 @@ Import the hooks from `./useBlockState` and storage helpers/types from `./storag
   should also reset when the scope changes. Persistence itself does not require a remount.
 
 `restoreBlockState` and `saveBlockState` accept a small storage interface for direct use and
-contract tests. They contain no component-specific knowledge. `useTableState` supplies table
-validation, column reconciliation, and the old table-key migration as one consumer of this API.
+contract tests. They contain no component-specific knowledge. `useTableState`
+(`../data-table/useTableState.ts`) supplies table validation, column reconciliation, and the old
+table-key migration as one consumer of this API.
