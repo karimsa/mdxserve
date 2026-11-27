@@ -69,7 +69,7 @@ jobs:
         run: yarn test
 
       - name: Test site deployment selection and promotion safety
-        run: node --test site/deployment/*.test.mjs
+        run: node --test apps/site/deployment/*.test.mjs
 
       - name: Test Codex review gate
         run: node --test tests/automation/codex-review-gate.test.cjs
@@ -100,10 +100,18 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install site dependencies
-        working-directory: site
-        run: yarn install --immutable
+      - name: Restore Yarn cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .yarn/cache
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          yarn config set enableGlobalCache false
+          yarn --immutable
 
       - name: Typecheck and build the site
-        working-directory: site
-        run: yarn build
+        run: yarn workspace @mdxserve/site build

@@ -29,11 +29,11 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Verify the tag matches package.json
+      - name: Verify the tag matches the server package version
         run: |
-          expected="v$(node -p "require('./package.json').version")"
+          expected="v$(node -p "require('./packages/server/package.json').version")"
           if [ "$expected" != "$GITHUB_REF_NAME" ]; then
-            echo "tag $GITHUB_REF_NAME does not match package.json version $expected" >&2
+            echo "tag $GITHUB_REF_NAME does not match packages/server/package.json version $expected" >&2
             exit 1
           fi
 
@@ -56,12 +56,13 @@ jobs:
         run: yarn smoke
 
       - name: Check site deployment promotion safety
-        run: node --test site/deployment/*.test.mjs
+        run: node --test apps/site/deployment/*.test.mjs
 
       # A prerelease version such as 0.6.0-rc.1 goes out under the "next" dist-tag, so a
       # plain `npm install @karimsa/mdxserve` keeps resolving to the latest stable release.
       # npm refuses to publish a prerelease without an explicit tag.
       - name: Publish
+        working-directory: packages/server
         run: |
           version="$(node -p "require('./package.json').version")"
           case "$version" in
@@ -96,7 +97,7 @@ jobs:
         run: |
           for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             if [ -z "${!name}" ]; then
-              echo "Missing $name; see site/DEPLOYMENT.md" >&2
+              echo "Missing $name; see apps/site/DEPLOYMENT.md" >&2
               exit 1
             fi
           done
@@ -105,16 +106,16 @@ jobs:
         id: deployment
         run: |
           commit_sha="$(git rev-parse HEAD)"
-          deployment_id="$(node site/deployment/wait-for-production.mjs "$commit_sha")"
+          deployment_id="$(node apps/site/deployment/wait-for-production.mjs "$commit_sha")"
           echo "id=$deployment_id" >> "$GITHUB_OUTPUT"
 
       - name: Check production commit freshness
         id: freshness
         run: |
           commit_sha="$(git rev-parse HEAD)"
-          promote="$(node site/deployment/check-promotion-freshness.mjs "$commit_sha")"
+          promote="$(node apps/site/deployment/check-promotion-freshness.mjs "$commit_sha")"
           echo "promote=$promote" >> "$GITHUB_OUTPUT"
 
       - name: Promote the tagged deployment
         if: steps.freshness.outputs.promote == 'true'
-        run: node site/deployment/promote-production.mjs "${{ steps.deployment.outputs.id }}"
+        run: node apps/site/deployment/promote-production.mjs "${{ steps.deployment.outputs.id }}"
