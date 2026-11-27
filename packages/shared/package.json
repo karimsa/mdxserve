@@ -16,7 +16,7 @@
 		"zod": "4.4.3"
 	},
 	"peerDependencies": {
-		"react": "19.2.8"
+		"react": "19.3.0"
 	},
 	"peerDependenciesMeta": {
 		"react": {
@@ -24,8 +24,8 @@
 		}
 	},
 	"devDependencies": {
-		"@types/react": "19.2.18",
-		"react": "19.2.8",
+		"@types/react": "19.3.3",
+		"react": "19.3.0",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	}
