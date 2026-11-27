@@ -91,7 +91,9 @@ describe("AssetsService.locate properties", () => {
 				);
 				let real: string | null = null;
 				try {
-					real = fs.realpathSync(input);
+					// The native call, as the service makes. Node's own implementation disagrees with it
+					// on macOS for `..` after a symlink to a file (`hidden-link.png/../shot.png`).
+					real = fs.realpathSync.native(input);
 				} catch {
 					real = null;
 				}
