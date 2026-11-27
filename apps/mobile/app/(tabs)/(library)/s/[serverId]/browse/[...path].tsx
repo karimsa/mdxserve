@@ -5,6 +5,7 @@ import { LISTING_SORT_OPTIONS, sortListingEntries } from "@mdxserve/client/listi
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { FolderEntryRow } from "../../../../../../src/library/FolderEntryRow";
 import { useListingSort } from "../../../../../../src/library/ListingSortProvider";
+import { AnimatedList, AnimatedRow } from "../../../../../../src/library/ListMotion";
 import { ServerName } from "../../../../../../src/servers/ServerName";
 import {
 	baseName,
@@ -109,20 +110,27 @@ function FolderListing({ server, dir }: { server: KnownServer; dir: string }) {
 					This folder is empty.
 				</Text>
 			) : null}
-			{entries?.map((entry) => (
-				<FolderEntryRow
-					key={entry.name}
-					entry={entry}
-					onOpen={() =>
-						router.push({
-							pathname: entry.isDir
-								? "/s/[serverId]/browse/[...path]"
-								: "/s/[serverId]/doc/[...path]",
-							params: { serverId: server.id, path: pathSegments(childPath(dir, entry.name)) },
-						})
-					}
-				/>
-			))}
+			{/* Mounted with the first answer, so opening a folder does not animate; a re-sort, a
+			    refresh or a refetch that finds the folder changed does. Keys are the entries' paths. */}
+			{entries ? (
+				<AnimatedList>
+					{entries.map((entry) => (
+						<AnimatedRow key={childPath(dir, entry.name)}>
+							<FolderEntryRow
+								entry={entry}
+								onOpen={() =>
+									router.push({
+										pathname: entry.isDir
+											? "/s/[serverId]/browse/[...path]"
+											: "/s/[serverId]/doc/[...path]",
+										params: { serverId: server.id, path: pathSegments(childPath(dir, entry.name)) },
+									})
+								}
+							/>
+						</AnimatedRow>
+					))}
+				</AnimatedList>
+			) : null}
 		</ScrollView>
 	);
 }

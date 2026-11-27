@@ -599,3 +599,58 @@ describe("saving the sort order", () => {
 		restore();
 	});
 });
+
+describe("folder rows as the listing changes", () => {
+	it("keeps each row's element across a re-sort, so rows move instead of being replaced", async () => {
+		await openNotes([
+			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
+			{ name: "zulu.md", isDir: false, isDoc: true, mtime: 900 },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		const alpha = await screen.findByLabelText("Document alpha.md");
+		const zulu = screen.getByLabelText("Document zulu.md");
+		const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+			(candidate) => candidate.props.title === "notes",
+		)!;
+		const menu = header.props.headerRightBarButtonItems.find(
+			(item: { type: string }) => item.type === "menu",
+		);
+		await act(async () => {
+			header.props.onPressHeaderBarButtonMenuItem({
+				nativeEvent: { menuId: menu.menu.items[1].menuId },
+			});
+		});
+		expect(
+			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
+		).toEqual(["Document zulu.md", "Document alpha.md"]);
+		expect(screen.getByLabelText("Document alpha.md")).toBe(alpha);
+		expect(screen.getByLabelText("Document zulu.md")).toBe(zulu);
+	});
+
+	it("shows a refreshed listing in order, with the new row in and the removed row gone", async () => {
+		await openNotes([
+			{ name: "b.md", isDir: false, isDoc: true },
+			{ name: "c.md", isDir: false, isDoc: true },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		const kept = await screen.findByLabelText("Document b.md");
+		mockListings.set(`${STUDIO_URL}/Users/me/notes`, {
+			path: "/Users/me/notes",
+			rootName: "notes",
+			rootDir: "/Users/me/notes",
+			entries: [
+				{ name: "b.md", isDir: false, isDoc: true },
+				{ name: "a.md", isDir: false, isDoc: true },
+				{ name: "drafts", isDir: true, isDoc: false },
+			],
+		});
+		const list = screen.getByTestId("folder-content");
+		await act(async () => list.props.refreshControl.props.onRefresh());
+		await waitFor(() =>
+			expect(
+				screen.getAllByLabelText(/^(Document|Folder) /).map((row) => row.props.accessibilityLabel),
+			).toEqual(["Folder drafts", "Document a.md", "Document b.md"]),
+		);
+		expect(screen.getByLabelText("Document b.md")).toBe(kept);
+	});
+});

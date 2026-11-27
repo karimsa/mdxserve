@@ -1,10 +1,13 @@
 import { useQueries } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
+import { useRef } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@mdxserve/ui/primitives/Text";
 import { LibraryRowView } from "../../../src/library/LibraryRowView";
 import { pathSegments } from "../../../src/library/paths";
-import { libraryRows, type RootsState } from "../../../src/library/rows";
+import { AnimatedList, AnimatedRow } from "../../../src/library/ListMotion";
+import { libraryRows, type Root, type RootsState } from "../../../src/library/rows";
+import type { KnownServer } from "../../../src/servers/store";
 import { useServerQueryOptions } from "../../../src/servers/server-query";
 import { useServers } from "../../../src/servers/ServersProvider";
 import { useSideInsets } from "../../../src/side-insets";
@@ -31,6 +34,15 @@ export default function Library() {
 		return { kind: "loading" };
 	});
 	const rows = libraryRows(servers, states);
+	// Once every server has answered once, rows animate from then on.
+	const everSettled = useRef(false);
+	if (states.every((state) => state.kind !== "loading")) everSettled.current = true;
+	const settled = everSettled.current;
+	const openRoot = (server: KnownServer, root: Root) =>
+		router.push({
+			pathname: "/s/[serverId]/browse/[...path]",
+			params: { serverId: server.id, path: pathSegments(root.dir) },
+		});
 	const refreshing = results.some((result) => result.isRefetching);
 	return (
 		<ScrollView
@@ -64,18 +76,19 @@ export default function Library() {
 					</Text>
 				</View>
 			) : null}
-			{rows.map((row) => (
-				<LibraryRowView
-					key={row.key}
-					row={row}
-					onOpen={(server, root) =>
-						router.push({
-							pathname: "/s/[serverId]/browse/[...path]",
-							params: { serverId: server.id, path: pathSegments(root.dir) },
-						})
-					}
-				/>
-			))}
+			{/* Rows animate only once every server has answered once, so the first answers do
+			    not slide in; after that a re-sort, a refresh or a server coming and going does. */}
+			{settled ? (
+				<AnimatedList>
+					{rows.map((row) => (
+						<AnimatedRow key={row.key}>
+							<LibraryRowView row={row} onOpen={openRoot} />
+						</AnimatedRow>
+					))}
+				</AnimatedList>
+			) : (
+				rows.map((row) => <LibraryRowView key={row.key} row={row} onOpen={openRoot} />)
+			)}
 		</ScrollView>
 	);
 }

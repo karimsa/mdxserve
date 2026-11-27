@@ -1,4 +1,5 @@
 import type { Transition, Variants } from "framer-motion";
+import { DURATIONS, SPRINGS } from "@mdxserve/ui/tokens/springs";
 
 /** Shared ease for every subtle motion in the app: a gentle deceleration. */
 const subtleEase = [0.22, 1, 0.36, 1] as const;
@@ -30,12 +31,12 @@ export const stagger: Variants = {
 
 export const TRANSITIONS = {
 	/** Controls: press, toggle knobs, segmented pills. 1:1 with --spring-snap. */
-	snap: { type: "spring", stiffness: 620, damping: 34, mass: 0.7 } satisfies Transition,
+	snap: { type: "spring", ...SPRINGS.snap } satisfies Transition,
 	/** Surfaces: dialogs, toasts, disclosure. 1:1 with --spring-glide. */
-	glide: { type: "spring", stiffness: 340, damping: 30, mass: 0.9 } satisfies Transition,
+	glide: { type: "spring", ...SPRINGS.glide } satisfies Transition,
 	/** Colour and opacity only. */
-	fast: { duration: 0.12, ease: [0.2, 0, 0.2, 1] } satisfies Transition,
-	base: { duration: 0.18, ease: [0.2, 0, 0.2, 1] } satisfies Transition,
+	fast: { duration: DURATIONS.fast / 1000, ease: [0.2, 0, 0.2, 1] } satisfies Transition,
+	base: { duration: DURATIONS.base / 1000, ease: [0.2, 0, 0.2, 1] } satisfies Transition,
 	slow: { duration: 0.26, ease: [0, 0, 0.2, 1] } satisfies Transition,
 };
 
