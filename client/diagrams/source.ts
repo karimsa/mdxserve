@@ -71,3 +71,36 @@ export function locateDiagram(markdown: string, target: ExistingDiagram) {
 		},
 	};
 }
+
+/**
+ * `locateDiagram` for the source of one block cut out of its container (a
+ * mermaid fence in a list item, indented four or more spaces): the common
+ * indentation is taken off before parsing, so the fence is not read as an
+ * indented code block, and put back on every non-blank line of the result.
+ */
+export function locateDiagramInBlock(markdown: string, target: ExistingDiagram) {
+	const lines = markdown.split("\n");
+	const indents = lines
+		.filter((line) => line.trim() !== "")
+		.map((line) => /^[\t ]*/.exec(line)?.[0] ?? "");
+	let indent = indents[0] ?? "";
+	for (const candidate of indents) {
+		while (!candidate.startsWith(indent)) indent = indent.slice(0, -1);
+	}
+	if (indent === "") return locateDiagram(markdown, target);
+	const dedented = lines
+		.map((line) => (line.startsWith(indent) ? line.slice(indent.length) : line.trimStart()))
+		.join("\n");
+	const located = locateDiagram(dedented, target);
+	if (!located) return null;
+	return {
+		source: located.source,
+		replace(source: string) {
+			return located
+				.replace(source)
+				.split("\n")
+				.map((line) => (line.trim() === "" ? line : indent + line))
+				.join("\n");
+		},
+	};
+}

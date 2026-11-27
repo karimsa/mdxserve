@@ -3,7 +3,7 @@ import { isTRPCClientError } from "@trpc/client";
 import { trpcClient } from "../api";
 import { invalidateDocument } from "../document/query";
 import { MermaidDialog } from "./Dialog";
-import { locateDiagram } from "./source";
+import { locateDiagramInBlock } from "./source";
 import type { ExistingDiagram } from "./edit-context";
 
 export function DiagramEditDialog({
@@ -22,7 +22,7 @@ export function DiagramEditDialog({
 	version: string;
 	onClose: () => void;
 }) {
-	const diagram = useMemo(() => locateDiagram(source, target), [source, target]);
+	const diagram = useMemo(() => locateDiagramInBlock(source, target), [source, target]);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState("");
 	const inFlight = useRef(false);

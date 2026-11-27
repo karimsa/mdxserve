@@ -106,8 +106,8 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 					footnoteNumbers.set(node.label, footnoteNumbers.size + 1);
 				return;
 			case "footnoteDefinition":
+				// Its content is walked below, once a reference makes it reachable.
 				if (!definitions.has(node.label)) definitions.set(node.label, node);
-				visitAll(node.children, steps);
 				return;
 			default:
 				return;
@@ -115,6 +115,13 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 	}
 
 	visitAll(document.children, []);
+	// A footnote shows only when something references it, so references inside
+	// an unused footnote never count. A Map's iteration also visits the labels
+	// a footnote's own content adds, in the order GFM numbers them.
+	for (const label of footnoteNumbers.keys()) {
+		const definition = definitions.get(label);
+		if (definition) visitAll(definition.children, []);
+	}
 	const footnotes = [...footnoteNumbers.keys()].flatMap((label) => {
 		const definition = definitions.get(label);
 		return definition ? [definition] : [];

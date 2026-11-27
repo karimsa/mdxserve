@@ -68,6 +68,25 @@ describe("tab steps", () => {
 	});
 });
 
+describe("footnotes", () => {
+	it("ignores references inside a footnote nothing references", () => {
+		const tree = parse(
+			"[^unused]: See [^nested].\n\nBody[^main].\n\n[^main]: Main.\n\n[^nested]: Nested.\n",
+		);
+		const index = indexDocument(tree);
+		expect([...index.footnoteNumbers]).toEqual([["main", 1]]);
+		expect(index.footnotes.map((definition) => definition.label)).toEqual(["main"]);
+	});
+
+	it("numbers a footnote referenced from another footnote after it", () => {
+		const tree = parse("Body[^a].\n\n[^a]: See [^b].\n\n[^b]: B.\n");
+		expect([...indexDocument(tree).footnoteNumbers]).toEqual([
+			["a", 1],
+			["b", 2],
+		]);
+	});
+});
+
 describe("fragmentOf", () => {
 	it("decodes a hash and keeps a malformed escape literal", () => {
 		expect(fragmentOf("#os%3Emac")).toBe("os>mac");
