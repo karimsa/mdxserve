@@ -12,11 +12,35 @@ jest.mock("expo-constants", () => ({
 	default: { expoConfig: jest.requireActual<{ default: unknown }>("../app.config").default },
 }));
 
+type RenderedTree = ReturnType<typeof screen.toJSON>;
+
+/** The titles native-stack hands its header, read from the rendered host tree. */
+function headerTitles(tree: RenderedTree): string[] {
+	if (tree === null) {
+		return [];
+	}
+	if (Array.isArray(tree)) {
+		return tree.flatMap(headerTitles);
+	}
+	const own =
+		tree.type === "RNSScreenStackHeaderConfig" && typeof tree.props.title === "string"
+			? [tree.props.title]
+			: [];
+	return [
+		...own,
+		...(tree.children ?? []).flatMap((child) =>
+			typeof child === "string" ? [] : headerTitles(child),
+		),
+	];
+}
+
 describe("home screen", () => {
 	it("shows the app name, the app version and the React Native version", async () => {
 		await renderRouter({ _layout: RootLayout, index: Home });
 
 		expect(screen.getByRole("header", { name: "mdxserve" })).toBeOnTheScreen();
+		// The navigation bar shows the app's name, not the route's file name.
+		expect(headerTitles(screen.toJSON())).toEqual(["mdxserve"]);
 		expect(screen.getByText("Version 0.1.0")).toBeOnTheScreen();
 		expect(
 			screen.getByText(

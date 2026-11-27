@@ -1,4 +1,4 @@
-import { useTheme } from "expo-router";
+import { Stack, useTheme } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { readAppInfo } from "../src/app-info";
 
@@ -8,6 +8,7 @@ export default function Home() {
 	const info = readAppInfo();
 	return (
 		<View style={styles.screen}>
+			<Stack.Screen options={{ title: info.name }} />
 			<Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
 				{info.name}
 			</Text>
