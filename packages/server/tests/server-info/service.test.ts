@@ -32,6 +32,13 @@ describe("ServerInfoService.info", () => {
 		expect(late.info().info.tailnetUrls).toEqual(["https://box.tail1.ts.net"]);
 	});
 
+	it("passes a punycode tailnet name through as a valid origin", () => {
+		const { info } = testServerInfo({}, ["xn--caf-dma.tail1.ts.net:4040"]).info();
+		expect(serverInfoSchema.parse(info).tailnetUrls).toEqual([
+			"https://xn--caf-dma.tail1.ts.net:4040",
+		]);
+	});
+
 	it("reports at most eight tailnet addresses, and the answer passes the shared schema", () => {
 		const hosts = Array.from({ length: 12 }, (_, index) => `box.tail1.ts.net:${8000 + index}`);
 		const { info } = testServerInfo({ permissions: "restricted" }, hosts).info();
