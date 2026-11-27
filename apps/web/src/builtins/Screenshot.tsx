@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import SharedScreenshot from "@mdxserve/ui/builtins/Screenshot";
 import { motion } from "framer-motion";
 import { TRANSITIONS } from "../motion";
 import { IconButton } from "../ui/IconButton";
 import { ExpandModal } from "../ui/ExpandModal";
 import { type ScreenshotProps } from "@mdxserve/shared/builtins/screenshot";
-
-// macOS traffic-light colours; the same in both themes, like the real thing.
-const TRAFFIC_LIGHTS = ["#ff5f57", "#febc2e", "#28c840"];
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 8;
@@ -142,52 +140,25 @@ function PanZoomImage({ src, alt }: { src: string; alt: string }) {
 	);
 }
 
-export default function Screenshot({ src, alt = "", title, caption, width }: ScreenshotProps) {
-	const [expanded, setExpanded] = useState(false);
-
+/**
+ * The shared `Screenshot` (@mdxserve/ui) with the web client's full-screen view: its expand
+ * modal around a pan-and-zoom image.
+ */
+export default function Screenshot(props: ScreenshotProps) {
 	return (
-		<figure
-			className="not-prose mx-auto overflow-hidden rounded-lg border border-border-default bg-surface-card shadow-md"
-			style={width === undefined ? undefined : { maxWidth: width }}
-		>
-			<div className="relative flex h-[34px] items-center border-b border-border-subtle bg-surface-raised px-3">
-				<div className="flex items-center gap-2" aria-hidden="true">
-					{TRAFFIC_LIGHTS.map((color) => (
-						<span
-							key={color}
-							className="block size-3 rounded-full border border-black/10"
-							style={{ backgroundColor: color }}
-						/>
-					))}
-				</div>
-				{title ? (
-					<span className="pointer-events-none absolute inset-x-16 truncate text-center font-sans font-medium leading-[1.62] text-[length:var(--size-xs)] text-text-subtle">
-						{title}
-					</span>
-				) : null}
-				<IconButton
-					icon="expand"
-					label="Expand screenshot"
-					size="sm"
-					className="-mr-1 ml-auto"
-					onClick={() => setExpanded(true)}
-				/>
-			</div>
-			<img src={src} alt={alt} className="block w-full" />
-			{caption ? (
-				<figcaption className="border-t border-border-subtle px-4 py-2.5 font-sans font-medium leading-normal text-[length:var(--size-xs)] text-text-subtle">
-					{caption}
-				</figcaption>
-			) : null}
-			<ExpandModal
-				open={expanded}
-				onClose={() => setExpanded(false)}
-				icon="image"
-				title={title || alt || "Screenshot"}
-				hint="Drag to pan · scroll to zoom"
-			>
-				<PanZoomImage src={src} alt={alt} />
-			</ExpandModal>
-		</figure>
+		<SharedScreenshot
+			{...props}
+			renderExpanded={({ open, onClose, src, alt, title }) => (
+				<ExpandModal
+					open={open}
+					onClose={onClose}
+					icon="image"
+					title={title || alt || "Screenshot"}
+					hint="Drag to pan · scroll to zoom"
+				>
+					<PanZoomImage src={src} alt={alt} />
+				</ExpandModal>
+			)}
+		/>
 	);
 }

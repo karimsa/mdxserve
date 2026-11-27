@@ -6,6 +6,8 @@ import "../src/global.css";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
+import Screenshot from "@mdxserve/ui/builtins/Screenshot";
+import Tooltip from "@mdxserve/ui/builtins/Tooltip";
 import { loadCompiledStylesheet, resolveTheme } from "./stylesheet/analyze.js";
 
 // The shared builtins drawn with the app's real compiled stylesheet (tests/stylesheet), in both
@@ -113,5 +115,62 @@ describe.each(["light", "dark"] as const)("the shared builtins in the %s theme",
 		expect(screen.getByRole("button", { expanded: false })).toBeOnTheScreen();
 		await fireEvent.press(folder);
 		expect(screen.getByText("install.mdx")).toBeOnTheScreen();
+	});
+
+	it("shows a tooltip's text in an inverse bubble on a long press, until a tap", async () => {
+		Uniwind.setTheme(theme);
+		const { toJSON } = await render(
+			<Text>
+				Hover over{" "}
+				<Tooltip content="A short explanation." placement="top" delay={100}>
+					this word
+				</Tooltip>
+				.
+			</Text>,
+		);
+		expect(screen.queryByText("A short explanation.")).toBeNull();
+		expect(styleOf(screen.getByText("this word"))).toMatchObject({
+			textDecorationLine: "underline",
+			textDecorationStyle: "dotted",
+			textDecorationColor: variables["--text-subtle"],
+		});
+		await fireEvent(screen.getByText("this word"), "longPress", {
+			nativeEvent: { pageX: 100, pageY: 300 },
+		});
+		const bubble = screen.getByText("A short explanation.");
+		expect(styleOf(bubble).backgroundColor).toBe(variables["--surface-inverse"]);
+		expect(styleOf(bubble).color).toBe(variables["--text-inverse"]);
+		expect(unresolved(toJSON())).toEqual([]);
+		await fireEvent.press(screen.getByLabelText("Close tooltip"));
+		expect(screen.queryByText("A short explanation.")).toBeNull();
+	});
+
+	it("frames a screenshot and opens it full screen", async () => {
+		Uniwind.setTheme(theme);
+		const { toJSON } = await render(
+			<Screenshot
+				id="shot"
+				src="https://example.com/reader.png"
+				alt="The reader"
+				title="mdxserve — 01-markdown.md"
+				caption="The reader view."
+			/>,
+		);
+		expect(styleOf(screen.getByText("mdxserve — 01-markdown.md")).color).toBe(
+			variables["--text-subtle"],
+		);
+		expect(screen.getByText("The reader view.")).toBeOnTheScreen();
+		expect(unresolved(toJSON())).toEqual([]);
+		expect(screen.queryByText("Done")).toBeNull();
+		await fireEvent.press(screen.getByRole("button", { name: "Expand screenshot" }));
+		expect(screen.getByText("Done")).toBeOnTheScreen();
+		// The image fills the area the sheet gives it (on iPad narrower than the window).
+		await fireEvent(screen.getByTestId("screenshot-viewer-area"), "layout", {
+			nativeEvent: { layout: { x: 0, y: 0, width: 540, height: 620 } },
+		});
+		const images = screen.getAllByLabelText("The reader");
+		expect(styleOf(images[images.length - 1])).toMatchObject({ width: 540, height: 620 });
+		await fireEvent.press(screen.getByText("Done"));
+		expect(screen.queryByText("Done")).toBeNull();
 	});
 });
