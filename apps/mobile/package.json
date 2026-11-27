@@ -14,7 +14,8 @@
 		"ios": "expo run:ios",
 		"typecheck": "tsc --noEmit",
 		"test": "jest",
-		"doctor": "expo-doctor"
+		"doctor": "expo-doctor",
+		"icon": "node scripts/render-icon.mjs"
 	},
 	"dependencies": {
 		"@mdxserve/ui": "workspace:*",
@@ -23,6 +24,7 @@
 		"expo-constants": "58.0.16",
 		"expo-linking": "58.0.17",
 		"expo-router": "58.0.32",
+		"expo-splash-screen": "58.0.15",
 		"expo-status-bar": "58.0.5",
 		"expo-system-ui": "58.0.7",
 		"react": "19.3.0",
@@ -42,6 +44,7 @@
 		"jest": "30.5.2",
 		"jest-expo": "58.0.15",
 		"lucide-react-native": "1.30.0",
+		"sharp": "0.35.5",
 		"test-renderer": "1.3.0",
 		"typescript": "7.0.2"
 	}

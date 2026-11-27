@@ -1468,6 +1468,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/config-plugins@npm:~58.0.14":
+  version: 58.0.14
+  resolution: "@expo/config-plugins@npm:58.0.14"
+  dependencies:
+    "@expo/config-types": "npm:^58.0.3"
+    "@expo/json-file": "npm:~11.2.1"
+    "@expo/plist": "npm:^0.10.2"
+    "@expo/require-utils": "npm:^58.0.6"
+    "@expo/sdk-runtime-versions": "npm:^1.0.1"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.5"
+    semver: "npm:^7.7.4"
+    slugify: "npm:^1.6.6"
+    tinyglobby: "npm:^0.2.15"
+    xcode: "npm:^4.0.0"
+    xml2js: "npm:0.6.0"
+  checksum: 10c0/9c24a840fd1bf9fe596505027d2f36d298a43f0c6d78a587c43c61a924fac3538b044124808bd1e29356fa2e18a92bfcb2566b746abce2bb3580d9feb9c80d0c
+  languageName: node
+  linkType: hard
+
 "@expo/config-types@npm:^58.0.3":
   version: 58.0.3
   resolution: "@expo/config-types@npm:58.0.3"
@@ -2766,6 +2786,7 @@ __metadata:
     expo-doctor: "npm:1.21.8"
     expo-linking: "npm:58.0.17"
     expo-router: "npm:58.0.32"
+    expo-splash-screen: "npm:58.0.15"
     expo-status-bar: "npm:58.0.5"
     expo-system-ui: "npm:58.0.7"
     jest: "npm:30.5.2"
@@ -2776,6 +2797,7 @@ __metadata:
     react-native-safe-area-context: "npm:5.11.1"
     react-native-screens: "npm:4.30.1"
     react-native-svg: "npm:15.16.0"
+    sharp: "npm:0.35.5"
     tailwindcss: "npm:4.3.3"
     test-renderer: "npm:1.3.0"
     typescript: "npm:7.0.2"
@@ -8305,6 +8327,19 @@ __metadata:
   version: 58.1.0
   resolution: "expo-server@npm:58.1.0"
   checksum: 10c0/51f6b8e15cbcdded5bf7a8abf68bbb9981a054e63c0c4038efcd522c62eedb605cbb8b75a28cc64c68046de83eecbd4c9ee4e4b74f220532332824f9b05494e3
+  languageName: node
+  linkType: hard
+
+"expo-splash-screen@npm:58.0.15":
+  version: 58.0.15
+  resolution: "expo-splash-screen@npm:58.0.15"
+  dependencies:
+    "@expo/config-plugins": "npm:~58.0.14"
+    "@expo/image-utils": "npm:^0.12.7"
+    xml2js: "npm:0.6.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/a8bdc0fbc830d442ae258b440317f3151a1766100bead69f176b15439bdcb6fbe88344c1103beb2ff7f90ac4e32fbca1ac913243864e3db09f7b5ef1e9002950
   languageName: node
   linkType: hard
 
