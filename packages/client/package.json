@@ -10,7 +10,8 @@
 		"./document/tree-types": "./document/tree-types.ts",
 		"./format": "./format.ts",
 		"./listing-sort": "./listing-sort.ts",
-		"./realtime": "./realtime.ts"
+		"./realtime": "./realtime.ts",
+		"./search-highlight": "./search-highlight.ts"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",

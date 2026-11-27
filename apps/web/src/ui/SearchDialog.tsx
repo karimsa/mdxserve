@@ -1,4 +1,5 @@
 import { BottomSheet, type SheetDragHandlers } from "./BottomSheet";
+import { highlightParts } from "@mdxserve/client/search-highlight";
 import { Modal } from "./Modal";
 import {
 	useEffect,
@@ -26,27 +27,16 @@ export interface SearchResult {
 	targetId?: string | null;
 }
 
-function escapeRegExp(input: string): string {
-	return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** Wrap every case-insensitive occurrence of `terms` in `text` with `<mark>`. */
 function highlight(text: ReactNode, terms: string[] | undefined): ReactNode {
 	if (typeof text !== "string" || !terms || terms.length === 0) return text;
-	const pattern = terms
-		.filter((term) => term.length > 0)
-		.sort((first, second) => second.length - first.length)
-		.map(escapeRegExp)
-		.join("|");
-	if (pattern === "") return text;
-	const parts = text.split(new RegExp(`(${pattern})`, "gi"));
-	return parts.map((part, index) =>
-		index % 2 === 1 ? (
+	return highlightParts(text, terms).map((part, index) =>
+		part.match ? (
 			<mark key={index} className="rounded-sm bg-surface-accent-soft text-text-accent">
-				{part}
+				{part.text}
 			</mark>
 		) : (
-			part
+			part.text
 		),
 	);
 }
