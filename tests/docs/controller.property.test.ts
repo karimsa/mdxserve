@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
 import { versionOf } from "../../src/docs/service.js";
 import { createCallerFactory } from "../../src/api/trpc.js";

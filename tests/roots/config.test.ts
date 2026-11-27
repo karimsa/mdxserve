@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { RootsService } from "../../src/roots/service.js";
 import { readConfig, writeConfig } from "../../src/roots/config.js";
 

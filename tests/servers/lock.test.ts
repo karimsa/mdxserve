@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { ServerLock, parseLockPid } from "../../src/servers/server-lock.js";
 
 let tmpDir: string;

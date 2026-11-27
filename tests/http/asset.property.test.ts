@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type http from "node:http";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GET_ASSET_PATH } from "../../src/assets/url.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";

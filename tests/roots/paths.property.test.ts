@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { expandHome, resolveDirPath, resolveDocPath, resolveRoot } from "../../src/roots/paths.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;

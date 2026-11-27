@@ -1,5 +1,5 @@
 import { describe, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { expect } from "vitest";
 import { runValidate, type ValidateJsonEntry } from "../../src/cli/validate.js";
 import { validationResultSchema } from "../../src/validation/controller.js";

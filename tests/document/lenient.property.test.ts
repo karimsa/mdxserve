@@ -1,6 +1,6 @@
 import { createMetadataPort } from "../helpers/metadata.js";
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkMdx from "remark-mdx";

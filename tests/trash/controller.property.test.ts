@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import { moveDocsToTrashResultSchema } from "../../src/trash/controller.js";

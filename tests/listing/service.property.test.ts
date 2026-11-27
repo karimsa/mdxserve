@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { ListingService } from "../../src/listing/service.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { isServable } from "../../src/roots/servable.js";

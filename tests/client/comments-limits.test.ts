@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import * as client from "../../client/comments/anchor";
 import { normalizeText as serverNormalize } from "../../src/comments/anchor";
 import { MAX_ANCHOR_HEADING, MAX_ANCHOR_TEXT, MAX_MESSAGE_BODY } from "../../src/comments/schema";

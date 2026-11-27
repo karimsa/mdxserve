@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { z } from "zod";
 import { readListing } from "../../src/listing/folder.js";
 import { readTree } from "../../src/listing/tree.js";

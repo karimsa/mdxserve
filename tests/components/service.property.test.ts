@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { ComponentsService } from "../../src/components/service.js";
 import type { Registry } from "../../src/components/registry.js";
 

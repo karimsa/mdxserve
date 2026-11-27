@@ -3,7 +3,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import { TRPCClientError } from "@trpc/client";
 import { RemoteClient, serverBaseUrl, toOutcome } from "../../src/servers/remote.js";
 import type { ServerRecord } from "../../src/servers/server-registry.js";
