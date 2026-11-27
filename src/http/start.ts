@@ -6,12 +6,10 @@ import { validateDiagram } from "../diagrams/adapters/validate.js";
 import http from "node:http";
 import path from "node:path";
 import os from "node:os";
-import fsp from "node:fs/promises";
-import { allowFsDir, createDevServer, disallowFsDir } from "../rendering/vite.js";
-import { renderAppCss } from "../rendering/app-css.js";
-import { getPackageRoot, resolveFromPkg } from "../infra/pkg.js";
-import { getViteCacheDir } from "../infra/cache.js";
-import { signalFileChanges } from "./watch-signals.js";
+import { watch } from "chokidar";
+import { getPackageRoot } from "../infra/pkg.js";
+import { isWatchIgnored, signalFileChanges } from "./watch-signals.js";
+import { loadShellTemplate } from "./shell.js";
 import { acceptsRealtimePeer } from "./host.js";
 import { attachRealtime } from "../realtime/server.js";
 import { loadRegistry } from "../components/registry.js";
@@ -29,7 +27,7 @@ import { DocCache } from "../docs/doc-cache.js";
 import { SearchService } from "../search/service.js";
 import { DocsService } from "../docs/service.js";
 import { DocumentService } from "../document/service.js";
-import { rootFileUrl } from "../docs/asset-url.js";
+import { assetUrl } from "../assets/url.js";
 import { handleRequest } from "./server.js";
 
 export interface StartServerOptions {
@@ -38,18 +36,6 @@ export interface StartServerOptions {
 	host: string;
 	dangerousAllowNetwork?: boolean;
 	permissions?: string;
-}
-
-/** Write the Tailwind entry CSS to `file`. It scans client/ only, never a mounted root. */
-async function writeAppCss(file: string, pkgRoot: string): Promise<void> {
-	await fsp.writeFile(
-		file,
-		renderAppCss({
-			tailwindCss: resolveFromPkg("tailwindcss/index.css"),
-			clientDir: path.join(pkgRoot, "client"),
-		}),
-		"utf8",
-	);
 }
 
 function getLocalIPs(): string[] {
@@ -174,8 +160,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	}
 	if (acquired.kind === "error") return { kind: "error", message: acquired.message };
 
-	const pkgRoot = getPackageRoot();
-
 	// Per-process state: the one mutable set of directories this server
 	// serves. Restore the configured roots and persist explicit startup additions;
 	// root procedures and external config edits share the same change listeners.
@@ -191,31 +175,31 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		return { kind: "error", message: initialized.message };
 	}
 
-	// Let a missing dist/registry.json (i.e. "run yarn build" first) propagate
-	// and fail startup fast, rather than only failing the first CLI call.
+	// Let a missing dist/registry.json or dist/client (i.e. "run yarn build"
+	// first) propagate and fail startup fast, rather than only failing the
+	// first CLI call or page load.
 	const registry = loadRegistry();
-
-	const cssDir = await fsp.mkdtemp(path.join(os.tmpdir(), "mdxserve-"));
-	const cssFile = path.join(cssDir, "app.css");
-	await writeAppCss(cssFile, pkgRoot);
+	const clientDir = path.join(getPackageRoot(), "dist", "client");
+	const client = { dir: clientDir, template: loadShellTemplate(clientDir) };
 
 	const docs = new DocsService(rootsService, registry);
 	const httpServer = http.createServer();
-	const vite = await createDevServer({
-		roots: rootsService.list().map((info) => info.dir),
-		viteRoot: cssDir,
-		cacheDir: getViteCacheDir(),
-		httpServer,
-		extraFsAllow: [cssDir],
-	});
 
-	// Vite's own root is the generated CSS temp dir, not any served root, so
-	// none of them are watched by default — every root needs adding explicitly.
-	// Chokidar applies the configured `ignored` globs to added paths too.
-	for (const rootInfo of rootsService.list()) vite.watcher.add(rootInfo.dir);
+	// One watcher over every mounted root drives the live update signals. It
+	// skips dependency, virtualenv and build trees (see isWatchIgnored) and
+	// does not follow symlinks out of a root.
+	const watcher = watch(
+		rootsService.list().map((info) => info.dir),
+		{
+			ignoreInitial: true,
+			followSymlinks: false,
+			ignored: (changedPath) => isWatchIgnored(rootsService.list(), changedPath),
+		},
+	);
+	watcher.on("error", (error) => console.error(error));
 
 	const docCache = new DocCache();
-	const search = new SearchService(docCache, new DocumentService(registry, rootFileUrl));
+	const search = new SearchService(docCache, new DocumentService(registry, assetUrl));
 	const diagrams = restricted
 		? undefined
 		: new DiagramsService(
@@ -235,9 +219,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		handleRequest(req, res, {
 			roots: rootsService,
 			registry,
-			pkgRoot,
-			vite,
-			cssFile,
+			client,
 			docCache,
 			search,
 			docs,
@@ -260,30 +242,20 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		acceptsPeer: (req) => acceptsRealtimePeer(req, permissions),
 	});
 
-	// Auto-refresh open listings and docs: chokidar already watches every root
-	// for Vite's own HMR, so ride the same watcher instead of standing up a
-	// second one.
-	const stopFileSignals = signalFileChanges(vite.watcher, () => rootsService.list(), realtime);
+	// Auto-refresh open listings and docs.
+	const stopFileSignals = signalFileChanges(watcher, () => rootsService.list(), realtime);
 
-	// Apply a live root change to the running Vite server: its fs.allow list
-	// and its watcher both need to move in lockstep with the mounted set, or a newly-added root's
-	// docs would 403 out of Vite even though RootsService already serves them.
-	// By the time this runs the set has already changed, so nothing in here may
-	// reject: a failure would surface as an error on a mutation that did
-	// succeed, and a retry would then read as "already mounted". Each step is
-	// best-effort and logged; the registry write and the socket broadcast are
-	// independent of the Vite steps and of each other.
+	// Move the watcher with the mounted set. By the time this runs the set has
+	// already changed, so nothing in here may reject: a failure would surface
+	// as an error on a mutation that did succeed, and a retry would then read
+	// as "already mounted". Each step is best-effort and logged; the registry
+	// write and the socket broadcast are independent of the watcher and of
+	// each other.
 	rootsService.onChange(async ({ added, removed, roots: mountedRoots }) => {
 		const dirs = mountedRoots.map((info) => info.dir);
 		try {
-			for (const dir of removed) {
-				vite.watcher.unwatch(dir);
-				disallowFsDir(vite, dir);
-			}
-			for (const dir of added) {
-				allowFsDir(vite, dir);
-				vite.watcher.add(dir);
-			}
+			if (removed.length > 0) watcher.unwatch(removed);
+			if (added.length > 0) watcher.add(added);
 		} catch (error) {
 			console.error(error);
 		}
@@ -328,7 +300,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			stopConfigWatch();
 			stopFileSignals();
 			realtime.close();
-			await vite.close();
+			await watcher.close();
 		} finally {
 			// The lock and registry row stay ours until the listener has actually
 			// let go of the port: a process manager restarting mdxserve during

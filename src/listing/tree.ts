@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { isPublicPath, isServable } from "../roots/servable.js";
 
-// Kept in sync with the Vite watcher's ignore list (see src/rendering/vite.ts) so the
-// tree never surfaces directories we don't watch for changes.
+// The file watcher skips the same directories (src/http/watch-signals.ts), so
+// the tree never surfaces directories we don't watch for changes.
 const TREE_IGNORED_DIRS = new Set([
 	".git",
 	"node_modules",
@@ -16,6 +16,11 @@ const TREE_IGNORED_DIRS = new Set([
 	"target",
 	"__pycache__",
 ]);
+
+/** Whether a directory with this name is left out of the tree and of the file watcher. */
+export function isIgnoredDir(name: string): boolean {
+	return TREE_IGNORED_DIRS.has(name);
+}
 
 export interface TreeNode {
 	name: string;

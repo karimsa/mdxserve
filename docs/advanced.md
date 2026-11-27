@@ -217,10 +217,11 @@ The `Origin` check means a page on another site cannot drive the write endpoints
 the server is bound to `0.0.0.0`. The section editor and the Trash action are mutations too,
 so they follow the same rule.
 
-One more thing a remote caller can reach: the dev server serves the files of mdxserve's own
-dependencies under `/@fs/`, from the `node_modules` the package was installed into. With a
-global or `npx` install that folder also holds whatever else is installed there, so use
-full permissions on a network interface only on a network you trust.
+A remote caller of a full server can read any file in a mounted root through `getAsset`
+(`/__mdxserve/getAsset?path=<absolute path>`), the endpoint images load from, except
+documents, anything under `.git`, `.env` files and `.pem`/`.crt` keys. A restricted server
+also refuses hidden and `node_modules` paths. Use full permissions on a network interface
+only on a network you trust.
 
 ## The agent CLI
 
@@ -345,13 +346,12 @@ copies rather than symlinks.
 
 ## The cache
 
-Vite pre-bundles the browser dependencies (React, mermaid, framer-motion, …) on first start
-and keeps that under `~/.cache/mdxserve/vite/` (or `$XDG_CACHE_HOME/mdxserve/vite/`). One
-server, one cache: later starts are fast, and nothing is ever written inside your docs
-folders. It is safe to delete at any time.
+The browser client ships prebuilt, so the server keeps no cache of its own. Earlier releases
+pre-bundled browser dependencies under `~/.cache/mdxserve/vite/` (or
+`$XDG_CACHE_HOME/mdxserve/vite/`); nothing reads that folder any more.
 
 ```bash
-mdxserve cache clean          # remove the whole cache; the next serve rebuilds it
+mdxserve cache clean          # remove what older releases left in the cache folder
 ```
 
 ## Environment variables
@@ -359,5 +359,5 @@ mdxserve cache clean          # remove the whole cache; the next serve rebuilds 
 | Variable              | Default             | Controls                                                   |
 | --------------------- | ------------------- | ---------------------------------------------------------- |
 | `MDXSERVE_HOME`       | `~/.mdxserve`       | Where the server lock and `servers.db` live                |
-| `MDXSERVE_CACHE_HOME` | `~/.cache/mdxserve` | Where the Vite dependency cache lives                      |
+| `MDXSERVE_CACHE_HOME` | `~/.cache/mdxserve` | The cache folder `mdxserve cache clean` removes            |
 | `XDG_CACHE_HOME`      | `~/.cache`          | Honoured for the cache when `MDXSERVE_CACHE_HOME` is unset |

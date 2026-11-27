@@ -702,8 +702,10 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		}
 	}
 
+	// A path relative to the document, or an absolute path on this machine (a
+	// root-absolute URL is a file path here), loads through the asset endpoint.
 	function resolveAsset(url: string): string {
-		return isDocumentRelative(url) ? options.assetUrl(url) : url;
+		return isDocumentRelative(url) || isLocalAbsolute(url) ? options.assetUrl(url) : url;
 	}
 
 	// A table's id is a hash its persisted preferences are kept under, so it
@@ -782,6 +784,11 @@ export function isDocumentRelative(url: string): boolean {
 	return (
 		!url.startsWith("/") && !url.startsWith("#") && !url.startsWith("?") && !url.startsWith("\\")
 	);
+}
+
+/** An absolute path such as `/docs/img.png`, but not a protocol-relative `//host/...` URL. */
+function isLocalAbsolute(url: string): boolean {
+	return url.startsWith("/") && !url.startsWith("//");
 }
 
 function lineCountOf(value: string): number {

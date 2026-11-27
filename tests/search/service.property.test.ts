@@ -7,7 +7,7 @@ import { SearchService, type SearchResult } from "../../src/search/service.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { readTree, type TreeNode } from "../../src/listing/tree.js";
 import { DocumentService } from "../../src/document/service.js";
-import { rootFileUrl } from "../../src/docs/asset-url.js";
+import { assetUrl } from "../../src/assets/url.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
@@ -301,7 +301,7 @@ describe("SearchService.search — targetId", () => {
 					try {
 						const abs = path.join(root, "doc.md");
 						await fs.writeFile(abs, doc, "utf8");
-						const documents = new DocumentService(registry, rootFileUrl);
+						const documents = new DocumentService(registry, assetUrl);
 						const withDocuments = new SearchService(new DocCache(), documents);
 						const { tree } = documents.parse(doc, abs);
 						const ids = new Set<string>();

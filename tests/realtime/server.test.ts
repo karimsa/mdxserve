@@ -1,10 +1,10 @@
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { REALTIME_PATH, SERVER_EVENTS } from "../../shared/realtime.js";
-import { signalFileChanges, type FileWatcher } from "../../src/http/watch-signals.js";
+import { watch } from "chokidar";
+import { isWatchIgnored, signalFileChanges } from "../../src/http/watch-signals.js";
 import { MAX_JOINED_PATHS } from "../../src/realtime/server.js";
 import { io as connect } from "socket.io-client";
 import {
@@ -286,18 +286,15 @@ describe("attachRealtime signals", () => {
 	it("delivers a write to a watched file to a joined client within one second", async () => {
 		harness = await startHarness();
 		const { root } = harness;
-		// A real file system watcher stands in for Vite's chokidar watcher.
-		const listeners = new Map<string, Array<(changedPath: string) => void>>();
-		const watcher: FileWatcher = {
-			on(event, listener) {
-				listeners.set(event, [...(listeners.get(event) ?? []), listener]);
-			},
-		};
-		const nativeWatcher = fs.watch(root, { recursive: true }, (_, filename) => {
-			if (!filename) return;
-			for (const listener of listeners.get("change") ?? []) listener(path.join(root, filename));
+		// The watcher startServer creates, over the same root.
+		const roots = [{ name: "root", dir: root }];
+		const watcher = watch(root, {
+			ignoreInitial: true,
+			followSymlinks: false,
+			ignored: (changedPath) => isWatchIgnored(roots, changedPath),
 		});
-		const stop = signalFileChanges(watcher, () => [{ name: "root", dir: root }], harness.realtime);
+		await new Promise<void>((resolve) => watcher.once("ready", () => resolve()));
+		const stop = signalFileChanges(watcher, () => roots, harness.realtime);
 		try {
 			const socket = harness.client();
 			await connected(socket);
@@ -311,7 +308,7 @@ describe("attachRealtime signals", () => {
 			expect(Date.now() - started).toBeLessThan(1000);
 		} finally {
 			stop();
-			nativeWatcher.close();
+			await watcher.close();
 		}
 	});
 });

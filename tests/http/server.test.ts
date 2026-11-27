@@ -2,12 +2,12 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createTRPCClient, httpLink, TRPCClientError } from "@trpc/client";
-import type { ViteDevServer } from "vite";
 import type { AppRouter } from "../../src/api/router.js";
 import { renderShell } from "../../src/http/shell.js";
-import { makeRequestContext, startTestServer } from "../helpers/http.js";
+import { makeRequestContext, shellTemplate, startTestServer } from "../helpers/http.js";
+import { getAssetUrl } from "../../src/assets/url.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
 import { RootsService } from "../../src/roots/service.js";
@@ -180,20 +180,10 @@ describe("same-origin guard on mutations", () => {
 	});
 });
 
-// The default fake `vite` from makeRequestContext only stubs `middlewares`
-// (enough for the trpc/api-focused tests above); the HTML-rendering routes
-// exercised below also call `vite.transformIndexHtml`.
-function htmlVite(): ViteDevServer {
-	return {
-		middlewares: (_req: unknown, res: http.ServerResponse, next: () => void) => next(),
-		transformIndexHtml: async (_url: string, html: string) => html,
-	} as unknown as ViteDevServer;
-}
-
 describe("root count affects / and doc routing", () => {
 	it('GET / is a 200 home page with data-root-count="0" when nothing is mounted', async () => {
 		const roots = new RootsService(fixtureDir, os.homedir(), []);
-		const { base } = await startWith({ roots, vite: htmlVite() });
+		const { base } = await startWith({ roots });
 		const res = await fetch(`${base}/`);
 		expect(res.status).toBe(200);
 		const html = await res.text();
@@ -206,7 +196,7 @@ describe("root count affects / and doc routing", () => {
 		);
 		try {
 			const roots = new RootsService(fixtureDir, os.homedir(), [fixtureDir, other]);
-			const { base } = await startWith({ roots, vite: htmlVite() });
+			const { base } = await startWith({ roots });
 			const res = await fetch(`${base}/`);
 			expect(res.status).toBe(200);
 			const html = await res.text();
@@ -218,14 +208,14 @@ describe("root count affects / and doc routing", () => {
 
 	it("GET / redirects (302) into the single mounted root", async () => {
 		const roots = new RootsService(fixtureDir, os.homedir(), [fixtureDir]);
-		const { base } = await startWith({ roots, vite: htmlVite() });
+		const { base } = await startWith({ roots });
 		const res = await fetch(`${base}/`, { redirect: "manual" });
 		expect(res.status).toBe(302);
 	});
 
 	it("404s a doc path when nothing is mounted", async () => {
 		const roots = new RootsService(fixtureDir, os.homedir(), []);
-		const { base } = await startWith({ roots, vite: htmlVite() });
+		const { base } = await startWith({ roots });
 		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
 			headers: { Accept: "text/html" },
 		});
@@ -250,12 +240,12 @@ describe("root count affects / and doc routing", () => {
 
 describe("data-same-machine on the shell", () => {
 	it('renderShell(route) defaults to data-same-machine="0"', () => {
-		const html = renderShell({ kind: "notfound", path: "/x" });
+		const html = renderShell(shellTemplate(), { kind: "notfound", path: "/x" });
 		expect(html).toContain('data-same-machine="0"');
 	});
 
 	it('a loopback request for a doc URL gets a shell with data-same-machine="1"', async () => {
-		const { base } = await startWith({ vite: htmlVite() });
+		const { base } = await startWith();
 		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
 			headers: { Accept: "text/html" },
 		});
@@ -319,23 +309,18 @@ describe("DNS-rebinding guard on same-machine privileges", () => {
 });
 
 describe("restricted permissions", () => {
-	it.each(["entry.tsx%5C..%5C..%5C.hidden.tsx", "entry.tsx%5C..%2F..%5C.hidden.tsx"])(
-		"rejects encoded separators in %s before routing internal files to Vite",
-		async (rest) => {
-			const middleware = vi.fn((_req: unknown, res: http.ServerResponse) => {
-				res.statusCode = 200;
-				res.end("vite");
-			});
-			const vite = { middlewares: middleware } as unknown as ViteDevServer;
-			const { base } = await startWith({ permissions: "restricted", vite });
-			const response = await fetch(`${base}/__mdxserve/${rest}`);
-			expect(response.status).toBe(404);
-			expect(middleware).not.toHaveBeenCalled();
-		},
-	);
+	it.each([
+		"entry.tsx%5C..%5C..%5C.hidden.tsx",
+		"assets/..%2F..%2Fpackage.json",
+		"assets/%2E%2E%5Cindex.html",
+	])("404s %s: only built client files are served under /__mdxserve/", async (rest) => {
+		const { base } = await startWith({ permissions: "restricted" });
+		const response = await fetch(`${base}/__mdxserve/${rest}`);
+		expect(response.status).toBe(404);
+	});
 
 	it("serves the reader but denies same-origin writes and local-only reads on a loopback connection", async () => {
-		const { base } = await startWith({ permissions: "restricted", vite: htmlVite() });
+		const { base } = await startWith({ permissions: "restricted" });
 		const client = createTRPCClient<AppRouter>({
 			links: [httpLink({ url: `${base}/__mdxserve/trpc`, headers: { origin: base } })],
 		});
@@ -382,22 +367,18 @@ describe("restricted permissions", () => {
 			await fs.writeFile(outside, "outside");
 			await fs.symlink(outside, linked);
 			await fs.symlink(hidden, hiddenLink);
-			const vite = {
-				middlewares: (_req: unknown, res: http.ServerResponse) => {
-					res.statusCode = 200;
-					res.end("vite");
-				},
-			} as unknown as ViteDevServer;
-			const { base } = await startWith({ permissions: "restricted", vite });
+			const { base } = await startWith({ permissions: "restricted" });
+			const urls = (filePath: string) => [encodeURI(filePath), getAssetUrl(filePath)];
 			for (const filePath of [hidden, linked, hiddenLink]) {
-				for (const prefix of ["", "/@fs"]) {
-					const response = await fetch(`${base}${prefix}${encodeURI(filePath)}`);
+				for (const url of urls(filePath)) {
+					const response = await fetch(`${base}${url}`);
 					expect(response.status).toBe(404);
 				}
 			}
-			for (const prefix of ["", "/@fs"]) {
-				const response = await fetch(`${base}${prefix}${encodeURI(visible)}`);
+			for (const url of urls(visible)) {
+				const response = await fetch(`${base}${url}`);
 				expect(response.status).toBe(200);
+				expect(await response.text()).toBe("visible");
 			}
 		} finally {
 			await Promise.all([
@@ -423,7 +404,7 @@ describe("restricted permissions", () => {
 			await fs.symlink(hidden, hiddenLink);
 			await fs.symlink(outside, outsideLink);
 			await fs.symlink(path.join(fixtureDir, "good.md"), visibleLink);
-			const { base } = await startWith({ permissions: "restricted", vite: htmlVite() });
+			const { base } = await startWith({ permissions: "restricted" });
 			const client = createTRPCClient<AppRouter>({
 				links: [httpLink({ url: `${base}/__mdxserve/trpc` })],
 			});
@@ -506,21 +487,9 @@ describe("restricted permissions", () => {
 	});
 });
 
-describe("documents are not served as modules", () => {
-	function spyVite() {
-		const middlewares = vi.fn((_req: unknown, res: http.ServerResponse, next: () => void) =>
-			next(),
-		);
-		const vite = {
-			middlewares,
-			transformIndexHtml: async (_url: string, html: string) => html,
-		} as unknown as ViteDevServer;
-		return { vite, middlewares };
-	}
-
+describe("documents are not served as files", () => {
 	it("still serves the HTML shell for a document", async () => {
-		const { vite } = spyVite();
-		const { base } = await startWith({ vite });
+		const { base } = await startWith();
 		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
 			headers: { Accept: "text/html" },
 		});
@@ -529,43 +498,23 @@ describe("documents are not served as modules", () => {
 	});
 
 	it("404s a non-HTML request for a document", async () => {
-		const { vite, middlewares } = spyVite();
-		const { base } = await startWith({ vite });
+		const { base } = await startWith();
 		for (const accept of ["*/*", "text/javascript"]) {
 			const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
 				headers: { Accept: accept },
 			});
 			expect(res.status).toBe(404);
 		}
-		expect(middlewares).not.toHaveBeenCalled();
 	});
 
-	it("404s a /@fs/ request for a .md or .mdx file in any case, without reaching Vite", async () => {
-		const { vite, middlewares } = spyVite();
-		const { base } = await startWith({ vite });
-		const outside = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-http-fs-doc-"));
+	it("404s a /@fs/ request now that nothing serves Vite's file route", async () => {
+		const { base } = await startWith();
+		await fs.writeFile(path.join(fixtureDir, "loose.txt"), "loose", "utf8");
 		try {
-			await fs.writeFile(path.join(outside, "loose.mdx"), "# Loose\n", "utf8");
-			const targets = [
-				path.join(fixtureDir, "good.md"),
-				path.join(fixtureDir, "GOOD.MD"),
-				path.join(fixtureDir, "page.mdx"),
-				path.join(outside, "loose.mdx"),
-			];
-			for (const target of targets) {
-				const res = await fetch(`${base}/@fs${encodeURI(target)}?t=123`);
-				expect(res.status).toBe(404);
-			}
-			expect(middlewares).not.toHaveBeenCalled();
+			const res = await fetch(`${base}/@fs${encodeURI(path.join(fixtureDir, "loose.txt"))}`);
+			expect(res.status).toBe(404);
 		} finally {
-			await fs.rm(outside, { recursive: true, force: true });
+			await fs.rm(path.join(fixtureDir, "loose.txt"), { force: true });
 		}
-	});
-
-	it("still hands other /@fs/ requests to Vite", async () => {
-		const { vite, middlewares } = spyVite();
-		const { base } = await startWith({ vite });
-		await fetch(`${base}/@fs${encodeURI(path.join(fixtureDir, "good.txt"))}`);
-		expect(middlewares).toHaveBeenCalledOnce();
 	});
 });

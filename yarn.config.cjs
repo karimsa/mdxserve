@@ -2,8 +2,8 @@ const { defineConfig } = require("@yarnpkg/types");
 
 // Keep the whole @tiptap family pinned in package.json, including transitive
 // extensions: their caret dependencies can select releases whose exact peers
-// conflict with our core/pm. npm consumers do not use our Yarn lockfile or
-// resolutions. Update these pins together and run yarn smoke before releasing.
+// conflict with our core/pm. They are build-time dependencies of the client
+// bundle (dist/client), so update these pins together and rebuild.
 
 /**
  * This rule will enforce that a workspace MUST depend on the same version of

@@ -10,7 +10,7 @@ import { appRouter } from "../../src/api/router.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext } from "../helpers/context.js";
 import { DocumentService } from "../../src/document/service.js";
-import { rootFileUrl } from "../../src/docs/asset-url.js";
+import { assetUrl } from "../../src/assets/url.js";
 import { documentResultSchema } from "../../src/docs/controller.js";
 
 const createCaller = createCallerFactory(appRouter);
@@ -64,7 +64,7 @@ describe("getNodeSource / saveDocNode properties", () => {
 						const abs = path.join(root, "doc.mdx");
 						await fs.writeFile(abs, doc, "utf8");
 						const caller = createCaller(makeContext(root, registry));
-						const { ranges } = new DocumentService(registry, rootFileUrl).parse(doc, abs);
+						const { ranges } = new DocumentService(registry, assetUrl).parse(doc, abs);
 						for (const id of ranges.keys()) {
 							const node = await caller.getNodeSource({ path: abs, id });
 							expect(node.version).toBe(versionOf(doc));
@@ -174,7 +174,7 @@ describe("getDocument properties", () => {
 						const result = await createCaller(makeContext(root, registry)).getDocument({
 							path: abs,
 						});
-						const expected = new DocumentService(registry, rootFileUrl).parse(doc, abs).tree;
+						const expected = new DocumentService(registry, assetUrl).parse(doc, abs).tree;
 						expect(result).toEqual({ document: expected, version: versionOf(doc) });
 						expect(documentResultSchema.parse(result)).toEqual(result);
 					} finally {

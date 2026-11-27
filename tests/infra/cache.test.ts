@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cleanCache, getCacheHome, getViteCacheDir } from "../../src/infra/cache.js";
+import { cleanCache, getCacheHome } from "../../src/infra/cache.js";
 
 let tmpDir: string;
 const savedEnv = {
@@ -45,19 +45,12 @@ describe("getCacheHome", () => {
 	});
 });
 
-describe("getViteCacheDir", () => {
-	it("lives directly under the cache home", () => {
-		process.env.MDXSERVE_CACHE_HOME = tmpDir;
-		expect(getViteCacheDir()).toBe(path.join(tmpDir, "vite"));
-		expect(path.dirname(getViteCacheDir())).toBe(getCacheHome());
-	});
-});
-
 describe("cleanCache", () => {
 	it("removes the whole cache home and reports whether anything was there", async () => {
 		process.env.MDXSERVE_CACHE_HOME = path.join(tmpDir, "clean-test");
-		await fs.mkdir(path.join(getViteCacheDir(), "deps"), { recursive: true });
-		await fs.writeFile(path.join(getViteCacheDir(), "deps", "x.js"), "");
+		// What an older release's Vite dependency cache left behind.
+		await fs.mkdir(path.join(getCacheHome(), "vite", "deps"), { recursive: true });
+		await fs.writeFile(path.join(getCacheHome(), "vite", "deps", "x.js"), "");
 
 		expect(cleanCache()).toBe(true);
 		await expect(fs.stat(getCacheHome())).rejects.toThrow();

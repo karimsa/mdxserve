@@ -63,17 +63,13 @@ function ackOf(value: unknown): (result: RoomAck) => void {
  * takes over the existing `request` listeners and forwards every request
  * outside `REALTIME_PATH` to them.
  *
- * Vite's HMR websocket shares the same http server. Vite only upgrades a
- * request that asks for its `vite-hmr` subprotocol on its own base path, and
- * engine.io only upgrades `REALTIME_PATH`. `destroyUpgrade: false` stops
- * engine.io from closing an upgrade it does not own, which by default it
- * does after a second when nothing has written to the socket.
+ * Nothing else upgrades on this http server, so engine.io keeps its default of
+ * closing any upgrade outside `REALTIME_PATH`.
  */
 export function attachRealtime(httpServer: http.Server, deps: RealtimeDeps): Realtime {
 	const io = new Server<ClientToServerEvents, ServerToClientEvents, never, SocketData>(httpServer, {
 		path: REALTIME_PATH,
 		serveClient: false,
-		destroyUpgrade: false,
 		allowRequest: (req, callback) => callback(null, deps.acceptsPeer(req)),
 	});
 	const publicOnly = deps.permissions === "restricted";

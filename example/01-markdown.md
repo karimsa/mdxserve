@@ -39,7 +39,7 @@ A task list (GFM):
 | --- | --- | --- |
 | Tables | Yes | via `remark-gfm` |
 | Task lists | Yes | via `remark-gfm` |
-| Syntax highlighting | Yes | via Shiki / `rehype-pretty-code` |
+| Syntax highlighting | Yes | via Shiki, in the browser |
 | Dark mode | Yes | follows OS setting |
 
 ## Blockquote
@@ -178,8 +178,8 @@ diagram and the raw source.
 flowchart LR
   Browser -->|GET /docs/intro.mdx| Server
   Server -->|page shell| Browser
-  Browser -->|import /docs/intro.mdx| Vite
-  Vite -->|MDX → React| Browser
+  Browser -->|getDocument /docs/intro.mdx| Server
+  Server -->|JSON tree| Browser
   Browser --> Render[Rendered page]
 ```
 
@@ -187,10 +187,9 @@ flowchart LR
 sequenceDiagram
   participant U as User
   participant M as mdxserve
-  participant V as Vite
   U->>M: open folder
   M-->>U: directory listing
   U->>M: click file.mdx
-  M->>V: compile MDX
-  V-->>U: React module + HMR
+  M-->>U: document as a JSON tree
+  M--)U: doc-changed when the file is saved
 ```

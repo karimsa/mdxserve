@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		/>
+		<!--mdxserve:head-->
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<!-- Runs before the stylesheet so the first paint already carries the right data-theme.
+		     Mirrors client/theme.ts: an explicit choice in localStorage wins, otherwise follow the OS. -->
+		<script>
+			(function () {
+				try {
+					var theme = localStorage.getItem("mdxserve-theme");
+					if (theme !== "light" && theme !== "dark") {
+						theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+					}
+					document.documentElement.setAttribute("data-theme", theme);
+				} catch (error) {}
+			})();
+		</script>
+		<link rel="stylesheet" href="/index.css" />
+		<script type="module" src="/entry.tsx"></script>
+	</head>
+	<body class="bg-surface-page text-text-body min-h-screen">
+		<div id="root"></div>
+		<!--mdxserve:body-->
+	</body>
+</html>

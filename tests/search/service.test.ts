@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SearchService } from "../../src/search/service.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { DocumentService } from "../../src/document/service.js";
-import { rootFileUrl } from "../../src/docs/asset-url.js";
+import { assetUrl } from "../../src/assets/url.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 let dir: string;
@@ -55,7 +55,7 @@ afterAll(async () => {
 });
 
 function searchWithDocuments(query: string, file = "targeted.md") {
-	const search = new SearchService(new DocCache(), new DocumentService(registry, rootFileUrl));
+	const search = new SearchService(new DocCache(), new DocumentService(registry, assetUrl));
 	return search
 		.search([{ name: "docs", dir }], query)
 		.results.find((result) => result.path === path.join(dir, file));
@@ -94,7 +94,7 @@ describe("search targetId", () => {
 	it("a hit in a heading inside a tab targets that heading, not the tab", () => {
 		const result = searchWithDocuments("ocelot");
 		expect(result?.excerpt).toBe("Inner Ocelot");
-		const { tree } = new DocumentService(registry, rootFileUrl).parse(TARGETED, "/x/targeted.md");
+		const { tree } = new DocumentService(registry, assetUrl).parse(TARGETED, "/x/targeted.md");
 		expect(JSON.stringify(tree.children)).toContain(`"id":"${result?.targetId}"`);
 		expect(result?.targetId).not.toBe("pick>two");
 		expect(result?.targetId).toMatch(/ocelot/);
@@ -131,7 +131,7 @@ describe("search targetId", () => {
 	});
 
 	it("is null for an empty query", () => {
-		const search = new SearchService(new DocCache(), new DocumentService(registry, rootFileUrl));
+		const search = new SearchService(new DocCache(), new DocumentService(registry, assetUrl));
 		const results = search.search([{ name: "docs", dir }], "").results;
 		expect(results.length).toBeGreaterThan(0);
 		for (const result of results) expect(result.targetId).toBeNull();
@@ -140,7 +140,7 @@ describe("search targetId", () => {
 	it("follows an edit to the doc", async () => {
 		const file = path.join(dir, "moving.md");
 		await fs.writeFile(file, "# Top\n\n## First\n\nmarmot lives here\n", "utf8");
-		const search = new SearchService(new DocCache(), new DocumentService(registry, rootFileUrl));
+		const search = new SearchService(new DocCache(), new DocumentService(registry, assetUrl));
 		const find = () =>
 			search
 				.search([{ name: "docs", dir }], "marmot")

@@ -4,7 +4,7 @@ import { isTRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 import { queryClient, trpc } from "./api";
 import { realtime } from "./realtime";
-// Type-only: see the comment in client/api.ts — src/ is not served by Vite.
+// Type-only: see the comment in client/api.ts — no server code enters the client bundle.
 import type { AppRouter } from "../src/api/router";
 import type { DocumentMetadata } from "../src/docs/metadata";
 
