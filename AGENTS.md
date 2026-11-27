@@ -49,8 +49,8 @@ scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CL
   versions the SDK expects
 - The app uses TypeScript 7 like every other workspace, not the 6.x Expo expects, so
   `typescript` is in `expo.install.exclude` in its `package.json`
-- The bundle identifier (`co.alibhai.mdxserve`) and display name in `app.config.ts` are
-  placeholders until they are settled. Never run `eas build` or `eas submit` unasked
+- `app.config.ts` holds the app's identity: bundle identifier, Apple team, Expo account and
+  EAS project. Never run `eas build` or `eas submit` unasked
 
 ## Architecture
 

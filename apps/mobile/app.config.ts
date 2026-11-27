@@ -1,16 +1,16 @@
 import type { ExpoConfig } from "expo/config";
 
-// The bundle identifier and display name are placeholders until the Apple Developer team and
-// the App Store name are settled.
 const config: ExpoConfig = {
 	name: "mdxserve",
 	slug: "mdxserve",
+	owner: "karimsa",
 	version: "0.1.0",
 	orientation: "portrait",
 	scheme: "mdxserve",
 	userInterfaceStyle: "automatic",
 	ios: {
 		bundleIdentifier: "co.alibhai.mdxserve",
+		appleTeamId: "2C843H3ZG6",
 		supportsTablet: true,
 	},
 	android: {
