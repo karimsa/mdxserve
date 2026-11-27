@@ -185,13 +185,27 @@ export function FootnoteRef({
 export function RawElement({
 	tag,
 	props,
+	onPress,
 	children,
 }: {
 	tag: string;
 	props: Record<string, unknown>;
+	/** For an `<a>`: handles the click instead of the browser, as `Anchor` does. */
+	onPress?: () => void;
 	children?: ReactNode;
 }) {
-	return children === undefined ? createElement(tag, props) : createElement(tag, props, children);
+	const withPress = onPress
+		? {
+				...props,
+				onClick: (event: { preventDefault(): void }) => {
+					event.preventDefault();
+					onPress();
+				},
+			}
+		: props;
+	return children === undefined
+		? createElement(tag, withPress)
+		: createElement(tag, withPress, children);
 }
 
 /** A section that failed to parse: the parser's message and the section's source. */

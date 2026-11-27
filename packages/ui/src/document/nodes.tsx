@@ -467,7 +467,8 @@ function elementProps(
 }
 
 function ElementView({ node }: { node: ElementNode }) {
-	const { assetUrl } = useDocumentEnvironment();
+	const environment = useDocumentEnvironment();
+	const { assetUrl } = environment;
 	if (!ELEMENT_TAGS.has(node.tag)) return <PlaceholderView what={`element <${node.tag}>`} />;
 	const props = elementProps(node, assetUrl);
 	if (VOID_TAGS.has(node.tag)) return <RawElement tag={node.tag} props={props} />;
@@ -496,8 +497,15 @@ function ElementView({ node }: { node: ElementNode }) {
 		) : (
 			<NodeList nodes={node.children} />
 		);
+	// A raw `<a href>` goes where a Markdown link goes: through the environment's link handler.
+	const href = node.tag === "a" && typeof props.href === "string" ? props.href : null;
+	const { openLink } = environment;
 	return (
-		<RawElement tag={node.tag} props={props}>
+		<RawElement
+			tag={node.tag}
+			props={props}
+			onPress={openLink && href ? () => openLink(href) : undefined}
+		>
 			{content}
 		</RawElement>
 	);

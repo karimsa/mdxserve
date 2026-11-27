@@ -187,7 +187,6 @@ const PHRASING: Record<string, string> = {
 	sup: "text-[length:var(--size-xs)]",
 	abbr: "underline decoration-dotted",
 	span: "",
-	a: "text-text-link",
 	summary: "font-semibold",
 };
 
@@ -199,13 +198,22 @@ const PHRASING: Record<string, string> = {
 export function RawElement({
 	tag,
 	props,
+	onPress,
 	children,
 }: {
 	tag: string;
 	props: Record<string, unknown>;
+	/** For an `<a>`: what pressing it does, as for a Markdown link (`Anchor`). */
+	onPress?: () => void;
 	children?: ReactNode;
 }) {
 	if (tag === "br") return "\n";
+	if (tag === "a" && typeof props.href === "string")
+		return (
+			<Anchor href={props.href} title={null} onPress={onPress}>
+				{children}
+			</Anchor>
+		);
 	if (tag === "img")
 		return <Picture src={String(props.src ?? "")} alt={String(props.alt ?? "")} title={null} />;
 	if (tag === "kbd") return <Kbd>{children}</Kbd>;
