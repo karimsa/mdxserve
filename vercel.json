@@ -3,6 +3,7 @@
 	"framework": null,
 	"installCommand": "corepack yarn install --immutable",
 	"buildCommand": "corepack yarn workspace @mdxserve/site build",
+	"ignoreCommand": "node scripts/vercel-ignore-build.ts",
 	"outputDirectory": "apps/site/dist",
 	"redirects": [
 		{
