@@ -1,0 +1,128 @@
+/* mdxserve's design tokens, which the web client (apps/web/src/app.css) and the app
+ * (apps/mobile/src/global.css) both read.
+ *
+ * The tokens are plain custom properties on :root. Those that change with the theme sit in
+ * `@variant light` and `@variant dark` blocks: on the web the variants follow the reader's
+ * choice, and in the app Uniwind turns them into its light and dark themes.
+ *
+ * The tokens are deliberately left *unlayered*: `@theme inline` entries whose name matches a
+ * token (`--font-mono`, `--radius-md`) emit a self-reference inside `@layer theme`, and the
+ * unlayered declaration is what wins the cascade.
+ *
+ * `@theme inline` exposes them to Tailwind, so utilities like `bg-surface-card` and
+ * `text-text-muted` point straight at the custom properties. */
+
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/elevation.css";
+@import "./tokens/motion.css";
+
+@theme inline {
+	/* fonts */
+	--font-sans: var(--font-core);
+	--font-mono: var(--font-mono);
+
+	/* surfaces */
+	--color-surface-page: var(--surface-page);
+	--color-surface-card: var(--surface-card);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-inverse: var(--surface-inverse);
+	--color-surface-hover: var(--surface-hover);
+	--color-surface-active: var(--surface-active);
+	--color-surface-accent-soft: var(--surface-accent-soft);
+	--color-surface-accent: var(--surface-accent);
+
+	/* text */
+	--color-text-body: var(--text-body);
+	--color-text-heading: var(--text-heading);
+	--color-text-muted: var(--text-muted);
+	--color-text-subtle: var(--text-subtle);
+	--color-text-inverse: var(--text-inverse);
+	--color-text-accent: var(--text-accent);
+	--color-text-link: var(--text-link);
+	--color-text-link-hover: var(--text-link-hover);
+
+	/* borders */
+	--color-border-subtle: var(--border-subtle);
+	--color-border-default: var(--border-default);
+	--color-border-strong: var(--border-strong);
+	--color-border-accent: var(--border-accent);
+	--color-focus-ring: var(--focus-ring);
+
+	/* status tints (callouts, badges, toasts) */
+	--color-status-info-bg: var(--status-info-bg);
+	--color-status-info-fg: var(--status-info-fg);
+	--color-status-ok-bg: var(--status-ok-bg);
+	--color-status-ok-fg: var(--status-ok-fg);
+	--color-status-warn-bg: var(--status-warn-bg);
+	--color-status-warn-fg: var(--status-warn-fg);
+	--color-status-danger-bg: var(--status-danger-bg);
+	--color-status-danger-fg: var(--status-danger-fg);
+	--color-status-note-bg: var(--status-note-bg);
+	--color-status-note-fg: var(--status-note-fg);
+
+	/* code surfaces */
+	--color-code-bg: var(--code-bg);
+	--color-code-bg-inline: var(--code-bg-inline);
+	--color-code-fg: var(--code-fg);
+	--color-code-border: var(--code-border);
+	--color-code-gutter: var(--code-gutter);
+	--color-code-highlight: var(--code-highlight);
+
+	/* raw ramps, for the few places the design names them directly */
+	--color-teal-50: var(--teal-50);
+	--color-teal-100: var(--teal-100);
+	--color-teal-200: var(--teal-200);
+	--color-teal-300: var(--teal-300);
+	--color-teal-400: var(--teal-400);
+	--color-teal-500: var(--teal-500);
+	--color-teal-550: var(--teal-550);
+	--color-teal-600: var(--teal-600);
+	--color-teal-700: var(--teal-700);
+	--color-teal-800: var(--teal-800);
+	--color-teal-900: var(--teal-900);
+	--color-n-0: var(--n-0);
+	--color-n-25: var(--n-25);
+	--color-n-50: var(--n-50);
+	--color-n-100: var(--n-100);
+	--color-n-200: var(--n-200);
+	--color-n-300: var(--n-300);
+	--color-n-400: var(--n-400);
+	--color-n-500: var(--n-500);
+	--color-n-600: var(--n-600);
+	--color-n-700: var(--n-700);
+	--color-n-800: var(--n-800);
+	--color-n-900: var(--n-900);
+	--color-n-950: var(--n-950);
+
+	/* shadows — the one namespace Tailwind would otherwise inline its own
+     literal values for, so these mappings are required, not cosmetic */
+	--shadow-xs: var(--shadow-xs);
+	--shadow-sm: var(--shadow-sm);
+	--shadow-md: var(--shadow-md);
+	--shadow-lg: var(--shadow-lg);
+	--shadow-hairline: var(--shadow-hairline);
+	--shadow-focus: var(--shadow-focus);
+
+	/* radii — token names already match Tailwind's; listed for the extras */
+	--radius-xs: var(--radius-xs);
+	--radius-sm: var(--radius-sm);
+	--radius-md: var(--radius-md);
+	--radius-lg: var(--radius-lg);
+	--radius-xl: var(--radius-xl);
+	--radius-pill: var(--radius-pill);
+
+	/* layout */
+	--spacing-sidebar: var(--sidebar-width);
+	--spacing-toc: var(--toc-width);
+	--spacing-topbar: var(--topbar-height);
+	--container-prose: var(--width-prose);
+	--container-content: var(--width-content);
+
+	/* motion */
+	--ease-standard: var(--ease-standard);
+	--ease-out: var(--ease-out);
+	--ease-in: var(--ease-in);
+}

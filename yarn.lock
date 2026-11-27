@@ -1356,6 +1356,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo-google-fonts/jetbrains-mono@npm:0.4.1":
+  version: 0.4.1
+  resolution: "@expo-google-fonts/jetbrains-mono@npm:0.4.1"
+  checksum: 10c0/cd141277f9577803fb83d4ed0c74b92b3333ef6a60a0e46b3a38111914c0c8b42d6dc074bcc32f14b12b09bb3480248517afe27d8b227a7e362bd9d679102a30
+  languageName: node
+  linkType: hard
+
+"@expo-google-fonts/manrope@npm:0.4.3":
+  version: 0.4.3
+  resolution: "@expo-google-fonts/manrope@npm:0.4.3"
+  checksum: 10c0/33823a94416cb14aec8c2611b2f1bcd6844d577cc94044d7c23948567985cfa2cdc87ffcf139cee770914a6b704c68edb73290a733b4a4d9ea99cd2a32a4a687
+  languageName: node
+  linkType: hard
+
 "@expo/cli@npm:^58.1.21":
   version: 58.1.21
   resolution: "@expo/cli@npm:58.1.21"
@@ -2755,6 +2769,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@mdxserve/mobile@workspace:apps/mobile"
   dependencies:
+    "@expo-google-fonts/jetbrains-mono": "npm:0.4.1"
+    "@expo-google-fonts/manrope": "npm:0.4.3"
     "@jest/globals": "npm:30.5.2"
     "@mdxserve/ui": "workspace:*"
     "@react-native/jest-preset": "npm:0.88.1"
@@ -2764,6 +2780,7 @@ __metadata:
     expo: "npm:58.0.26"
     expo-constants: "npm:58.0.16"
     expo-doctor: "npm:1.21.8"
+    expo-font: "npm:58.0.12"
     expo-linking: "npm:58.0.17"
     expo-router: "npm:58.0.32"
     expo-status-bar: "npm:58.0.5"
@@ -8115,7 +8132,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-font@npm:~58.0.12":
+"expo-font@npm:58.0.12, expo-font@npm:~58.0.12":
   version: 58.0.12
   resolution: "expo-font@npm:58.0.12"
   peerDependencies:

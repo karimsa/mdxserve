@@ -1,0 +1,9 @@
+:root {
+	/* Easing curves. They are here, with the tokens both clients read, because theme.css maps
+	   them to Tailwind's `ease-*` utilities: in the app, a mapping to a token that is not
+	   defined becomes a variable that resolves through itself. The rest of the motion tokens
+	   (durations, springs, keyframes) are the web's, in apps/web/src/design/tokens/motion.css. */
+	--ease-standard: cubic-bezier(0.2, 0, 0.2, 1); /* @kind other */
+	--ease-out: cubic-bezier(0, 0, 0.2, 1); /* @kind other */
+	--ease-in: cubic-bezier(0.4, 0, 1, 1); /* @kind other */
+}

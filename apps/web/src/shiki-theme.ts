@@ -234,7 +234,7 @@ const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 
 /**
  * A single Shiki/TextMate theme whose colours are the design system's
- * `--syntax-*` CSS variables (apps/web/src/design/tokens/colors.css). Shiki treats
+ * `--syntax-*` CSS variables (packages/ui/src/tokens/colors.css). Shiki treats
  * `foreground` as an opaque string, so the emitted inline styles are
  * `color:var(--syntax-keyword)` etc. and light/dark is handled purely by the
  * `:root[data-theme="dark"]` token remap — one highlighting pass, no theme map.

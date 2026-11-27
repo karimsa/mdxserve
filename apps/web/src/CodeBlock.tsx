@@ -17,7 +17,7 @@ import { cachedHighlight, highlight, type HighlightedLine } from "./highlight";
 /**
  * A fenced code block from the document tree, styled from the design tokens
  * (bg-code-bg / border-code-border / text-code-fg — see
- * apps/web/src/design/tokens/colors.css). The code arrives as plain text and is
+ * packages/ui/src/tokens/colors.css). The code arrives as plain text and is
  * highlighted here with shiki, loaded as a lazy chunk on the first block; the
  * plain lines show until it lands. apps/web/src/app.css styles this markup:
  *

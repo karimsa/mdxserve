@@ -1,7 +1,9 @@
 /* The app's stylesheet: Uniwind compiles it into React Native styles (metro.config.js). */
 @import "tailwindcss";
 @import "uniwind";
-@import "../../../packages/ui/src/native-theme.css";
+/* The design tokens, shared with the web client. By path, not package name: Uniwind compiles a
+   stylesheet imported by package name on its own. */
+@import "../../../packages/ui/src/theme.css";
 
 /* The routes, and the shared components (@mdxserve/ui) the app renders. */
 @source "../app";
