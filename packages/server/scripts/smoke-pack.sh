@@ -15,8 +15,9 @@ cleanup() {
 trap cleanup EXIT
 tarball="$(npm pack --pack-destination "$tmp" --silent | tail -n 1)" # prepack runs yarn build
 # prepack copies these in from the repository root.
-tar -tzf "$tmp/$tarball" | grep -qx 'package/README.md'
-tar -tzf "$tmp/$tarball" | grep -qx 'package/LICENSE'
+tar -tzf "$tmp/$tarball" >"$tmp/contents.txt"
+grep -qx 'package/README.md' "$tmp/contents.txt"
+grep -qx 'package/LICENSE' "$tmp/contents.txt"
 # npm consumers do not use yarn.lock. Exercise fresh resolution and fail if
 # incompatible transitive peers or deprecated packages make installation noisy.
 npm install -g --omit=dev --strict-peer-deps --prefix "$tmp/prefix" "$tmp/$tarball" 2>&1 | tee "$tmp/install.log"
