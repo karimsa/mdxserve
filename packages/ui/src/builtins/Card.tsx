@@ -45,7 +45,9 @@ function CardContent({
 					{meta}
 				</Text>
 			) : null}
-			{children}
+			{/* The document's own content: block formatting on the web, so its inline parts share a
+			    line as they would in any other block. */}
+			{children ? <View className="web:block">{children}</View> : null}
 		</>
 	);
 }

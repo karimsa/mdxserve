@@ -158,6 +158,18 @@ describe("Card", () => {
 		expect(host.querySelectorAll("a")).toHaveLength(1);
 		expect(host.querySelectorAll("button")).toHaveLength(0);
 	});
+
+	it("keeps the document's inline content on one line", () => {
+		draw(
+			<Card title="Start" interactive={false}>
+				<span>First</span> <span>Second</span>
+			</Card>,
+		);
+		const first = [...host.querySelectorAll("span")].find((span) => span.textContent === "First")!;
+		const block = first.parentElement!;
+		expect(block.textContent).toBe("First Second");
+		expect(block.className).toContain("web:block");
+	});
 });
 
 describe("FileTree", () => {
