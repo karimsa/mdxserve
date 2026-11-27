@@ -84,7 +84,7 @@ A flow and a sequence:
 ```mermaid
 flowchart LR
   Browser -->|GET /docs/intro.md| Server
-  Server -->|compile via Vite| Page[Rendered page]
+  Server -->|document tree as JSON| Page[Rendered page]
 ```
 ````
 
@@ -151,8 +151,9 @@ state, so each needs an `id`: short, descriptive, unique in the document, starti
 letter and using only letters, digits, `-` and `_` (`id="install-tabs"`). It must not equal a
 heading's anchor (the heading's slug, so not `id="install"` next to `## Install`). Keep the
 `id` when you edit the block. Give sibling headings distinct text: two `## Steps` under the
-same parent are an error. `mdxserve document <file>` prints the table of contents with the id
-of every entry.
+same parent are an error. Ids are also URL anchors: link to a heading as `#install` and to a
+tab as `#install-tabs>macos`, which opens that tab. `mdxserve document <file>` prints the table
+of contents with the id of every entry.
 
 ## Tables: data versus facts
 
@@ -311,21 +312,15 @@ no `mdxserve serve` is running. Read the first line and every diagnostic under i
 the document-rule errors above such as `esm-not-supported`, `non-literal-expression`,
 `unknown-component` and `unsupported-attribute`, `invalid-prop` for a prop value of the wrong
 type, the id errors `missing-id`, `invalid-id`, `duplicate-id`, `id-conflicts-with-heading`,
-`duplicate-heading`, `duplicate-tab-value` and `invalid-tab-default`, and `render-error`) and
+`duplicate-heading`, `duplicate-tab-value` and `invalid-tab-default`) and
 any `unknown-prop` warning where a real prop was intended, then re-run until the first line is `OK` with only intended warnings. The
 exit code is 1 when any error was reported. A syntax error shows its whole `#`/`##` section as
 source instead of content, and the other errors silently drop what they name — invisible until
 a human opens the page — so this is not optional.
 
-`validate` also renders the doc server-side and reports any throw as a `render-error` — this is
-what catches a component that compiles fine but blanks the page (e.g. a stray identifier that
-only breaks at render time). Read the line after the diagnostics: `Rendered OK`, or
-`Not rendered (…)` when no `mdxserve serve` is reachable, meaning only the static checks
-(syntax, document rules, components, props, ids) ran. Treat that as a weaker pass and mention it to the user
-rather than treating `OK` alone as a full clean bill of health. Even with `Rendered OK`, errors
-thrown inside a `useEffect`/`useLayoutEffect` and hydration mismatches are never caught — those
-stay browser-only. `hint:` lines are advisory and never affect the result. When scripting, use
-`--json` and check the `rendered` field.
+`validate` parses the doc with the same parser that builds the page a reader sees, so a clean
+`OK` means the page shows everything you wrote. It never runs the document. `hint:` lines are advisory and never affect the result. When scripting, use
+`--json` and check the `ok` field.
 
 If `validate` says the file is outside every served directory, or `mdxserve search` /
 `mdxserve docs` report that no folders are served, run `mdxserve roots list`, then
@@ -345,4 +340,4 @@ silently.
 - Every `Tabs`, `DataTable`, `Diff`, `FileTree`, `Chart`, `Screenshot` and `<details>` has a
   unique `id`, and no two sibling headings share their text.
 - The file still reads well as plain text.
-- `mdxserve validate` printed `OK`, ideally `Rendered OK`.
+- `mdxserve validate` printed `OK`.

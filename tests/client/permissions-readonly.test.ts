@@ -7,9 +7,9 @@ import { MdSection, type MdSectionProps } from "../../client/MdSection";
 import { ListingView } from "../../client/ListingView";
 import { shellInfo } from "../../client/router";
 
-const { getDocSource } = vi.hoisted(() => ({ getDocSource: vi.fn() }));
+const { getNodeSource } = vi.hoisted(() => ({ getNodeSource: vi.fn() }));
 vi.mock("../../client/api", () => ({
-	trpcClient: { getDocSource: { query: getDocSource } },
+	trpcClient: { getNodeSource: { query: getNodeSource } },
 	trpc: {
 		moveDocsToTrash: {
 			mutationOptions: () => ({ mutationFn: async () => ({ deleted: [], failed: [] }) }),
@@ -28,7 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	shellInfo.permissions = "full";
-	getDocSource.mockClear();
+	getNodeSource.mockClear();
 });
 
 async function render(view: ReturnType<typeof createElement>) {
@@ -48,11 +48,7 @@ async function render(view: ReturnType<typeof createElement>) {
 it("keeps restricted document sections readable without loading the editor", async () => {
 	shellInfo.permissions = "restricted";
 	const mounted = await render(
-		createElement(
-			MdSection,
-			{ index: "0", startLine: "1", endLine: "2" } as MdSectionProps,
-			"Read me",
-		),
+		createElement(MdSection, { id: "intro", kind: "section" } as MdSectionProps, "Read me"),
 	);
 	try {
 		expect(mounted.host.textContent).toContain("Read me");
@@ -62,7 +58,7 @@ it("keeps restricted document sections readable without loading the editor", asy
 				.querySelector(".mdx-section")!
 				.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
 		});
-		expect(getDocSource).not.toHaveBeenCalled();
+		expect(getNodeSource).not.toHaveBeenCalled();
 	} finally {
 		await mounted.cleanup();
 	}
@@ -97,11 +93,7 @@ it("keeps restricted listing navigation and sort while removing selection and de
 
 it("retains editor and selection controls in local mode", async () => {
 	const section = await render(
-		createElement(
-			MdSection,
-			{ index: "0", startLine: "1", endLine: "2" } as MdSectionProps,
-			"Edit me",
-		),
+		createElement(MdSection, { id: "intro", kind: "section" } as MdSectionProps, "Edit me"),
 	);
 	try {
 		expect(section.host.querySelector('[aria-label="Edit section"]')).not.toBeNull();

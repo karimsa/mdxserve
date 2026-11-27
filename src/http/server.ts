@@ -12,7 +12,6 @@ import { resolveRoot } from "../roots/paths.js";
 import { isDocFile, isPublicPath, isServable } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
 import { rootInfoFor } from "../roots/root-info.js";
-import type { RenderPort } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
@@ -24,10 +23,9 @@ import type { PermissionMode } from "../servers/bind-host.js";
 const MDXSERVE_PREFIX = "/__mdxserve/";
 
 // Browser navigations (typed URL, clicked link, redirect) send an Accept
-// header that prefers text/html. The client entry's `import(file)` for the
-// same .md/.mdx path is a module fetch, not a navigation, and does not — so
-// this is how we tell "render the page shell" apart from "compile this file
-// as a module" for the exact same URL.
+// header that prefers text/html. A fetch of the same .md/.mdx path does not,
+// so this is how we tell "serve the page shell" apart from a request for the
+// file itself, which documents never answer.
 function wantsHtml(req: http.IncomingMessage): boolean {
 	const accept = req.headers.accept ?? "";
 	return accept.includes("text/html");
@@ -41,8 +39,6 @@ export interface RequestContext {
 	pkgRoot: string;
 	vite: ViteDevServer;
 	cssFile: string;
-	/** Renders a doc server-side; only defined when a Vite dev server is live. */
-	render?: RenderPort;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	search: SearchService;
@@ -56,7 +52,7 @@ export async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { registry, pkgRoot, vite, docCache, search: searchService, docs, render } = ctx;
+	const { registry, pkgRoot, vite, docCache, search: searchService, docs } = ctx;
 	const rootInfos = ctx.roots.list();
 	const roots = rootInfos.map((rootInfo) => rootInfo.dir);
 	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
@@ -67,12 +63,9 @@ export async function handleRequest(
 	const search = url.slice(pathname.length);
 	const restricted = ctx.permissions === "restricted";
 
-	// The validate_doc render step executes a served doc's top-level JS in a
-	// Node worker. Serving pages to the LAN (--host 0.0.0.0) is deliberate
-	// sharing, but remote peers shouldn't be able to run served files with
-	// Node's privileges — so rendering (via /__mdxserve/trpc) is
-	// reserved for same-machine callers;
-	// everyone else gets the static-only validation (`rendered: false`).
+	// Serving pages to the LAN (--host 0.0.0.0) is deliberate sharing, but
+	// remote peers shouldn't get the operations that act on this machine, such
+	// as mounting roots, so those are reserved for same-machine callers.
 	// "Same machine" is loopback, or a connection whose remote address is
 	// this socket's own local address: the CLI connects to the host a
 	// server registered (e.g. --host 192.168.1.10), which arrives
@@ -109,7 +102,7 @@ export async function handleRequest(
 			res,
 			router: appRouter,
 			path: pathname.slice("/__mdxserve/trpc/".length),
-			// Sized for saveDocSection's 256 KB markdown cap with headroom; the
+			// Sized for saveDocNode's 256 KB markdown cap with headroom; the
 			// other mutations' inputs are bounded far below this by their schemas.
 			maxBodySize: 320 * 1024,
 			createContext: () => ({
@@ -119,7 +112,6 @@ export async function handleRequest(
 				registry,
 				isLoopback,
 				permissions: ctx.permissions,
-				render,
 				docCache,
 				search: searchService,
 				docs,
@@ -151,12 +143,10 @@ export async function handleRequest(
 		return;
 	}
 
-	// The client re-fetches a doc module as /@fs/<abs>.md?t=… after an HMR
-	// edit. Vite's own transform middleware doesn't recognize .md/.mdx as
-	// JS-like, so route it through transformRequest() directly, same as the
-	// doc branch below. Every other /@fs/ request (client entry, client/
-	// assets, .tsx component imports, optimized deps) passes straight through
-	// to vite.middlewares, gated by fs.allow.
+	// Documents are never served as modules, so a /@fs/ request for a .md or
+	// .mdx file is a 404 and never reaches Vite. Every other /@fs/ request
+	// (client entry, client/ assets, .tsx component imports, optimized deps)
+	// passes straight through to vite.middlewares, gated by fs.allow.
 	if (pathname.startsWith("/@fs/")) {
 		const rest = pathname.slice("/@fs/".length);
 		const abs = `/${decodeURIComponent(rest)}`;
@@ -175,23 +165,12 @@ export async function handleRequest(
 			}
 		}
 
-		if (hit && isDocFile(hit.abs)) {
-			try {
-				const result = await vite.transformRequest(`/@fs${hit.abs}`);
-				if (result) {
-					res.statusCode = 200;
-					res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-					res.end(result.code);
-					return;
-				}
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				console.error(error);
-				res.statusCode = 200;
-				res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-				res.end(`throw new Error(${JSON.stringify(`Failed to compile ${hit.abs}: ${message}`)});`);
-				return;
-			}
+		// Documents are not modules: a client reads them as JSON from getDocument,
+		// so nothing may compile one, whichever root (or none) it sits in.
+		if (isDocFile(abs)) {
+			res.statusCode = 404;
+			res.end("Not found");
+			return;
 		}
 
 		vite.middlewares(req, res, () => {
@@ -331,25 +310,11 @@ export async function handleRequest(
 			return;
 		}
 
-		// The client entry does `import(file)` for this same URL to fetch the
-		// compiled module. Use the decoded, resolved abs path (not the raw
-		// pathname) so a doc whose path contains spaces compiles correctly.
-		try {
-			const result = await vite.transformRequest(`/@fs${abs}`);
-			if (result) {
-				res.statusCode = 200;
-				res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-				res.end(result.code);
-				return;
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			console.error(error);
-			res.statusCode = 200;
-			res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-			res.end(`throw new Error(${JSON.stringify(`Failed to compile ${abs}: ${message}`)});`);
-			return;
-		}
+		// A non-HTML request for a document has nothing to serve: clients read
+		// documents as JSON from getDocument.
+		res.statusCode = 404;
+		res.end("Not found");
+		return;
 	}
 
 	if (stat === null) {

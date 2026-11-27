@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { isTRPCClientError } from "@trpc/client";
 import { trpcClient } from "../api";
+import { invalidateDocument } from "../document/query";
 import { MermaidDialog } from "./Dialog";
 import { locateDiagram } from "./source";
 import type { ExistingDiagram } from "./edit-context";
@@ -9,17 +10,16 @@ export function DiagramEditDialog({
 	source,
 	target,
 	path,
+	id,
 	version,
-	startLine,
-	endLine,
 	onClose,
 }: {
+	/** The source of the mermaid block `id`, as `getNodeSource` returned it. */
 	source: string;
 	target: ExistingDiagram;
 	path: string;
+	id: string;
 	version: string;
-	startLine: number;
-	endLine: number;
 	onClose: () => void;
 }) {
 	const diagram = useMemo(() => locateDiagram(source, target), [source, target]);
@@ -32,13 +32,13 @@ export function DiagramEditDialog({
 		setSaving(true);
 		setError("");
 		try {
-			await trpcClient.saveDocSection.mutate({
+			await trpcClient.saveDocNode.mutate({
 				path,
+				id,
 				version,
-				startLine,
-				endLine,
 				markdown: diagram.replace(mermaid),
 			});
+			void invalidateDocument(path);
 			onClose();
 		} catch (failure) {
 			setError(

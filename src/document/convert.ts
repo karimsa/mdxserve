@@ -444,6 +444,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 			}
 			values.add(value);
 			const tabId = ids.claim(`${id}>${value}`);
+			nodeRange(tabId, child as FlowNode);
 			tabs.push({
 				id: tabId,
 				value,

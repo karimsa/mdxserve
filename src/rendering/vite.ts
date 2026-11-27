@@ -1,4 +1,3 @@
-import type { MetadataPort } from "../docs/metadata-port.js";
 import path from "node:path";
 import type { Server as HttpServer } from "node:http";
 import {
@@ -7,28 +6,13 @@ import {
 	type PluginOption,
 	type ViteDevServer,
 } from "vite";
-import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import type { PluggableList } from "unified";
-import { escapeBareLt } from "../document/lenient.js";
-import { mdxCompileOptions } from "./mdx/mdx-options.js";
-import { remarkSections } from "./mdx/remark-sections.js";
 import { dependencyRoots, getPackageRoot, packageDir, resolveFromPkg } from "../infra/pkg.js";
 
 export interface ViteAlias {
 	find: string;
 	replacement: string;
-}
-
-export interface SharedViteConfigOptions {
-	metadata: MetadataPort;
-	/** Builtin component names a document may use; every other component is unwrapped. */
-	components: readonly string[];
-	/** Appended after remarkGfm in mdxCompileOptions (e.g. remarkSections for the dev server). */
-	remarkPlugins?: PluggableList;
-	/** Appended after rehypePrettyCode in mdxCompileOptions. */
-	rehypePlugins?: PluggableList;
 }
 
 export interface SharedViteConfig {
@@ -39,21 +23,16 @@ export interface SharedViteConfig {
 }
 
 /**
- * The alias list, the lenient-md/MDX/React/Tailwind plugin chain, and the
- * client dep-optimizer include list for the dev server (`createDevServer`).
+ * The alias list, the React/Tailwind plugin chain, and the client
+ * dep-optimizer include list for the dev server (`createDevServer`).
+ * Documents are not compiled here: clients read them as JSON.
  */
-export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteConfig {
-	const { remarkPlugins, rehypePlugins } = options;
-
+export function sharedViteConfig(): SharedViteConfig {
 	const reactEntry = resolveFromPkg("react");
 	const reactDomEntry = resolveFromPkg("react-dom");
 	const reactDomClientEntry = resolveFromPkg("react-dom/client");
-	// SSR-only entry, used by src/rendering/render.ts's server-side render check
-	// (client/ssr-entry.tsx imports it). Same reasoning as react-dom/client.
-	const reactDomServerEntry = resolveFromPkg("react-dom/server");
 	const jsxRuntime = resolveFromPkg("react/jsx-runtime");
 	const jsxDevRuntime = resolveFromPkg("react/jsx-dev-runtime");
-	const mdxReactEntry = resolveFromPkg("@mdx-js/react");
 	const mermaidEntry = resolveFromPkg("mermaid");
 	// svg-pan-zoom is CJS; alias the package dir (not the browserified dist
 	// main) so Vite picks the plain `module.exports` entry and interops it.
@@ -153,6 +132,16 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 	// aliased too even though it looks server-only.
 	const trpcServerEntry = path.dirname(resolveFromPkg("@trpc/server/package.json"));
 
+	// shiki's subpaths map to single files in its "exports"; alias each one so
+	// the lazy highlighter is pre-bundled at startup rather than discovered
+	// (and the page reloaded) on the first code block.
+	const shikiDist = path.join(packageDir("shiki"), "dist");
+	const shikiAliases: ViteAlias[] = [
+		{ find: "shiki/core", replacement: path.join(shikiDist, "core.mjs") },
+		{ find: "shiki/engine/javascript", replacement: path.join(shikiDist, "engine-javascript.mjs") },
+		{ find: "shiki/langs", replacement: path.join(shikiDist, "langs.mjs") },
+	];
+
 	// Vite/rollup-plugin-alias matches on a "find" prefix (id === find or
 	// id.startsWith(find + "/")), taking the first match in list order —
 	// so subpath aliases like "react/jsx-runtime" MUST be listed before
@@ -162,10 +151,8 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		{ find: "react/jsx-runtime", replacement: jsxRuntime },
 		{ find: "react/jsx-dev-runtime", replacement: jsxDevRuntime },
 		{ find: "react-dom/client", replacement: reactDomClientEntry },
-		{ find: "react-dom/server", replacement: reactDomServerEntry },
 		{ find: "react-dom", replacement: reactDomEntry },
 		{ find: "react", replacement: reactEntry },
-		{ find: "@mdx-js/react", replacement: mdxReactEntry },
 		{ find: "mermaid", replacement: mermaidEntry },
 		{ find: "svg-pan-zoom", replacement: svgPanZoomEntry },
 		{ find: "zod", replacement: zodEntry },
@@ -191,46 +178,13 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		{ find: "@trpc/client", replacement: trpcClientEntry },
 		{ find: "@trpc/tanstack-react-query", replacement: trpcTanstackReactQueryEntry },
 		{ find: "@trpc/server", replacement: trpcServerEntry },
+		// The code highlighter (client/highlight.ts), imported lazily by subpath.
+		// Exact-file aliases, listed before nothing that prefixes them, so the
+		// optimizer's include entries resolve from the neutral Vite root.
+		...shikiAliases,
 	];
 
-	// @mdx-js/rollup must run before @vitejs/plugin-react so that .mdx/.md
-	// files are compiled to JSX before the react plugin's babel transform.
-	const mdxPlugin = {
-		// The compiler options live in mdx-options.ts so the validator shares
-		// them; the extension lists are rollup-plugin-only and make .md go through
-		// the same MDX path as .mdx. remarkSections is passed only by the dev
-		// server, not into mdx-options.ts's shared mdxCompileOptions(): the
-		// validator must never see an MdSection wrapper, or it would report it
-		// as an unregistered component on every doc.
-		...mdx({
-			...mdxCompileOptions(
-				options.metadata,
-				{ components: options.components },
-				{ remarkPlugins, rehypePlugins },
-			),
-			mdxExtensions: [".mdx", ".md"],
-			mdExtensions: [],
-		}),
-		enforce: "pre" as const,
-	};
-
-	// Runs ahead of the MDX compiler for both extensions; see escapeBareLt for why.
-	const lenientMdPlugin = {
-		name: "mdxserve:lenient-md",
-		enforce: "pre" as const,
-		transform(code: string, id: string) {
-			if (!/\.mdx?(\?|$)/.test(id)) return null;
-			const escaped = escapeBareLt(code, options.metadata);
-			return escaped === code ? null : { code: escaped, map: null };
-		},
-	};
-
-	const plugins: PluginOption[] = [
-		lenientMdPlugin,
-		mdxPlugin,
-		react({ include: /\.(mdx|md|jsx|tsx|js|ts)$/ }),
-		tailwindcss(),
-	];
+	const plugins: PluginOption[] = [react({ include: /\.(jsx|tsx|js|ts)$/ }), tailwindcss()];
 
 	// lucide-react is deliberately absent: nothing imports the bare entry
 	// any more (see the alias comment above), and pre-bundling it here would
@@ -241,7 +195,6 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		"react-dom/client",
 		"react/jsx-runtime",
 		"react/jsx-dev-runtime",
-		"@mdx-js/react",
 		"mermaid",
 		"svg-pan-zoom",
 		"zod",
@@ -264,15 +217,13 @@ export function sharedViteConfig(options: SharedViteConfigOptions): SharedViteCo
 		"@trpc/client",
 		"@trpc/tanstack-react-query",
 		"@trpc/server",
+		...shikiAliases.map((alias) => alias.find),
 	];
 
 	return { plugins, resolve: { alias, dedupe: ["react", "react-dom"] }, optimizeDepsInclude };
 }
 
 export interface CreateDevServerOptions {
-	metadata: MetadataPort;
-	/** Builtin component names a document may use (the component registry). */
-	components: readonly string[];
 	/** Every mounted root; each needs its own `fs.allow` entry and watcher. */
 	roots: string[];
 	/**
@@ -289,11 +240,7 @@ export interface CreateDevServerOptions {
 export async function createDevServer(options: CreateDevServerOptions): Promise<ViteDevServer> {
 	const { roots, viteRoot, cacheDir, httpServer, extraFsAllow = [] } = options;
 	const pkgRoot = getPackageRoot();
-	const shared = sharedViteConfig({
-		metadata: options.metadata,
-		components: options.components,
-		remarkPlugins: [remarkSections],
-	});
+	const shared = sharedViteConfig();
 
 	const vite = await createViteServer({
 		root: viteRoot,
@@ -356,73 +303,6 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 			// "discovering" each new per-icon deep import mid-session and
 			// re-optimizing + full-reloading the page.
 			exclude: ["lucide-react"],
-		},
-		// The rest of this `ssr` block exists only for src/rendering/render.ts's
-		// ssrLoadModule (client/ssr-entry.tsx and, transitively, everything
-		// mdx-components.ts pulls in), used to catch render-time errors during
-		// `validate_doc`. Nothing else in this dev server uses the SSR
-		// environment.
-		//
-		// Several of the packages aliased above have no ESM build — their real
-		// entry files (react's index.js/client.js/jsx-runtime.js/jsx-dev-runtime.js,
-		// react-dom's server.node.js, zod's index.cjs, ...) are plain CommonJS
-		// (`module.exports = require(...)`). The *client* bundle only works with
-		// these because the client dep optimizer (`optimizeDeps.include` above)
-		// pre-bundles them into interop-safe ESM before the browser ever sees
-		// them. SSR has its own, separate dep optimizer, off by default in dev,
-		// so without mirroring that include list here, ssrLoadModule hits our
-		// `resolve.alias` entries directly, Vite's SSR module runner transforms
-		// those raw CJS files as if they were ESM (no `require`/`module`/`exports`
-		// shim), and it throws ("require is not defined", "exports is not
-		// defined", ...). Since `client/mdx-components.ts` pulls in every builtin
-		// unconditionally (`client/builtins/index.ts`), rendering *any* doc reaches
-		// this whole dependency set, not just what that one doc happens to use —
-		// so everything aliased above that has a CJS-only entry needs to be
-		// listed here too, run through the SAME optimizer as react/react-dom so
-		// they all end up sharing one pre-bundled "react" (an externalized,
-		// natively-`require`d react-dom/server would otherwise load a *second*,
-		// un-optimized copy of "react" via Node's own resolution, breaking
-		// hooks/context with "Cannot read properties of null").
-		//
-		// lucide-react is deliberately absent here too — Icon.tsx no longer
-		// imports the bare entry, so SSR never needs a pre-bundled copy of it.
-		ssr: {
-			optimizeDeps: {
-				include: [
-					"react",
-					"react-dom",
-					"react-dom/client",
-					"react-dom/server",
-					"react/jsx-runtime",
-					"react/jsx-dev-runtime",
-					"@mdx-js/react",
-					"zod",
-					"framer-motion",
-					"ms",
-					"bytes",
-					// MdSection imports pushToast at module scope, and Toast.tsx imports
-					// react-hot-toast at module scope — so it too is on every SSR render.
-					"react-hot-toast",
-					"@tippyjs/react",
-					"tippy.js",
-					"diff",
-					// MdSection (client/mdx-components.ts) reads the open-section atom
-					// with useAtom in its read path — not behind the Tiptap lazy
-					// import — so it's reachable on every SSR render, same as the rest
-					// of this list.
-					"jotai",
-					"jotai/utils",
-					"date-fns",
-					// MdSection imports client/api.ts for the section editor's tRPC
-					// client, which pulls these four in on every SSR render too.
-					// @tanstack/react-query and @trpc/tanstack-react-query import
-					// react, so they must share the optimizer's single copy of it.
-					"@tanstack/react-query",
-					"@trpc/client",
-					"@trpc/tanstack-react-query",
-					"@trpc/server",
-				],
-			},
 		},
 	});
 

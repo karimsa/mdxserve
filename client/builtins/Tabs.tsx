@@ -1,64 +1,56 @@
-import {
-	Children,
-	isValidElement,
-	useId,
-	useRef,
-	useState,
-	type KeyboardEvent,
-	type ReactElement,
-	type ReactNode,
-} from "react";
+import { useContext, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useAtomValue } from "jotai";
 import { motion } from "framer-motion";
-import { TRANSITIONS } from "../motion";
-import { CrossFade } from "../CrossFade";
-import { tabValueFromLabel, type TabProps, type TabsProps } from "../../shared/builtins/tabs";
+import { TRANSITIONS, fadeSwapTransition } from "../motion";
+import { DocContext } from "../DocContext";
+import { selectTabs, tabSelectionAtom, tabSelectionKey } from "../document/tabs-state";
+import type { TabProps } from "../../shared/builtins/tabs";
 
 /**
- * Renders nothing on its own — `Tabs` reads each `Tab` child's props to build
- * the tab list and panels, matching on `props.label` rather than `type ===
- * Tab` (component identity changes under Fast Refresh; see client/CodeBlock.tsx).
+ * Never rendered: the document tree turns each `<Tab>` into an entry of its
+ * `Tabs` node. It stays in the builtin list so `mdxserve components` and the
+ * editor's templates describe it.
  */
 export function Tab(_props: TabProps) {
 	return null;
 }
 
-interface TabEntry {
+export interface TabsEntry {
+	/** `<Tabs id>` + `>` + `<value>`: the panel's anchor. */
+	id: string;
 	value: string;
 	label: string;
 	content: ReactNode;
 }
 
-type TabLikeElement = ReactElement<{ label: string; value?: string; children?: ReactNode }>;
-
-/**
- * Pull { label, value, children } out of each `Tab` child. Matches by
- * `typeof props.label === "string"` rather than `child.type === Tab` — under
- * Fast Refresh, component identity changes across re-executions, so a type
- * check would silently stop matching (see the `Figure` lesson in CodeBlock.tsx).
- */
-function collectTabs(children: ReactNode): TabEntry[] {
-	return Children.toArray(children)
-		.filter(
-			(child): child is TabLikeElement =>
-				isValidElement(child) && typeof (child.props as { label?: unknown }).label === "string",
-		)
-		.map((child) => {
-			const { label, value, children: content } = child.props;
-			return { label, value: value ?? tabValueFromLabel(label), content };
-		});
+export interface TabsViewProps {
+	id: string;
+	defaultValue: string;
+	tabs: readonly TabsEntry[];
 }
 
-export default function Tabs({ defaultValue, children }: TabsProps) {
-	const tabs = collectTabs(children);
-	const [active, setActive] = useState<string | undefined>(defaultValue ?? tabs[0]?.value);
-	const scopeId = useId();
+/**
+ * A tab list over panels that all stay mounted. Inactive panels carry
+ * `hidden`, so a printout shows only the selected tab while comment anchors
+ * and links still find the text of the others. The selection lives in
+ * `tabSelectionAtom` under the document path and this `Tabs`'s id, so it
+ * survives the document changing on disk and `revealNode` can set it.
+ */
+export default function Tabs({ id, defaultValue, tabs }: TabsViewProps) {
+	const documentPath = useContext(DocContext)?.path ?? "";
+	const key = tabSelectionKey(documentPath, id);
+	const chosen = useAtomValue(tabSelectionAtom)[key];
 	const listRef = useRef<HTMLDivElement>(null);
 
-	const activeIndex = Math.max(
-		0,
-		tabs.findIndex((tab) => tab.value === active),
-	);
-	const activeTab = tabs[activeIndex];
+	const activeTab =
+		tabs.find((tab) => tab.value === chosen) ??
+		tabs.find((tab) => tab.value === defaultValue) ??
+		tabs[0];
+	const activeIndex = activeTab ? tabs.indexOf(activeTab) : -1;
+
+	function choose(value: string) {
+		selectTabs(documentPath, [{ tabsId: id, value }]);
+	}
 
 	function focusTabAt(index: number) {
 		const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
@@ -75,7 +67,7 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 
 		if (nextIndex !== null) {
 			event.preventDefault();
-			setActive(tabs[nextIndex].value);
+			choose(tabs[nextIndex].value);
 			focusTabAt(nextIndex);
 		}
 	}
@@ -83,7 +75,7 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 	if (!activeTab) return null;
 
 	return (
-		<div>
+		<div data-tabs={id}>
 			<div
 				ref={listRef}
 				role="tablist"
@@ -91,17 +83,17 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 				className="not-prose flex gap-1 border-b border-border-default"
 			>
 				{tabs.map((tab) => {
-					const isActive = tab.value === activeTab.value;
+					const isActive = tab === activeTab;
 					return (
 						<button
-							key={tab.value}
+							key={tab.id}
 							type="button"
 							role="tab"
-							id={`${scopeId}-tab-${tab.value}`}
+							id={`${tab.id}~tab`}
 							aria-selected={isActive}
-							aria-controls={`${scopeId}-panel-${tab.value}`}
+							aria-controls={tab.id}
 							tabIndex={isActive ? 0 : -1}
-							onClick={() => setActive(tab.value)}
+							onClick={() => choose(tab.value)}
 							className={
 								"relative h-[34px] cursor-pointer px-3 font-sans font-medium leading-normal text-[length:var(--size-sm)] transition-colors " +
 								(isActive
@@ -112,7 +104,7 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 							{tab.label}
 							{isActive ? (
 								<motion.span
-									layoutId={`${scopeId}-tab-underline`}
+									layoutId={`${id}~tab-underline`}
 									transition={TRANSITIONS.snap}
 									className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-teal-500"
 								/>
@@ -121,20 +113,27 @@ export default function Tabs({ defaultValue, children }: TabsProps) {
 					);
 				})}
 			</div>
-			<CrossFade
-				active={activeTab.value}
-				panes={tabs.map((tab) => ({
-					key: tab.value,
-					node: (
-						<div className="pt-4 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{tab.content}</div>
-					),
-					props: {
-						id: `${scopeId}-panel-${tab.value}`,
-						role: "tabpanel",
-						"aria-labelledby": `${scopeId}-tab-${tab.value}`,
-					},
-				}))}
-			/>
+			{tabs.map((tab) => {
+				const isActive = tab === activeTab;
+				return (
+					<motion.div
+						key={tab.id}
+						id={tab.id}
+						role="tabpanel"
+						aria-labelledby={`${tab.id}~tab`}
+						data-tab-panel=""
+						data-tabs-id={id}
+						data-tab-value={tab.value}
+						hidden={!isActive}
+						initial={false}
+						animate={{ opacity: isActive ? 1 : 0 }}
+						transition={fadeSwapTransition}
+						className="pt-4 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+					>
+						{tab.content}
+					</motion.div>
+				);
+			})}
 		</div>
 	);
 }

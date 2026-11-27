@@ -22,6 +22,8 @@ export interface SearchResult {
 	label?: ReactNode;
 	/** Matched query terms; occurrences are highlighted in each field. */
 	terms?: string[];
+	/** The section or tab the hit is in; selecting the result opens the doc there. */
+	targetId?: string | null;
 }
 
 function escapeRegExp(input: string): string {

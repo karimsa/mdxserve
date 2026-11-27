@@ -7,7 +7,6 @@ import {
 	formatRoots,
 	formatSearchResults,
 	formatValidationResult,
-	renderStatusLine,
 } from "../../src/cli/format.js";
 import type { ValidationResult } from "../../src/validation/validate.js";
 
@@ -15,7 +14,6 @@ const base: ValidationResult = {
 	ok: true,
 	path: "/docs/a.md",
 	diagnostics: [],
-	rendered: false,
 	hints: [],
 };
 
@@ -24,7 +22,7 @@ describe("formatValidationResult hints", () => {
 		expect(formatValidationResult(base)).not.toContain("hint:");
 	});
 
-	it("prints each hint as a `hint:` line after the render status, on an OK result", () => {
+	it("prints each hint as a `hint:` line after the verdict, on an OK result", () => {
 		const lines = formatValidationResult({ ...base, hints: ["first", "second"] }).split("\n");
 		expect(lines[0]).toBe("OK: /docs/a.md");
 		expect(lines.slice(-2)).toEqual(["hint: first", "hint: second"]);
@@ -39,32 +37,6 @@ describe("formatValidationResult hints", () => {
 		}).split("\n");
 		expect(lines[0]).toContain("boom");
 		expect(lines[lines.length - 1]).toBe("hint: use Screenshot");
-	});
-});
-
-describe("renderStatusLine", () => {
-	it("reports a clean render", () => {
-		expect(renderStatusLine({ ...base, rendered: true })).toBe("Rendered OK");
-	});
-
-	it("reports a render with errors", () => {
-		expect(renderStatusLine({ ...base, rendered: true, ok: false })).toBe("Rendered with errors");
-	});
-
-	it("blames the errors, not the server, when static errors stopped the render", () => {
-		const status = renderStatusLine({
-			...base,
-			ok: false,
-			diagnostics: [{ severity: "error", code: "mdx-syntax", message: "boom" }],
-		});
-		expect(status).toBe("Not rendered (fix the errors above first)");
-	});
-
-	it("says no server is reachable otherwise", () => {
-		const status = renderStatusLine(base);
-		expect(status).toBe(
-			"Not rendered (no mdxserve server is reachable; start one with `mdxserve serve -w <dir>`)",
-		);
 	});
 });
 
@@ -94,7 +66,15 @@ describe("formatters", () => {
 	it("formatSearchResults handles zero and some hits", () => {
 		expect(formatSearchResults("x", [])).toBe('No docs match "x".');
 		const text = formatSearchResults("x", [
-			{ path: "/a.md", label: "a.md", title: "A", excerpt: "about x", terms: ["x"], score: 1 },
+			{
+				path: "/a.md",
+				label: "a.md",
+				title: "A",
+				excerpt: "about x",
+				terms: ["x"],
+				score: 1,
+				targetId: null,
+			},
 		]);
 		expect(text).toBe("/a.md — A\n    about x");
 	});

@@ -3,7 +3,6 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import type { Registry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import type { RootsService } from "../roots/service.js";
-import type { RenderOutcome } from "../rendering/protocol.js";
 import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
@@ -26,8 +25,6 @@ export interface ApiContext {
 	isLoopback: boolean;
 	/** Immutable process policy: a restricted reader with no mutating or local-only RPCs. */
 	permissions?: PermissionMode;
-	/** Renders a doc server-side; only defined when a Vite dev server is live. */
-	render?: (absPath: string) => Promise<RenderOutcome>;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	/** Per-process state, created once in startServer. */
@@ -87,7 +84,7 @@ const rejectCrossOriginMutations = trpc.middleware(({ ctx, type, next }) => {
 });
 
 // Mutating the mounted root set is a same-machine operation, same reasoning
-// as the render step in src/http/server.ts: a LAN caller (--host 0.0.0.0)
+// as the loopback checks in src/http/server.ts: a LAN caller (--host 0.0.0.0)
 // must not be able to make this process start reading/watching arbitrary
 // directories the operator didn't choose.
 export const requireLoopback = trpc.middleware(({ ctx, next }) => {

@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tip
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
+import type { Root, RootContent } from "mdast";
 import { componentFields, updateComponentField } from "./component-fields";
 
 function readFlowJsx(source: string): string | undefined {
@@ -37,6 +38,56 @@ function readFlowJsx(source: string): string | undefined {
 		}
 		return;
 	}
+}
+
+/** A fence line with more than a language after the backticks: `title`, `showLineNumbers`, `{3-4}`. */
+const FENCE_WITH_META = /^ {0,3}(?:`{3,}|~{3,})[ \t]*[^\s`]+[ \t]+\S/;
+
+function parseMdx(source: string): Root {
+	return fromMarkdown(source, { extensions: [mdxjs()], mdastExtensions: [mdxFromMarkdown()] });
+}
+
+function containsInlineMdx(node: RootContent): boolean {
+	if (
+		node.type === "mdxJsxTextElement" ||
+		node.type === "mdxTextExpression" ||
+		node.type === "mdxJsxFlowElement" ||
+		node.type === "mdxFlowExpression" ||
+		node.type === "html"
+	)
+		return true;
+	return "children" in node && (node.children as RootContent[]).some(containsInlineMdx);
+}
+
+/**
+ * A Markdown block Tiptap would change on a load and save with no edit: one
+ * holding an inline component, a literal in braces or raw HTML (Marked escapes
+ * or drops them), or a code fence with meta (the title, line numbers and
+ * highlighted lines are lost). A section edit covers whole sections, so these
+ * stay raw source, byte for byte, like flow JSX does.
+ */
+export function readLossyBlock(source: string): string | undefined {
+	const blankLine = source.search(/\n[ \t]*\n/);
+	const head = blankLine === -1 ? source : source.slice(0, blankLine);
+	if (!/[<{]/.test(head) && !FENCE_WITH_META.test(head)) return;
+	let tree: Root;
+	try {
+		tree = parseMdx(source);
+	} catch {
+		try {
+			tree = parseMdx(head);
+		} catch {
+			return;
+		}
+	}
+	const first = tree.children[0];
+	const start = first?.position?.start.offset;
+	const end = first?.position?.end.offset;
+	if (!first || start === undefined || end === undefined || source.slice(0, start).trim() !== "")
+		return;
+	const lossy =
+		first.type === "code" ? Boolean(first.meta) : containsInlineMdx(first as RootContent);
+	return lossy ? source.slice(0, end) : undefined;
 }
 
 /** Keep JSX in one atom so its children and JavaScript expressions never pass through Marked. */
@@ -129,7 +180,7 @@ export const MdxBlock = Node.create({
 		level: "block",
 		start: (source) => source.search(/(^|\n) {0,3}</),
 		tokenize: (source) => {
-			const raw = readFlowJsx(source);
+			const raw = readFlowJsx(source) ?? readLossyBlock(source);
 			return raw ? { type: "mdxBlock", raw, text: raw } : undefined;
 		},
 	},

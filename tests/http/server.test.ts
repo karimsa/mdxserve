@@ -8,7 +8,6 @@ import type { ViteDevServer } from "vite";
 import type { AppRouter } from "../../src/api/router.js";
 import { renderShell } from "../../src/http/shell.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";
-import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
 import { RootsService } from "../../src/roots/service.js";
@@ -87,7 +86,7 @@ describe("POST /__mdxserve/trpc/*", () => {
 
 	it("413s an oversized moveDocsToTrash body", async () => {
 		const { base } = await startWith();
-		// Well past the adapter's 320 KB maxBodySize (sized for saveDocSection).
+		// Well past the adapter's 320 KB maxBodySize (sized for saveDocNode).
 		const paths = Array.from({ length: 8000 }, (_unused, index) => `/x/${"p".repeat(50)}${index}`);
 		const res = await fetch(`${base}/__mdxserve/trpc/moveDocsToTrash`, {
 			method: "POST",
@@ -113,19 +112,16 @@ describe("typed tRPC client round trip", () => {
 		return createTRPCClient<AppRouter>({ links: [httpLink({ url: `${base}/__mdxserve/trpc` })] });
 	}
 
-	it("validateDoc.mutate runs the configured render stub and returns a result", async () => {
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
+	it("validateDoc.mutate returns a result", async () => {
 		const docCache = new DocCache();
 		const { base } = await startWith({
-			render,
 			docCache,
 			search: new SearchService(docCache),
 		});
 		const client = makeClient(base);
 		const result = await client.validateDoc.mutate({ path: path.join(fixtureDir, "good.md") });
 		expect(result.ok).toBe(true);
-		expect(result.rendered).toBe(true);
-		expect(render).toHaveBeenCalledOnce();
+		expect(result).not.toHaveProperty("rendered");
 	});
 
 	it("validateDoc.mutate rejects with a NOT_FOUND TRPCClientError for a path outside every root", async () => {
@@ -354,10 +350,9 @@ describe("restricted permissions", () => {
 		expect(html).toContain('data-same-machine="0"');
 
 		await expect(
-			client.saveDocSection.mutate({
+			client.saveDocNode.mutate({
 				path: docPath,
-				startLine: 3,
-				endLine: 3,
+				id: "good-doc",
 				version: source.version,
 				markdown: "Defaced",
 			}),
@@ -508,5 +503,69 @@ describe("restricted permissions", () => {
 			await fs.rm(dirAlias, { force: true });
 			await fs.rm(hiddenDir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("documents are not served as modules", () => {
+	function spyVite() {
+		const middlewares = vi.fn((_req: unknown, res: http.ServerResponse, next: () => void) =>
+			next(),
+		);
+		const vite = {
+			middlewares,
+			transformIndexHtml: async (_url: string, html: string) => html,
+		} as unknown as ViteDevServer;
+		return { vite, middlewares };
+	}
+
+	it("still serves the HTML shell for a document", async () => {
+		const { vite } = spyVite();
+		const { base } = await startWith({ vite });
+		const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
+			headers: { Accept: "text/html" },
+		});
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+	});
+
+	it("404s a non-HTML request for a document", async () => {
+		const { vite, middlewares } = spyVite();
+		const { base } = await startWith({ vite });
+		for (const accept of ["*/*", "text/javascript"]) {
+			const res = await fetch(`${base}${encodeURI(path.join(fixtureDir, "good.md"))}`, {
+				headers: { Accept: accept },
+			});
+			expect(res.status).toBe(404);
+		}
+		expect(middlewares).not.toHaveBeenCalled();
+	});
+
+	it("404s a /@fs/ request for a .md or .mdx file in any case, without reaching Vite", async () => {
+		const { vite, middlewares } = spyVite();
+		const { base } = await startWith({ vite });
+		const outside = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-http-fs-doc-"));
+		try {
+			await fs.writeFile(path.join(outside, "loose.mdx"), "# Loose\n", "utf8");
+			const targets = [
+				path.join(fixtureDir, "good.md"),
+				path.join(fixtureDir, "GOOD.MD"),
+				path.join(fixtureDir, "page.mdx"),
+				path.join(outside, "loose.mdx"),
+			];
+			for (const target of targets) {
+				const res = await fetch(`${base}/@fs${encodeURI(target)}?t=123`);
+				expect(res.status).toBe(404);
+			}
+			expect(middlewares).not.toHaveBeenCalled();
+		} finally {
+			await fs.rm(outside, { recursive: true, force: true });
+		}
+	});
+
+	it("still hands other /@fs/ requests to Vite", async () => {
+		const { vite, middlewares } = spyVite();
+		const { base } = await startWith({ vite });
+		await fetch(`${base}/@fs${encodeURI(path.join(fixtureDir, "good.txt"))}`);
+		expect(middlewares).toHaveBeenCalledOnce();
 	});
 });

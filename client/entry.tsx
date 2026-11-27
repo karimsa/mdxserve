@@ -1,10 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { MDXProvider } from "@mdx-js/react";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
 import { queryClient } from "./api";
-import { mdxComponents } from "./mdx-components";
 import { ToastStack } from "./ui/Toast";
 import { shellInfo, type Route } from "./router";
 
@@ -36,9 +34,7 @@ function main() {
 	root.render(
 		<QueryClientProvider client={queryClient}>
 			<MotionConfig reducedMotion="user">
-				<MDXProvider components={mdxComponents}>
-					<App initialRoute={initialRoute} />
-				</MDXProvider>
+				<App initialRoute={initialRoute} />
 				<ToastStack />
 			</MotionConfig>
 		</QueryClientProvider>,
@@ -47,16 +43,4 @@ function main() {
 
 main();
 
-if (import.meta.hot) {
-	// Every doc module exports `__mdxserveMetadata` (src/rendering/mdx/remark-metadata.ts)
-	// beside its component. Fast Refresh rejects a module with a non-component
-	// export whose value changed, and a doc has no static importer to fall back
-	// on, so without this every write to a doc — a comment included — reloads
-	// the whole page. The router's `mdxserve:doc-changed` handler re-imports the
-	// doc, so new metadata still arrives.
-	(
-		window as Window & { __getReactRefreshIgnoredExports?: () => string[] }
-	).__getReactRefreshIgnoredExports = () => ["__mdxserveMetadata"];
-
-	import.meta.hot.accept();
-}
+if (import.meta.hot) import.meta.hot.accept();

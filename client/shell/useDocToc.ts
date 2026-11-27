@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { tocModeAtom } from "../state";
 import { tocPresentation } from "./toc-mode";
 import { useToc, type TocEntry } from "./useToc";
+import { revealNode } from "../document/reveal";
 
 export interface DocToc {
 	path: string;
@@ -22,7 +23,7 @@ export interface DocToc {
 
 /**
  * The current doc's table of contents and where the saved mode puts it. One
- * heading scan feeds the rail, the top-bar button's popup and the inline list.
+ * table of contents feeds the rail, the top-bar button's popup and the inline list.
  * A doc without an h2 has no table of contents in any mode, and neither does
  * a route that is not a doc (an empty `path`).
  */
@@ -30,8 +31,7 @@ export function useDocToc(path: string, version: number): DocToc {
 	const { items, activeId, setActiveId } = useToc(path, version);
 	const mode = useAtomValue(tocModeAtom);
 	const [popupOpen, setPopupOpen] = useState(false);
-	// An empty path is a route that is not a doc. The heading scan can still
-	// hold the doc just left, so the path decides, not the scan.
+	// An empty path is a route that is not a doc.
 	const hasHeadings = path !== "" && items.some((item) => item.level === 2);
 	const presentation = tocPresentation(mode);
 
@@ -39,7 +39,7 @@ export function useDocToc(path: string, version: number): DocToc {
 		(id: string) => {
 			setActiveId(id);
 			history.replaceState(null, "", `#${id}`);
-			document.getElementById(id)?.scrollIntoView({ block: "start" });
+			revealNode(id);
 		},
 		[setActiveId],
 	);

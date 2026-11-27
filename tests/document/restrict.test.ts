@@ -1,8 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createElement, type ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { evaluate } from "@mdx-js/mdx";
-import * as runtime from "react/jsx-runtime";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxFlowElement, MdxJsxTextElement } from "mdast-util-mdx";
 import { toString as mdastToString } from "mdast-util-to-string";
@@ -13,8 +9,6 @@ import {
 	SUPPORTED_ELEMENTS,
 	type RestrictDiagnostic,
 } from "../../src/document/restrict.js";
-import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options.js";
-import { createMetadataPort } from "../helpers/metadata.js";
 import { fixtureComponentNames } from "../fixtures/registry.js";
 import { parseMdx } from "./estree.js";
 
@@ -346,69 +340,4 @@ describe("proseText", () => {
 		expect(proseText(false)).toBe("");
 		expect(proseText(null)).toBe("");
 	});
-});
-
-describe("remarkRestrict in the MDX pipeline", () => {
-	/** Compile with the real pipeline and render with stub builtins that print their props. */
-	async function render(source: string, extension: string) {
-		const diagnostics: RestrictDiagnostic[] = [];
-		const { providerImportSource: _, ...options } = mdxCompileOptions(createMetadataPort(), {
-			components: fixtureComponentNames,
-			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-		});
-		const module = await evaluate(
-			{ value: source, path: `doc.${extension}` },
-			{ ...options, ...runtime },
-		);
-		const stub =
-			(name: string) =>
-			({ children, ...props }: { children?: ReactNode }) =>
-				createElement(
-					"output",
-					{ "data-name": name, "data-props": JSON.stringify(props) },
-					children,
-				);
-		const html = renderToStaticMarkup(
-			createElement(module.default, {
-				components: Object.fromEntries(fixtureComponentNames.map((name) => [name, stub(name)])),
-			}),
-		);
-		return { html, diagnostics };
-	}
-
-	it.each(["md", "mdx"])(
-		"compiles folded literals and renders what is left (.%s)",
-		async (extension) => {
-			const source = [
-				'import Counter from "./Counter.tsx"',
-				"",
-				"# Title",
-				"",
-				"<Counter />",
-				"",
-				'<Callout tone="tip" className="mt-4" title={`Folded ${"\\u0024"}`}>Body</Callout>',
-				"",
-				'<Badge tone={"ok"} dot={true}>{[1, { two: 2 }]}</Badge>',
-				"",
-				"One plus one is {1 + 1}.",
-				"",
-			].join("\n");
-			const { html, diagnostics } = await render(source, extension);
-			expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-				"esm-not-supported",
-				"unknown-component",
-				"unsupported-attribute",
-				"non-literal-expression",
-				"non-literal-expression",
-			]);
-			expect(html).toContain(">Title</h1>");
-			expect(html).toContain(
-				'data-name="Badge" data-props="{&quot;tone&quot;:&quot;ok&quot;,&quot;dot&quot;:true}"',
-			);
-			expect(html).toContain("[1,{&quot;two&quot;:2}]");
-			expect(html).toContain('data-name="Callout" data-props="{&quot;tone&quot;:&quot;tip&quot;}"');
-			expect(html).toContain("One plus one is .");
-			expect(html).not.toContain("className");
-		},
-	);
 });

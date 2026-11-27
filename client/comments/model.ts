@@ -5,6 +5,7 @@ import { useMediaQuery } from "../hooks";
 import { DESKTOP_MEDIA } from "../platform";
 import { shellInfo } from "../router";
 import { openSectionAtom } from "../state";
+import { revealElement } from "../document/reveal";
 import { resolutionPosition, type Resolution } from "./anchor";
 import { commentActions, useDocThreads, type CommentActions } from "./data";
 import { collectDoc, findArticle, resolveIndexOf, resolveInDom } from "./dom";
@@ -81,7 +82,7 @@ function scrollToView(view: ThreadView | undefined, isDesktop: boolean): void {
 /**
  * The comments state for the open doc: its threads, where each one lands on the
  * page, the highlights, and click-to-focus. Mount once, in AppShell.
- * `renderVersion` changes whenever DocView reports a render.
+ * `renderVersion` changes whenever DocumentView reports a render.
  */
 export function useCommentsModel(path: string | null, renderVersion: number): CommentsModel {
 	const { threads } = useDocThreads(path);
@@ -113,13 +114,13 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 		const observer = new MutationObserver(() => setVisibility((count) => count + 1));
 		observer.observe(article, {
 			attributes: true,
-			attributeFilter: ["inert", "aria-hidden"],
+			attributeFilter: ["inert", "aria-hidden", "hidden"],
 			subtree: true,
 		});
 		return () => observer.disconnect();
 	}, [path, renderVersion]);
 
-	// Resolve after the thread list changes, after DocView renders, and when a
+	// Resolve after the thread list changes, after DocumentView renders, and when a
 	// section editor closes. While one is open its DOM is the editor's, so keep
 	// the last answer rather than flash everything to "detached".
 	useEffect(() => {
@@ -197,7 +198,10 @@ export function useCommentsModel(path: string | null, renderVersion: number): Co
 					view = { resolution, position: resolutionPosition(resolution), range, scrollTarget };
 				}
 			}
-			scrollToView(view, isDesktop);
+			// An anchor in an unselected tab has no box until its tab is shown.
+			const target = view?.scrollTarget;
+			if (target) revealElement(target, () => scrollToView(view, isDesktop));
+			else scrollToView(view, isDesktop);
 		},
 		[setActiveId, views, threads, isDesktop],
 	);

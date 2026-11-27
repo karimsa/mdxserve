@@ -1,4 +1,3 @@
-import { createMetadataPort } from "../helpers/metadata.js";
 import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -7,7 +6,6 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ViteDevServer } from "vite";
 import { allowFsDir, createDevServer, disallowFsDir } from "../../src/rendering/vite.js";
-import { builtinNames } from "../helpers/components.js";
 
 let extraDir: string;
 let filePath: string;
@@ -25,8 +23,6 @@ beforeAll(async () => {
 
 	httpServer = http.createServer();
 	vite = await createDevServer({
-		components: builtinNames,
-		metadata: createMetadataPort(),
 		roots: [],
 		viteRoot,
 		cacheDir,

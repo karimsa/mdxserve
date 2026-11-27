@@ -10,10 +10,23 @@ export const docSourceSchema = z.object({
 	text: z.string(),
 	/**
 	 * Opaque token for the bytes `text` was read from; echoed back to
-	 * `saveDocSection`, which refuses the write unless the file still hashes to
+	 * `saveDocNode`, which refuses the write unless the file still hashes to
 	 * it. Opaque on purpose — the client must never try to interpret or
 	 * synthesize one.
 	 */
+	version: z.string(),
+});
+
+export const getNodeSourceInput = z.object({
+	path: z.string().min(1).max(4096),
+	/** A node ID from the `getDocument` tree: a section, a tab, a mermaid block, a builtin block. */
+	id: z.string().min(1).max(1024),
+});
+
+export const nodeSourceSchema = z.object({
+	/** The node's own source lines, ready to seed an editor. */
+	markdown: z.string(),
+	/** The version token of the bytes `markdown` was read from; echoed back to `saveDocNode`. */
 	version: z.string(),
 });
 
@@ -21,16 +34,15 @@ export const docSourceSchema = z.object({
 // distinction is meaningful: a body that's merely oversized because of a
 // huge `markdown` field fails schema validation (400) rather than the
 // coarser byte-count check (413).
-export const saveDocSectionInput = z.object({
+export const saveDocNodeInput = z.object({
 	path: z.string().min(1).max(4096),
-	startLine: z.number().int().positive(),
-	endLine: z.number().int().positive(),
-	/** The `version` from the `getDocSource` this edit was seeded from. */
+	id: z.string().min(1).max(1024),
+	/** The `version` from the `getNodeSource` (or `getDocument`) this edit was seeded from. */
 	version: z.string().min(1).max(128),
 	markdown: z.string().max(256 * 1024),
 });
 
-export const saveDocSectionResultSchema = z.object({
+export const saveDocNodeResultSchema = z.object({
 	/** The file's version after the write, for the next save from the same editor. */
 	version: z.string(),
 });
@@ -86,16 +98,40 @@ const getDocument = procedure(
 		}
 	});
 
-const saveDocSection = procedure(
-	"Replaces one line range of a doc with edited markdown: the file must still hash to the version the caller read (otherwise CONFLICT), the resulting file must validate (otherwise UNPROCESSABLE_CONTENT), and the write is atomic. Used by the in-place section editor's Save.",
+const getNodeSource = procedure(
+	"Returns the source lines of one node of a doc, found by its ID in the getDocument tree (a section, a tab, a mermaid diagram or a builtin block), with the version token of the bytes they were read from. Restricted mode applies the same path rules as getDocSource. Used by the section, diagram and builtin block editors in the document view when an editor is opened.",
 )
-	.input(saveDocSectionInput)
-	.output(saveDocSectionResultSchema)
+	.input(getNodeSourceInput)
+	.output(nodeSourceSchema)
+	.query(async ({ ctx, input }) => {
+		const result = await ctx.docs.readNodeSource(
+			input.path,
+			input.id,
+			ctx.permissions === "restricted",
+		);
+		switch (result.kind) {
+			case "ok":
+				return { markdown: result.markdown, version: result.version };
+			case "not-found":
+				throw new TRPCError({ code: "NOT_FOUND", message: result.message });
+			case "too-large":
+				throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "File too large to edit" });
+			default: {
+				const exhaustiveResult: never = result;
+				throw new Error(`Unhandled readNodeSource result: ${JSON.stringify(exhaustiveResult)}`);
+			}
+		}
+	});
+
+const saveDocNode = procedure(
+	"Replaces the source lines of one node of a doc, found by its ID, with edited markdown: the file must still hash to the version the caller read (otherwise CONFLICT), the node must exist (otherwise NOT_FOUND), the edit must not introduce a validation error the file did not already have (otherwise UNPROCESSABLE_CONTENT), and the write is atomic. Used by the section, diagram and builtin block editors in the document view when they save.",
+)
+	.input(saveDocNodeInput)
+	.output(saveDocNodeResultSchema)
 	.mutation(async ({ ctx, input }) => {
-		const result = await ctx.docs.saveSection({
+		const result = await ctx.docs.saveNode({
 			path: input.path,
-			startLine: input.startLine,
-			endLine: input.endLine,
+			id: input.id,
 			version: input.version,
 			markdown: input.markdown,
 		});
@@ -112,16 +148,18 @@ const saveDocSection = procedure(
 				throw new TRPCError({ code: "UNPROCESSABLE_CONTENT", message: result.message });
 			default: {
 				const exhaustiveResult: never = result;
-				throw new Error(`Unhandled saveSection result: ${JSON.stringify(exhaustiveResult)}`);
+				throw new Error(`Unhandled saveNode result: ${JSON.stringify(exhaustiveResult)}`);
 			}
 		}
 	});
 
-export const docsController = { getDocSource, getDocument, saveDocSection };
+export const docsController = { getDocSource, getDocument, getNodeSource, saveDocNode };
 
 export type GetDocSourceInput = z.infer<typeof getDocSourceInput>;
 export type DocSourceOutput = z.infer<typeof docSourceSchema>;
-export type SaveDocSectionInput = z.infer<typeof saveDocSectionInput>;
-export type SaveDocSectionResult = z.infer<typeof saveDocSectionResultSchema>;
+export type GetNodeSourceInput = z.infer<typeof getNodeSourceInput>;
+export type NodeSourceOutput = z.infer<typeof nodeSourceSchema>;
+export type SaveDocNodeInput = z.infer<typeof saveDocNodeInput>;
+export type SaveDocNodeResult = z.infer<typeof saveDocNodeResultSchema>;
 export type GetDocumentInput = z.infer<typeof getDocumentInput>;
 export type DocumentResult = z.infer<typeof documentResultSchema>;

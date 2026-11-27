@@ -4,14 +4,12 @@ import { DocumentService } from "../document/service.js";
 import type { DocumentDiagnosticCode } from "../document/diagnostics.js";
 import { rootFileUrl } from "../docs/asset-url.js";
 import type { Registry } from "../components/registry.js";
-import type { RenderOutcome } from "../rendering/protocol.js";
 import { parseComments } from "../comments/frontmatter.js";
 import { anchorDiagnostics } from "../comments/anchor.js";
 import { chartDiagramKeyword, chartDiagramMessage } from "../../client/mermaid-chart.js";
 
 export type DiagnosticCode =
 	| DocumentDiagnosticCode
-	| "render-error"
 	| "mermaid-chart"
 	| "frontmatter-metadata"
 	| "frontmatter-comments"
@@ -34,8 +32,6 @@ export interface ValidationResult {
 	ok: boolean;
 	path: string;
 	diagnostics: Diagnostic[];
-	/** Whether the render step actually ran (a `render` was given and no static error existed). */
-	rendered: boolean;
 	/**
 	 * Advisory guidance for the agent that wrote the doc — things that are not
 	 * wrong, but that a builtin would present better. Never affects `ok`.
@@ -117,23 +113,16 @@ export interface ValidateSourceInput {
 	source: string;
 	path: string;
 	registry: Registry;
-	/**
-	 * Server-side render step, run after static analysis finds no `error`
-	 * diagnostic (an unknown component would just throw again with a worse
-	 * message). Absent when no mdxserve server is available to render with.
-	 */
-	render?: (absPath: string) => Promise<RenderOutcome>;
 }
 
 /**
  * Parse `source` with `DocumentService.parse`, the same function that builds
  * the tree a reader gets, and report its diagnostics; then add the checks
  * that only matter to an author: frontmatter metadata and comments, comment
- * anchors, mermaid charts, screenshot hints, and (when `render` is given, and
- * only once the doc is otherwise clean) any error thrown while rendering it.
+ * anchors, mermaid charts and screenshot hints.
  */
 export async function validateSource(input: ValidateSourceInput): Promise<ValidationResult> {
-	const { path: filePath, registry, render } = input;
+	const { path: filePath, registry } = input;
 
 	const parsed = new DocumentService(registry, rootFileUrl).parse(input.source, filePath);
 	const diagnostics: Diagnostic[] = [...parsed.diagnostics];
@@ -148,22 +137,7 @@ export async function validateSource(input: ValidateSourceInput): Promise<Valida
 	if (parsedFully)
 		diagnostics.push(...anchorDiagnostics(parsed.mdast, comments.threads, comments.positions));
 
-	let rendered = false;
-	if (render && !diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
-		rendered = true;
-		const outcome = await render(filePath);
-		if (!outcome.ok) {
-			diagnostics.push({
-				severity: "error",
-				code: "render-error",
-				message: outcome.message,
-				line: outcome.line,
-				column: outcome.column,
-			});
-		}
-	}
-
 	const ok = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
 	const hints = parsedFully ? collectHints(parsed.mdast) : [];
-	return { ok, path: filePath, diagnostics, rendered, hints };
+	return { ok, path: filePath, diagnostics, hints };
 }

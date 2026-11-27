@@ -66,39 +66,113 @@ describe("getDocSource", () => {
 	});
 });
 
-describe("saveDocSection", () => {
+describe("getNodeSource", () => {
+	it("returns the lines of a node with the version of the bytes they came from", async () => {
+		const abs = path.join(fixtureDir, "good.md");
+		const caller = createCaller(makeContext());
+		const result = await caller.getNodeSource({ path: abs, id: "good-doc" });
+		const source = await caller.getDocSource({ path: abs });
+		expect(result).toEqual({
+			markdown: "# Good doc\n\nSome plain GFM content about widgets and gadgets.",
+			version: source.version,
+		});
+	});
+
+	it("rejects an unknown id and a path outside every root with NOT_FOUND", async () => {
+		const caller = createCaller(makeContext());
+		await expect(
+			caller.getNodeSource({ path: path.join(fixtureDir, "good.md"), id: "nope" }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+		await expect(
+			caller.getNodeSource({ path: path.join(outsideDir, "secret.md"), id: "secret" }),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+	});
+
+	it("rejects a file over the size cap with PAYLOAD_TOO_LARGE", async () => {
+		const abs = path.join(fixtureDir, "huge-node.md");
+		await fs.writeFile(abs, "# Huge\n\n" + "x".repeat(2 * 1024 * 1024 + 1), "utf8");
+		try {
+			await expect(
+				createCaller(makeContext()).getNodeSource({ path: abs, id: "huge" }),
+			).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
+		} finally {
+			await fs.rm(abs, { force: true });
+		}
+	});
+
+	it("applies the public path rules in restricted mode", async () => {
+		const hidden = path.join(fixtureDir, ".hidden-node.md");
+		await fs.writeFile(hidden, "# Hidden\n", "utf8");
+		try {
+			const restricted = createCaller(makeContext({ permissions: "restricted" }));
+			await expect(restricted.getNodeSource({ path: hidden, id: "hidden" })).rejects.toMatchObject({
+				code: "NOT_FOUND",
+			});
+			const good = path.join(fixtureDir, "good.md");
+			expect((await restricted.getNodeSource({ path: good, id: "good-doc" })).markdown).toContain(
+				"# Good doc",
+			);
+		} finally {
+			await fs.rm(hidden, { force: true });
+		}
+	});
+});
+
+describe("saveDocNode", () => {
 	const original = "# Title\n\nline three\n\nline five\n";
 	let counter = 0;
 
-	async function freshDoc(): Promise<string> {
+	async function freshDoc(content = original): Promise<string> {
 		const abs = path.join(fixtureDir, `edit-${counter++}.md`);
-		await fs.writeFile(abs, original, "utf8");
+		await fs.writeFile(abs, content, "utf8");
 		return abs;
 	}
 
-	it("replaces exactly the requested line range and returns the new version", async () => {
+	it("replaces exactly the node's lines and returns the new version", async () => {
 		const abs = await freshDoc();
 		const caller = createCaller(makeContext());
-		const before = await caller.getDocSource({ path: abs });
-		const result = await caller.saveDocSection({
+		const before = await caller.getNodeSource({ path: abs, id: "title" });
+		const result = await caller.saveDocNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: before.version,
-			markdown: "changed line\n",
+			markdown: "# Title\n\nchanged line\n\nline five\n",
 		});
 		const written = "# Title\n\nchanged line\n\nline five\n";
 		expect(await fs.readFile(abs, "utf8")).toBe(written);
 		expect(result.version).toBe(versionOf(written));
 	});
 
-	it("rejects a stale version with CONFLICT and leaves the file untouched", async () => {
+	it("saves a mermaid block and a builtin block by their ids", async () => {
+		const abs = await freshDoc(
+			'# Title\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\n<Callout tone="tip">Hi</Callout>\n',
+		);
+		const caller = createCaller(makeContext());
+		const first = await caller.getNodeSource({ path: abs, id: "title>~mermaid-1" });
+		const afterDiagram = await caller.saveDocNode({
+			path: abs,
+			id: "title>~mermaid-1",
+			version: first.version,
+			markdown: "```mermaid\nflowchart TD\n  A --> C\n```",
+		});
+		const afterBlock = await caller.saveDocNode({
+			path: abs,
+			id: "title>~callout-1",
+			version: afterDiagram.version,
+			markdown: '<Callout tone="warn">Careful</Callout>',
+		});
+		const written =
+			'# Title\n\n```mermaid\nflowchart TD\n  A --> C\n```\n\n<Callout tone="warn">Careful</Callout>\n';
+		expect(await fs.readFile(abs, "utf8")).toBe(written);
+		expect(afterBlock.version).toBe(versionOf(written));
+	});
+
+	it("rejects a stale version with CONFLICT, before it looks the id up, and leaves the file untouched", async () => {
 		const abs = await freshDoc();
 		await expect(
-			createCaller(makeContext()).saveDocSection({
+			createCaller(makeContext()).saveDocNode({
 				path: abs,
-				startLine: 3,
-				endLine: 3,
+				id: "no-such-node",
 				version: versionOf("something else entirely"),
 				markdown: "changed",
 			}),
@@ -106,44 +180,68 @@ describe("saveDocSection", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe(original);
 	});
 
-	it("rejects a line range past the end of the file with CONFLICT", async () => {
+	it("rejects an unknown id with NOT_FOUND", async () => {
 		const abs = await freshDoc();
 		await expect(
-			createCaller(makeContext()).saveDocSection({
+			createCaller(makeContext()).saveDocNode({
 				path: abs,
-				startLine: 3,
-				endLine: 99,
+				id: "no-such-node",
 				version: versionOf(original),
 				markdown: "changed",
 			}),
-		).rejects.toMatchObject({ code: "CONFLICT" });
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
 		expect(await fs.readFile(abs, "utf8")).toBe(original);
 	});
 
-	it("rejects markdown that would break the doc with UNPROCESSABLE_CONTENT, without writing", async () => {
+	it("rejects an edit that introduces an error with UNPROCESSABLE_CONTENT, without writing", async () => {
 		const abs = await freshDoc();
 		await expect(
-			createCaller(makeContext()).saveDocSection({
+			createCaller(makeContext()).saveDocNode({
 				path: abs,
-				startLine: 3,
-				endLine: 3,
+				id: "title",
 				version: versionOf(original),
-				markdown: "<Calout>not a real component</Calout>",
+				markdown: "# Title\n\n<Calout>not a real component</Calout>",
 			}),
 		).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT" });
 		expect(await fs.readFile(abs, "utf8")).toBe(original);
 	});
 
+	it("saves an edit to a doc that already has an error when the edit adds none", async () => {
+		const source =
+			'# Doc\n\n## Notes\n\nplain\n\n## Widgets\n\n<Tabs>\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>\n';
+		const abs = await freshDoc(source);
+		const result = await createCaller(makeContext()).saveDocNode({
+			path: abs,
+			id: "notes",
+			version: versionOf(source),
+			markdown: "## Notes\n\nplain, edited",
+		});
+		expect(result.version).toBe(versionOf(await fs.readFile(abs, "utf8")));
+		expect(await fs.readFile(abs, "utf8")).toContain("plain, edited");
+	});
+
 	it("rejects a path outside every root with NOT_FOUND", async () => {
 		await expect(
-			createCaller(makeContext()).saveDocSection({
+			createCaller(makeContext()).saveDocNode({
 				path: path.join(outsideDir, "secret.md"),
-				startLine: 1,
-				endLine: 1,
+				id: "secret",
 				version: versionOf("some other content"),
 				markdown: "x",
 			}),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
+	});
+
+	it("is refused in restricted mode", async () => {
+		const abs = await freshDoc();
+		await expect(
+			createCaller(makeContext({ permissions: "restricted" })).saveDocNode({
+				path: abs,
+				id: "title",
+				version: versionOf(original),
+				markdown: "# Title\n\ndefaced",
+			}),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+		expect(await fs.readFile(abs, "utf8")).toBe(original);
 	});
 });
 

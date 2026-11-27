@@ -2,11 +2,10 @@ import { motion } from "framer-motion";
 import { fadeRise } from "./motion";
 
 /**
- * Shown in place of a doc's content when it fails to render — either a
- * dynamic import error (DocView) or a render-time throw caught by
- * RenderErrorBoundary. Lives in its own file (not DocView.tsx) so
- * RenderErrorBoundary can import it without importing DocView, which would
- * otherwise cycle back through client/router.ts and client/api.ts.
+ * Shown in place of a doc's content when it fails to load (DocumentView) or
+ * in place of a builtin that threw while rendering (RenderErrorBoundary).
+ * Lives in its own file so RenderErrorBoundary can import it without the
+ * document view's graph.
  */
 export function ErrorBox({ message }: { message: string }) {
 	return (

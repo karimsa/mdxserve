@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocsService, versionOf, MAX_SOURCE_BYTES } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
+import { ValidationService } from "../../src/validation/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const ORIGINAL = "# Title\n\nline three\n\nline five\n";
@@ -215,7 +216,73 @@ describe("DocsService.readMetadata", () => {
 	});
 });
 
-describe("DocsService.saveSection", () => {
+describe("DocsService.readNodeSource", () => {
+	it("returns the lines of a section, with the version of the bytes they came from", async () => {
+		const result = await service.readNodeSource(abs, "title");
+		expect(result).toEqual({
+			kind: "ok",
+			markdown: "# Title\n\nline three\n\nline five",
+			version: versionOf(ORIGINAL),
+		});
+	});
+
+	it("returns the lines of a mermaid block and of a builtin block by their ids", async () => {
+		const file = path.join(root, "blocks.md");
+		const source =
+			'# Title\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\n<Callout tone="tip">Hi</Callout>\n';
+		await fs.writeFile(file, source);
+		expect(await service.readNodeSource(file, "title>~mermaid-1")).toMatchObject({
+			kind: "ok",
+			markdown: "```mermaid\nflowchart TD\n  A --> B\n```",
+		});
+		expect(await service.readNodeSource(file, "title>~callout-1")).toMatchObject({
+			kind: "ok",
+			markdown: '<Callout tone="tip">Hi</Callout>',
+		});
+	});
+
+	it("returns the lines of a tab, and of a heading inside it", async () => {
+		const file = path.join(root, "tabs.md");
+		const source =
+			'# Doc\n\n<Tabs id="t">\n  <Tab label="One">\n    ## Inner\n\n    one\n  </Tab>\n</Tabs>\n';
+		await fs.writeFile(file, source);
+		expect(await service.readNodeSource(file, "t>one")).toMatchObject({
+			kind: "ok",
+			markdown: '  <Tab label="One">\n    ## Inner\n\n    one\n  </Tab>',
+		});
+		expect(await service.readNodeSource(file, "inner")).toMatchObject({
+			kind: "ok",
+			markdown: "    ## Inner\n\n    one",
+		});
+	});
+
+	it("leaves out the frontmatter and joins lines with a newline whatever the file uses", async () => {
+		const file = path.join(root, "crlf.md");
+		await fs.writeFile(file, "---\r\ntitle: x\r\n---\r\n# Doc\r\n\r\ntext\r\n");
+		expect(await service.readNodeSource(file, "doc")).toMatchObject({
+			kind: "ok",
+			markdown: "# Doc\n\ntext",
+		});
+	});
+
+	it("reports an id with no range, and a path outside every root, as not-found", async () => {
+		expect((await service.readNodeSource(abs, "no-such-node")).kind).toBe("not-found");
+		const secret = path.join(outside, "secret.md");
+		await fs.writeFile(secret, "# Secret\n", "utf8");
+		expect((await service.readNodeSource(secret, "secret")).kind).toBe("not-found");
+	});
+
+	it("applies public path rules and the size cap", async () => {
+		const hidden = path.join(root, ".hidden.md");
+		await fs.writeFile(hidden, "# Hidden\n");
+		expect((await service.readNodeSource(hidden, "hidden", true)).kind).toBe("not-found");
+		const huge = path.join(root, "huge.md");
+		await fs.writeFile(huge, "x".repeat(MAX_SOURCE_BYTES + 1));
+		expect(await service.readNodeSource(huge, "x")).toEqual({ kind: "too-large" });
+	});
+});
+
+describe("DocsService.saveNode", () => {
 	it.each(["md", "mdx"])(
 		"preserves frontmatter bytes while saving a .%s body section",
 		async (extension) => {
@@ -224,12 +291,11 @@ describe("DocsService.saveSection", () => {
 				"---\r\ntitle: 'Public title'\r\n# Keep this comment\r\nopenGraph:\r\n  - property: og:title\r\n    content: Public title\r\n---\r\n";
 			const source = `${frontmatter}\r\n# Heading\r\n\r\nOriginal body.\r\n`;
 			await fs.writeFile(file, source);
-			const result = await service.saveSection({
+			const result = await service.saveNode({
 				path: file,
-				startLine: 11,
-				endLine: 11,
+				id: "heading",
 				version: versionOf(source),
-				markdown: "Changed body.",
+				markdown: "# Heading\n\nChanged body.",
 			});
 			expect(result.kind).toBe("ok");
 			const saved = await fs.readFile(file, "utf8");
@@ -238,79 +304,126 @@ describe("DocsService.saveSection", () => {
 	);
 
 	it.each([".md", ".mdx"])(
-		"saves an inserted Mermaid block in %s with the normal version guard",
+		"saves an edited Mermaid block in %s with the normal version guard",
 		async (extension) => {
 			const file = path.join(root, `diagram${extension}`);
-			await fs.writeFile(file, ORIGINAL);
+			const source = "# Title\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\nline five\n";
+			await fs.writeFile(file, source);
 			const markdown = "```mermaid\nerDiagram\n CUSTOMER ||--o{ ORDER : places\n```";
-			const saved = await service.saveSection({
+			const saved = await service.saveNode({
 				path: file,
-				startLine: 3,
-				endLine: 3,
-				version: versionOf(ORIGINAL),
+				id: "title>~mermaid-1",
+				version: versionOf(source),
 				markdown,
 			});
 			expect(saved.kind).toBe("ok");
 			const expected = `# Title\n\n${markdown}\n\nline five\n`;
 			expect(await fs.readFile(file, "utf8")).toBe(expected);
-			const stale = await service.saveSection({
+			const stale = await service.saveNode({
 				path: file,
-				startLine: 3,
-				endLine: 3,
-				version: versionOf(ORIGINAL),
+				id: "title>~mermaid-1",
+				version: versionOf(source),
 				markdown: "stale",
 			});
-			expect(stale.kind).not.toBe("ok");
+			expect(stale.kind).toBe("stale");
 			expect(await fs.readFile(file, "utf8")).toBe(expected);
 		},
 	);
 
-	it("replaces exactly the requested line range and returns the new version", async () => {
-		const result = await service.saveSection({
+	it("saves an edited builtin block by its id and leaves its neighbours alone", async () => {
+		const source = '# Title\n\nintro\n\n<Callout tone="tip">Hi</Callout>\n\noutro\n';
+		await fs.writeFile(abs, source);
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title>~callout-1",
+			version: versionOf(source),
+			markdown: '<Callout tone="warn">Careful</Callout>',
+		});
+		expect(result.kind).toBe("ok");
+		expect(await fs.readFile(abs, "utf8")).toBe(
+			'# Title\n\nintro\n\n<Callout tone="warn">Careful</Callout>\n\noutro\n',
+		);
+	});
+
+	it("replaces exactly the node's lines and returns the new version", async () => {
+		const result = await service.saveNode({
+			path: abs,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "changed line",
+			markdown: "# Title\n\nchanged line\n\nline five",
 		});
 		const written = "# Title\n\nchanged line\n\nline five\n";
 		expect(result).toEqual({ kind: "ok", version: versionOf(written) });
 		expect(await fs.readFile(abs, "utf8")).toBe(written);
 	});
 
-	it("returns a version the next save can immediately use", async () => {
-		const first = await service.saveSection({
+	it("keeps the blank lines that separate a node from the next one", async () => {
+		const source = "# Title\n\nintro\n\n## One\n\nbody\n\n## Two\n\nmore\n";
+		await fs.writeFile(abs, source);
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "one",
+			version: versionOf(source),
+			markdown: "## One\n\nedited",
+		});
+		expect(result.kind).toBe("ok");
+		expect(await fs.readFile(abs, "utf8")).toBe(
+			"# Title\n\nintro\n\n## One\n\nedited\n\n## Two\n\nmore\n",
+		);
+	});
+
+	it("returns a version the next save can immediately use", async () => {
+		const first = await service.saveNode({
+			path: abs,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "first edit",
+			markdown: "# Title\n\nfirst edit",
 		});
 		expect(first.kind).toBe("ok");
 		if (first.kind !== "ok") return;
 
-		const second = await service.saveSection({
+		const second = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: first.version,
-			markdown: "second edit",
+			markdown: "# Title\n\nsecond edit",
 		});
 		expect(second.kind).toBe("ok");
-		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nsecond edit\n\nline five\n");
+		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nsecond edit\n");
 	});
 
 	it("rejects a version that no longer matches the file, handing back the current one", async () => {
 		await fs.writeFile(abs, "# Title\n\nsomeone else wrote this\n", "utf8");
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
 			markdown: "my edit",
 		});
 		expect(result).toEqual({ kind: "stale", version: await currentVersion() });
 		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nsomeone else wrote this\n");
+	});
+
+	it("checks the version before looking the id up", async () => {
+		await fs.writeFile(abs, "# Other\n\nnow there is no title\n", "utf8");
+		const result = await service.saveNode({
+			path: abs,
+			id: "title",
+			version: versionOf(ORIGINAL),
+			markdown: "my edit",
+		});
+		expect(result).toEqual({ kind: "stale", version: await currentVersion() });
+	});
+
+	it("reports an unknown id as not-found, without writing", async () => {
+		const result = await service.saveNode({
+			path: abs,
+			id: "no-such-node",
+			version: versionOf(ORIGINAL),
+			markdown: "my edit",
+		});
+		expect(result.kind).toBe("not-found");
+		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
 	});
 
 	it("catches a change an mtime check would miss, because it compares bytes", async () => {
@@ -320,10 +433,9 @@ describe("DocsService.saveSection", () => {
 		await fs.writeFile(abs, "# Title\n\ndifferent content\n", "utf8");
 		await fs.utimes(abs, atime, mtime);
 
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
 			markdown: "my edit",
 		});
@@ -333,35 +445,21 @@ describe("DocsService.saveSection", () => {
 	it("accepts a save when the file was edited back to the bytes it was read at", async () => {
 		await fs.writeFile(abs, "# Title\n\nbriefly different\n", "utf8");
 		await fs.writeFile(abs, ORIGINAL, "utf8");
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "my edit",
+			markdown: "# Title\n\nmy edit",
 		});
 		expect(result.kind).toBe("ok");
 	});
 
-	it("rejects a line range past the end of the file without writing", async () => {
-		const result = await service.saveSection({
-			path: abs,
-			startLine: 3,
-			endLine: 99,
-			version: versionOf(ORIGINAL),
-			markdown: "changed",
-		});
-		expect(result.kind).toBe("invalid-range");
-		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
-	});
-
 	it("rejects markdown that would break the doc, reporting the diagnostics, without writing", async () => {
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "<Calout>not a real component</Calout>",
+			markdown: "# Title\n\n<Calout>not a real component</Calout>",
 		});
 		expect(result.kind).toBe("invalid-doc");
 		if (result.kind !== "invalid-doc") return;
@@ -369,13 +467,12 @@ describe("DocsService.saveSection", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
 	});
 
-	it("rejects a section save that introduces a mermaid pie fence, without writing", async () => {
-		const result = await service.saveSection({
+	it("rejects a save that introduces a mermaid pie fence, without writing", async () => {
+		const result = await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: '```mermaid\npie title Pets\n  "Dogs" : 40\n```',
+			markdown: '# Title\n\n```mermaid\npie title Pets\n  "Dogs" : 40\n```',
 		});
 		expect(result.kind).toBe("invalid-doc");
 		if (result.kind !== "invalid-doc") return;
@@ -383,13 +480,100 @@ describe("DocsService.saveSection", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
 	});
 
+	describe("a document that already has errors", () => {
+		const TABS_WITHOUT_ID = '<Tabs>\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>';
+		const WITH_ERROR = `# Doc\n\n## Notes\n\nplain notes\n\n## Widgets\n\n${TABS_WITHOUT_ID}\n`;
+
+		it("is the starting point of this group: the tabs have no id", async () => {
+			const result = await new ValidationService(
+				[{ name: "docs", dir: root }],
+				registry,
+				service,
+			).validateText({ source: WITH_ERROR, absPath: abs });
+			expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["missing-id"]);
+		});
+
+		it("saves an edit that adds no error", async () => {
+			await fs.writeFile(abs, WITH_ERROR);
+			const result = await service.saveNode({
+				path: abs,
+				id: "notes",
+				version: versionOf(WITH_ERROR),
+				markdown: "## Notes\n\nplain notes, edited\n\nand a second paragraph",
+			});
+			expect(result.kind).toBe("ok");
+			expect(await fs.readFile(abs, "utf8")).toContain("and a second paragraph");
+		});
+
+		it("refuses an edit that adds a second error, even one identical to the first", async () => {
+			await fs.writeFile(abs, WITH_ERROR);
+			const result = await service.saveNode({
+				path: abs,
+				id: "notes",
+				version: versionOf(WITH_ERROR),
+				markdown: `## Notes\n\n${TABS_WITHOUT_ID}`,
+			});
+			expect(result.kind).toBe("invalid-doc");
+			expect(await fs.readFile(abs, "utf8")).toBe(WITH_ERROR);
+		});
+
+		it("saves an edit that removes the error", async () => {
+			await fs.writeFile(abs, WITH_ERROR);
+			const result = await service.saveNode({
+				path: abs,
+				id: "widgets",
+				version: versionOf(WITH_ERROR),
+				markdown: "## Widgets\n\nno tabs any more",
+			});
+			expect(result.kind).toBe("ok");
+		});
+
+		it("refuses an mdx-syntax error the edit introduces", async () => {
+			const result = await service.saveNode({
+				path: abs,
+				id: "title",
+				version: versionOf(ORIGINAL),
+				markdown: "# Title\n\nSome {1 +} text",
+			});
+			expect(result.kind).toBe("invalid-doc");
+			if (result.kind !== "invalid-doc") return;
+			expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain("mdx-syntax");
+			expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
+		});
+
+		it("allows an edit elsewhere while the same mdx-syntax error stays in another section", async () => {
+			const source = "# Doc\n\n## Fine\n\nfine text\n\n## Broken\n\nSome {1 +} text\n";
+			await fs.writeFile(abs, source);
+			const result = await service.saveNode({
+				path: abs,
+				id: "fine",
+				version: versionOf(source),
+				markdown: "## Fine\n\nfine text\n\nwith two more\n\nlines",
+			});
+			expect(result.kind).toBe("ok");
+			expect(await fs.readFile(abs, "utf8")).toContain("Some {1 +} text");
+		});
+
+		it("refuses a second mdx-syntax error next to an existing one", async () => {
+			const source = "# Doc\n\n## Fine\n\nfine text\n\n## Broken\n\nSome {1 +} text\n";
+			await fs.writeFile(abs, source);
+			const result = await service.saveNode({
+				path: abs,
+				id: "fine",
+				version: versionOf(source),
+				markdown: "## Fine\n\nSome {1 +} text",
+			});
+			expect(result.kind).toBe("invalid-doc");
+			expect(await fs.readFile(abs, "utf8")).toBe(source);
+		});
+	});
+
 	it("reports a path outside every root as not-found", async () => {
 		const secret = path.join(outside, "secret.md");
 		await fs.writeFile(secret, "# Secret\n", "utf8");
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: secret,
-			startLine: 1,
-			endLine: 1,
+			id: "secret",
 			version: versionOf("# Secret\n"),
 			markdown: "owned",
 		});
@@ -398,17 +582,15 @@ describe("DocsService.saveSection", () => {
 	});
 
 	it("leaves no staging file behind, on success or on rejection", async () => {
-		await service.saveSection({
+		await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "changed",
+			markdown: "# Title\n\nchanged",
 		});
-		await service.saveSection({
+		await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
 			markdown: "stale write",
 		});
@@ -419,27 +601,25 @@ describe("DocsService.saveSection", () => {
 	it("writes through a symlink to its target, leaving the link a link", async () => {
 		const link = path.join(root, "alias.md");
 		await fs.symlink(abs, link);
-		const result = await service.saveSection({
+		const result = await service.saveNode({
 			path: link,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "via the link",
+			markdown: "# Title\n\nvia the link",
 		});
 		expect(result.kind).toBe("ok");
 		expect((await fs.lstat(link)).isSymbolicLink()).toBe(true);
-		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nvia the link\n\nline five\n");
+		expect(await fs.readFile(abs, "utf8")).toBe("# Title\n\nvia the link\n");
 	});
 
 	it("preserves the file's mode across the atomic replace", async () => {
 		await fs.chmod(abs, 0o640);
 		const before = (await fs.stat(abs)).mode;
-		await service.saveSection({
+		await service.saveNode({
 			path: abs,
-			startLine: 3,
-			endLine: 3,
+			id: "title",
 			version: versionOf(ORIGINAL),
-			markdown: "changed",
+			markdown: "# Title\n\nchanged",
 		});
 		expect((await fs.stat(abs)).mode).toBe(before);
 	});
@@ -575,14 +755,13 @@ describe("DocsService.updateFrontmatter", () => {
 		expect(await fs.readFile(abs, "utf8")).toBe(ORIGINAL);
 	});
 
-	it("serializes with saveSection through the shared lock", async () => {
+	it("serializes with saveNode through the shared lock", async () => {
 		const [saved, updated] = await Promise.all([
-			service.saveSection({
+			service.saveNode({
 				path: abs,
-				startLine: 3,
-				endLine: 3,
+				id: "title",
 				version: versionOf(ORIGINAL),
-				markdown: "edited",
+				markdown: "# Title\n\nedited",
 			}),
 			service.updateFrontmatter({ path: abs, update: setYaml("a: 1\n") }),
 		]);
@@ -592,7 +771,7 @@ describe("DocsService.updateFrontmatter", () => {
 		expect(updated.kind).toBe("ok");
 		const text = await fs.readFile(abs, "utf8");
 		if (saved.kind === "ok") {
-			expect(text).toBe("---\na: 1\n---\n# Title\n\nedited\n\nline five\n");
+			expect(text).toBe("---\na: 1\n---\n# Title\n\nedited\n");
 		} else {
 			expect(saved.kind).toBe("stale");
 			expect(text).toBe(`---\na: 1\n---\n${ORIGINAL}`);

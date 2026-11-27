@@ -79,8 +79,8 @@ async function validateOne(
 		if (remoteOutcome.kind === "error") return { path: abs, error: remoteOutcome.message };
 		// unavailable: fall through to the static-only path below.
 	}
-	// No render function is ever passed, so this never starts a server or Vite.
-	const outcome = await staticService.validateDoc({ path: abs, allowRender: false });
+	// This never starts a server or Vite.
+	const outcome = await staticService.validateDoc({ path: abs });
 	switch (outcome.kind) {
 		case "ok":
 			return outcome.result;

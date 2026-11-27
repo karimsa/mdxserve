@@ -24,6 +24,11 @@
 .mdx-section:has(> [data-mermaid-editable]:first-child:nth-last-child(2)) > .mdx-section-edit {
 	display: none;
 }
+/* A builtin inside a section has its own pencil; while the pointer is on it,
+   only that one shows. */
+.mdx-section:has(.mdx-section:hover) > .mdx-section-edit:not(:focus-visible) {
+	opacity: 0;
+}
 /* The direct-child rhythm rules below therefore have to reach three levels:
    `.mdx-prose` itself (docs with no sections, or content before the first
    one), `.mdx-section` (the normal wrapped case), and `.mdx-prose .ProseMirror`

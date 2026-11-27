@@ -6,7 +6,53 @@ import { EditorContent } from "@tiptap/react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it } from "vitest";
-import { MdxBlock } from "../../client/editor/mdx-block";
+import { MdxBlock, readLossyBlock } from "../../client/editor/mdx-block";
+
+it("returns a section with mermaid, builtins, inline components and fence meta unchanged", () => {
+	const section = [
+		"## Install",
+		"",
+		'Press <Kbd>K</Kbd> or write H<sub>2</sub>O, with a literal {"value"}.',
+		"",
+		"```mermaid",
+		"flowchart LR",
+		"  A --> B",
+		"```",
+		"",
+		'<Callout tone="tip" title="Heads up">',
+		"Careful.",
+		"</Callout>",
+		"",
+		'```ts title="a.ts" showLineNumbers {2}',
+		"const a = 1;",
+		"```",
+		"",
+		"- item with <Badge>new</Badge>",
+		"- plain item",
+		"",
+		"Plain closing paragraph.",
+	].join("\n");
+	const instance = open(section);
+	expect(instance.getMarkdown().trim()).toBe(section);
+	expect(instance.getJSON().content?.map((block) => block.type)).toEqual([
+		"heading",
+		"mdxBlock",
+		"codeBlock",
+		"mdxBlock",
+		"mdxBlock",
+		"mdxBlock",
+		"paragraph",
+	]);
+});
+
+it("locks only the blocks Tiptap would change", () => {
+	expect(readLossyBlock("Plain *text* here.\n\nNext")).toBeUndefined();
+	expect(readLossyBlock("```js\nconst a = 1 < 2;\n```")).toBeUndefined();
+	expect(readLossyBlock('```js title="x"\nconst a = 1;\n```\n\nNext')).toBe(
+		'```js title="x"\nconst a = 1;\n```',
+	);
+	expect(readLossyBlock("See <Kbd>K</Kbd>.\n\nNext")).toBe("See <Kbd>K</Kbd>.");
+});
 
 let editor: Editor | undefined;
 afterEach(() => editor?.destroy());

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { spliceLines } from "../../src/docs/edit.js";
 import { DocsService, versionOf } from "../../src/docs/service.js";
+import { DocumentService } from "../../src/document/service.js";
 import { RootsService } from "../../src/roots/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
@@ -17,69 +18,82 @@ const proseLineArb = fc
 	.map((words) => words.join(" "));
 const eolArb = fc.constantFrom<"\n" | "\r\n">("\n", "\r\n");
 
-/** A prose doc with a chosen EOL style and trailing-newline state. */
-function docArb(minLines: number, maxLines: number) {
-	return fc
-		.tuple(
-			fc.array(proseLineArb, { minLength: minLines, maxLength: maxLines }),
-			eolArb,
-			fc.boolean(),
-		)
-		.map(([lines, eol, trailingEol]) => ({
-			lines,
-			eol,
-			trailingEol,
-			text: lines.join(eol) + (trailingEol ? eol : ""),
-		}));
+interface GeneratedDoc {
+	text: string;
+	lines: string[];
+	eol: "\n" | "\r\n";
+	/** The ID of each `##` section and the lines of its heading and prose, as written. */
+	sections: { id: string; startLine: number; endLine: number }[];
 }
 
-/** A 1-indexed inclusive line range inside a doc of `lineCount` lines. */
-function rangeArb(lineCount: number): fc.Arbitrary<{ startLine: number; endLine: number }> {
-	return fc
-		.tuple(fc.integer({ min: 1, max: lineCount }), fc.integer({ min: 1, max: lineCount }))
-		.map(([first, second]) => ({
-			startLine: Math.min(first, second),
-			endLine: Math.max(first, second),
-		}));
+/**
+ * A doc with an h1, some preamble prose, and `##` sections of prose, with a
+ * chosen EOL style and trailing-newline state. The sections' line numbers are
+ * known by construction, so tests do not depend on the parser to find them.
+ */
+const docArb: fc.Arbitrary<GeneratedDoc> = fc
+	.tuple(
+		fc.array(proseLineArb, { minLength: 1, maxLength: 2 }),
+		fc.array(fc.array(proseLineArb, { minLength: 1, maxLength: 3 }), {
+			minLength: 1,
+			maxLength: 4,
+		}),
+		eolArb,
+		fc.boolean(),
+	)
+	.map(([preamble, sectionBodies, eol, trailingEol]) => {
+		const lines = ["# Title", "", ...preamble];
+		const sections: GeneratedDoc["sections"] = [];
+		sectionBodies.forEach((body, index) => {
+			lines.push("", `## Section ${wordNumber(index)}`);
+			const startLine = lines.length;
+			lines.push("", ...body);
+			sections.push({ id: `section-${wordNumber(index)}`, startLine, endLine: lines.length });
+		});
+		return { text: lines.join(eol) + (trailingEol ? eol : ""), lines, eol, sections };
+	});
+
+function wordNumber(index: number): string {
+	return ["one", "two", "three", "four"][index] ?? String(index);
 }
 
 const replacementArb = fc
-	.array(proseLineArb, { minLength: 0, maxLength: 3 })
+	.array(proseLineArb, { minLength: 1, maxLength: 3 })
 	.map((lines) => lines.join("\n"));
 
 async function mkTmpRoot(prefix: string): Promise<string> {
 	return fs.mkdtemp(path.join(os.tmpdir(), `mdxserve-docs-service-prop-${prefix}`));
 }
 
+function serviceFor(root: string): DocsService {
+	return new DocsService(new RootsService(root, os.homedir(), [root]), registry);
+}
+
 describe("DocsService — save-then-read round trip", () => {
 	it(
-		"readSource after saveSection matches the spliceLines oracle, for either EOL style and trailing-newline state",
+		"readSource after saveNode matches the spliceLines oracle, for either EOL style and trailing-newline state",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
-					docArb(2, 8).chain((doc) =>
-						fc.tuple(fc.constant(doc), rangeArb(doc.lines.length), replacementArb),
+					docArb.chain((doc) =>
+						fc.tuple(fc.constant(doc), fc.constantFrom(...doc.sections), replacementArb),
 					),
-					async ([doc, range, replacement]) => {
+					async ([doc, section, replacement]) => {
 						const root = await mkTmpRoot("roundtrip-");
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService(
-								new RootsService(root, os.homedir(), [root]),
-								registry,
-							);
+							const service = serviceFor(root);
 
-							const saved = await service.saveSection({
+							const saved = await service.saveNode({
 								path: abs,
-								startLine: range.startLine,
-								endLine: range.endLine,
+								id: section.id,
 								version: versionOf(doc.text),
 								markdown: replacement,
 							});
 							expect(saved.kind).toBe("ok");
 
-							const oracle = spliceLines(doc.text, range.startLine, range.endLine, replacement);
+							const oracle = spliceLines(doc.text, section.startLine, section.endLine, replacement);
 							expect(oracle.ok).toBe(true);
 							if (!oracle.ok) return;
 
@@ -98,53 +112,91 @@ describe("DocsService — save-then-read round trip", () => {
 		},
 		PROPERTY_TIMEOUT_MS,
 	);
+
+	it(
+		"readNodeSource then saveNode with the same markdown leaves the file byte-identical, for every node id",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(docArb, async (doc) => {
+					const root = await mkTmpRoot("identity-");
+					try {
+						const abs = path.join(root, "doc.md");
+						await fs.writeFile(abs, doc.text, "utf8");
+						const service = serviceFor(root);
+						const { ranges } = new DocumentService(registry, (relative) => relative).parse(
+							doc.text,
+							abs,
+						);
+						expect(ranges.size).toBeGreaterThan(0);
+
+						for (const id of ranges.keys()) {
+							const read = await service.readNodeSource(abs, id);
+							expect(read.kind).toBe("ok");
+							if (read.kind !== "ok") return;
+							expect(read.version).toBe(versionOf(doc.text));
+							const saved = await service.saveNode({
+								path: abs,
+								id,
+								version: read.version,
+								markdown: read.markdown,
+							});
+							expect(saved).toEqual({ kind: "ok", version: versionOf(doc.text) });
+							const after = await fs.readFile(abs);
+							expect(after.equals(Buffer.from(doc.text, "utf8"))).toBe(true);
+						}
+					} finally {
+						await fs.rm(root, { recursive: true, force: true });
+					}
+				}),
+				{ numRuns: 20 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
 });
 
 describe("DocsService — rejected saves leave the file untouched", () => {
 	it(
-		"a stale version, an out-of-range line range, and invalid markdown all leave the file byte-identical, with no leftover .*.mdxserve-tmp file",
+		"a stale version, an unknown id, and an introduced error all leave the file byte-identical, with no leftover .*.mdxserve-tmp file",
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
-					docArb(2, 6),
-					fc.constantFrom("stale", "out-of-range", "invalid-doc"),
+					docArb,
+					fc.constantFrom("stale", "unknown-id", "invalid-doc"),
 					async (doc, mode) => {
 						const root = await mkTmpRoot("reject-");
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService(
-								new RootsService(root, os.homedir(), [root]),
-								registry,
-							);
+							const service = serviceFor(root);
+							const id = doc.sections[0].id;
 
 							const input =
 								mode === "stale"
 									? {
 											path: abs,
-											startLine: 1,
-											endLine: 1,
+											id,
 											version: versionOf(`${doc.text}-drifted`),
 											markdown: "changed",
 										}
-									: mode === "out-of-range"
+									: mode === "unknown-id"
 										? {
 												path: abs,
-												startLine: 1,
-												endLine: doc.lines.length + 50,
+												id: "no-such-node",
 												version: versionOf(doc.text),
 												markdown: "changed",
 											}
 										: {
 												path: abs,
-												startLine: 1,
-												endLine: 1,
+												id,
 												version: versionOf(doc.text),
 												markdown: "<UnknownComponent />",
 											};
 
-							const result = await service.saveSection(input);
-							expect(result.kind).not.toBe("ok");
+							const result = await service.saveNode(input);
+							expect(result.kind).toBe(
+								mode === "stale" ? "stale" : mode === "unknown-id" ? "not-found" : "invalid-doc",
+							);
 
 							const after = await fs.readFile(abs);
 							expect(after.equals(Buffer.from(doc.text, "utf8"))).toBe(true);
@@ -171,36 +223,27 @@ describe("DocsService — concurrent saves", () => {
 		async () => {
 			await fc.assert(
 				fc.asyncProperty(
-					docArb(2, 6),
+					docArb,
 					replacementArb,
 					replacementArb,
 					async (doc, replacementA, replacementB) => {
-						// A replacement identical to line 1 leaves the bytes — and so the
-						// version — unchanged, and the second save is then correctly `ok`
-						// too. That no-op case is covered in service.test.ts; here we want
-						// the write that lands first to actually move the version.
-						fc.pre(replacementA !== doc.lines[0] && replacementB !== doc.lines[0]);
 						const root = await mkTmpRoot("concurrent-");
 						try {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc.text, "utf8");
-							const service = new DocsService(
-								new RootsService(root, os.homedir(), [root]),
-								registry,
-							);
+							const service = serviceFor(root);
+							const id = doc.sections[0].id;
 
 							const [resultA, resultB] = await Promise.all([
-								service.saveSection({
+								service.saveNode({
 									path: abs,
-									startLine: 1,
-									endLine: 1,
+									id,
 									version: versionOf(doc.text),
 									markdown: replacementA,
 								}),
-								service.saveSection({
+								service.saveNode({
 									path: abs,
-									startLine: 1,
-									endLine: 1,
+									id,
 									version: versionOf(doc.text),
 									markdown: replacementB,
 								}),

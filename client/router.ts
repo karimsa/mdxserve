@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isCancelledError, useQuery } from "@tanstack/react-query";
 import { isTRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -44,48 +44,8 @@ export interface RootTree extends RootInfo {
 	tree: TreeNode[];
 }
 
-// The doc-module cache lives in client/doc-module-cache.ts (so an exported
-// file can use it without this module's tRPC graph); re-exported here for the
-// live viewer's callers.
-import { docModuleCache, docModuleUrl, type DocModuleState } from "./doc-module-cache";
 import { decodeRoutePath } from "./route-path";
-export { docModuleCache, type DocModuleState };
-const docModulePromises = new Map<string, Promise<void>>();
-const docModuleGenerations = new Map<string, number>();
-
-function ensureDocModule(path: string, refresh = false): Promise<void> {
-	if (!refresh && docModuleCache.has(path)) return Promise.resolve();
-	const pending = docModulePromises.get(path);
-	if (pending && !refresh) return pending;
-	const generation = (docModuleGenerations.get(path) ?? 0) + 1;
-	docModuleGenerations.set(path, generation);
-
-	const moduleUrl = docModuleUrl(path, refresh ? `${Date.now()}-${generation}` : undefined);
-	const promise = import(/* @vite-ignore */ moduleUrl)
-		.then((mod: { default?: ComponentType; __mdxserveMetadata?: DocumentMetadata }) => {
-			if (docModuleGenerations.get(path) !== generation) return;
-			if (!mod.default) {
-				docModuleCache.set(path, { status: "error", message: `${path} has no default export.` });
-			} else {
-				docModuleCache.set(path, {
-					status: "ok",
-					Component: mod.default,
-					metadata: mod.__mdxserveMetadata ?? { openGraph: [] },
-				});
-			}
-		})
-		.catch((error: unknown) => {
-			if (docModuleGenerations.get(path) !== generation) return;
-			const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-			docModuleCache.set(path, { status: "error", message });
-		})
-		.finally(() => {
-			if (docModulePromises.get(path) === promise) docModulePromises.delete(path);
-		});
-
-	docModulePromises.set(path, promise);
-	return promise;
-}
+import { documentQueryOptions, invalidateDocument } from "./document/query";
 
 /**
  * What the server-rendered shell already knows about the roots, seeded by
@@ -255,7 +215,7 @@ function routeRootFields(route: Route): { rootName?: string; rootDir?: string } 
 
 /**
  * Drives the client-side SPA: resolves a path to a `Route` (querying the
- * folder listing or dynamic-importing a doc module as needed), intercepts
+ * folder listing or fetching a document's tree as needed), intercepts
  * same-origin folder/doc link clicks so navigation never triggers a full
  * page load, and keeps `history`/`document.title` in sync.
  */
@@ -267,7 +227,7 @@ export function useRouter(initialRoute: Route) {
 	const loadRoute = useCallback(async (rawPath: string): Promise<Route | null> => {
 		// Link clicks and popstate hand over `URL.pathname`, which is
 		// percent-encoded; the server-rendered initial route is not. Decode
-		// once here so `route.path` (the doc module cache key, the footer
+		// once here so `route.path` (the document query key, the footer
 		// label, and every API call's `path`) has one form.
 		const path = decodeRoutePath(rawPath);
 		if (path === "/") {
@@ -297,7 +257,9 @@ export function useRouter(initialRoute: Route) {
 		}
 
 		if (path.endsWith(".md") || path.endsWith(".mdx")) {
-			await ensureDocModule(path);
+			// Fetch the tree before switching routes, so the document renders in
+			// the same commit as the route. A failure is shown by DocumentView.
+			await queryClient.prefetchQuery(documentQueryOptions(path));
 			const root = rootFor(path);
 			const fallback = routeRootFields(routeRef.current);
 			return {
@@ -314,37 +276,23 @@ export function useRouter(initialRoute: Route) {
 	}, []);
 
 	const navigate = useCallback(
-		(path: string) => {
+		(target: string) => {
+			// A `#fragment` rides along in the address bar; DocumentView reveals it
+			// once the document is on the page.
+			const hashAt = target.indexOf("#");
+			const path = hashAt === -1 ? target : target.slice(0, hashAt);
+			const hash = hashAt === -1 ? "" : target.slice(hashAt);
 			loadRoute(path).then((next) => {
 				if (!next) return;
 				// Push the path the route actually resolved to: with a single root,
 				// "/" resolves to that root's listing (mirroring the server's 302),
 				// and the address bar should say so.
-				history.pushState({}, "", next.kind === "home" ? "/" : next.path);
+				history.pushState({}, "", (next.kind === "home" ? "/" : next.path) + hash);
 				setRoute(next);
 			});
 		},
 		[loadRoute],
 	);
-
-	// The initial route's data comes straight from the server-embedded JSON, but a
-	// doc route still needs its module dynamic-imported before DocView has anything
-	// to render. Kick that off once on mount and force a re-render when it lands.
-	useEffect(() => {
-		if (initialRoute.kind !== "doc") return;
-		let cancelled = false;
-		ensureDocModule(initialRoute.path).then(() => {
-			if (cancelled) return;
-			setRoute((current) =>
-				current.kind === "doc" && current.path === initialRoute.path ? { ...current } : current,
-			);
-		});
-		return () => {
-			cancelled = true;
-		};
-		// Intentionally run once: this only concerns the route the page booted with.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
 
 	useEffect(() => {
 		// The server embeds the initial listing's entries straight into the page,
@@ -374,9 +322,8 @@ export function useRouter(initialRoute: Route) {
 		return () => window.removeEventListener("popstate", onPopState);
 	}, [loadRoute]);
 
-	// The file watcher names the changed source even when Vite attributes its
-	// HMR update to an importer. Re-import with a new URL so metadata removals
-	// replace the cached module as well as changes to the visible document.
+	// The file watcher names each changed document. Refetch its tree: an
+	// unchanged subtree keeps its object, so only what changed re-renders.
 	useEffect(() => {
 		if (!import.meta.hot) return;
 		const handleDocChanged = (data: { files?: Array<{ path: string }> }) => {
@@ -386,12 +333,7 @@ export function useRouter(initialRoute: Route) {
 					...trpc.getDocComments.queryFilter({ path: file.path }),
 					refetchType: "all",
 				});
-				if (!docModuleCache.has(file.path)) continue;
-				void ensureDocModule(file.path, true).then(() => {
-					setRoute((current) =>
-						current.kind === "doc" && current.path === file.path ? { ...current } : current,
-					);
-				});
+				void invalidateDocument(file.path);
 			}
 		};
 		import.meta.hot.on("mdxserve:doc-changed", handleDocChanged);
@@ -462,10 +404,6 @@ export function useRouter(initialRoute: Route) {
 				(dir) => dir === rootDir || current.path === dir || current.path.startsWith(`${dir}/`),
 			);
 			if (!removedDir) return;
-
-			for (const key of docModuleCache.keys()) {
-				if (key === removedDir || key.startsWith(`${removedDir}/`)) docModuleCache.delete(key);
-			}
 
 			// Route off the event's own `roots` list rather than calling
 			// navigate("/"): that re-derives the destination from the getDocTree

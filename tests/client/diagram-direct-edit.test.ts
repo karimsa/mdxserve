@@ -1,25 +1,23 @@
 // @vitest-environment jsdom
-import { act, createElement, useContext } from "react";
+import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { Provider } from "jotai";
-import { expect, it, vi } from "vitest";
-import { createProcessor } from "@mdx-js/mdx";
-import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
-import { builtinNames } from "../helpers/components.js";
-import { createMetadataPort } from "../helpers/metadata.js";
-import { remarkSections } from "../../src/rendering/mdx/remark-sections";
-import type { Root, RootContent } from "mdast";
-import type { MdxJsxFlowElement } from "mdast-util-mdx";
-import { Pre } from "../../client/CodeBlock";
-import { MdSection, type MdSectionProps } from "../../client/MdSection";
-import { DiagramEditContext } from "../../client/diagrams/edit-context";
-const rpc = vi.hoisted(() => ({ save: vi.fn(), source: vi.fn() }));
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { DocContext } from "../../client/DocContext";
+import { NodeList } from "../../client/document/nodes";
+import { DocumentService } from "../../src/document/service";
+import { fixtureRegistry } from "../fixtures/registry";
+
+const rpc = vi.hoisted(() => ({ save: vi.fn(), source: vi.fn(), invalidate: vi.fn() }));
 vi.mock("../../client/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: async () => ({ agent: "codex" }) },
-		getDocSource: { query: rpc.source },
-		saveDocSection: { mutate: rpc.save },
+		getNodeSource: { query: rpc.source },
+		saveDocNode: { mutate: rpc.save },
 	},
+	trpc: {
+		getDocument: { queryFilter: (input: unknown) => ({ queryKey: ["getDocument", input] }) },
+	},
+	queryClient: { invalidateQueries: rpc.invalidate },
 }));
 vi.mock("../../client/MdSectionEditor", () => ({
 	default: () => {
@@ -54,17 +52,30 @@ vi.mock("../../client/diagrams/Dialog", () => ({
 			createElement("span", { role: "alert" }, saveError),
 		),
 }));
+
+const PATH = "/docs/diagrams.md";
 const source = "flowchart LR\n A --> B";
-function Diagram() {
-	const edit = useContext(DiagramEditContext);
-	return createElement(
-		"div",
-		null,
-		"Rendered diagram",
-		edit && createElement("button", { onClick: () => edit({ index: 0, source }) }, "Edit"),
-	);
-}
-it("hides direct editing inside JSX while the following blockquote diagram still opens", async () => {
+const nestedSource = "flowchart LR\n N --> X";
+const markdown = [
+	"## Flow",
+	"",
+	"Before",
+	"",
+	"```mermaid",
+	source,
+	"```",
+	"",
+	"<Callout>",
+	"```mermaid",
+	nestedSource,
+	"```",
+	"</Callout>",
+	"",
+	"After",
+].join("\n");
+
+beforeEach(() => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("matchMedia", () => ({
 		matches: true,
 		addEventListener() {},
@@ -77,143 +88,101 @@ it("hides direct editing inside JSX while the following blockquote diagram still
 			disconnect() {}
 		},
 	);
-	const nestedSource = "flowchart LR\n N --> X";
-	const markdown = [
-		"<Callout>",
-		"```mermaid",
-		nestedSource,
-		"```",
-		"</Callout>",
-		"",
-		"> ```mermaid",
-		"> flowchart LR",
-		">  A --> B",
-		"> ```",
-	].join("\n");
-	const tree = createProcessor({
-		...mdxCompileOptions(createMetadataPort(), { components: builtinNames }),
-		format: "mdx",
-	}).parse(markdown) as Root;
-	remarkSections()(tree);
-	const sections = tree.children.filter(
-		(node: RootContent): node is MdxJsxFlowElement =>
-			node.type === "mdxJsxFlowElement" && node.name === "MdSection",
+	rpc.save.mockReset();
+	rpc.source.mockReset();
+});
+afterEach(() => vi.unstubAllGlobals());
+
+async function renderDocument() {
+	const { tree } = new DocumentService(fixtureRegistry, (relative) => relative).parse(
+		markdown,
+		PATH,
 	);
-	const props = (section: MdxJsxFlowElement) =>
-		Object.fromEntries(
-			section.attributes
-				.filter((attribute) => attribute.type === "mdxJsxAttribute")
-				.map((attribute) => [attribute.name, attribute.value]),
-		) as unknown as Pick<MdSectionProps, "index" | "startLine" | "endLine" | "rawJsx">;
-	expect(sections).toHaveLength(2);
-	expect(props(sections[0]).rawJsx).toBe("true");
-	expect(props(sections[1]).rawJsx).toBeUndefined();
-	rpc.source.mockResolvedValue({ text: markdown, version: "original-version" });
 	const host = document.createElement("div");
 	document.body.append(host);
 	const root = createRoot(host);
-	try {
-		await act(async () =>
-			root.render(
-				createElement(
-					Provider,
-					null,
-					createElement(
-						"div",
-						null,
-						createElement(MdSection, {
-							...props(sections[0]),
-							// oxlint-disable-next-line react/no-children-prop
-							children: createElement(Pre, { "data-language": "mermaid" }, nestedSource),
-						}),
-						createElement(MdSection, {
-							...props(sections[1]),
-							// oxlint-disable-next-line react/no-children-prop
-							children: createElement(Pre, { "data-language": "mermaid" }, source),
-						}),
-					),
-				),
+	await act(async () =>
+		root.render(
+			createElement(
+				DocContext,
+				{ value: { path: PATH } },
+				createElement(NodeList, { nodes: tree.children }),
 			),
+		),
+	);
+	return {
+		host,
+		async cleanup() {
+			await act(async () => root.unmount());
+			host.remove();
+		},
+	};
+}
+
+function editButtons(host: HTMLElement) {
+	return [...host.querySelectorAll<HTMLButtonElement>('button[aria-label="Edit diagram"]')];
+}
+
+async function openDialog(host: HTMLElement, button: HTMLButtonElement) {
+	await act(async () => button.click());
+	await vi.waitFor(async () => {
+		await act(async () => {});
+		expect(host.querySelector("dialog")).not.toBeNull();
+	});
+}
+
+it("gives every mermaid block, nested ones included, an edit action addressed by its id", async () => {
+	rpc.source.mockResolvedValue({
+		markdown: "```mermaid\n" + nestedSource + "\n```",
+		version: "original-version",
+	});
+	const mounted = await renderDocument();
+	try {
+		const buttons = editButtons(mounted.host);
+		expect(buttons).toHaveLength(2);
+		await openDialog(mounted.host, buttons[1]);
+		expect(rpc.source).toHaveBeenCalledWith({ path: PATH, id: "flow>~mermaid-2" });
+		expect(mounted.host.querySelector("dialog")?.textContent).toContain(nestedSource);
+		expect(mounted.host.querySelector("dialog")?.textContent).not.toContain(
+			"Diagram changed on disk",
 		);
-		const editButtons = host.querySelectorAll<HTMLButtonElement>(
-			'button[aria-label="Edit diagram"]',
-		);
-		expect(editButtons).toHaveLength(1);
-		expect(editButtons[0].closest("[data-md-section]")?.getAttribute("data-md-section")).toBe("1");
-		await act(async () => editButtons[0].click());
-		await vi.waitFor(async () => {
-			await act(async () => {});
-			expect(host.querySelector("dialog")).not.toBeNull();
-		});
-		expect(host.querySelector("dialog")?.textContent).toContain(source);
-		expect(host.querySelector("dialog")?.textContent).not.toContain("Diagram changed on disk");
 	} finally {
-		await act(async () => root.unmount());
-		host.remove();
-		vi.unstubAllGlobals();
+		await mounted.cleanup();
 	}
 });
+
 it.each(["save", "cancel", "failure"])(
 	"edits from the rendered page without Tiptap: %s",
 	async (action) => {
 		rpc.source.mockResolvedValue({
-			text: `Before\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\nAfter`,
+			markdown: "```mermaid\n" + source + "\n```",
 			version: "original-version",
 		});
-		rpc.save.mockReset();
 		if (action === "failure") rpc.save.mockRejectedValue(new Error("offline"));
 		else rpc.save.mockResolvedValue({ version: "saved-version" });
-		const host = document.createElement("div");
-		document.body.append(host);
-		const root = createRoot(host);
+		const mounted = await renderDocument();
 		try {
-			await act(async () =>
-				root.render(
-					createElement(
-						Provider,
-						null,
-						createElement(MdSection, {
-							index: "0",
-							startLine: "3",
-							endLine: "6",
-							// Required by MdSectionProps when using createElement in this .ts test.
-							// oxlint-disable-next-line react/no-children-prop
-							children: createElement(Diagram),
-						}),
-					),
-				),
-			);
-			const button = [...host.querySelectorAll("button")].find(
-				(button) => button.textContent === "Edit",
-			)!;
-			await act(async () => button.click());
-			await vi.waitFor(async () => {
-				await act(async () => {});
-				expect(host.querySelector("dialog")).not.toBeNull();
-			});
-			expect(host.textContent).toContain("Rendered diagram");
-			expect(host.querySelector('[contenteditable="true"]')).toBeNull();
-			const actionButton = [...host.querySelectorAll("dialog button")].find(
+			await openDialog(mounted.host, editButtons(mounted.host)[0]);
+			expect(rpc.source).toHaveBeenCalledWith({ path: PATH, id: "flow>~mermaid-1" });
+			expect(mounted.host.querySelector('[contenteditable="true"]')).toBeNull();
+			const actionButton = [...mounted.host.querySelectorAll("dialog button")].find(
 				(button) => button.textContent === (action === "cancel" ? "Cancel" : "Save diagram"),
 			) as HTMLButtonElement;
 			await act(async () => actionButton.click());
 			if (action === "cancel") expect(rpc.save).not.toHaveBeenCalled();
 			else
-				expect(rpc.save).toHaveBeenCalledWith(
-					expect.objectContaining({
-						version: "original-version",
-						startLine: 3,
-						endLine: 6,
-						markdown: "```mermaid\nflowchart LR\n A --> C\n```",
-					}),
-				);
+				expect(rpc.save).toHaveBeenCalledWith({
+					path: PATH,
+					id: "flow>~mermaid-1",
+					version: "original-version",
+					markdown: "```mermaid\nflowchart LR\n A --> C\n```",
+				});
 			if (action === "failure") {
-				expect(host.querySelector("dialog")).not.toBeNull();
-				expect(host.textContent).toContain("Your changes are still here");
-			} else expect(host.querySelector("dialog")).toBeNull();
+				expect(mounted.host.querySelector("dialog")).not.toBeNull();
+				expect(mounted.host.textContent).toContain("Your changes are still here");
+			} else expect(mounted.host.querySelector("dialog")).toBeNull();
 		} finally {
-			await act(async () => root.unmount());
-			host.remove();
+			await mounted.cleanup();
 		}
 	},
 );

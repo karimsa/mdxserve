@@ -2,9 +2,8 @@ import { createMetadataPort } from "../helpers/metadata.js";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ValidationService } from "../../src/validation/service.js";
-import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
 
@@ -36,27 +35,22 @@ async function writeDoc(name: string, content: string): Promise<string> {
 	return abs;
 }
 
-function serviceWith(render?: (absPath: string) => Promise<RenderOutcome>): ValidationService {
-	return new ValidationService(
-		[{ name: "docs", dir: root }],
-		registry,
-		createMetadataPort(),
-		render,
-	);
+function serviceWith(): ValidationService {
+	return new ValidationService([{ name: "docs", dir: root }], registry, createMetadataPort());
 }
 
 describe("ValidationService.validateDoc", () => {
 	it("passes a plain doc with no diagnostics", async () => {
 		const abs = await writeDoc("good.md", "# Good\n\nPlain prose about widgets.\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
-		expect(outcome.result).toMatchObject({ ok: true, path: abs, diagnostics: [], rendered: false });
+		expect(outcome.result).toMatchObject({ ok: true, path: abs, diagnostics: [] });
 	});
 
 	it("passes a doc using a registered component with valid props", async () => {
 		const abs = await writeDoc("callout.mdx", '# Doc\n\n<Callout tone="warn">Careful.</Callout>\n');
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(true);
@@ -64,7 +58,7 @@ describe("ValidationService.validateDoc", () => {
 
 	it("reports an unknown component as an error, with a did-you-mean suggestion", async () => {
 		const abs = await writeDoc("typo.mdx", "# Doc\n\n<Calout>Oops.</Calout>\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(false);
@@ -78,7 +72,7 @@ describe("ValidationService.validateDoc", () => {
 
 	it("reports an unknown prop on a known component", async () => {
 		const abs = await writeDoc("prop.mdx", '# Doc\n\n<Badge notAProp="x">Hi</Badge>\n');
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "unknown-prop");
@@ -88,7 +82,7 @@ describe("ValidationService.validateDoc", () => {
 
 	it("reports MDX that does not parse, with a line number", async () => {
 		const abs = await writeDoc("broken.mdx", "# Doc\n\n<Callout>unclosed\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "mdx-syntax");
@@ -98,7 +92,7 @@ describe("ValidationService.validateDoc", () => {
 
 	it("reports an import as an error, whether or not it resolves", async () => {
 		const abs = await writeDoc("import.mdx", '# Doc\n\nimport Thing from "./nope.tsx";\n\nText.\n');
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(false);
@@ -108,68 +102,21 @@ describe("ValidationService.validateDoc", () => {
 	it("reports a path outside every root as not-found, without reading it", async () => {
 		const secret = path.join(outside, "secret.md");
 		await fs.writeFile(secret, "# Secret\n", "utf8");
-		const outcome = await serviceWith().validateDoc({ path: secret, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: secret });
 		expect(outcome.kind).toBe("not-found");
 	});
 
 	it("reports a missing file as not-found", async () => {
-		const outcome = await serviceWith().validateDoc({
-			path: path.join(root, "gone.md"),
-			allowRender: false,
-		});
+		const outcome = await serviceWith().validateDoc({ path: path.join(root, "gone.md") });
 		expect(outcome.kind).toBe("not-found");
 	});
 
 	it("resolves a root-relative path when exactly one root has that file", async () => {
 		await writeDoc("relative.md", "# Relative\n\nProse.\n");
-		const outcome = await serviceWith().validateDoc({
-			path: "relative.md",
-			allowRender: false,
-		});
+		const outcome = await serviceWith().validateDoc({ path: "relative.md" });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.path).toBe(path.join(root, "relative.md"));
-	});
-
-	it("runs the render step only when allowRender is true", async () => {
-		const abs = await writeDoc("render.md", "# Render\n\nProse.\n");
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-
-		const withoutRender = await serviceWith(render).validateDoc({ path: abs, allowRender: false });
-		expect(render).not.toHaveBeenCalled();
-		expect(withoutRender.kind === "ok" && withoutRender.result.rendered).toBe(false);
-
-		const withRender = await serviceWith(render).validateDoc({ path: abs, allowRender: true });
-		expect(render).toHaveBeenCalledWith(abs);
-		expect(withRender.kind === "ok" && withRender.result.rendered).toBe(true);
-	});
-
-	it("turns a failed render into a render-error diagnostic", async () => {
-		const abs = await writeDoc("throws.md", "# Throws\n\nProse.\n");
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({
-			ok: false,
-			message: "boom at runtime",
-		}));
-		const outcome = await serviceWith(render).validateDoc({ path: abs, allowRender: true });
-		expect(outcome.kind).toBe("ok");
-		if (outcome.kind !== "ok") return;
-		expect(outcome.result.ok).toBe(false);
-		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "render-error");
-		expect(diagnostic?.message).toContain("boom at runtime");
-	});
-
-	it("does not render a doc that already failed the static checks", async () => {
-		const abs = await writeDoc("static-fail.mdx", "# Doc\n\n<Calout>Oops.</Calout>\n");
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-		const outcome = await serviceWith(render).validateDoc({ path: abs, allowRender: true });
-		expect(render).not.toHaveBeenCalled();
-		expect(outcome.kind === "ok" && outcome.result.rendered).toBe(false);
-	});
-
-	it("reports rendered: false when allowRender is true but no render port exists", async () => {
-		const abs = await writeDoc("no-port.md", "# Doc\n\nProse.\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: true });
-		expect(outcome.kind === "ok" && outcome.result.rendered).toBe(false);
 	});
 });
 
@@ -181,7 +128,7 @@ describe("ValidationService.validateDoc — mermaid-chart", () => {
 				`${keyword}.md`,
 				`# Doc\n\n\`\`\`mermaid\n${CHART_FENCE_BODY[keyword]}\n\`\`\`\n`,
 			);
-			const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+			const outcome = await serviceWith().validateDoc({ path: abs });
 			expect(outcome.kind).toBe("ok");
 			if (outcome.kind !== "ok") return;
 			expect(outcome.result.ok).toBe(false);
@@ -212,7 +159,7 @@ describe("ValidationService.validateDoc — mermaid-chart", () => {
 				"",
 			].join("\n"),
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.diagnostics).toEqual([]);
@@ -223,7 +170,7 @@ describe("ValidationService.validateDoc — mermaid-chart", () => {
 			"not-mermaid.md",
 			'# Doc\n\n```text\npie title Pets\n  "Dogs" : 40\n```\n',
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.diagnostics.some((entry) => entry.code === "mermaid-chart")).toBe(false);
@@ -247,7 +194,7 @@ describe("ValidationService.validateDoc — mermaid-chart", () => {
 				"",
 			].join("\n"),
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		const chartDiagnostics = outcome.result.diagnostics.filter(
@@ -262,7 +209,7 @@ describe("ValidationService.validateDoc — mermaid-chart", () => {
 			"escaped.md",
 			["# Doc", "", "a < b", "", "```mermaid", "pie", '  "A" : 1', "```", ""].join("\n"),
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "mermaid-chart");
@@ -281,33 +228,12 @@ describe("ValidationService.validateText", () => {
 		expect(result.path).toBe(abs);
 		expect(await fs.readFile(abs, "utf8")).toBe("# Fine\n\nProse.\n");
 	});
-
-	it("defaults to not rendering when allowRender is omitted", async () => {
-		const abs = await writeDoc("default.md", "# Doc\n\nProse.\n");
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-		const result = await serviceWith(render).validateText({ source: "# Doc\n", absPath: abs });
-		expect(render).not.toHaveBeenCalled();
-		expect(result.rendered).toBe(false);
-	});
-
-	it("never runs the render step for a doc that breaks a document rule", async () => {
-		const abs = path.join(root, "imports.mdx");
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-		const result = await serviceWith(render).validateText({
-			source: 'import Widget from "./Widget.tsx";\n\n# Doc\n\nText.\n',
-			absPath: abs,
-			allowRender: true,
-		});
-		expect(result.diagnostics.map((entry) => entry.code)).toEqual(["esm-not-supported"]);
-		expect(render).not.toHaveBeenCalled();
-		expect(result.rendered).toBe(false);
-	});
 });
 
 describe("ValidationService.validateDoc — hints", () => {
 	it("a plain doc has an empty hints array", async () => {
 		const abs = await writeDoc("plain.md", "# Hi\n\n![Logo](./logo.png)\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.hints).toEqual([]);
@@ -315,7 +241,7 @@ describe("ValidationService.validateDoc — hints", () => {
 
 	it("an image whose alt text mentions 'screen' gets a <Screenshot> hint with its line", async () => {
 		const abs = await writeDoc("alt.md", "# Hi\n\nintro\n\n![Login screen](./login.png)\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(true);
@@ -326,7 +252,7 @@ describe("ValidationService.validateDoc — hints", () => {
 
 	it("an image whose path mentions 'screen' gets the hint too, case-insensitively", async () => {
 		const abs = await writeDoc("path.mdx", "![Dashboard](./assets/ScreenShot-1.png)\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.hints).toHaveLength(1);
@@ -338,7 +264,7 @@ describe("ValidationService.validateDoc — hints", () => {
 			"many.md",
 			"![Home screen](./a.png)\n\ntext\n\n![Settings](./screens/b.png)\n\n![Logo](./logo.png)\n",
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.hints).toHaveLength(1);
@@ -351,7 +277,7 @@ describe("ValidationService.validateDoc — hints", () => {
 			"framed.mdx",
 			'<Screenshot src="./screenshot.png" alt="Login screen" />\n',
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.hints).toEqual([]);
@@ -359,7 +285,7 @@ describe("ValidationService.validateDoc — hints", () => {
 
 	it("a doc that fails to compile has no hints", async () => {
 		const abs = await writeDoc("broken.mdx", "![Login screen](./login.png)\n\n<Callout>\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(false);
@@ -486,7 +412,7 @@ describe("ValidationService.validateDoc — document tree diagnostics", () => {
 			"partly-broken.mdx",
 			"# Doc\n\n## Broken\n\nSome {1 +} text\n\n## Fine\n\n<Calout>x</Calout>\n",
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
 		expect(outcome.result.ok).toBe(false);
@@ -501,7 +427,7 @@ describe("ValidationService.validateDoc — document tree diagnostics", () => {
 			"no-id.mdx",
 			'# Doc\n\n<Tabs>\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>\n',
 		);
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		if (outcome.kind !== "ok") throw new Error(outcome.kind);
 		expect(outcome.result.ok).toBe(false);
 		expect(outcome.result.diagnostics).toMatchObject([
@@ -512,7 +438,7 @@ describe("ValidationService.validateDoc — document tree diagnostics", () => {
 
 	it("reports a repeated heading under the same parent", async () => {
 		const abs = await writeDoc("dup.md", "# Doc\n\n## Steps\n\n## Steps\n");
-		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		const outcome = await serviceWith().validateDoc({ path: abs });
 		if (outcome.kind !== "ok") throw new Error(outcome.kind);
 		expect(outcome.result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
 			"duplicate-heading",

@@ -41,7 +41,8 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"validateDoc",
 	"getDocSource",
 	"getDocument",
-	"saveDocSection",
+	"getNodeSource",
+	"saveDocNode",
 	"listComponents",
 	"getComponent",
 	"listRoots",
@@ -86,6 +87,29 @@ describe("procedure descriptions", () => {
 	});
 });
 
+describe("edit by node id", () => {
+	it("getDocument, getNodeSource and saveDocNode agree on ids and versions", async () => {
+		const abs = path.join(fixtureDir, "round-trip.md");
+		const original = "# Title\n\nintro\n\n## Part\n\nbody\n";
+		await fs.writeFile(abs, original, "utf8");
+		const api = createCaller(makeContext());
+		const { document, version } = await api.getDocument({ path: abs });
+		const part = JSON.stringify(document.children).includes('"id":"part"');
+		expect(part).toBe(true);
+		const node = await api.getNodeSource({ path: abs, id: "part" });
+		expect(node).toEqual({ markdown: "## Part\n\nbody", version });
+		const saved = await api.saveDocNode({
+			path: abs,
+			id: "part",
+			version,
+			markdown: "## Part\n\nedited",
+		});
+		const written = "# Title\n\nintro\n\n## Part\n\nedited\n";
+		expect(await fs.readFile(abs, "utf8")).toBe(written);
+		expect((await api.getDocument({ path: abs })).version).toBe(saved.version);
+	});
+});
+
 describe("same-origin guard", () => {
 	it("rejects mutations from a mismatched Origin with FORBIDDEN, but not queries", async () => {
 		const crossOrigin = makeContext({ origin: "http://evil.example", host: "127.0.0.1:4040" });
@@ -121,10 +145,9 @@ it("restricted policy blocks direct mutation callers even when their context cla
 	);
 	const source = await api.getDocSource({ path: docPath });
 	await expect(
-		api.saveDocSection({
+		api.saveDocNode({
 			path: docPath,
-			startLine: 1,
-			endLine: 1,
+			id: "good-doc",
 			version: source.version,
 			markdown: "# Changed",
 		}),

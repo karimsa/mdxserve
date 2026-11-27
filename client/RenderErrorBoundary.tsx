@@ -5,22 +5,22 @@ type RenderErrorBoundaryState = {
 	error: Error | null;
 	componentStack: string | null;
 	/** The `resetKey` this state belongs to. */
-	resetKey: number;
+	resetKey: unknown;
 };
 
 /**
- * Catches render-time throws from the MDX document component (e.g. a bare
- * identifier that escaped a template literal inside an inline code span) and
- * shows ErrorBox instead of leaving the page blank. React error boundaries
- * only work as class components — there is no hook equivalent.
+ * Catches a render-time throw from a builtin (a fault in its own code for
+ * props the document validated) and shows ErrorBox in its place instead of
+ * leaving the page blank. React error boundaries only work as class
+ * components — there is no hook equivalent.
  *
- * The parent passes the cached module's identity as `resetKey`, so an HMR
- * re-import after a fix clears the stale error rather than getting stuck on
- * the first throw. It is a prop and not a React `key`: a key would remount the
- * whole article on every re-import, error or not.
+ * The parent passes the node it renders as `resetKey`: a refetch that changes
+ * the node hands over a new object, which clears the stale error rather than
+ * getting stuck on the first throw. It is a prop and not a React `key`, which
+ * would remount the builtin and drop its state.
  */
 export class RenderErrorBoundary extends Component<
-	{ resetKey: number; children: ReactNode },
+	{ resetKey: unknown; children: ReactNode },
 	RenderErrorBoundaryState
 > {
 	state: RenderErrorBoundaryState = {
@@ -30,7 +30,7 @@ export class RenderErrorBoundary extends Component<
 	};
 
 	static getDerivedStateFromProps(
-		props: { resetKey: number },
+		props: { resetKey: unknown },
 		state: RenderErrorBoundaryState,
 	): RenderErrorBoundaryState | null {
 		if (props.resetKey === state.resetKey) return null;
