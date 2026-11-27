@@ -30,7 +30,7 @@
 		"typecheck": "tsc --noEmit",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"lint": "oxlint",
+		"lint": "oxlint --deny-warnings",
 		"test": "vitest run",
 		"prepack": "yarn build",
 		"smoke": "bash scripts/smoke-pack.sh",
