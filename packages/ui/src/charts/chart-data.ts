@@ -1,5 +1,5 @@
 /**
- * Pure maths for `Chart` (`Chart.tsx`): number coercion, "nice" axis maxima,
+ * Pure maths for `Chart` (`builtins/Chart.tsx`): number coercion, "nice" axis maxima,
  * tick placement, histogram binning, and the label-fitting used by the
  * horizontal-bar category column. No React or DOM, so this runs in vitest's
  * plain node environment the same way `mermaid-direction.ts` does.

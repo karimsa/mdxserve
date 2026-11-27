@@ -71,6 +71,17 @@
 	--color-code-gutter: var(--code-gutter);
 	--color-code-highlight: var(--code-highlight);
 
+	/* charts: the series in order of use, then the plot's lines and labels */
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-chart-6: var(--chart-6);
+	--color-chart-grid: var(--chart-grid);
+	--color-chart-axis: var(--chart-axis);
+	--color-chart-label: var(--chart-label);
+
 	/* raw ramps, for the few places the design names them directly */
 	--color-teal-50: var(--teal-50);
 	--color-teal-100: var(--teal-100);

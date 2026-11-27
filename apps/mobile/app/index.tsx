@@ -7,11 +7,19 @@ import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
 import DataTable from "@mdxserve/ui/builtins/DataTable";
+import Chart from "@mdxserve/ui/builtins/Chart";
+import Sparkline from "@mdxserve/ui/builtins/Sparkline";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
 import { Code, Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { readAppInfo } from "../src/app-info";
 import { useSideInsets } from "../src/side-insets";
+
+const LATENCY = [
+	{ label: "Mon", p50: 42, p99: 180 },
+	{ label: "Tue", p50: 38, p99: 165 },
+	{ label: "Wed", p50: 51, p99: 210 },
+];
 
 const TABS = [
 	{ id: "sample>overview", value: "overview", label: "Overview" },
@@ -137,6 +145,28 @@ export default function Home() {
 					]}
 				/>
 				<DataTable id="sample-table" caption="Releases" columns={TABLE_COLUMNS} data={TABLE_ROWS} />
+				<Chart
+					id="sample-chart"
+					type="bar"
+					orientation="vertical"
+					data={LATENCY}
+					series={["p50", "p99"]}
+					values={[]}
+					height={180}
+					filename="requests.json"
+					unit="ms"
+					legend
+				/>
+				<Text>
+					Requests{" "}
+					<Sparkline
+						values={[12, 18, 15, 22, 19, 27, 24, 31]}
+						width={84}
+						height={20}
+						color="var(--chart-1)"
+						fill
+					/>
+				</Text>
 			</View>
 		</ScrollView>
 	);

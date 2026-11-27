@@ -5,10 +5,26 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { uniwind } from "uniwind/vite";
 import { devShell } from "./scripts/dev-shell.js";
+import { svgWebStubs } from "./scripts/svg-web-stubs.js";
 
 /** Uniwind takes its files relative to the working directory, which `yarn dev` sets to the repository root. */
 const fromHere = (file: string) =>
 	path.relative(process.cwd(), fileURLToPath(new URL(file, import.meta.url)));
+
+/** A shared component's `Name.web.tsx` replaces its `Name.tsx` in the browser, as
+    react-native-svg's `.web.js` modules (its DOM elements) replace its native ones. */
+const EXTENSIONS = [
+	".web.tsx",
+	".web.ts",
+	".web.js",
+	".mjs",
+	".js",
+	".mts",
+	".ts",
+	".jsx",
+	".tsx",
+	".json",
+];
 
 const LUCIDE_ICON = /\/lucide-react\/dist\/esm\/icons\/[^/]+\.mjs$/;
 
@@ -35,12 +51,12 @@ export default defineConfig(({ command }) => ({
 			dtsFile: fromHere("src/uniwind-types.d.ts"),
 		}),
 		devShell(),
+		svgWebStubs(EXTENSIONS),
 	],
 	resolve: {
 		// One React for every workspace (yarn.config.cjs): never bundle a second copy.
 		dedupe: ["react", "react-dom"],
-		// A shared component's `Name.web.tsx` replaces its `Name.tsx` in the browser.
-		extensions: [".web.tsx", ".web.ts", ".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"],
+		extensions: EXTENSIONS,
 	},
 	build: {
 		outDir: fileURLToPath(new URL("../../packages/server/dist/client", import.meta.url)),
