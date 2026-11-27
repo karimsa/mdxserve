@@ -9,6 +9,7 @@ import os from "node:os";
 import { watch } from "chokidar";
 import { getPackageRoot } from "../infra/pkg.js";
 import { isWatchIgnored, signalFileChanges } from "./watch-signals.js";
+import { handleWatchErrors } from "./watch-errors.js";
 import { loadShellTemplate } from "./shell.js";
 import { realtimePeerCheck } from "./host.js";
 import { announceTailscale, serverTailnetHosts } from "../tailscale/startup.js";
@@ -190,8 +191,10 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const httpServer = http.createServer();
 
 	// One watcher over every mounted root drives the live update signals. It
-	// skips dependency, virtualenv and build trees (see isWatchIgnored) and
-	// does not follow symlinks out of a root.
+	// skips hidden, dependency, virtualenv and build trees (see isWatchIgnored)
+	// and does not follow symlinks out of a root. Running out of file handles
+	// or watches turns live updates off or partial, not the server (see
+	// handleWatchErrors).
 	const watcher = watch(
 		rootsService.list().map((info) => info.dir),
 		{
@@ -200,7 +203,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			ignored: (changedPath) => isWatchIgnored(rootsService.list(), changedPath),
 		},
 	);
-	watcher.on("error", (error) => console.error(error));
+	const watchErrors = handleWatchErrors(watcher);
 
 	const docCache = new DocCache();
 	const search = new SearchService(docCache, new DocumentService(registry, assetUrl));
@@ -266,8 +269,10 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	rootsService.onChange(async ({ added, removed, roots: mountedRoots }) => {
 		const dirs = mountedRoots.map((info) => info.dir);
 		try {
-			if (removed.length > 0) watcher.unwatch(removed);
-			if (added.length > 0) watcher.add(added);
+			if (!watchErrors.stopped()) {
+				if (removed.length > 0) watcher.unwatch(removed);
+				if (added.length > 0) watcher.add(added);
+			}
 		} catch (error) {
 			console.error(error);
 		}
