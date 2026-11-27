@@ -233,6 +233,22 @@ describe("a known server", () => {
 		expect((await storedServers())[0].label).toBe("Studio");
 	});
 
+	it("keeps a newer rename that is still being written when an earlier write fails", async () => {
+		await seed();
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		const field = await screen.findByLabelText("Name for this server");
+		let failFirst: (error: Error) => void = () => {};
+		jest
+			.mocked(AsyncStorage.setItem)
+			.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => (failFirst = reject)));
+		await fireEvent.changeText(field, "D");
+		await fireEvent.changeText(field, "Desk");
+		await act(async () => failFirst(new Error("disk full")));
+		await untilStored((servers) => expect(servers[0].label).toBe("Desk"));
+		expect(screen.getByLabelText("Name for this server").props.value).toBe("Desk");
+		expect(screen.queryByText(/was not saved/)).toBeNull();
+	});
+
 	it("is checked again when an address that answers is added to it", async () => {
 		await seed();
 		await renderRouter(ROUTES, { initialUrl: "/servers" });

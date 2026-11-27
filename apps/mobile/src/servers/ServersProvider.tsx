@@ -111,10 +111,13 @@ export function ServersProvider({
 							setProblem(undefined);
 						},
 						(error: unknown) => {
-							// Back to what storage holds, so the screen never shows a change a restart
-							// would lose.
-							latest.current = saved.current;
-							setServers(saved.current);
+							// A newer change is queued: its write carries this one too, so keep both on
+							// screen and let it try. Otherwise go back to what storage holds, so the
+							// screen never shows a change a restart would lose.
+							if (latest.current === list) {
+								latest.current = saved.current;
+								setServers(saved.current);
+							}
 							setProblem(`The change was not saved on this device: ${String(error)}`);
 						},
 					)
