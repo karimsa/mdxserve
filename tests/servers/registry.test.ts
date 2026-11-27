@@ -185,7 +185,16 @@ describe("ServerRegistry", () => {
 	it("malformed roots JSON comes back as roots: [], keeping pid/port/host", () => {
 		registry.register({ port: 5009, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
 		withDb(dbPath, (db) => db.prepare("UPDATE server SET roots = ? WHERE id = 1").run("not json"));
-		expect(registry.current()).toMatchObject({ port: 5009, pid: process.pid, roots: [] });
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			expect(registry.current()).toMatchObject({ port: 5009, pid: process.pid, roots: [] });
+			expect(consoleError).toHaveBeenCalledOnce();
+			expect(consoleError.mock.calls[0][0]).toMatch(
+				new RegExp(`^mdxserve: failed to parse roots for pid ${process.pid} in `),
+			);
+		} finally {
+			consoleError.mockRestore();
+		}
 	});
 
 	it("migrates away from a legacy `servers` table on first open", async () => {
