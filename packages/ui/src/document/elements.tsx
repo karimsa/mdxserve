@@ -50,20 +50,29 @@ export function List({
 	);
 }
 
-export function ListItem({ children }: Children) {
+/**
+ * A list item: its marker (a bullet, a number, or a task item's checkbox) in a column of its
+ * own, beside the item's content, whose blocks (paragraphs, a nested list) stack one under
+ * another.
+ */
+export function ListItem({ checked, children }: Children & { checked: boolean | null }) {
 	const list = useContext(ListContext);
 	const index = useContext(ItemIndexContext);
 	const marker = list?.ordered ? `${list.start + index}.` : "•";
 	return (
 		<View role="listitem" className="flex-row gap-2">
-			<Text className={`min-w-4 text-right ${PROSE} text-text-muted`}>{marker}</Text>
-			<View className="min-w-0 flex-1 flex-row flex-wrap items-start gap-2">{children}</View>
+			{checked === null ? (
+				<Text className={`min-w-4 text-right ${PROSE} text-text-muted`}>{marker}</Text>
+			) : (
+				<TaskBox checked={checked} />
+			)}
+			<View className="min-w-0 flex-1">{children}</View>
 		</View>
 	);
 }
 
 /** A task list item's box, checked or not; it shows what the file says and does not toggle. */
-export function TaskBox({ checked }: { checked: boolean }) {
+function TaskBox({ checked }: { checked: boolean }) {
 	return (
 		<View
 			accessible={true}
@@ -79,7 +88,7 @@ export function TaskBox({ checked }: { checked: boolean }) {
 
 /** A tight list item's text: one line of runs. */
 export function TightText({ children }: Children) {
-	return <Text className={`min-w-0 flex-1 ${PROSE}`}>{children}</Text>;
+	return <Text className={PROSE}>{children}</Text>;
 }
 
 /** A Markdown table cell's content, in the table's type: small, the header muted. */

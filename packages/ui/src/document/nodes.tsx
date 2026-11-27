@@ -28,7 +28,6 @@ import {
 	Rule,
 	SectionHeading,
 	Strong,
-	TaskBox,
 	TightText,
 } from "./elements";
 import { useDocumentEnvironment } from "./environment";
@@ -308,8 +307,7 @@ function ListView({ node }: { node: Extract<BlockNode, { type: "list" }> }) {
 	return (
 		<List ordered={node.ordered} start={node.start}>
 			{node.items.map((item, index) => (
-				<ListItem key={index}>
-					{item.checked === null ? null : <TaskBox checked={item.checked} />}
+				<ListItem key={index} checked={item.checked}>
 					<Nested>
 						<ListItemContent nodes={item.children} />
 					</Nested>

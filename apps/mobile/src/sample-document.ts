@@ -75,12 +75,27 @@ export const SAMPLE_DOCUMENT: BlockNode[] = [
 						start: 1,
 						items: [
 							{
-								checked: true,
+								checked: null,
 								children: [{ type: "paragraph", children: [text("Install mdxserve")] }],
 							},
 							{
-								checked: false,
+								checked: null,
 								children: [{ type: "paragraph", children: [text("Open a folder")] }],
+							},
+						],
+					},
+					{
+						type: "list",
+						ordered: false,
+						start: null,
+						items: [
+							{
+								checked: true,
+								children: [{ type: "paragraph", children: [text("Read the guide")] }],
+							},
+							{
+								checked: false,
+								children: [{ type: "paragraph", children: [text("Write a document")] }],
 							},
 						],
 					},

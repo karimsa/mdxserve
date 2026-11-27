@@ -32,8 +32,14 @@ export function List({
 	);
 }
 
-export function ListItem({ children }: Children) {
-	return <li>{children}</li>;
+/** A list item; a task item's checkbox comes first, beside its text. */
+export function ListItem({ checked, children }: Children & { checked: boolean | null }) {
+	return (
+		<li>
+			{checked === null ? null : <TaskBox checked={checked} />}
+			{children}
+		</li>
+	);
 }
 
 /**
@@ -43,7 +49,7 @@ export function ListItem({ children }: Children) {
  * clicking can't toggle what the Markdown says, and give a little spring bounce on click so it
  * still feels alive.
  */
-export function TaskBox({ checked }: { checked: boolean }) {
+function TaskBox({ checked }: { checked: boolean }) {
 	const controls = useAnimationControls();
 	function bounce() {
 		void controls.start({
