@@ -1,21 +1,15 @@
 /* mdxserve global stylesheet.
  *
  * Order matters:
- *   1. @imports — tippy's base css (see the Tooltip note below), then the design
- *      system's tokens and base styles (apps/web/src/design/, ported verbatim from the
+ *   1. @imports — tippy's base css (see the Tooltip note below), the fonts, the design
+ *      tokens and their `@theme inline` mapping (@mdxserve/ui's theme.css, shared with the
+ *      app), then the base styles (apps/web/src/design/, ported verbatim from the
  *      "mdxserve Design System" Claude Design project).
- *   2. @custom-variant dark — the `dark:` utility variant keys on the
- *      `data-theme` attribute that src/http/html.ts sets on <html>, not on the OS
- *      media query, so the in-app toggle works.
- *   3. @theme inline — exposes the design tokens to Tailwind so utilities like
- *      `bg-surface-card` / `text-text-muted` / `shadow-sm` point straight at
- *      the CSS variables (no duplicated values, dark mode comes for free).
- *   4. App-specific rules that are not part of the design system proper.
+ *      theme-variants.css comes before theme.css: it defines the `light` and `dark`
+ *      variants the tokens use.
+ *   2. App-specific rules that are not part of the design system proper.
  *
- * The design tokens are deliberately left *unlayered*: `@theme inline` entries
- * whose name matches a token (`--font-mono`, `--radius-md`) emit a
- * self-reference inside `@layer theme`, and the unlayered `:root` declaration
- * is what wins the cascade. Wrapping apps/web/src/design in @layer would break that.
+ * Keep the tokens and base styles *unlayered* (theme.css says why).
  */
 
 /* Base tippy.js styles for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
@@ -24,10 +18,10 @@
 @import "tippy.js/dist/tippy.css";
 
 @import "./design/tokens/fonts.css";
-@import "./design/tokens/colors.css";
-@import "./design/tokens/typography.css";
-@import "./design/tokens/spacing.css";
-@import "./design/tokens/elevation.css";
+@import "./theme-variants.css";
+/* By path, not package name: Uniwind compiles a stylesheet imported by package name on its
+   own, where the `light` variant above does not exist. */
+@import "../../../packages/ui/src/theme.css";
 @import "./design/tokens/motion.css";
 @import "./design/base/reset.css";
 @import "./design/base/prose.css";
@@ -37,119 +31,6 @@
 @import "./editor/image-dialog.css";
 @import "./editor/component-fields.css";
 @import "./diagrams/style.css";
-
-/* `:root[...]` (not bare `[data-theme]`) because apps/web/src/CodeBlock.tsx stamps
-   data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
-@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
-
-@theme inline {
-	/* fonts */
-	--font-sans: var(--font-core);
-	--font-mono: var(--font-mono);
-
-	/* surfaces */
-	--color-surface-page: var(--surface-page);
-	--color-surface-card: var(--surface-card);
-	--color-surface-sunken: var(--surface-sunken);
-	--color-surface-raised: var(--surface-raised);
-	--color-surface-inverse: var(--surface-inverse);
-	--color-surface-hover: var(--surface-hover);
-	--color-surface-active: var(--surface-active);
-	--color-surface-accent-soft: var(--surface-accent-soft);
-	--color-surface-accent: var(--surface-accent);
-
-	/* text */
-	--color-text-body: var(--text-body);
-	--color-text-heading: var(--text-heading);
-	--color-text-muted: var(--text-muted);
-	--color-text-subtle: var(--text-subtle);
-	--color-text-inverse: var(--text-inverse);
-	--color-text-accent: var(--text-accent);
-	--color-text-link: var(--text-link);
-	--color-text-link-hover: var(--text-link-hover);
-
-	/* borders */
-	--color-border-subtle: var(--border-subtle);
-	--color-border-default: var(--border-default);
-	--color-border-strong: var(--border-strong);
-	--color-border-accent: var(--border-accent);
-	--color-focus-ring: var(--focus-ring);
-
-	/* status tints (callouts, badges, toasts) */
-	--color-status-info-bg: var(--status-info-bg);
-	--color-status-info-fg: var(--status-info-fg);
-	--color-status-ok-bg: var(--status-ok-bg);
-	--color-status-ok-fg: var(--status-ok-fg);
-	--color-status-warn-bg: var(--status-warn-bg);
-	--color-status-warn-fg: var(--status-warn-fg);
-	--color-status-danger-bg: var(--status-danger-bg);
-	--color-status-danger-fg: var(--status-danger-fg);
-	--color-status-note-bg: var(--status-note-bg);
-	--color-status-note-fg: var(--status-note-fg);
-
-	/* code surfaces */
-	--color-code-bg: var(--code-bg);
-	--color-code-bg-inline: var(--code-bg-inline);
-	--color-code-fg: var(--code-fg);
-	--color-code-border: var(--code-border);
-	--color-code-gutter: var(--code-gutter);
-	--color-code-highlight: var(--code-highlight);
-
-	/* raw ramps, for the few places the design names them directly */
-	--color-teal-50: var(--teal-50);
-	--color-teal-100: var(--teal-100);
-	--color-teal-200: var(--teal-200);
-	--color-teal-300: var(--teal-300);
-	--color-teal-400: var(--teal-400);
-	--color-teal-500: var(--teal-500);
-	--color-teal-550: var(--teal-550);
-	--color-teal-600: var(--teal-600);
-	--color-teal-700: var(--teal-700);
-	--color-teal-800: var(--teal-800);
-	--color-teal-900: var(--teal-900);
-	--color-n-0: var(--n-0);
-	--color-n-25: var(--n-25);
-	--color-n-50: var(--n-50);
-	--color-n-100: var(--n-100);
-	--color-n-200: var(--n-200);
-	--color-n-300: var(--n-300);
-	--color-n-400: var(--n-400);
-	--color-n-500: var(--n-500);
-	--color-n-600: var(--n-600);
-	--color-n-700: var(--n-700);
-	--color-n-800: var(--n-800);
-	--color-n-900: var(--n-900);
-	--color-n-950: var(--n-950);
-
-	/* shadows — the one namespace Tailwind would otherwise inline its own
-     literal values for, so these mappings are required, not cosmetic */
-	--shadow-xs: var(--shadow-xs);
-	--shadow-sm: var(--shadow-sm);
-	--shadow-md: var(--shadow-md);
-	--shadow-lg: var(--shadow-lg);
-	--shadow-hairline: var(--shadow-hairline);
-	--shadow-focus: var(--shadow-focus);
-
-	/* radii — token names already match Tailwind's; listed for the extras */
-	--radius-xs: var(--radius-xs);
-	--radius-sm: var(--radius-sm);
-	--radius-md: var(--radius-md);
-	--radius-lg: var(--radius-lg);
-	--radius-xl: var(--radius-xl);
-	--radius-pill: var(--radius-pill);
-
-	/* layout */
-	--spacing-sidebar: var(--sidebar-width);
-	--spacing-toc: var(--toc-width);
-	--spacing-topbar: var(--topbar-height);
-	--container-prose: var(--width-prose);
-	--container-content: var(--width-content);
-
-	/* motion */
-	--ease-standard: var(--ease-standard);
-	--ease-out: var(--ease-out);
-	--ease-in: var(--ease-in);
-}
 
 /* Opt out of the global focus ring for inputs whose container already shows
    focus (the search palette's text field). */

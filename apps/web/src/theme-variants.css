@@ -1,0 +1,10 @@
+/* The web client's `light` and `dark` variants, for the `dark:` utilities and for the
+   `@variant light` / `@variant dark` blocks of the design tokens (@mdxserve/ui's theme.css),
+   which must come after this file. Both key on the `data-theme` attribute that src/http/html.ts
+   sets on <html> before the first paint, not on the OS media query, so the in-app toggle works.
+   They replace Uniwind's variants of the same names, which key on a class.
+
+   `:root[...]` (not bare `[data-theme]`) because apps/web/src/CodeBlock.tsx stamps
+   data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
+@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
+@custom-variant light (&:where(:root:not([data-theme="dark"]), :root:not([data-theme="dark"]) *));

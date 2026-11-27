@@ -53,4 +53,11 @@
 	--measure-prose: none; /* @kind other */
 	--width-prose: 44rem;
 	--width-content: 52rem;
+
+	/* The app has no font stacks: it loads Manrope and JetBrains Mono under these family
+	   names (apps/mobile/app/_layout.tsx) and React Native picks the face by weight. */
+	@variant native {
+		--font-core: Manrope;
+		--font-mono: "JetBrains Mono";
+	}
 }

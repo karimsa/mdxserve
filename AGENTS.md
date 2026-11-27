@@ -143,7 +143,9 @@ Adapters contain no business logic:
   react-native-web in the web client (`apps/web/vite.config.ts`) and through Metro in the app
   (`apps/mobile/metro.config.js`). It imports neither client nor the server, no `react-dom`
   and no Expo module. A file that needs the DOM is a `Name.web.tsx` beside `Name.tsx`, which
-  the web build picks instead; browser globals and web-only modules appear only there
+  the web build picks instead; browser globals and web-only modules appear only there. Its `src/theme.css` holds the design tokens both clients
+  read; a token that changes with the theme sits in a `@variant light` and a `@variant dark`
+  block, which follow `data-theme` on the web and Uniwind's theme (the system's) in the app
 - The server, its tests included, never imports the web client or `@mdxserve/ui`.
 
 ## General philosophy

@@ -45,8 +45,9 @@ const config: KnipConfig = {
 				// `Name.web.tsx` over its `Name.tsx` by extension, which knip does not follow.
 				"src/builtins/*.tsx!",
 				"src/**/*.web.tsx!",
-				// The app's stylesheet imports it by path (apps/mobile/src/global.css).
-				"src/native-theme.css!",
+				// Both clients' stylesheets import it by path (apps/web/src/app.css,
+				// apps/mobile/src/global.css).
+				"src/theme.css!",
 			],
 			project: ["src/**/*.{ts,tsx,css}!"],
 		},
