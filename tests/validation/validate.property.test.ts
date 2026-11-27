@@ -375,13 +375,6 @@ const plainImageArb = fc
 	.tuple(plainWordArb, fc.nat({ max: 99 }))
 	.map(([word, num]) => `![${word}](./${word}-${num}.png)`);
 
-function imageLines(full: string): number[] {
-	return full
-		.split("\n")
-		.map((line, index) => (line.startsWith("![") ? index + 1 : -1))
-		.filter((lineNumber) => lineNumber !== -1);
-}
-
 describe("collectHints — screenshot images", () => {
 	it("GFM-only docs (no images) produce no hints", () => {
 		fc.assert(
@@ -418,7 +411,10 @@ describe("collectHints — screenshot images", () => {
 					expect(hints[0]).toContain("<Screenshot");
 					// The image lines of the screenshot ones only: the plain ones
 					// follow them in the doc, and must not be listed.
-					const expectedLines = imageLines(full).slice(0, screenshots.length);
+					// Counted from where they were put, not by scanning for `![`, which a code
+					// fence in the generated doc can also start a line with.
+					const firstLine = doc ? doc.split("\n").length + 2 : 1;
+					const expectedLines = screenshots.map((_, index) => firstLine + 2 * index);
 					const listed = (hints[0].match(/\d+/g) ?? []).map(Number);
 					expect(listed.slice(0, expectedLines.length)).toEqual(expectedLines);
 				},
