@@ -126,9 +126,11 @@ export function setTaskInSource(
 		if (task) {
 			boxes.push({ line: index, column: task[1].length + 1, checked: task[2] !== " " });
 		}
+		// A delimiter written as inline code (`<!--`) or escaped (\<!--) opens nothing.
+		const prose = line.replace(/(`+)[^`]*?\1/g, "").replace(/\\./g, "");
 		for (const [start, end] of COMMENTS) {
-			const at = line.lastIndexOf(start);
-			if (at !== -1 && !line.slice(at).includes(end)) commentEnd = end;
+			const at = prose.lastIndexOf(start);
+			if (at !== -1 && !prose.slice(at).includes(end)) commentEnd = end;
 		}
 	});
 	if (boxes.length !== place.count) return { kind: "mismatch" };

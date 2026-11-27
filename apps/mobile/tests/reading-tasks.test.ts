@@ -142,6 +142,14 @@ describe("setTaskInSource", () => {
 		expect(setTaskInSource(source, { ordinal: 9, count: 4 }, true)).toEqual({ kind: "mismatch" });
 	});
 
+	it("does not take a comment delimiter in inline code or escaped for a comment", () => {
+		const prose = "Use `<!--` to start a comment, and \\<!-- shows one.\n\n- [ ] Ship it";
+		expect(setTaskInSource(prose, { ordinal: 0, count: 1 }, true)).toEqual({
+			kind: "ok",
+			markdown: prose.replace("- [ ] Ship it", "- [x] Ship it"),
+		});
+	});
+
 	it("keeps Windows line endings", () => {
 		const crlf = "- [ ] one\r\n- [ ] two\r\n";
 		expect(setTaskInSource(crlf, { ordinal: 1, count: 2 }, true)).toEqual({
