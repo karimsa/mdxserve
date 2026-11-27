@@ -2,6 +2,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { MotionConfig } from "framer-motion";
 import { App } from "./App";
+import { AppErrorBoundary } from "./AppErrorBoundary";
 import { queryClient } from "./api";
 import { ToastStack } from "./ui/Toast";
 import { shellInfo, type Route } from "./router";
@@ -35,7 +36,9 @@ function main() {
 	root.render(
 		<QueryClientProvider client={queryClient}>
 			<MotionConfig reducedMotion="user">
-				<App initialRoute={initialRoute} />
+				<AppErrorBoundary>
+					<App initialRoute={initialRoute} />
+				</AppErrorBoundary>
 				<ToastStack />
 			</MotionConfig>
 		</QueryClientProvider>,
