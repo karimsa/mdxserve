@@ -124,8 +124,9 @@ warnings and never fail validation.
 
 Only one `mdxserve serve` runs per user at a time. On start it takes a pid lockfile at
 `~/.mdxserve/server.lock` and writes its record — pid, port, host, and the roots it serves —
-to `~/.mdxserve/servers.db` (sqlite). Every other command finds the server through that
-record:
+to `~/.mdxserve/servers.db`, a SQLite database opened through `better-sqlite3`. Its locks
+are OS file locks, so a process that is killed while using the database never leaves it
+locked. Every other command finds the server through that record:
 
 | Command                                | Talks to the running server?          |
 | -------------------------------------- | ------------------------------------- |

@@ -48,6 +48,8 @@ type Client = ReturnType<typeof createTRPCClient<AppRouter>>;
  * response that fails to parse — becomes `unavailable`, so the caller falls
  * back to the local static-only behavior instead of surfacing a confusing
  * network error.
+ *
+ * @internal Exported for its tests.
  */
 export function toOutcome<Value>(error: unknown): RemoteOutcome<Value> {
 	if (isTRPCClientError(error) && error.data?.code !== undefined) {

@@ -135,7 +135,7 @@ export function Home() {
 				/>
 
 				<h2 id="bring-your-own-files">Bring your own files</h2>
-				<p>With Node.js 22.12 or newer, point mdxserve at a folder:</p>
+				<p>With Node.js 22.14 or newer, point mdxserve at a folder:</p>
 				<CodeBlock language="bash" code="npx @karimsa/mdxserve serve -w ./docs" />
 				<p>
 					Open the URL it prints. On your own machine, you can edit sections and save them back to

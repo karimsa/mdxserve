@@ -15,12 +15,20 @@ const WRITE_IN_PROGRESS_MS = 1000;
 export type AcquireOutcome =
 	{ kind: "ok" } | { kind: "held"; pid: number } | { kind: "error"; message: string };
 
-/** `<mdxserveHome>/server.lock`. */
+/**
+ * `<mdxserveHome>/server.lock`.
+ *
+ * @internal Exported for its tests.
+ */
 export function defaultLockPath(): string {
 	return path.join(mdxserveHome(), "server.lock");
 }
 
-/** The pid a lockfile holds, or undefined unless its content is exactly one positive integer. */
+/**
+ * The pid a lockfile holds, or undefined unless its content is exactly one positive integer.
+ *
+ * @internal Exported for its tests.
+ */
 export function parseLockPid(content: string): number | undefined {
 	const trimmed = content.trim();
 	if (!/^\d+$/.test(trimmed)) return undefined;
