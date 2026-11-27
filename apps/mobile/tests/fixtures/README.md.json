@@ -1,0 +1,941 @@
+{
+	"document": {
+		"schemaVersion": 1,
+		"metadata": {
+			"openGraph": []
+		},
+		"toc": [
+			{
+				"id": "what-is-mdxserve",
+				"label": "What is mdxserve",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "running-it",
+				"label": "Running it",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "what-a-directory-listing-shows",
+				"label": "What a directory listing shows",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "files-in-this-example",
+				"label": "Files in this example",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "using-this-as-a-template-for-your-own-docs",
+				"label": "Using this as a template for your own docs",
+				"kind": "heading",
+				"children": []
+			}
+		],
+		"children": [
+			{
+				"type": "section",
+				"id": "mdxserve-example",
+				"level": 1,
+				"heading": [
+					{
+						"type": "text",
+						"value": "mdxserve example"
+					}
+				],
+				"children": [
+					{
+						"type": "paragraph",
+						"children": [
+							{
+								"type": "text",
+								"value": "This folder is both a working example and a test fixture for "
+							},
+							{
+								"type": "inlineCode",
+								"value": "mdxserve"
+							},
+							{
+								"type": "text",
+								"value": ". It shows what a docs\nfolder looks like and exercises the features "
+							},
+							{
+								"type": "inlineCode",
+								"value": "mdxserve"
+							},
+							{
+								"type": "text",
+								"value": " needs to render correctly: plain\nMarkdown, builtin components and literal values, nested folders, and non-Markdown files sitting\nalongside everything else."
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "what-is-mdxserve",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "What is mdxserve"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "mdxserve"
+									},
+									{
+										"type": "text",
+										"value": " is a small CLI, similar in spirit to "
+									},
+									{
+										"type": "inlineCode",
+										"value": "npx serve"
+									},
+									{
+										"type": "text",
+										"value": ", that serves a folder of Markdown and\nMDX files as a browsable site. Point it at a directory and it will:"
+									}
+								]
+							},
+							{
+								"type": "list",
+								"ordered": false,
+								"start": null,
+								"items": [
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "List subfolders and "
+													},
+													{
+														"type": "inlineCode",
+														"value": ".md"
+													},
+													{
+														"type": "text",
+														"value": " / "
+													},
+													{
+														"type": "inlineCode",
+														"value": ".mdx"
+													},
+													{
+														"type": "text",
+														"value": " files when you browse a directory"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Render a file in the browser when you click it, from the JSON document tree the server\nparses it into"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Style prose with built-in typography, so you don't write any CSS"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Highlight code blocks with Shiki in the browser, with fence meta on\nthe opening "
+													},
+													{
+														"type": "inlineCode",
+														"value": "```ts"
+													},
+													{
+														"type": "text",
+														"value": " line for a title ("
+													},
+													{
+														"type": "inlineCode",
+														"value": "title=\"server.ts\""
+													},
+													{
+														"type": "text",
+														"value": "), a line-number gutter\n("
+													},
+													{
+														"type": "inlineCode",
+														"value": "showLineNumbers"
+													},
+													{
+														"type": "text",
+														"value": "), and highlighted lines ("
+													},
+													{
+														"type": "inlineCode",
+														"value": "{1,3-4}"
+													},
+													{
+														"type": "text",
+														"value": ") — see "
+													},
+													{
+														"type": "inlineCode",
+														"value": "01-markdown.md"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Support GitHub Flavored Markdown (tables, task lists, strikethrough, etc.) via "
+													},
+													{
+														"type": "inlineCode",
+														"value": "remark-gfm"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Switch between light and dark automatically based on your OS setting"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Provide a small library of builtin components (like "
+													},
+													{
+														"type": "inlineCode",
+														"value": "Callout"
+													},
+													{
+														"type": "text",
+														"value": ") with no import required, in\n"
+													},
+													{
+														"type": "inlineCode",
+														"value": ".md"
+													},
+													{
+														"type": "text",
+														"value": " and "
+													},
+													{
+														"type": "inlineCode",
+														"value": ".mdx"
+													},
+													{
+														"type": "text",
+														"value": " alike"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Navigate between folders and docs client-side, with subtle enter/exit motion that\nrespects "
+													},
+													{
+														"type": "inlineCode",
+														"value": "prefers-reduced-motion"
+													}
+												]
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "There is no build step and no config file required to get started."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "running-it",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Running it"
+							}
+						],
+						"children": [
+							{
+								"type": "code",
+								"id": null,
+								"lang": "bash",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "# Serve this folder on the default port (4040)\nnpx mdxserve serve -w .\n\n# Serve a specific folder\nnpx mdxserve serve -w docs/\n\n# Use a specific port (falls back to a free port automatically if 5000 is taken)\nnpx mdxserve serve -w docs/ -p 5000"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "-w <dir>"
+									},
+									{
+										"type": "text",
+										"value": " names a folder to serve and can be repeated. "
+									},
+									{
+										"type": "inlineCode",
+										"value": "-p <port>"
+									},
+									{
+										"type": "text",
+										"value": " sets the port; if that port\nis already in use, "
+									},
+									{
+										"type": "inlineCode",
+										"value": "mdxserve"
+									},
+									{
+										"type": "text",
+										"value": " picks a free one and prints the URL it actually bound to."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "what-a-directory-listing-shows",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "What a directory listing shows"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Browsing to a folder shows:"
+									}
+								]
+							},
+							{
+								"type": "list",
+								"ordered": false,
+								"start": null,
+								"items": [
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Subfolders, so you can navigate deeper (see "
+													},
+													{
+														"type": "inlineCode",
+														"value": "nested/deep/"
+													},
+													{
+														"type": "text",
+														"value": ")"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": ".md"
+													},
+													{
+														"type": "text",
+														"value": " and "
+													},
+													{
+														"type": "inlineCode",
+														"value": ".mdx"
+													},
+													{
+														"type": "text",
+														"value": " files, clickable, rendered on click"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Any other files (images, "
+													},
+													{
+														"type": "inlineCode",
+														"value": ".txt"
+													},
+													{
+														"type": "text",
+														"value": ", etc.) listed but shown muted/greyed out, since they aren't\nrendered — see "
+													},
+													{
+														"type": "inlineCode",
+														"value": "notes.txt"
+													},
+													{
+														"type": "text",
+														"value": " and "
+													},
+													{
+														"type": "inlineCode",
+														"value": "assets/logo.png"
+													}
+												]
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "files-in-this-example",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Files in this example"
+							}
+						],
+						"children": [
+							{
+								"type": "table",
+								"id": "markdown-table-v2-48zold",
+								"persist": true,
+								"align": [null, null],
+								"head": [
+									[
+										{
+											"type": "text",
+											"value": "File"
+										}
+									],
+									[
+										{
+											"type": "text",
+											"value": "Description"
+										}
+									]
+								],
+								"rows": [
+									[
+										[
+											{
+												"type": "link",
+												"href": "./01-markdown.md",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "01-markdown.md"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Plain Markdown tour: headings, text formatting, lists, tables, quotes, links, images, code blocks"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./02-mdx-basics.mdx",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "02-mdx-basics.mdx"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "What a document can write beyond Markdown: builtins, supported lowercase elements, and literal values in braces"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./08-diagram-authoring.md",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "08-diagram-authoring.md"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Creating a Mermaid diagram from the section editor, with an entity-relationship diagram as the sample"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./12-data-tables.mdx",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "12-data-tables.mdx"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "The "
+											},
+											{
+												"type": "inlineCode",
+												"value": "DataTable"
+											},
+											{
+												"type": "text",
+												"value": " builtin: typed columns, sorting, filters, grouped headers and bars"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./nested/deep/05-nested-page.md",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "nested/deep/05-nested-page.md"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "A page two folders deep, to show breadcrumb/folder navigation"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./06-builtins.mdx",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "06-builtins.mdx"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Tour of builtin components ("
+											},
+											{
+												"type": "inlineCode",
+												"value": "Callout"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Tooltip"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Tabs"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Badge"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Diff"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Card"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Kbd"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "FileTree"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Chart"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Sparkline"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Screenshot"
+											},
+											{
+												"type": "text",
+												"value": ") and the "
+											},
+											{
+												"type": "inlineCode",
+												"value": "mdxserve components"
+											},
+											{
+												"type": "text",
+												"value": " CLI"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./07-charts.mdx",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "07-charts.mdx"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Data visualization with builtins: "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Sparkline"
+											},
+											{
+												"type": "text",
+												"value": " in tables and prose, "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Chart"
+											},
+											{
+												"type": "text",
+												"value": " as bar / horizontal bar / grouped bar / line / area / histogram, and one dataset in "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Tabs"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./assets/logo.png",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "assets/logo.png"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "A small PNG used by "
+											},
+											{
+												"type": "inlineCode",
+												"value": "01-markdown.md"
+											},
+											{
+												"type": "text",
+												"value": " to show image rendering"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./assets/reader-light.jpg",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "assets/reader-light.jpg"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "A screenshot of the reader, framed by "
+											},
+											{
+												"type": "inlineCode",
+												"value": "Screenshot"
+											},
+											{
+												"type": "text",
+												"value": " in "
+											},
+											{
+												"type": "inlineCode",
+												"value": "06-builtins.mdx"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "link",
+												"href": "./notes.txt",
+												"title": null,
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "notes.txt"
+													}
+												]
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "A plain text file, to show how non-Markdown files appear in listings"
+											}
+										]
+									]
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "using-this-as-a-template-for-your-own-docs",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Using this as a template for your own docs"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Copy this folder (or just start from an empty one) and run "
+									},
+									{
+										"type": "inlineCode",
+										"value": "npx mdxserve serve -w ."
+									},
+									{
+										"type": "text",
+										"value": " inside it. Any "
+									},
+									{
+										"type": "inlineCode",
+										"value": ".md"
+									},
+									{
+										"type": "text",
+										"value": "\nfile works with no setup. Reach for a builtin when it presents something better than prose; run\n"
+									},
+									{
+										"type": "inlineCode",
+										"value": "mdxserve components search"
+									},
+									{
+										"type": "text",
+										"value": " for the list. Documents cannot import their own components."
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Fenced blocks with the "
+									},
+									{
+										"type": "inlineCode",
+										"value": "mermaid"
+									},
+									{
+										"type": "text",
+										"value": " language render as diagrams, with a Diagram / Code toggle in the block header."
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"version": "2b42c02b756143000a549bcb0eb99c7091119153f05d2015339b86318561c11b"
+}

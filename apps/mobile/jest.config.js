@@ -8,14 +8,20 @@ module.exports = {
 	// can pass five seconds without anything being wrong.
 	testTimeout: 20_000,
 	roots: ["<rootDir>/tests"],
-	// jest-expo's list, plus Uniwind, which React Native loads from its TypeScript source.
+	// jest-expo's list, plus Uniwind, which React Native loads from its TypeScript source, and
+	// FlashList, which ships ES modules only.
 	transformIgnorePatterns: [
-		transformIgnorePatterns[0].replace("(?!(", "(?!(uniwind|"),
+		transformIgnorePatterns[0].replace("(?!(", "(?!(uniwind|@shopify/flash-list|"),
 		...transformIgnorePatterns.slice(1),
 	],
 	// Components render with the app's real stylesheet, compiled by Uniwind as Metro would,
 	// and `react-native` resolves to Uniwind's components as it does under Metro.
-	setupFiles: ["<rootDir>/tests/setup/expo-network.js"],
+	setupFiles: [
+		"<rootDir>/tests/setup/expo-network.js",
+		"<rootDir>/tests/setup/realtime.js",
+		// FlashList measures its window and rows natively; its own stand-in gives them sizes.
+		"@shopify/flash-list/jestSetup",
+	],
 	globalSetup: "<rootDir>/tests/stylesheet/global-setup.js",
 	resolver: "<rootDir>/tests/stylesheet/resolver.js",
 	moduleNameMapper: {

@@ -2846,15 +2846,18 @@ __metadata:
     "@mdxserve/ui": "workspace:*"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native/jest-preset": "npm:0.88.1"
+    "@shopify/flash-list": "npm:2.3.2"
     "@tanstack/react-query": "npm:5.101.4"
     "@testing-library/react-native": "npm:14.1.0"
     "@types/react": "npm:19.3.3"
     expo: "npm:58.0.26"
+    expo-blur: "npm:58.0.6"
     expo-clipboard: "npm:58.0.4"
     expo-constants: "npm:58.0.16"
     expo-dev-client: "npm:58.0.21"
     expo-doctor: "npm:1.21.8"
     expo-font: "npm:58.0.12"
+    expo-image: "npm:58.0.18"
     expo-linking: "npm:58.0.17"
     expo-network: "npm:58.0.5"
     expo-router: "npm:58.0.32"
@@ -4368,6 +4371,17 @@ __metadata:
   version: 10.0.2
   resolution: "@shikijs/vscode-textmate@npm:10.0.2"
   checksum: 10c0/36b682d691088ec244de292dc8f91b808f95c89466af421cf84cbab92230f03c8348649c14b3251991b10ce632b0c715e416e992dd5f28ff3221dc2693fd9462
+  languageName: node
+  linkType: hard
+
+"@shopify/flash-list@npm:2.3.2":
+  version: 2.3.2
+  resolution: "@shopify/flash-list@npm:2.3.2"
+  peerDependencies:
+    "@babel/runtime": "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/3e58913506b1dc7f02dd0696c478fd963ede413d9d7121705a08ff505d5c21e611813ce9370068238b8983ff582ed7b8ee94f68e94f99a1ac8f600c01fff118e
   languageName: node
   linkType: hard
 
@@ -8197,6 +8211,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-blur@npm:58.0.6":
+  version: 58.0.6
+  resolution: "expo-blur@npm:58.0.6"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/e5fd6e52ce3662b76e49e4bdb615822dc745ab6ff3731c372e70e099509f621d905ba55a6dfde30ab10b8d7333de9d861f678c7ff9ff3ea0d8fad291061d9dd2
+  languageName: node
+  linkType: hard
+
 "expo-clipboard@npm:58.0.4":
   version: 58.0.4
   resolution: "expo-clipboard@npm:58.0.4"
@@ -8309,6 +8334,23 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/a4fcf07afcb5d97561b60bf460fb59caa980eea1a1e69b0b19d0c094ba59cb1907d883e504ca73fd61e1f0f5d3549b01ee33d79fd2a1d0012b1e248b7690bc33
+  languageName: node
+  linkType: hard
+
+"expo-image@npm:58.0.18":
+  version: 58.0.18
+  resolution: "expo-image@npm:58.0.18"
+  dependencies:
+    sf-symbols-typescript: "npm:^2.2.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10c0/268cf769d7e2527558ac93f485fa2c43754f8e448f6e1b786becf45d96dac58fab6c9a567e56678c0586a0fd7db2f950f3d2e39a67f567da34152b22156e843e
   languageName: node
   linkType: hard
 
@@ -14858,7 +14900,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sf-symbols-typescript@npm:^2.1.0":
+"sf-symbols-typescript@npm:^2.1.0, sf-symbols-typescript@npm:^2.2.0":
   version: 2.2.0
   resolution: "sf-symbols-typescript@npm:2.2.0"
   checksum: 10c0/3f3bbf33aaad19e619d6f169899b39e9fe9c5fd21f0d6d511100e36887606ad349109ddc6ff82933f2b8cbf437dd7105c2ae6b0059b291dc47f143b30c2074cc

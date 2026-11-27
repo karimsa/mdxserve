@@ -1,5 +1,5 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from "react";
-import type { CodeNode } from "@mdxserve/client/document/tree-types";
+import type { BlockNode, CodeNode } from "@mdxserve/client/document/tree-types";
 import type { TabsEntry } from "../builtins/Tabs";
 
 /** A `Tabs` node, ready to draw: its id, the tab it opens on, and each tab's content. */
@@ -7,6 +7,16 @@ export interface TabsView {
 	id: string;
 	defaultValue: string;
 	tabs: readonly TabsEntry[];
+}
+
+/** One item of a list, as the tree gives it: a task item has `checked` true or false. */
+export type ListItemNode = Extract<BlockNode, { type: "list" }>["items"][number];
+
+/** An image to draw: its URL (already through `assetUrl`), its alt text and title. */
+export interface ImageView {
+	src: string;
+	alt: string;
+	title: string | null;
 }
 
 /** What the document's editing UI wraps: a section's lines, or a block builtin. */
@@ -36,6 +46,13 @@ export interface DocumentEnvironment {
 	renderCode(node: CodeNode): ReactNode;
 	/** Wraps what the reader can edit as one unit (web only: the section editor). */
 	renderEditable?(props: EditableProps): ReactNode;
+	/**
+	 * A task list item's box. Absent, the box shows what the file says and does not toggle (the
+	 * web); the app draws one the reader can tick.
+	 */
+	renderTaskBox?(item: ListItemNode): ReactNode;
+	/** Draws an image (the app: expo-image); absent, the platform's own image element. */
+	renderImage?(image: ImageView): ReactNode;
 	/** The URL an image's `src` loads from (the server's `getAsset` URL in the app). */
 	assetUrl(src: string): string;
 	/**

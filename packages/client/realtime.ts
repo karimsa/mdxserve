@@ -32,6 +32,8 @@ export interface RealtimeSocket {
 	};
 	on(event: string, listener: (...args: unknown[]) => void): unknown;
 	emit(event: string, payload: unknown, ack: (result: unknown) => void): unknown;
+	/** Disconnect for good: no more reconnection attempts. */
+	close(): unknown;
 }
 
 /**
@@ -68,6 +70,8 @@ export interface RealtimeClient {
 	onDocChanged(listener: DocListener): () => void;
 	onListingChanged(listener: Listener): () => void;
 	onRootsChanged(listener: Listener): () => void;
+	/** Disconnect and stop reconnecting (the app, when a server is reached at another address). */
+	close(): void;
 }
 
 function subscribe<Fn>(set: Set<Fn>, listener: Fn): () => void {
@@ -180,6 +184,9 @@ export function createRealtimeClient(socket: RealtimeSocket): RealtimeClient {
 		onDocChanged: (listener) => subscribe(docListeners, listener),
 		onListingChanged: (listener) => subscribe(listingListeners, listener),
 		onRootsChanged: (listener) => subscribe(rootsListeners, listener),
+		close() {
+			socket.close();
+		},
 	};
 }
 

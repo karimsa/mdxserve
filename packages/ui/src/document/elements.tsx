@@ -1,9 +1,12 @@
-import { createContext, useContext, type ReactNode } from "react";
-import { Image, Text, View } from "react-native";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { Check } from "lucide-react-native/icons";
+import { Animated, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { useResolveClassNames } from "uniwind";
 import type { ErrorNode } from "@mdxserve/client/document/tree-types";
 import Kbd from "../builtins/Kbd";
-import { Icon } from "../primitives/Icon";
-import { Code, Heading, Link } from "../primitives/Text";
+import { Heading, Link } from "../primitives/Text";
+import { SPRINGS } from "../tokens/springs";
+import { useDocumentEnvironment } from "./environment";
 
 /*
  * The app's document elements: React Native views and text in the prose's type scale. A block
@@ -55,34 +58,117 @@ export function List({
  * own, beside the item's content, whose blocks (paragraphs, a nested list) stack one under
  * another.
  */
-export function ListItem({ checked, children }: Children & { checked: boolean | null }) {
+export function ListItem({
+	checked,
+	box,
+	children,
+}: Children & { checked: boolean | null; box?: ReactNode }) {
 	const list = useContext(ListContext);
 	const index = useContext(ItemIndexContext);
 	const marker = list?.ordered ? `${list.start + index}.` : "•";
 	return (
-		<View role="listitem" className="flex-row gap-2">
+		<View role="listitem" className={`flex-row ${checked === null ? "gap-2" : "gap-3"}`}>
 			{checked === null ? (
 				<Text className={`min-w-4 text-right ${PROSE} text-text-muted`}>{marker}</Text>
 			) : (
-				<TaskBox checked={checked} />
+				(box ?? <TaskBox checked={checked} />)
 			)}
 			<View className="min-w-0 flex-1">{children}</View>
 		</View>
 	);
 }
 
-/** A task list item's box, checked or not; it shows what the file says and does not toggle. */
-function TaskBox({ checked }: { checked: boolean }) {
+/** The prose's line height, in points: a task box is centred on the first line of its item. */
+function useProseLineHeight(): number {
+	const { lineHeight } = useResolveClassNames(PROSE);
+	return typeof lineHeight === "number" ? lineHeight : FALLBACK_LINE_HEIGHT;
+}
+
+/** 16.5 pt × 1.72, the `--size-prose` and `--leading-prose` tokens, until the stylesheet answers. */
+const FALLBACK_LINE_HEIGHT = 28;
+/** The box's side, about the height of the prose's capitals plus their descenders. */
+const BOX = 20;
+/** Enough room around the box for a 44 pt touch target, without moving anything. */
+const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
+
+/**
+ * A task list item's checkbox, drawn like the web's: a rounded box with a visible border when
+ * unchecked, filled with the accent and a white check when checked. It sits in the list's marker
+ * column, centred on the item's first line. With `onToggle` the reader can tick it, and the box
+ * settles in with the controls' snap spring; without, it shows what the file says. `disabled`
+ * (a read-only server, or another tick being saved) dims it and leaves it untouchable. `label` is
+ * what VoiceOver reads with its state: the item's text.
+ */
+export function TaskBox({
+	checked,
+	onToggle,
+	disabled = false,
+	label,
+}: {
+	checked: boolean;
+	onToggle?: () => void;
+	disabled?: boolean;
+	label?: string;
+}) {
+	const lineHeight = useProseLineHeight();
+	const { color: checkColor } = useResolveClassNames("text-n-25");
+	const scale = useRef(new Animated.Value(1)).current;
+	const shown = useRef(checked);
+	useEffect(() => {
+		if (shown.current === checked) return;
+		shown.current = checked;
+		scale.setValue(0.82);
+		Animated.spring(scale, { toValue: 1, ...SPRINGS.snap, useNativeDriver: true }).start();
+	}, [checked, scale]);
+	// The classes go on a plain view: Uniwind styles React Native's own components, and the
+	// animated wrapper only scales.
+	const box = (
+		<Animated.View style={{ transform: [{ scale }] }}>
+			<View
+				style={{ width: BOX, height: BOX }}
+				className={`items-center justify-center rounded-sm ${checked ? "bg-surface-accent" : "border-2 border-text-subtle"} ${disabled ? "opacity-50" : ""}`}
+			>
+				{checked ? (
+					<Check
+						size={14}
+						strokeWidth={3}
+						color={typeof checkColor === "string" ? checkColor : undefined}
+						aria-hidden={true}
+					/>
+				) : null}
+			</View>
+		</Animated.View>
+	);
+	const column = { height: lineHeight, width: BOX };
+	if (!onToggle) {
+		return (
+			<View
+				accessible={true}
+				role="checkbox"
+				aria-checked={checked}
+				aria-disabled={true}
+				accessibilityLabel={label}
+				style={column}
+				className="justify-center"
+			>
+				{box}
+			</View>
+		);
+	}
 	return (
-		<View
-			accessible={true}
+		<Pressable
 			role="checkbox"
 			aria-checked={checked}
-			aria-disabled={true}
-			className="mt-1"
+			aria-disabled={disabled}
+			accessibilityLabel={label}
+			disabled={disabled}
+			onPress={onToggle}
+			hitSlop={HIT_SLOP}
+			style={column}
+			className="justify-center"
 		>
-			<Icon name={checked ? "square-check" : "square"} size="md" className="text-text-accent" />
-		</View>
+			{box}
+		</Pressable>
 	);
 }
 
@@ -123,9 +209,53 @@ export function Delete({ children }: Children) {
 	return <Text className="line-through">{children}</Text>;
 }
 
-export function InlineCode({ value }: { value: string }) {
-	return <Code>{value}</Code>;
+/**
+ * A text node's characters as HTML shows them: a `Text` keeps every newline and run of spaces,
+ * so a Markdown soft line break (a newline inside a paragraph) would break the line. Each run of
+ * spaces, tabs and newlines becomes one space; a no-break space is kept. A hard line break is a
+ * `break` node, drawn by `LineBreak`, and code keeps its own whitespace.
+ */
+export function textOf(value: string): string {
+	return value.replace(/[ \t\n\r\f]+/g, " ");
 }
+
+/** JetBrains Mono's descender, as a share of its size (hhea: −300 of 1000 units). */
+const MONO_DESCENT = 0.3;
+/** Code no longer than this, with no space in it, is drawn as a chip. */
+const CHIP_LIMIT = 24;
+
+/**
+ * Inline code, sized to sit with the prose (`--size-sm`, JetBrains Mono) and never changing the
+ * line height of the text around it.
+ *
+ * iOS draws a nested `Text`'s background over the whole line box and cannot pad or round it,
+ * so a short code word with no space in it (an identifier, a flag, a short path) is a chip of
+ * its own: a view inside the line, as tall as the code's own glyphs, rounded and padded like the
+ * web's `<code>`. React Native sets an inline view's bottom on the line's baseline, so the chip
+ * moves down by the code's descender to put its text on that baseline. Anything longer, or with
+ * a space, must be able to wrap, and a view cannot: it is accent-coloured monospaced text with no
+ * background, so a wrapped path never becomes a slab.
+ */
+export function InlineCode({ value }: { value: string }) {
+	const { fontSize } = useResolveClassNames(CODE_SIZE);
+	const size = typeof fontSize === "number" ? fontSize : FALLBACK_CODE_SIZE;
+	if (value.length > CHIP_LIMIT || /\s/.test(value)) {
+		return <Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>;
+	}
+	return (
+		<View
+			style={{ transform: [{ translateY: Math.round(size * MONO_DESCENT * 2) / 2 }] }}
+			className="rounded-xs bg-code-bg-inline px-1"
+		>
+			<Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>
+		</View>
+	);
+}
+
+const CODE_TEXT = "font-mono font-medium text-text-accent";
+const CODE_SIZE = "text-[length:var(--size-sm)]";
+/** `--size-sm`, until the stylesheet answers. */
+const FALLBACK_CODE_SIZE = 13;
 
 export function Anchor({
 	href,
@@ -139,8 +269,13 @@ export function Anchor({
 	);
 }
 
-/** An image at the width of the text, as tall as its aspect ratio makes it once it loads. */
-export function Picture({ src, alt }: { src: string; alt: string; title: string | null }) {
+/**
+ * An image at the width of the text, as tall as its aspect ratio makes it once it loads; the
+ * environment's `renderImage` when it has one (the app's expo-image).
+ */
+export function Picture({ src, alt, title }: { src: string; alt: string; title: string | null }) {
+	const { renderImage } = useDocumentEnvironment();
+	if (renderImage) return renderImage({ src, alt, title });
 	return (
 		<Image
 			source={{ uri: src }}
@@ -152,8 +287,9 @@ export function Picture({ src, alt }: { src: string; alt: string; title: string 
 	);
 }
 
+/** A line break, as a run of text, so it is safe in a view too (a `<br>` on its own line). */
 export function LineBreak() {
-	return "\n";
+	return <Text>{"\n"}</Text>;
 }
 
 export function SectionHeading({
@@ -202,7 +338,7 @@ const PHRASING: Record<string, string> = {
 /**
  * One of the lowercase elements a document may write, drawn with what React Native has: text
  * styles for the phrasing ones, a key cap for `kbd`, views for `details` and the table parts
- * (a table is laid out one row under another). An image is drawn like a Markdown image.
+ * (a table is laid out one row under another, and scrolls sideways when wider than the screen). An image is drawn like a Markdown image.
  */
 export function RawElement({
 	tag,
@@ -216,22 +352,38 @@ export function RawElement({
 	onPress?: () => void;
 	children?: ReactNode;
 }) {
-	if (tag === "br") return "\n";
-	if (tag === "a" && typeof props.href === "string")
-		return (
+	if (tag === "br") return <LineBreak />;
+	if (tag === "a")
+		return typeof props.href === "string" ? (
 			<Anchor href={props.href} title={null} onPress={onPress}>
 				{children}
 			</Anchor>
+		) : (
+			// An anchor with nowhere to go is its text, and does nothing when pressed.
+			<Text>{children}</Text>
 		);
 	if (tag === "img")
 		return <Picture src={String(props.src ?? "")} alt={String(props.alt ?? "")} title={null} />;
 	if (tag === "kbd") return <Kbd>{children}</Kbd>;
 	if (tag in PHRASING) return <Text className={PHRASING[tag]}>{children}</Text>;
+	// A table scrolls sideways in its own box, so a wide one never widens a narrow screen.
+	if (tag === "table")
+		return (
+			<ScrollView horizontal={true} className="my-2">
+				<View>{children}</View>
+			</ScrollView>
+		);
 	if (tag === "tr") return <View className="flex-row gap-4">{children}</View>;
 	if (tag === "td" || tag === "th")
 		return <Text className={`${PROSE} ${tag === "th" ? "font-semibold" : ""}`}>{children}</Text>;
-	return <View className="my-1">{children}</View>;
+	// Only the elements whose children are blocks (`nodes.tsx` gives them a line of text for any
+	// bare run) are views; anything else is text, so a string never lands in a view.
+	if (BLOCK_TAGS.has(tag)) return <View className="my-1">{children}</View>;
+	return <Text>{children}</Text>;
 }
+
+/** The elements drawn as a view of blocks, besides `table` and `tr`. */
+const BLOCK_TAGS = new Set(["details", "thead", "tbody"]);
 
 export function FailedSection({ node }: { node: ErrorNode }) {
 	return (

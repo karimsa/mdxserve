@@ -102,6 +102,11 @@ export function Delete({ children }: Children) {
 	return <del>{children}</del>;
 }
 
+/** A text node's characters: as written, since HTML collapses its own whitespace. */
+export function textOf(value: string): string {
+	return value;
+}
+
 export function InlineCode({ value }: { value: string }) {
 	return <code>{value}</code>;
 }

@@ -50,6 +50,27 @@ const mockProbeAnswers = new Map<string, ProbeResult>();
 const mockRoots = new Map<string, Array<{ name: string; dir: string }>>();
 const mockListings = new Map<string, unknown>();
 
+/** A one-heading document, as `getDocument` sends it. */
+function mockDocument(heading: string) {
+	return {
+		version: "v1",
+		document: {
+			schemaVersion: 1,
+			metadata: { openGraph: [] },
+			toc: [],
+			children: [
+				{
+					type: "section",
+					id: "title",
+					level: 1,
+					heading: [{ type: "text", value: heading }],
+					children: [],
+				},
+			],
+		},
+	};
+}
+
 jest.mock("../src/servers/probe", () => ({
 	createProbe: () => async (origin: string) =>
 		mockProbeAnswers.get(origin) ?? { kind: "failed", cause: "could not connect" },
@@ -63,6 +84,9 @@ jest.mock("@mdxserve/client/api", () => ({
 				if (!roots) throw new Error("Unreachable");
 				return { roots };
 			},
+		},
+		getDocument: {
+			query: async ({ path }: { path: string }) => mockDocument(`Read from ${origin}${path}`),
 		},
 		getFolderListing: {
 			query: async ({ path }: { path: string }) => {
@@ -259,7 +283,7 @@ describe.each(["light", "dark"] as const)("the Library (%s)", (theme) => {
 		expect(await library().findByLabelText("notes on Studio")).toBeOnTheScreen();
 	});
 
-	it("opens a folder, a subfolder, and a document's placeholder (R2)", async () => {
+	it("opens a folder, a subfolder, and a document (R2)", async () => {
 		await seed([known(STUDIO, "Studio", STUDIO_URL)]);
 		mockProbeAnswers.set(STUDIO_URL, { kind: "ok", info: info(STUDIO, "Studio") });
 		mockRoots.set(STUDIO_URL, [{ name: "notes", dir: "/Users/me/notes" }]);
@@ -288,8 +312,11 @@ describe.each(["light", "dark"] as const)("the Library (%s)", (theme) => {
 		expect(screen).toHavePathname(
 			"/s/5b0c7a4e-2f1d-4c8b-9a3e-6d2f1b0c7a4e/doc/Users/me/notes/plans/q4.mdx",
 		);
-		expect(await screen.findByText("Reading documents arrives next")).toBeOnTheScreen();
-		expect(screen.getByText("/Users/me/notes/plans/q4.mdx")).toBeOnTheScreen();
+		expect(
+			await screen.findByRole("heading", {
+				name: `Read from ${STUDIO_URL}/Users/me/notes/plans/q4.mdx`,
+			}),
+		).toBeOnTheScreen();
 	});
 
 	it("browses a Windows server's folders by their own paths", async () => {
@@ -313,7 +340,11 @@ describe.each(["light", "dark"] as const)("the Library (%s)", (theme) => {
 		await fireEvent.press(await library().findByLabelText("notes on Studio"));
 		await fireEvent.press(await screen.findByLabelText("Folder plans"));
 		await fireEvent.press(await screen.findByLabelText("Document q4.mdx"));
-		expect(await screen.findByText("C:\\Users\\me\\notes\\plans\\q4.mdx")).toBeOnTheScreen();
+		expect(
+			await screen.findByRole("heading", {
+				name: `Read from ${STUDIO_URL}C:\\Users\\me\\notes\\plans\\q4.mdx`,
+			}),
+		).toBeOnTheScreen();
 	});
 
 	it("shows why a folder could not be listed", async () => {

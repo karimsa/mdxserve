@@ -54,10 +54,16 @@ function CardContent({
 
 /**
  * A bordered card. With `href` it is a link: an `<a href>` on the web, so the browser and the
- * client's router handle it, and in the app pressing it opens `href`; it gives a little when
- * pressed. With `href` or `interactive` it lifts on hover (web).
+ * client's router handle it, and in the app pressing it calls `onPress` (the document screen's
+ * link handler) or else opens `href`; it gives a little when pressed. With `href` or
+ * `interactive` it lifts on hover (web).
  */
-export default function Card({ href, interactive = false, ...content }: CardProps) {
+export default function Card({
+	href,
+	interactive = false,
+	onPress,
+	...content
+}: CardProps & { onPress?: () => void }) {
 	const clickable = interactive || Boolean(href);
 	const box =
 		"not-prose rounded-lg border border-border-default p-5 bg-surface-card shadow-xs text-text-body web:no-underline";
@@ -70,7 +76,7 @@ export default function Card({ href, interactive = false, ...content }: CardProp
 		<Pressable
 			role="link"
 			{...webProps({ href })}
-			onPress={Platform.OS === "web" ? undefined : () => void Linking.openURL(href)}
+			onPress={Platform.OS === "web" ? undefined : (onPress ?? (() => void Linking.openURL(href)))}
 			style={pressedStyle}
 			className={`${box} ${lift}`}
 		>

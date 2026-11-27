@@ -16,6 +16,7 @@ import {
 import { useServerQueryOptions } from "../../../../../../src/servers/server-query";
 import { useServers } from "../../../../../../src/servers/ServersProvider";
 import { displayName, type KnownServer } from "../../../../../../src/servers/store";
+import { usePullToRefresh } from "../../../../../../src/pull-to-refresh";
 import { useSideInsets } from "../../../../../../src/side-insets";
 
 /** One folder on one server, from `getFolderListing`: its folders, documents and other files (R2). */
@@ -27,10 +28,14 @@ export default function Folder() {
 	const sideInsets = useSideInsets();
 	if (!server) {
 		return (
-			<View style={[styles.screen, sideInsets]}>
+			// A scroll view, so the text starts below the translucent header.
+			<ScrollView
+				contentInsetAdjustmentBehavior="automatic"
+				contentContainerStyle={[styles.screen, sideInsets]}
+			>
 				<Stack.Screen options={{ title: "Folder" }} />
 				<Text tone="muted">This server is no longer in the list.</Text>
-			</View>
+			</ScrollView>
 		);
 	}
 	return <FolderListing server={server} dir={dir} />;
@@ -46,18 +51,14 @@ function FolderListing({ server, dir }: { server: KnownServer; dir: string }) {
 			client.getFolderListing.query(input),
 		),
 	);
+	const pull = usePullToRefresh(listing.refetch);
 	const entries = listing.data ? sortListingEntries(listing.data.entries, sort) : undefined;
 	const name = baseName(dir);
 	return (
 		<ScrollView
 			contentInsetAdjustmentBehavior="automatic"
 			contentContainerStyle={[styles.screen, sideInsets]}
-			refreshControl={
-				<RefreshControl
-					refreshing={listing.isRefetching}
-					onRefresh={() => void listing.refetch()}
-				/>
-			}
+			refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
 			testID="folder-content"
 		>
 			<Stack.Screen options={{ title: name }} />

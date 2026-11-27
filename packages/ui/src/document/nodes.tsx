@@ -29,6 +29,7 @@ import {
 	SectionHeading,
 	Strong,
 	TightText,
+	textOf,
 } from "./elements";
 import { useDocumentEnvironment } from "./environment";
 import { MarkdownTableView } from "./MarkdownTableView";
@@ -215,7 +216,7 @@ const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 		case "error":
 			return <FailedSection node={node} />;
 		case "text":
-			return node.value;
+			return textOf(node.value);
 		case "emphasis":
 			return (
 				<Emphasis>
@@ -304,10 +305,15 @@ function SectionView({ node }: { node: SectionNode }) {
 }
 
 function ListView({ node }: { node: Extract<BlockNode, { type: "list" }> }) {
+	const { renderTaskBox } = useDocumentEnvironment();
 	return (
 		<List ordered={node.ordered} start={node.start}>
 			{node.items.map((item, index) => (
-				<ListItem key={index} checked={item.checked}>
+				<ListItem
+					key={index}
+					checked={item.checked}
+					box={item.checked !== null && renderTaskBox ? renderTaskBox(item) : undefined}
+				>
 					<Nested>
 						<ListItemContent nodes={item.children} />
 					</Nested>

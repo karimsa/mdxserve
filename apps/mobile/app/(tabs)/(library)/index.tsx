@@ -1,6 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@mdxserve/ui/primitives/Text";
 import { LibraryRowView } from "../../../src/library/LibraryRowView";
@@ -10,6 +10,7 @@ import { firstAnswersIn, libraryRows, type Root, type RootsState } from "../../.
 import type { KnownServer } from "../../../src/servers/store";
 import { useServerQueryOptions } from "../../../src/servers/server-query";
 import { useServers } from "../../../src/servers/ServersProvider";
+import { usePullToRefresh } from "../../../src/pull-to-refresh";
 import { useSideInsets } from "../../../src/side-insets";
 
 /**
@@ -43,19 +44,14 @@ export default function Library() {
 			pathname: "/s/[serverId]/browse/[...path]",
 			params: { serverId: server.id, path: pathSegments(root.dir) },
 		});
-	const refreshing = results.some((result) => result.isRefetching);
+	const pull = usePullToRefresh(
+		useCallback(() => Promise.all(results.map((result) => result.refetch())), [results]),
+	);
 	return (
 		<ScrollView
 			contentInsetAdjustmentBehavior="automatic"
 			contentContainerStyle={[styles.screen, sideInsets]}
-			refreshControl={
-				<RefreshControl
-					refreshing={refreshing}
-					onRefresh={() => {
-						for (const result of results) void result.refetch();
-					}}
-				/>
-			}
+			refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
 			testID="library-content"
 		>
 			<Stack.Screen options={{ title: "Library" }} />

@@ -37,6 +37,10 @@ class FakeSocket implements RealtimeSocket {
 		for (const listener of this.listeners.get(event) ?? []) listener(...args);
 	}
 
+	close(): void {
+		this.connected = false;
+	}
+
 	connect(): void {
 		this.connected = true;
 		this.fire("connect");
