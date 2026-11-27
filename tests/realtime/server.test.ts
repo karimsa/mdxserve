@@ -141,30 +141,26 @@ describe("attachRealtime handshake", () => {
 describe("attachRealtime handshake through tailscale serve", () => {
 	const name = "box.tail1234.ts.net";
 
-	/** A TailnetHosts whose detection reports `hosts()` and counts its calls, on a clock the test moves. */
+	/** A TailnetHosts whose detection reports `hosts()` and counts its calls. */
 	function tailnet(hosts: () => string[]) {
-		const state = { calls: 0, clock: 0 };
-		const source = new TailnetHosts(
-			async () => {
-				state.calls += 1;
-				return {
-					kind: "running",
-					cli: "tailscale",
-					dnsName: name,
-					addresses: hosts().map((host) => ({ host, url: `https://${host}/`, funnel: false })),
-					unsupportedPaths: [],
-					suggestedHttpsPort: 4040,
-				};
-			},
-			10_000,
-			() => state.clock,
-		);
+		const state = { calls: 0 };
+		const source = new TailnetHosts(async () => {
+			state.calls += 1;
+			return {
+				kind: "running",
+				cli: "tailscale",
+				dnsName: name,
+				addresses: hosts().map((host) => ({ host, url: `https://${host}/`, funnel: false })),
+				unsupportedPaths: [],
+				suggestedHttpsPort: 4040,
+			};
+		});
 		return { source, state };
 	}
 
 	it("S1: accepts a detected tailnet Host in full mode, in both header shapes", async () => {
 		const { source } = tailnet(() => [name, `${name}:8443`]);
-		await source.refresh();
+		await source.detect();
 		harness = await startHarness("full", source);
 		expect(await handshakeStatus(harness.port, { host: name, origin: `https://${name}` })).toBe(
 			200,
@@ -181,7 +177,7 @@ describe("attachRealtime handshake through tailscale serve", () => {
 
 	it("S2: refuses an unknown Host, and one the tailnet set has under another port", async () => {
 		const { source } = tailnet(() => [name]);
-		await source.refresh();
+		await source.detect();
 		harness = await startHarness("full", source);
 		expect(await handshakeStatus(harness.port, { host: "other.tail1234.ts.net" })).toBe(403);
 		expect(await handshakeStatus(harness.port, { host: `${name}:9999` })).toBe(403);
@@ -190,29 +186,16 @@ describe("attachRealtime handshake through tailscale serve", () => {
 		).toBe(403);
 	});
 
-	it("S4: accepts a Host after a refresh adds it, and refreshes at most once per window", async () => {
+	it("S4: an entry added after startup is refused, and no handshake runs the CLI", async () => {
 		let published: string[] = [];
 		const { source, state } = tailnet(() => published);
-		await source.refresh();
-		expect(state.calls).toBe(1);
+		await source.detect();
 		harness = await startHarness("full", source);
 
-		// Turned on after startup, inside the floor window: still refused, no CLI call.
 		published = [name];
 		expect(await handshakeStatus(harness.port, { host: name })).toBe(403);
-		expect(await handshakeStatus(harness.port, { host: name })).toBe(403);
+		expect(await handshakeStatus(harness.port, { host: "attacker.example" })).toBe(403);
 		expect(state.calls).toBe(1);
-
-		// After the window, the next handshake (the client's retry) reads it again.
-		state.clock = 10_000;
-		expect(await handshakeStatus(harness.port, { host: name })).toBe(200);
-		expect(state.calls).toBe(2);
-
-		// A page hammering with a foreign Host costs no more calls within the window.
-		for (let attempt = 0; attempt < 5; attempt += 1) {
-			expect(await handshakeStatus(harness.port, { host: "attacker.example" })).toBe(403);
-		}
-		expect(state.calls).toBe(2);
 	});
 });
 

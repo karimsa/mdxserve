@@ -95,8 +95,8 @@ the JSON file is the source of truth for which roots should exist.
 
 To open the server from your other devices, you do not need `--host` or
 `--dangerous-allow-network`: keep it on loopback and publish it with `tailscale serve`. When
-Tailscale is running, startup prints the exact command, and once it is set up, the tailnet
-address and live updates work through it. See
+Tailscale is running, startup prints the exact command. Run it, restart the server, and the
+tailnet address and live updates work through it. See
 [Through `tailscale serve`](docs/advanced.md#through-tailscale-serve).
 
 ## Hosting a public reader

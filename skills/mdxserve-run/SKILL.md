@@ -94,7 +94,9 @@ server on port 4040 it is:
 tailscale serve --bg --https=4040 http://127.0.0.1:4040
 ```
 
-The server then lists the address as `https://<machine>.<tailnet>.ts.net:4040`.
+Then restart the server. It reads the Tailscale configuration once, at startup, so until
+the restart a page opened through the tailnet address loads but gets no live updates.
+After it, the server lists the address as `https://<machine>.<tailnet>.ts.net:4040`.
 
 - Check what is published: `tailscale serve status`.
 - Turn it off: `tailscale serve --https=4040 off`.

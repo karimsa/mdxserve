@@ -6,8 +6,8 @@ import { TailnetHosts } from "./tailnet-hosts.js";
 
 /**
  * The per-process tailnet hosts of a server, detected with the real CLI.
- * `endpoint` is read on each detection: it is unknown until the server
- * listens, and detection before that finds nothing.
+ * `endpoint` is read when detection runs: it is unknown until the server
+ * listens.
  */
 export function serverTailnetHosts(
 	endpoint: () => ServerEndpoint | undefined,
@@ -31,7 +31,7 @@ export async function announceTailscale(
 	context: ReportContext,
 ): Promise<void> {
 	try {
-		const lines = tailscaleReport(await hosts.refresh(), context);
+		const lines = tailscaleReport(await hosts.detect(), context);
 		if (lines.length > 0) console.error(lines.join("\n"));
 	} catch {
 		// Nothing about Tailscale is worth failing a running server for.

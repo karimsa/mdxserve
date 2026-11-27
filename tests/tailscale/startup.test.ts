@@ -109,6 +109,7 @@ describe("startup output with a fake Tailscale CLI", () => {
 				"Tailscale is running. To open this server from your other devices over HTTPS:",
 				`  ${cli} serve --bg --https=4040 http://127.0.0.1:4040`,
 				`It will be at https://${NAME}:4040 (tailnet only).`,
+				"Then restart this server: it reads the Tailscale configuration once, at startup.",
 				"Every device on your tailnet will be able to read and edit the mounted documents.",
 			].join("\n"),
 		);

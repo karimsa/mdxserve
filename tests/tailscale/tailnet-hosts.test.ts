@@ -14,60 +14,36 @@ function running(hosts: string[]): TailscaleDetection {
 }
 
 describe("TailnetHosts", () => {
-	it("holds the lower-cased hosts of the last running detection", async () => {
+	it("holds the lower-cased hosts of a running detection", async () => {
 		const hosts = new TailnetHosts(async () =>
 			running(["Box.Tail1.ts.net", "box.tail1.ts.net:8443"]),
 		);
 		expect(hosts.current().size).toBe(0);
-		await hosts.refresh();
+		await hosts.detect();
 		expect([...hosts.current()]).toEqual(["box.tail1.ts.net", "box.tail1.ts.net:8443"]);
 	});
 
-	it("runs detection at most once per floor window and shares an in-flight call", async () => {
-		let clock = 0;
+	it("runs detection once, however often it is asked", async () => {
 		let calls = 0;
-		const hosts = new TailnetHosts(
-			async () => {
-				calls += 1;
-				return running([`host${calls}.ts.net`]);
-			},
-			10_000,
-			() => clock,
-		);
-		await Promise.all([hosts.refresh(), hosts.refresh(), hosts.refresh()]);
+		const hosts = new TailnetHosts(async () => {
+			calls += 1;
+			return running([`host${calls}.ts.net`]);
+		});
+		await Promise.all([hosts.detect(), hosts.detect()]);
+		await hosts.detect();
 		expect(calls).toBe(1);
-		clock = 9_999;
-		await hosts.refresh();
-		expect(calls).toBe(1);
-		clock = 10_000;
-		await hosts.refresh();
-		expect(calls).toBe(2);
-		expect([...hosts.current()]).toEqual(["host2.ts.net"]);
+		expect([...hosts.current()]).toEqual(["host1.ts.net"]);
 	});
 
-	it("drops the hosts when Tailscale stops, keeps them when a call fails", async () => {
-		let clock = 0;
-		const answers: TailscaleDetection[] = [
-			running(["box.ts.net"]),
-			{ kind: "failed", message: "timed out" },
-			{ kind: "not-running", state: "Stopped" },
-		];
-		const hosts = new TailnetHosts(
-			async () => answers.shift() ?? { kind: "not-found" },
-			1,
-			() => clock,
-		);
-		await hosts.refresh();
-		clock += 1;
-		await hosts.refresh();
-		expect([...hosts.current()]).toEqual(["box.ts.net"]);
-		clock += 1;
-		await hosts.refresh();
+	it("holds no hosts when Tailscale is not running", async () => {
+		const hosts = new TailnetHosts(async () => ({ kind: "not-running", state: "Stopped" }));
+		expect((await hosts.detect()).kind).toBe("not-running");
 		expect(hosts.current().size).toBe(0);
 	});
 
 	it("never rejects, even when detection does", async () => {
 		const hosts = new TailnetHosts(() => Promise.reject(new Error("boom")));
-		expect((await hosts.refresh()).kind).toBe("failed");
+		expect((await hosts.detect()).kind).toBe("failed");
+		expect(hosts.current().size).toBe(0);
 	});
 });

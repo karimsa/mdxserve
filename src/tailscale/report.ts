@@ -72,6 +72,7 @@ export function tailscaleReport(detection: TailscaleDetection, context: ReportCo
 		if (detection.dnsName !== "") {
 			lines.push(`It will be at ${httpsUrl(detection.dnsName, httpsPort)} (tailnet only).`);
 		}
+		lines.push("Then restart this server: it reads the Tailscale configuration once, at startup.");
 		if (context.permissions === "full") {
 			lines.push(
 				"Every device on your tailnet will be able to read and edit the mounted documents.",

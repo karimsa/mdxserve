@@ -102,37 +102,19 @@ function isLoopbackAddress(address: string | undefined): boolean {
 	return address !== undefined && LOOPBACK_NAMES.has(address.toLowerCase());
 }
 
-/** The per-process set of tailnet `Host` values, and a way to read it again. */
+/** The per-process set of tailnet `Host` values, read once at server startup. */
 interface TailnetHostSource {
 	current(): ReadonlySet<string>;
-	refresh(): Promise<unknown>;
 }
 
 /**
- * The handshake check the live update socket runs. When a full server
- * refuses a same-origin socket from loopback whose `Host` it does not know,
- * that may be a `tailscale serve` entry added after the server started: read
- * the serve config again (the source rate-limits this) and check once more.
- * Without a source (`--no-tailscale`) no tailnet `Host` is accepted.
+ * The handshake check the live update socket runs. Without a source
+ * (`--no-tailscale`) no tailnet `Host` is accepted.
  */
 export function realtimePeerCheck(
 	permissions: PermissionMode,
 	tailnet: TailnetHostSource | undefined,
-): (req: http.IncomingMessage) => boolean | Promise<boolean> {
+): (req: http.IncomingMessage) => boolean {
 	const empty: ReadonlySet<string> = new Set();
-	return (req) => {
-		if (acceptsRealtimePeer(req, permissions, tailnet?.current() ?? empty)) return true;
-		if (
-			tailnet === undefined ||
-			permissions !== "full" ||
-			!isSameOrigin(req.headers.origin, req.headers.host) ||
-			!isLoopbackAddress(req.socket.remoteAddress)
-		) {
-			return false;
-		}
-		return tailnet
-			.refresh()
-			.then(() => acceptsRealtimePeer(req, permissions, tailnet.current()))
-			.catch(() => false);
-	};
+	return (req) => acceptsRealtimePeer(req, permissions, tailnet?.current() ?? empty);
 }

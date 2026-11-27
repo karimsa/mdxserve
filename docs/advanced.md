@@ -203,23 +203,26 @@ stderr, for example:
 Tailscale is running. To open this server from your other devices over HTTPS:
   tailscale serve --bg --https=4040 http://127.0.0.1:4040
 It will be at https://my-laptop.tail1234.ts.net:4040 (tailnet only).
+Then restart this server: it reads the Tailscale configuration once, at startup.
 ```
+
+The server reads the Tailscale configuration once, when it starts. After adding or changing a
+`tailscale serve` entry, restart the server.
 
 Once an entry proxies `/` to the server's port, startup lists its address as
 `- Tailnet:  https://…`. The server looks for the CLI on `PATH`, then in
 `/Applications/Tailscale.app/Contents/MacOS/Tailscale` on macOS and
 `%ProgramFiles%\Tailscale\tailscale.exe` on Windows. Set `MDXSERVE_TAILSCALE_CLI` to use
 another one, `MDXSERVE_DEBUG=1` to see why detection failed, or pass `--no-tailscale` to skip
-it. Detection runs after the server is listening and never delays it.
+it. Detection runs once, after the server is listening, and never delays it.
 
 What a tailnet reader gets:
 
 - Live updates. In full mode the live update socket only accepts a `Host` that names this
   machine, as a defence against DNS rebinding. It also accepts the addresses
   `tailscale serve status --json` reports as proxying `/` to this port, and only on
-  connections from loopback, where `tailscale serve` connects from. When an unknown name is
-  refused, the server reads the serve config again (at most once every 10 seconds), so an
-  entry added after startup works on the page's next retry (within a minute) or reload.
+  connections from loopback, where `tailscale serve` connects from. An entry added after
+  startup serves pages, but they get no live updates until the server restarts.
 - Reading and editing, with full permissions. Every device on the tailnet can edit.
 - Not the same-machine privileges: a request with a tailnet `Host` cannot mount or unmount
   roots.

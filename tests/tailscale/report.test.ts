@@ -41,6 +41,7 @@ describe("tailscaleReport", () => {
 			"Tailscale is running. To open this server from your other devices over HTTPS:",
 			"  tailscale serve --bg --https=4040 http://127.0.0.1:4040",
 			`It will be at https://${NAME}:4040 (tailnet only).`,
+			"Then restart this server: it reads the Tailscale configuration once, at startup.",
 			"Every device on your tailnet will be able to read and edit the mounted documents.",
 		]);
 	});
@@ -57,6 +58,7 @@ describe("tailscaleReport", () => {
 			"Tailscale is running. To open this server from your other devices over HTTPS:",
 			"  /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --https=443 http://127.0.0.1:4040",
 			`It will be at https://${NAME} (tailnet only).`,
+			"Then restart this server: it reads the Tailscale configuration once, at startup.",
 		]);
 	});
 

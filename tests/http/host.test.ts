@@ -90,18 +90,10 @@ describe("realtimePeerCheck", () => {
 		return { headers, socket: { localAddress, remoteAddress } } as unknown as http.IncomingMessage;
 	}
 
-	/** A tailnet source that knows `hosts`, adds `added` on a refresh, and counts refreshes. */
-	function source(hosts: string[] = [], added: string[] = []) {
+	/** A tailnet source that knows `hosts`. */
+	function source(hosts: string[] = []) {
 		const known = new Set(hosts);
-		const counter = { refreshes: 0 };
-		return {
-			counter,
-			current: () => known,
-			async refresh() {
-				counter.refreshes += 1;
-				for (const host of added) known.add(host);
-			},
-		};
+		return { current: () => known };
 	}
 
 	const full = (req: http.IncomingMessage, tailnet = source()) =>
@@ -179,31 +171,8 @@ describe("realtimePeerCheck", () => {
 		expect(await full(request({ host: "other.tail1234.ts.net" }), tailnet)).toBe(false);
 	});
 
-	it("S4: reads the serve config again for an unknown loopback Host and accepts what it adds", async () => {
-		const tailnet = source([], [tailnetName]);
-		expect(await full(request({ host: tailnetName }), tailnet)).toBe(true);
-		expect(tailnet.counter.refreshes).toBe(1);
-	});
-
-	it("reads nothing again for a trusted Host, a remote peer, a cross-origin page or a restricted server", async () => {
-		const tailnet = source();
-		await full(request({ host: "localhost:4040" }), tailnet);
-		await full(request({ host: tailnetName }, "100.64.0.1", "100.64.0.9"), tailnet);
-		await full(request({ host: tailnetName, origin: "https://attacker.example" }), tailnet);
-		await realtimePeerCheck("restricted", tailnet)(request({ host: tailnetName }));
-		expect(tailnet.counter.refreshes).toBe(0);
-	});
-
 	it("without a tailnet source (--no-tailscale), refuses a tailnet Host", async () => {
 		expect(await realtimePeerCheck("full", undefined)(request({ host: tailnetName }))).toBe(false);
-	});
-
-	it("refuses when reading the config again fails", async () => {
-		const tailnet = {
-			current: () => new Set<string>(),
-			refresh: () => Promise.reject(new Error("boom")),
-		};
-		expect(await realtimePeerCheck("full", tailnet)(request({ host: tailnetName }))).toBe(false);
 	});
 
 	it("property: a DNS name passes in full mode only from loopback and in the tailnet set, and never gets same-machine trust", async () => {
