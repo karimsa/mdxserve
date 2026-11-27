@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/karimsa/mdxserve/main/client/public/favicon.svg" alt="mdxserve logo" width="96" height="96" />
+    <img src="https://raw.githubusercontent.com/karimsa/mdxserve/main/apps/web/src/public/favicon.svg" alt="mdxserve logo" width="96" height="96" />
 </p>
 
 <h1 align="center">mdxserve</h1>
