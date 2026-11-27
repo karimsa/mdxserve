@@ -87,6 +87,23 @@ function guide({ shipped = false, extra = "" } = {}) {
 						},
 						text(extra),
 					),
+					{
+						type: "component",
+						id: null,
+						name: "Card",
+						props: { title: "Other card", href: "./other.md#install" },
+						children: [],
+					},
+					{
+						type: "component",
+						id: null,
+						name: "Screenshot",
+						props: {
+							src: "/__mdxserve/getAsset?path=%2Fsrv%2Fexample%2Fshot.png",
+							alt: "The shot",
+						},
+						children: [],
+					},
 					paragraph({
 						type: "image",
 						src: "/__mdxserve/getAsset?path=%2Fsrv%2Fexample%2Flogo.png",
@@ -321,6 +338,23 @@ describe.each(["light", "dark"] as const)("a document (%s)", (theme) => {
 		});
 		expect(await screen.findByRole("heading", { name: "Markdown tour" })).toBeOnTheScreen();
 		openURL.mockRestore();
+	});
+
+	it("opens a card's document link in the app and loads a screenshot from the server", async () => {
+		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
+		mockDocuments.set("/srv/example/other.md", () => markdownTour);
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		const shot = await screen.findByLabelText("The shot");
+		expect(JSON.stringify(shot.props)).toContain(
+			`${STUDIO_URL}/__mdxserve/getAsset?path=%2Fsrv%2Fexample%2Fshot.png`,
+		);
+		await fireEvent.press(screen.getByText("Other card"));
+		expect(screen).toHavePathname(`/s/${STUDIO}/doc/srv/example/other.md`);
+		expect(screen).toHaveSearchParams({
+			node: "install",
+			serverId: STUDIO,
+			path: ["srv", "example", "other.md"],
+		});
 	});
 
 	it("shows a section the server could not read, with a note above the document", async () => {

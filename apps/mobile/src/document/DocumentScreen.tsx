@@ -1,7 +1,16 @@
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ComponentProps,
+	type ReactNode,
+} from "react";
 import {
 	ActivityIndicator,
 	Linking,
@@ -16,6 +25,8 @@ import {
 	type DocumentIndex,
 } from "@mdxserve/client/document/document-index";
 import type { DocumentTree, TreeNode } from "@mdxserve/client/document/tree-types";
+import Card from "@mdxserve/ui/builtins/Card";
+import Screenshot from "@mdxserve/ui/builtins/Screenshot";
 import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { SectionHeading } from "@mdxserve/ui/document/elements";
 import {
@@ -338,50 +349,61 @@ function DocumentReader({
 	const latest = useRef({ reveal, resolve });
 	latest.current = { reveal, resolve };
 
-	const environment = useMemo<DocumentEnvironment>(
-		() => ({
-			...appDocumentEnvironment,
-			// A new address makes a new environment, so every image reloads from it.
-			assetUrl: (src) => assetUrlOn(origin, src),
-			renderTaskBox: (item) => <DocumentTaskBox item={item} />,
-			openLink: (href) => {
-				const link = resolveLink(href, path);
-				const current = latest.current;
-				switch (link.kind) {
-					case "here": {
-						const id = current.resolve(link.fragment);
-						if (id !== null) current.reveal(id);
-						return;
-					}
-					case "document":
-						router.push({
-							pathname: documentRoute as never,
-							params: {
-								serverId: server.id,
-								path: pathSegments(link.path),
-								...(link.fragment === "" ? {} : { node: link.fragment }),
-							},
-						});
-						return;
-					case "folder":
-						router.push({
-							pathname: "/s/[serverId]/browse/[...path]",
-							params: { serverId: server.id, path: pathSegments(link.path) },
-						});
-						return;
-					case "file":
-						if (origin !== undefined) void Linking.openURL(fileUrl(origin, link.path));
-						return;
-					case "web":
-						void Linking.openURL(link.url);
-						return;
-					case "none":
-						return;
+	const environment = useMemo<DocumentEnvironment>(() => {
+		function openLink(href: string) {
+			const link = resolveLink(href, path);
+			const current = latest.current;
+			switch (link.kind) {
+				case "here": {
+					const id = current.resolve(link.fragment);
+					if (id !== null) current.reveal(id);
+					return;
 				}
+				case "document":
+					router.push({
+						pathname: documentRoute as never,
+						params: {
+							serverId: server.id,
+							path: pathSegments(link.path),
+							...(link.fragment === "" ? {} : { node: link.fragment }),
+						},
+					});
+					return;
+				case "folder":
+					router.push({
+						pathname: "/s/[serverId]/browse/[...path]",
+						params: { serverId: server.id, path: pathSegments(link.path) },
+					});
+					return;
+				case "file":
+					if (origin !== undefined) void Linking.openURL(fileUrl(origin, link.path));
+					return;
+				case "web":
+					void Linking.openURL(link.url);
+					return;
+				case "none":
+					return;
+			}
+		}
+		const assetUrl = (src: string) => assetUrlOn(origin, src);
+		return {
+			...appDocumentEnvironment,
+			components: {
+				...appDocumentEnvironment.components,
+				// A card's link and a screenshot's file go where a Markdown link and image go.
+				Card: ({ href, ...props }: ComponentProps<typeof Card>) => (
+					<Card {...props} href={href} onPress={href ? () => openLink(href) : undefined} />
+				),
+				Screenshot: (props: ComponentProps<typeof Screenshot>) => (
+					<Screenshot {...props} src={assetUrl(props.src)} />
+				),
 			},
-		}),
-		[origin, path, router, documentRoute, server.id],
-	);
+			// A new address makes a new environment, so every image reloads from it.
+			assetUrl,
+			renderTaskBox: (item) => <DocumentTaskBox item={item} />,
+			openLink,
+		};
+	}, [origin, path, router, documentRoute, server.id]);
 	const docContext = useMemo(() => ({ path }), [path]);
 
 	const refresh = useCallback(() => void query.refetch(), [query]);
