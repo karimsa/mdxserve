@@ -252,7 +252,9 @@ the top heading instead, joined with `>` (`guide>install>examples`), and a tab b
 id and its value (`install-tabs>macos`). A tab has an anchor too: opening
 `page.md#install-tabs>macos` selects that tab. A link to a short anchor such as `#examples`
 still lands after a second "Examples" heading turned both ids into paths: a fragment that
-matches no id goes to the first heading or tab whose id ends in `>examples`.
+matches no id goes to the first heading or tab whose id ends in `>examples`. The numbered
+anchors earlier releases gave repeats, `#examples-1` and `#examples-2`, still reach the second
+and third "Examples" heading.
 
 ### The example folder
 

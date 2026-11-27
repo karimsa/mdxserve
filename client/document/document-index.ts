@@ -146,21 +146,37 @@ export function flattenToc(
 	return entries.flatMap((entry) => [{ entry, depth }, ...flattenToc(entry.children, depth + 1)]);
 }
 
+/** A section id's own slug: its last segment that the server did not make up (`a>b>~2` is `b`). */
+function ownSlug(id: string): string {
+	const segments = id.split(">").filter((segment) => !segment.startsWith("~"));
+	return segments.at(-1) ?? id;
+}
+
 /**
- * The id a URL fragment points at: an exact id first; otherwise the first
- * table of contents entry whose id ends with `>` plus the fragment, so a link
- * written as `#examples` still lands after a second "Examples" heading turned
- * both ids into paths. Null when nothing matches.
+ * The id a URL fragment points at, or null when nothing matches:
+ * 1. an exact id;
+ * 2. the first table of contents entry whose id ends with `>` plus the
+ *    fragment, so `#examples` still lands after a second "Examples" heading
+ *    turned both ids into paths;
+ * 3. `<slug>-<n>`, the anchor earlier releases gave the repeats of a heading
+ *    (`examples`, `examples-1`, `examples-2`): the `n`th section, in document
+ *    order and counting from 0, whose own slug is `<slug>`.
  */
 export function resolveFragment(
 	fragment: string,
-	index: Pick<DocumentIndex, "anchors">,
+	index: Pick<DocumentIndex, "anchors" | "sectionLevels">,
 	toc: readonly TocEntry[],
 ): string | null {
 	if (fragment === "") return null;
 	if (index.anchors.has(fragment)) return fragment;
 	const suffix = `>${fragment}`;
-	return flattenToc(toc).find(({ entry }) => entry.id.endsWith(suffix))?.entry.id ?? null;
+	const bySuffix = flattenToc(toc).find(({ entry }) => entry.id.endsWith(suffix))?.entry.id;
+	if (bySuffix) return bySuffix;
+	const numbered = /^(.+)-(\d+)$/.exec(fragment);
+	if (!numbered) return null;
+	const [, slug, count] = numbered;
+	const repeats = [...index.sectionLevels.keys()].filter((id) => ownSlug(id) === slug);
+	return repeats[Number(count)] ?? null;
 }
 
 /** Decode a `location.hash` (with or without its `#`); a malformed escape is taken literally. */

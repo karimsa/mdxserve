@@ -28,6 +28,24 @@ describe("resolveFragment", () => {
 		expect(resolveFragment("examples", index, tree.toc)).toBe("guide>examples");
 	});
 
+	it("resolves the numbered anchors earlier releases gave repeated headings", () => {
+		const tree = parse(
+			"# Guide\n\n## One\n\n### Examples\n\nA.\n\n## Two\n\n### Examples\n\nB.\n\n## Three\n\n### Examples\n\nC.\n",
+		);
+		const index = indexDocument(tree);
+		expect(resolveFragment("examples", index, tree.toc)).toBe("guide>one>examples");
+		expect(resolveFragment("examples-1", index, tree.toc)).toBe("guide>two>examples");
+		expect(resolveFragment("examples-2", index, tree.toc)).toBe("guide>three>examples");
+		expect(resolveFragment("examples-3", index, tree.toc)).toBeNull();
+	});
+
+	it("keeps a heading whose own slug ends in a number", () => {
+		const tree = parse("## Step 1\n\nFirst.\n\n## Step 2\n\nSecond.\n");
+		const index = indexDocument(tree);
+		expect(resolveFragment("step-1", index, tree.toc)).toBe("step-1");
+		expect(resolveFragment("step-2", index, tree.toc)).toBe("step-2");
+	});
+
 	it("resolves nothing for an empty or unknown fragment", () => {
 		const tree = parse(SOURCE);
 		const index = indexDocument(tree);

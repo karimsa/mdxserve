@@ -310,7 +310,10 @@ two tabs is not a repeat. These ids are what the JSON document tree (`getDocumen
 (`#os>macos` selects that tab and scrolls to it). A fragment that matches no id goes to the
 first table of contents entry whose id ends with `>` and the fragment, so `#examples` still
 reaches an "Examples" heading after a second one turned both ids into paths. Repeated headings
-no longer get the `-1`, `-2` anchors of earlier releases.
+no longer get the `-1`, `-2` anchors of earlier releases, but those still resolve: when no id
+and no `>` suffix matches, `#examples-1` goes to the second heading whose own slug is
+`examples`, in document order, and `#examples-2` to the third. A heading whose slug really
+ends in a number, such as `## Step 1` (`step-1`), matches exactly first.
 
 Each break of these rules is an `error` that names the fix, and the document still renders:
 
