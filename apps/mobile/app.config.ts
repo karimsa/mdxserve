@@ -1,7 +1,7 @@
 import type { ExpoConfig } from "expo/config";
 
 // The bundle identifier and display name are placeholders until the Apple Developer team and
-// the App Store name are settled (docs/design/react-native-app.md, open question 1).
+// the App Store name are settled.
 const config: ExpoConfig = {
 	name: "mdxserve",
 	slug: "mdxserve",
@@ -17,6 +17,10 @@ const config: ExpoConfig = {
 		package: "co.alibhai.mdxserve",
 	},
 	plugins: ["expo-router"],
+	extra: {
+		// The EAS project `eas init` created; EAS Build and Submit look it up by this id.
+		eas: { projectId: "879076f5-0ba8-45f4-81d0-b1a39cb511f3" },
+	},
 };
 
 export default config;
