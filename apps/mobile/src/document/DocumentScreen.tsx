@@ -51,6 +51,7 @@ import { useServers } from "../servers/ServersProvider";
 import { displayName, type KnownServer } from "../servers/store";
 import { TREE_SCHEMA_VERSION } from "../servers/tree-schema";
 import { useConnection } from "../servers/use-connection";
+import { usePullToRefresh } from "../pull-to-refresh";
 import { useSideInsets } from "../side-insets";
 import { resolveLink } from "./links";
 import { documentRows, type DocumentRow } from "./rows";
@@ -421,7 +422,8 @@ function DocumentReader({
 	}, [origin, path, router, documentRoute, server.id]);
 	const docContext = useMemo(() => ({ path }), [path]);
 
-	const refresh = useCallback(() => void query.refetch(), [query]);
+	const { refetch } = query;
+	const pull = usePullToRefresh(refetch);
 
 	if (
 		server.treeSchemaVersion > TREE_SCHEMA_VERSION ||
@@ -454,7 +456,12 @@ function DocumentReader({
 		const error = query.error;
 		const code = codeOf(error);
 		return (
-			<StateView title={title} server={server} refreshing={query.isRefetching} onRefresh={refresh}>
+			<StateView
+				title={title}
+				server={server}
+				refreshing={pull.refreshing}
+				onRefresh={pull.onRefresh}
+			>
 				<Heading level={2}>{baseName(path)}</Heading>
 				{error instanceof UnreachableServerError ? (
 					<View className="flex-row items-center gap-3 py-3">
@@ -540,7 +547,7 @@ function DocumentReader({
 								contentInsetAdjustmentBehavior="automatic"
 								contentContainerStyle={{ ...sideInsets, paddingTop: 8, paddingBottom: 32 }}
 								refreshControl={
-									<RefreshControl refreshing={query.isRefetching} onRefresh={refresh} />
+									<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
 								}
 								testID="document-content"
 							/>
