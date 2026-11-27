@@ -16,6 +16,10 @@ export function tailscaleRunner(): TailscaleRunner {
 	return (command, args) =>
 		runProcess(command, args, {
 			cwd: os.tmpdir(),
+			// The macOS app's binary is the GUI and the CLI in one. It acts as the CLI when it
+			// finds a terminal in its environment; under a process manager there is none, and it
+			// hangs. This variable makes it the CLI in every environment.
+			env: { ...process.env, TAILSCALE_BE_CLI: "1" },
 			signal: new AbortController().signal,
 			timeoutMs: CALL_TIMEOUT_MS,
 			maxBytes: MAX_OUTPUT_BYTES,
