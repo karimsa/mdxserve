@@ -3,13 +3,12 @@ import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import type { ViteDevServer } from "vite";
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import { ListingService } from "../listing/service.js";
 import { renderShell, type Route } from "./shell.js";
 import type { RootsService } from "../roots/service.js";
 import { resolveRoot } from "../roots/paths.js";
-import { isDocFile, isPublicPath, isServable } from "../roots/servable.js";
+import { isDocFile, isPublicPath } from "../roots/servable.js";
 import type { Registry } from "../components/registry.js";
 import { rootInfoFor } from "../roots/root-info.js";
 import type { DocCache } from "../docs/doc-cache.js";
@@ -17,10 +16,23 @@ import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
 import { appRouter } from "../api/router.js";
 import { isTrustedHost } from "./host.js";
-import { toPosix } from "../infra/paths.js";
+import { GET_ASSET_PATH } from "../assets/url.js";
+import { handleGetAsset, serveRootFile } from "./asset.js";
+import { notFound, sendClientAsset, sendFile } from "./files.js";
 import type { PermissionMode } from "../servers/bind-host.js";
+import type { DocumentMetadata } from "../docs/metadata.js";
 
 const MDXSERVE_PREFIX = "/__mdxserve/";
+/** Where the built client's `assets/` folder is served (Vite's `base` plus `assetsDir`). */
+const CLIENT_ASSETS_PREFIX = "/__mdxserve/assets/";
+
+/** The built browser client, read once at startup. */
+export interface ClientBundle {
+	/** `dist/client`: `index.html`, `favicon.svg` and `assets/`. */
+	dir: string;
+	/** The built `index.html`, filled per request by `renderShell`. */
+	template: string;
+}
 
 // Browser navigations (typed URL, clicked link, redirect) send an Accept
 // header that prefers text/html. A fetch of the same .md/.mdx path does not,
@@ -36,9 +48,7 @@ export interface RequestContext {
 	/** Per-process state, created once in startServer: owns the mutable set of mounted roots. */
 	roots: RootsService;
 	registry: Registry;
-	pkgRoot: string;
-	vite: ViteDevServer;
-	cssFile: string;
+	client: ClientBundle;
 	/** Per-process state, created once in startServer. */
 	docCache: DocCache;
 	search: SearchService;
@@ -52,12 +62,9 @@ export async function handleRequest(
 	res: http.ServerResponse,
 	ctx: RequestContext,
 ): Promise<void> {
-	const { registry, pkgRoot, vite, docCache, search: searchService, docs } = ctx;
+	const { registry, docCache, search: searchService, docs } = ctx;
 	const rootInfos = ctx.roots.list();
 	const roots = rootInfos.map((rootInfo) => rootInfo.dir);
-	// Reference the entry by its real /@fs/ path so Vite's HTML pre-transform
-	// can resolve it (the /__mdxserve/ alias only exists in our router).
-	const entrySrc = `/@fs/${toPosix(path.join(pkgRoot, "client", "entry.tsx"))}`;
 	const url = req.url ?? "/";
 	const pathname = url.split("?")[0] ?? "/";
 	const search = url.slice(pathname.length);
@@ -82,19 +89,32 @@ export async function handleRequest(
 			(remoteAddress !== undefined && remoteAddress === req.socket.localAddress)) &&
 		isTrustedHost(req.headers.host, req.socket.localAddress);
 	const sameMachine = isLoopback && !restricted;
+	const shell = (route: Route, metadata?: DocumentMetadata) =>
+		renderShell(ctx.client.template, route, {
+			rootCount: roots.length,
+			sameMachine,
+			permissions: ctx.permissions,
+			metadata,
+		});
 
 	if (pathname === "/favicon.ico" || pathname === "/__mdxserve/favicon.svg") {
-		res.statusCode = 200;
-		res.setHeader("Content-Type", "image/svg+xml");
-		res.setHeader("Cache-Control", "public, max-age=86400");
-		res.end(await fsp.readFile(path.join(pkgRoot, "client", "favicon.svg")));
+		const abs = path.join(ctx.client.dir, "favicon.svg");
+		const stat = await fsp.stat(abs).catch(() => null);
+		if (!stat?.isFile()) {
+			notFound(res);
+			return;
+		}
+		sendFile(
+			req,
+			res,
+			{ abs, size: stat.size, mtimeMs: stat.mtimeMs, contentType: "image/svg+xml" },
+			"public, max-age=86400",
+		);
 		return;
 	}
 
-	// Must be checked before the generic /__mdxserve/* -> /@fs/ rewrite below,
-	// since these paths also start with MDXSERVE_PREFIX. The adapter owns
-	// method checks, content-type checks, and body-size limits (via
-	// maxBodySize) that the old hand-rolled /__mdxserve/api/* routes used to
+	// The adapter owns method checks, content-type checks, and body-size limits
+	// (via maxBodySize) that the old hand-rolled /__mdxserve/api/* routes used to
 	// do themselves.
 	if (pathname.startsWith("/__mdxserve/trpc/")) {
 		await nodeHTTPRequestHandler({
@@ -125,68 +145,23 @@ export async function handleRequest(
 		return;
 	}
 
+	if (pathname === GET_ASSET_PATH) {
+		await handleGetAsset(req, res, new URLSearchParams(search), {
+			roots: rootInfos,
+			publicOnly: restricted,
+		});
+		return;
+	}
+
+	// The built client: content-hashed, so cached for a year.
+	if (pathname.startsWith(CLIENT_ASSETS_PREFIX)) {
+		await sendClientAsset(req, res, ctx.client.dir, pathname.slice(CLIENT_ASSETS_PREFIX.length));
+		return;
+	}
+
+	// Nothing else lives under the server's own prefix.
 	if (pathname.startsWith(MDXSERVE_PREFIX)) {
-		const rest = decodeURIComponent(pathname.slice(MDXSERVE_PREFIX.length));
-		// Windows treats decoded backslashes as path separators too. Check
-		// both forms before path.join can collapse a hidden or parent segment.
-		if (restricted && !rest.split(/[\\/]/).every(isServable)) {
-			res.statusCode = 404;
-			res.end("Not found");
-			return;
-		}
-		const target = rest === "app.css" ? ctx.cssFile : path.join(pkgRoot, "client", rest);
-		req.url = `/@fs/${toPosix(target)}${search}`;
-		vite.middlewares(req, res, () => {
-			res.statusCode = 404;
-			res.end("Not found");
-		});
-		return;
-	}
-
-	// Documents are never served as modules, so a /@fs/ request for a .md or
-	// .mdx file is a 404 and never reaches Vite. Every other /@fs/ request
-	// (client entry, client/ assets, .tsx component imports, optimized deps)
-	// passes straight through to vite.middlewares, gated by fs.allow.
-	if (pathname.startsWith("/@fs/")) {
-		const rest = pathname.slice("/@fs/".length);
-		const abs = `/${decodeURIComponent(rest)}`;
-		const hit = resolveRoot(roots, abs);
-		if (restricted) {
-			let realHit: ReturnType<typeof resolveRoot> = null;
-			try {
-				realHit = resolveRoot(roots, await fsp.realpath(abs));
-			} catch {
-				// Let Vite reject files outside its allow list.
-			}
-			if ((hit && !isPublicPath(hit.root, hit.abs)) || (!hit && realHit)) {
-				res.statusCode = 404;
-				res.end("Not found");
-				return;
-			}
-		}
-
-		// Documents are not modules: a client reads them as JSON from getDocument,
-		// so nothing may compile one, whichever root (or none) it sits in.
-		if (isDocFile(abs)) {
-			res.statusCode = 404;
-			res.end("Not found");
-			return;
-		}
-
-		vite.middlewares(req, res, () => {
-			res.statusCode = 404;
-			res.end("Not found");
-		});
-		return;
-	}
-
-	// /@vite/client, /@react-refresh, /@id/… etc. — resolveRoot below would
-	// 404 these; let Vite's own middleware handle them.
-	if (pathname.startsWith("/@")) {
-		vite.middlewares(req, res, () => {
-			res.statusCode = 404;
-			res.end("Not found");
-		});
+		notFound(res);
 		return;
 	}
 
@@ -200,12 +175,7 @@ export async function handleRequest(
 		const route: Route = { kind: "home", roots: rootInfos };
 		res.statusCode = 200;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(
-			await vite.transformIndexHtml(
-				pathname,
-				renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
-			),
-		);
+		res.end(shell(route));
 		return;
 	}
 
@@ -217,12 +187,7 @@ export async function handleRequest(
 			const route: Route = { kind: "notfound", path: decodedPathname };
 			res.statusCode = 404;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(
-				await vite.transformIndexHtml(
-					pathname,
-					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
-				),
-			);
+			res.end(shell(route));
 			return;
 		}
 		res.statusCode = 404;
@@ -263,12 +228,7 @@ export async function handleRequest(
 			const route: Route = { kind: "listing", ...result.listing };
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(
-				await vite.transformIndexHtml(
-					pathname,
-					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
-				),
-			);
+			res.end(shell(route));
 			return;
 		}
 		const route: Route = {
@@ -279,12 +239,7 @@ export async function handleRequest(
 		};
 		res.statusCode = 404;
 		res.setHeader("Content-Type", "text/html; charset=utf-8");
-		res.end(
-			await vite.transformIndexHtml(
-				pathname,
-				renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
-			),
-		);
+		res.end(shell(route));
 		return;
 	}
 
@@ -301,12 +256,7 @@ export async function handleRequest(
 			};
 			res.statusCode = 200;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(
-				await vite.transformIndexHtml(
-					pathname,
-					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions, metadata),
-				),
-			);
+			res.end(shell(route, metadata));
 			return;
 		}
 
@@ -327,28 +277,15 @@ export async function handleRequest(
 			};
 			res.statusCode = 404;
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
-			res.end(
-				await vite.transformIndexHtml(
-					pathname,
-					renderShell(route, entrySrc, roots.length, sameMachine, ctx.permissions),
-				),
-			);
+			res.end(shell(route));
 			return;
 		}
 	} else if (stat.isFile()) {
-		// Non-doc file inside a root (images, .txt, …): hand it to Vite as a
-		// static asset via /@fs/, mirroring the /__mdxserve/ rewrite above. This
-		// is what makes `![](./img.png)` work in a root that isn't Vite's own.
-		req.url = `/@fs${pathname}${search}`;
-		vite.middlewares(req, res, () => {
-			res.statusCode = 404;
-			res.end("Not found");
-		});
+		// Any other file in a root (an image, a PDF a document links to) is served
+		// with the rules getAsset applies.
+		await serveRootFile(req, res, abs, { roots: rootInfos, publicOnly: restricted });
 		return;
 	}
 
-	vite.middlewares(req, res, () => {
-		res.statusCode = 404;
-		res.end("Not found");
-	});
+	notFound(res);
 }

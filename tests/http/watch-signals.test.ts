@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	isWatchIgnored,
 	SIGNAL_DEBOUNCE_MS,
 	signalFileChanges,
 	type FileWatcher,
@@ -74,5 +75,34 @@ describe("signalFileChanges", () => {
 		vi.advanceTimersByTime(SIGNAL_DEBOUNCE_MS);
 		expect(realtime.docChanged).not.toHaveBeenCalled();
 		expect(realtime.listingChanged).not.toHaveBeenCalled();
+	});
+});
+
+describe("isWatchIgnored", () => {
+	const roots = [{ name: "docs", dir: "/work/build/docs" }];
+
+	it("skips dependency, build and git trees below a root, and save temp files", () => {
+		for (const ignored of [
+			"/work/build/docs/node_modules",
+			"/work/build/docs/a/node_modules/pkg/index.js",
+			"/work/build/docs/.git/HEAD",
+			"/work/build/docs/site/dist/app.js",
+			"/work/build/docs/.venv/bin/python",
+			"/work/build/docs/.guide.md.mdxserve-tmp",
+		]) {
+			expect(isWatchIgnored(roots, ignored)).toBe(true);
+		}
+	});
+
+	it("watches the root itself and its documents, even under a folder named like an ignored one", () => {
+		for (const watched of [
+			"/work/build/docs",
+			"/work/build/docs/guide.md",
+			"/work/build/docs/img/shot.png",
+			"/work/build/docs/.github/logo.png",
+			"/elsewhere/node_modules",
+		]) {
+			expect(isWatchIgnored(roots, watched)).toBe(false);
+		}
 	});
 });

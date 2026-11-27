@@ -79,7 +79,7 @@ async function validateOne(
 		if (remoteOutcome.kind === "error") return { path: abs, error: remoteOutcome.message };
 		// unavailable: fall through to the static-only path below.
 	}
-	// This never starts a server or Vite.
+	// This never starts a server.
 	const outcome = await staticService.validateDoc({ path: abs });
 	switch (outcome.kind) {
 		case "ok":

@@ -8,6 +8,7 @@ import type { ApiContext } from "../../src/api/trpc.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext as buildContext } from "../helpers/context.js";
 import { versionOf } from "../../src/docs/service.js";
+import { getAssetUrl } from "../../src/assets/url.js";
 
 let fixtureDir: string;
 let outsideDir: string;
@@ -281,12 +282,12 @@ describe("getDocument", () => {
 		expect(text).toContain("Text");
 	});
 
-	it("rewrites a relative image to the URL the server serves the file at", async () => {
+	it("rewrites a relative image to the getAsset URL the server serves the file at", async () => {
 		const abs = path.join(fixtureDir, "image.md");
 		await fs.writeFile(abs, "![shot](<./img/my shot.png>)\n", "utf8");
 		const result = await createCaller(makeContext()).getDocument({ path: abs });
 		expect(JSON.stringify(result.document)).toContain(
-			`"src":"${encodeURI(path.join(fixtureDir, "img", "my shot.png"))}"`,
+			`"src":"${getAssetUrl(path.join(fixtureDir, "img", "my shot.png"))}"`,
 		);
 	});
 

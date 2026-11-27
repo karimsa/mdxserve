@@ -108,13 +108,12 @@ and diagram agents, even when a reverse proxy connects over loopback. The reader
 navigation, and search remain available. A restricted instance will not reuse another server
 under the same `MDXSERVE_HOME`; give it its own directory.
 
-Treat every file in `./public` as public. Visitors can fetch MDX source and visible assets,
-including imported CSS and JSX. Vite also serves the mdxserve client and dependency modules
-needed by the page. Hidden files, links to hidden targets, and links outside the served root
-are blocked; links to visible files inside the root still work.
+Treat every file in `./public` as public. Visitors can fetch document source and visible
+files such as images. The server sends its own prebuilt client and nothing a document
+author wrote runs in the browser. Hidden files, links to hidden targets, and links outside
+the served root are blocked; links to visible files inside the root still work.
 Run the server with a read-only site directory and no agent credentials. At the public proxy,
-limit requests per client and concurrent requests to bound repeated Vite compilation and
-search work.
+limit requests per client and concurrent requests to bound search work.
 Full permissions on a non-loopback interface require both `--permissions full` and
 `--dangerous-allow-network`. The dangerous flag alone leaves the default restricted mode
 in place. Use full network access only on a trusted network.

@@ -1,0 +1,5 @@
+/* The stylesheet entry the client build compiles (vite.config.ts). Tailwind scans client/ only:
+ * documents cannot use class names, so no mounted root is ever scanned. */
+@import "tailwindcss" source(none);
+@import "./app.css";
+@source "./";

@@ -1,9 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
 
 let cachedRoot: string | undefined;
 
@@ -40,42 +37,6 @@ export function getPackageRoot(): string {
 		}
 		dir = parent;
 	}
-}
-
-/** Resolve `specifier` from mdxserve's own package root, not the caller's cwd. */
-export function resolveFromPkg(specifier: string): string {
-	return require.resolve(specifier, { paths: [getPackageRoot()] });
-}
-
-/**
- * The on-disk directory of a package whose package.json is not in its
- * "exports" map (so `resolveFromPkg("<name>/package.json")` would throw):
- * resolve its entry file, then walk up to the nearest package.json that
- * actually declares that name (skipping any nested one in a dist/ folder).
- */
-export function packageDir(name: string): string {
-	let dir = path.dirname(resolveFromPkg(name));
-	for (;;) {
-		const manifest = path.join(dir, "package.json");
-		if (fs.existsSync(manifest)) {
-			const pkg = JSON.parse(fs.readFileSync(manifest, "utf8")) as { name?: string };
-			if (pkg.name === name) return dir;
-		}
-		const parent = path.dirname(dir);
-		if (parent === dir) throw new Error(`Cannot locate package directory for ${name}`);
-		dir = parent;
-	}
-}
-
-/**
- * Directories Vite may serve dependency files from: <pkgRoot>/node_modules plus, when
- * pkgRoot itself sits inside a node_modules folder (npx, global, local install), that folder.
- */
-export function dependencyRoots(pkgRoot: string): string[] {
-	const roots = [path.join(pkgRoot, "node_modules")];
-	const parent = path.dirname(pkgRoot);
-	if (path.basename(parent) === "node_modules") roots.push(parent);
-	return roots;
 }
 
 export function readPackageVersion(): string {

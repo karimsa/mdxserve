@@ -1,9 +1,8 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpLink, type TRPCClient } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
-// src/ is not in Vite's `fs.allow` (see src/rendering/vite.ts), so a *value* import of
-// anything from src/ would 404 at runtime — this import is type-only and is
-// erased entirely by the compiler.
+// client/ may only import types from src/ (AGENTS.md): this import is erased
+// by the compiler, so no server code reaches the client bundle.
 import type { AppRouter } from "../src/api/router";
 import type { inferRouterOutputs } from "@trpc/server";
 import { realtime } from "./realtime";

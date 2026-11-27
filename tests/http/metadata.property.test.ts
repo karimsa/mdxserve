@@ -1,24 +1,37 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { JSDOM } from "jsdom";
-import { renderDocument } from "../../src/http/html.js";
+import { renderShell } from "../../src/http/shell.js";
+import { shellTemplate } from "../helpers/http.js";
 
 const textValue = fc.string({
 	unit: fc.constantFrom("<", ">", '"', "'", "&", "\n", "x", "é", " "),
 	maxLength: 60,
 });
 
+const route = { kind: "doc", path: "/docs/a.md", rootName: "docs", rootDir: "/docs" } as const;
+
+/** How many elements the template's head and body hold before any metadata. */
+function baseline(): { head: number; body: number } {
+	const page = new JSDOM(renderShell(shellTemplate(), route));
+	try {
+		const { document } = page.window;
+		return { head: document.head.children.length, body: document.body.children.length };
+	} finally {
+		page.window.close();
+	}
+}
+
 describe("metadata HTML serialization", () => {
 	it("round-trips text and ordered repeated properties without creating elements", () => {
+		const empty = baseline();
 		fc.assert(
 			fc.property(
 				textValue,
 				textValue,
 				fc.array(textValue, { maxLength: 8 }),
 				(title, description, values) => {
-					const html = renderDocument({
-						title: "Fallback",
-						body: "",
+					const html = renderShell(shellTemplate(), route, {
 						metadata: {
 							title,
 							description,
@@ -39,8 +52,10 @@ describe("metadata HTML serialization", () => {
 								(element) => element.getAttribute("content"),
 							),
 						).toEqual(values);
-						expect(document.head.querySelectorAll("script")).toHaveLength(1);
-						expect(document.body.children).toHaveLength(0);
+						// The title replaces none of the template's elements; the description
+						// and each property add one, and the body gains nothing beyond the route.
+						expect(document.head.children).toHaveLength(empty.head + 1 + values.length);
+						expect(document.body.children).toHaveLength(empty.body);
 					} finally {
 						page.window.close();
 					}

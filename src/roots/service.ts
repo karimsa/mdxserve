@@ -73,8 +73,8 @@ async function realpathThroughMissingTail(abs: string): Promise<string> {
  * the move to a single long-lived server whose roots can change at runtime)
  * the one place that owns which directories are currently mounted. `admit`
  * is the stateless check `serve` uses at startup; `add`/`remove` mutate the
- * configuration (when configured), update the live set and notify listeners (the dev server, the Vite watcher, the
- * generated app.css) so a running server stays in sync with what it serves.
+ * configuration (when configured), update the live set and notify listeners (the file watcher, the server registry, the
+ * live update socket) so a running server stays in sync with what it serves.
  * `add`/`remove` run inside a single queue so two concurrent calls can never
  * interleave their read-modify-write of the mounted set.
  */
@@ -105,7 +105,7 @@ export class RootsService {
 	 * Resolve `inputs` against the cwd (expanding a leading `~` first): stat
 	 * each one, then realpath it. The returned roots are realpaths, deduped —
 	 * a symlinked alias of an already-named directory is dropped rather than
-	 * served twice, and Vite's `fs.allow` compares real paths anyway.
+	 * served twice, and asset and document checks compare real paths anyway.
 	 */
 	private async resolveInputs(inputs: string[]): Promise<ResolveInputsResult> {
 		const resolved = inputs.map((input) => path.resolve(this.cwd, expandHome(input, this.home)));

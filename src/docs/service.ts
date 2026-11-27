@@ -11,7 +11,7 @@ import { ValidationService } from "../validation/service.js";
 import { introducedErrors } from "../validation/introduced.js";
 import { DocumentService } from "../document/service.js";
 import type { DocumentTree } from "../document/schema.js";
-import { rootFileUrl } from "./asset-url.js";
+import { assetUrl } from "../assets/url.js";
 import type { Diagnostic } from "../validation/validate.js";
 import {
 	MAX_METADATA_PREFIX_BYTES,
@@ -217,10 +217,7 @@ export class DocsService implements MetadataPort {
 		const read = await this.readResolved(inputPath, publicOnly);
 		if (read.kind === "not-found") return read;
 		if (read.kind === "too-large") return { kind: "too-large" };
-		const { tree } = new DocumentService(this.registry, rootFileUrl).parse(
-			read.source.text,
-			read.abs,
-		);
+		const { tree } = new DocumentService(this.registry, assetUrl).parse(read.source.text, read.abs);
 		return { kind: "ok", document: tree, version: read.source.version };
 	}
 
@@ -301,8 +298,8 @@ export class DocsService implements MetadataPort {
 	 * Atomic write: stage in a hidden dotfile next to the target (same
 	 * directory => same filesystem => rename() is atomic), carry over the
 	 * original file's mode, then rename over it. The dotfile is also
-	 * chokidar-ignored (src/rendering/vite.ts `server.watch.ignored`), so it never
-	 * triggers HMR or the listing-changed watcher on its own.
+	 * ignored by the file watcher (`isWatchIgnored` in src/http/watch-signals.ts),
+	 * so it never triggers a live update signal on its own.
 	 *
 	 * Just before the rename the file is read once more: an editor or another
 	 * process may have written it since the caller read it, in which case
@@ -391,7 +388,7 @@ export class DocsService implements MetadataPort {
 		const read = await this.readResolved(inputPath, publicOnly);
 		if (read.kind === "not-found") return read;
 		if (read.kind === "too-large") return { kind: "too-large" };
-		const { ranges } = new DocumentService(this.registry, rootFileUrl).parse(
+		const { ranges } = new DocumentService(this.registry, assetUrl).parse(
 			read.source.text,
 			read.abs,
 		);
@@ -435,7 +432,7 @@ export class DocsService implements MetadataPort {
 			const current = versionOf(source);
 			if (current !== version) return { kind: "stale", version: current };
 
-			const { ranges } = new DocumentService(registry, rootFileUrl).parse(source, abs);
+			const { ranges } = new DocumentService(registry, assetUrl).parse(source, abs);
 			const range = ranges.get(id);
 			if (!range) return { kind: "not-found", message: `No editable node with id "${id}"` };
 
@@ -458,8 +455,8 @@ export class DocsService implements MetadataPort {
 			const written = await this.writeAtomically(abs, stat.mode, spliced.text, version);
 			if (written.kind === "stale") return written;
 
-			// No websocket push: every root is already on vite.watcher, so the
-			// rename above fires chokidar's own "change" event.
+			// No socket push here: every root is on the server's file watcher, so
+			// the rename above fires its own "change" event.
 			//
 			// The new version is the digest of exactly what was written: no
 			// re-read needed, and no chance of picking up someone else's write.

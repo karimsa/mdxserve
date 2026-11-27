@@ -2,7 +2,7 @@ import type { Root, RootContent } from "mdast";
 import type { MetadataPort } from "../docs/metadata-port.js";
 import { DocumentService } from "../document/service.js";
 import type { DocumentDiagnosticCode } from "../document/diagnostics.js";
-import { rootFileUrl } from "../docs/asset-url.js";
+import { assetUrl } from "../assets/url.js";
 import type { Registry } from "../components/registry.js";
 import { parseComments } from "../comments/frontmatter.js";
 import { anchorDiagnostics } from "../comments/anchor.js";
@@ -124,7 +124,7 @@ export interface ValidateSourceInput {
 export async function validateSource(input: ValidateSourceInput): Promise<ValidationResult> {
 	const { path: filePath, registry } = input;
 
-	const parsed = new DocumentService(registry, rootFileUrl).parse(input.source, filePath);
+	const parsed = new DocumentService(registry, assetUrl).parse(input.source, filePath);
 	const diagnostics: Diagnostic[] = [...parsed.diagnostics];
 	// A section that failed to parse has no tree to check; its syntax error is
 	// the only thing worth the author's attention there.

@@ -409,14 +409,15 @@ describe("DocumentService.parse — nodes", () => {
 		});
 	});
 
-	it("rewrites a relative image path through the asset URL builder and leaves other URLs", () => {
+	it("rewrites a relative or absolute image path through the asset URL builder and leaves other URLs", () => {
 		const { tree } = parse(
-			'![a](./shot.png) ![b](https://example.com/b.png) ![c](/abs/c.png)\n\n<img src="pic.png" alt="p" />\n',
+			'![a](./shot.png) ![b](https://example.com/b.png) ![c](/abs/c.png) ![d](//cdn.example/d.png)\n\n<img src="pic.png" alt="p" />\n',
 		);
 		const preamble = tree.children[0] as Extract<BlockNode, { type: "preamble" }>;
 		expect(JSON.stringify(preamble)).toContain('"src":"asset:/docs/guide.mdx:./shot.png"');
 		expect(JSON.stringify(preamble)).toContain('"src":"https://example.com/b.png"');
-		expect(JSON.stringify(preamble)).toContain('"src":"/abs/c.png"');
+		expect(JSON.stringify(preamble)).toContain('"src":"asset:/docs/guide.mdx:/abs/c.png"');
+		expect(JSON.stringify(preamble)).toContain('"src":"//cdn.example/d.png"');
 		expect(JSON.stringify(preamble)).toContain('"src":"asset:/docs/guide.mdx:pic.png"');
 		const shot = parse(
 			'<Screenshot id="s" src="./s.png" alt="a" />\n<Screenshot id="t" src="https://x.dev/t.png" />\n',

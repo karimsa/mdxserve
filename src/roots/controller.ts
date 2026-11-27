@@ -38,7 +38,7 @@ const listRoots = procedure(
 	});
 
 const addRoots = procedure(
-	"Mounts one or more absolute directories onto the live server, applying the change immediately (Vite's fs.allow, its watcher, and the generated app.css). Same-machine callers only. Used by the CLI's `roots add` command.",
+	"Mounts one or more absolute directories onto the live server, applying the change immediately (the file watcher and the live update socket). Same-machine callers only. Used by the CLI's `roots add` command.",
 )
 	.use(requireLoopback)
 	.input(addRootsInput)

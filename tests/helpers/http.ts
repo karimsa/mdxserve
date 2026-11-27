@@ -1,8 +1,10 @@
 import http from "node:http";
 import os from "node:os";
 import type { AddressInfo } from "node:net";
-import type { ViteDevServer } from "vite";
-import { handleRequest, type RequestContext } from "../../src/http/server.js";
+import path from "node:path";
+import { handleRequest, type ClientBundle, type RequestContext } from "../../src/http/server.js";
+import { loadShellTemplate } from "../../src/http/shell.js";
+import { getPackageRoot } from "../../src/infra/pkg.js";
 import type { Registry } from "../../src/components/registry.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
@@ -10,11 +12,20 @@ import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 
 /**
- * Build a `RequestContext` for `handleRequest` in tests, extracted from the
- * old `POST /__mdxserve/api/validate` test block. The fake `vite` has a
- * `middlewares` stub so the generic `/__mdxserve/*` -> `/@fs/` rewrite (which
- * every unmatched `/__mdxserve/*` path falls through to) doesn't throw when
- * called on `{}`. Passing a `roots` override replaces the `RootsService`
+ * The source `client/index.html`, which carries the same fill markers as the built one, so
+ * shell tests need no `yarn build` (CI runs tests first).
+ */
+export function shellTemplate(): string {
+	return loadShellTemplate(path.join(getPackageRoot(), "client"));
+}
+
+/** A client bundle whose `assets/` and favicon live in `dir` (the source client/ by default). */
+export function testClientBundle(dir = path.join(getPackageRoot(), "client")): ClientBundle {
+	return { dir, template: shellTemplate() };
+}
+
+/**
+ * Build a `RequestContext` for `handleRequest` in tests. Passing a `roots` override replaces the `RootsService`
  * entirely — `handleRequest` reads `ctx.roots.list()` itself, so there's no
  * separate `rootInfos` to keep in sync.
  */
@@ -29,11 +40,7 @@ export function makeRequestContext(
 	return {
 		roots,
 		registry,
-		pkgRoot: "",
-		vite: {
-			middlewares: (_req: unknown, res: http.ServerResponse, next: () => void) => next(),
-		} as unknown as ViteDevServer,
-		cssFile: "",
+		client: testClientBundle(),
 		docCache,
 		search,
 		docs: new DocsService(roots, registry),

@@ -1,8 +1,14 @@
 ## Working with mdxserve
 
 - Every worktree will automatically run `yarn` to update dependencies and make sure the build is ready to go
-- Run `yarn dev` to start a dev server - it will automatically pick a random port if it cannot use its default port
-- Test the visual interactivity and rendering in a browser by navigating over to the dev server's port
+- Run `yarn dev` to start a dev server: it runs the backend from source on a free port, under its own
+  `MDXSERVE_HOME` in `node_modules/.cache/mdxserve-dev` (so it never meets the one-server lock of a real
+  server), and a Vite dev server for `client/` that proxies `/__mdxserve` (tRPC, `getAsset`, the socket)
+  to it. Vite prints its URL; it moves off port 5173 when that is taken. Run it through `oxmgr`, for
+  example `oxmgr start --name mdxserve-dev "yarn dev"`; `yarn dev -w <dir>` serves another folder
+- Test the visual interactivity and rendering in a browser by navigating over to the Vite dev server's port
+- Production never runs Vite: `yarn build` compiles `client/` into `dist/client/` (`vite.config.ts`), and
+  `node dist/cli.js serve` serves that bundle
 
 ## Architecture
 
@@ -14,12 +20,15 @@ calling it.
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
 `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
-`document/`, and `preferences/`. `setup/` is
+`document/`, `assets/`, and `preferences/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
 `document/` has no controller either: `DocumentService.parse` turns source text into the JSON
 document tree, its diagnostics and its line ranges, and its procedure (`getDocument`) lives in
 `docs/controller.ts`, behind `DocsService.readDocument`.
+`assets/` has no controller: `AssetsService.locate` decides which non-document file in a root
+may be served, and its endpoint, `getAsset`, is a plain HTTP GET in `src/http/asset.ts`
+because its result is the file's bytes, not JSON. Its query is still a zod schema.
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
   `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules
@@ -56,16 +65,15 @@ argument, not a constructor argument.
 
 Adapters contain no business logic:
 
-| Folder           | Role                                                                                                                                                               |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
-| `src/cli/`       | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                 |
-| `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
-| `src/rendering/` | the Vite dev server that serves `client/` (documents never go through it: they reach the browser as the JSON tree from `getDocument`)                              |
-| `src/realtime/`  | the socket.io live update adapter (`attachRealtime`): handshake check, `join`/`leave` rooms resolved through `DocsService`, and the three no-payload signals       |
-| `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
-| `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
-| `src/index.ts`   | the commander CLI                                                                                                                                                  |
+| Folder          | Role                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/api/`      | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                                                       |
+| `src/cli/`      | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                                         |
+| `src/http/`     | the node `http` request handler, `startServer` (which creates the chokidar file watcher), the shell filled into the built `index.html`, the prebuilt client's static files, and `getAsset` |
+| `src/realtime/` | the socket.io live update adapter (`attachRealtime`): handshake check, `join`/`leave` rooms resolved through `DocsService`, and the three no-payload signals                               |
+| `src/servers/`  | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it                         |
+| `src/infra/`    | package root and cache-dir helpers                                                                                                                                                         |
+| `src/index.ts`  | the commander CLI                                                                                                                                                                          |
 
 `client/` may only `import type` from `src/` (nothing under `src/` is served to the browser);
 for example `AppRouter` from `src/api/router` and the document tree types from
@@ -74,8 +82,8 @@ for example `AppRouter` from `src/api/router` and the document tree types from
 `shared/` holds code both sides run: each builtin's zod prop schema
 (`shared/builtins/<name>.ts`) and the live update socket's event names and payload schemas
 (`shared/realtime.ts`). `client/` and `src/` may import values from it. It imports no
-React value (type-only imports are fine) and nothing from `client/` or `src/`, and Vite's
-`fs.allow` lists it so the browser can load it.
+React value (type-only imports are fine) and nothing from `client/` or `src/`; the client
+build bundles what `client/` imports from it.
 
 ## General philosophy
 
@@ -96,7 +104,7 @@ React value (type-only imports are fine) and nothing from `client/` or `src/`, a
 
 ## Writing tests
 
-- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/rendering/`
+- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/realtime/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
 - The client renders documents from the JSON tree (`client/document/`): one memoized renderer per node type, keyed by node id or index. Heading and tab anchors are tree ids; navigate to a node with `revealNode(id)`, which selects the tabs on the way

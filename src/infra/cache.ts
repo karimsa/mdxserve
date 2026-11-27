@@ -19,11 +19,6 @@ export function getCacheHome(): string {
 	return path.join(os.homedir(), ".cache", "mdxserve");
 }
 
-/** Where Vite keeps its pre-bundled dependency cache. */
-export function getViteCacheDir(): string {
-	return path.join(getCacheHome(), "vite");
-}
-
 /** Remove the entire cache directory. Returns true if something was removed. */
 export function cleanCache(): boolean {
 	const dir = getCacheHome();
