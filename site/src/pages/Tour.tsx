@@ -143,8 +143,8 @@ export function Tour() {
 				stays plain text that an agent can write and check.
 			</p>
 			<p>
-				A stateful component needs an <code>id</code> that is unique in the document. The reader
-				uses it to remember which tab is selected.
+				A stateful component needs an <code>id</code> that is unique in the document. The selected
+				tab is kept under it, so it stays selected when the document changes.
 			</p>
 			<CodeBlock language="mdx" code={tabsSource} />
 

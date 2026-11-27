@@ -124,8 +124,8 @@ export function Home() {
 								<>
 									<p>
 										The <code>Tabs</code> component shows one variant of the content at a time, such
-										as install steps for each operating system. The reader remembers the selected
-										tab by the component's <code>id</code>.
+										as install steps for each operating system. The selected tab is kept under the
+										component's <code>id</code>, so it stays selected when the document changes.
 									</p>
 									<CodeBlock language="mdx" code={tabsSource} />
 								</>
