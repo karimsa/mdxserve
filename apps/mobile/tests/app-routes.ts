@@ -5,6 +5,7 @@ import LibraryStack from "../app/(tabs)/(library)/_layout";
 import Library from "../app/(tabs)/(library)/index";
 import SearchStack from "../app/(tabs)/search/_layout";
 import Search from "../app/(tabs)/search/index";
+import SearchDocument from "../app/(tabs)/search/s/[serverId]/doc/[...path]";
 import ServersStack from "../app/(tabs)/servers/_layout";
 import Servers from "../app/(tabs)/servers/index";
 import AddServer from "../app/(tabs)/servers/add";
@@ -22,6 +23,7 @@ export const APP_ROUTES = {
 	"(tabs)/(library)/index": Library,
 	"(tabs)/search/_layout": SearchStack,
 	"(tabs)/search/index": Search,
+	"(tabs)/search/s/[serverId]/doc/[...path]": SearchDocument,
 	"(tabs)/servers/_layout": ServersStack,
 	"(tabs)/servers/index": Servers,
 	"(tabs)/servers/add": AddServer,

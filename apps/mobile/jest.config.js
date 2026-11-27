@@ -4,6 +4,9 @@ const { transformIgnorePatterns } = require("jest-expo/jest-preset");
 
 module.exports = {
 	preset: "jest-expo",
+	// A test renders the whole app (tabs, stacks, the compiled stylesheet); on a busy machine one
+	// can pass five seconds without anything being wrong.
+	testTimeout: 20_000,
 	roots: ["<rootDir>/tests"],
 	// jest-expo's list, plus Uniwind, which React Native loads from its TypeScript source.
 	transformIgnorePatterns: [
