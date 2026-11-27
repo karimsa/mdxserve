@@ -1,15 +1,18 @@
-import { memo, type ReactNode } from "react";
-import DataTable from "../builtins/DataTable";
-import { inferColumn, parseBound, type Column, type Row } from "@mdxserve/ui/data-table/model";
+import { memo, type ComponentType, type ReactNode } from "react";
 import { plainText } from "@mdxserve/client/document/plain-text";
-import type { InlineNode, TableNode } from "./tree-types";
+import type { InlineNode, TableNode } from "@mdxserve/client/document/tree-types";
+import { inferColumn, parseBound, type Column, type Row } from "../data-table/model";
+import type { DataTableViewProps } from "../data-table/props";
+import { CellText } from "./elements";
+import { useDocumentEnvironment } from "./environment";
 
 /**
  * A Markdown table from the document tree, shown through `DataTable` so it
  * sorts and filters like the builtin: each column's type is inferred from its
  * cells' text, and every cell except a converted unit cell keeps its own
  * rendered content. Preferences persist under the table's id unless the
- * server marked that id ambiguous.
+ * server marked that id ambiguous. The table is the environment's `DataTable` (the web client's
+ * puts its column menus on the page body).
  */
 export const MarkdownTableView = memo(function MarkdownTableView({
 	node,
@@ -18,6 +21,8 @@ export const MarkdownTableView = memo(function MarkdownTableView({
 	node: TableNode;
 	renderInline: (nodes: readonly InlineNode[]) => ReactNode;
 }) {
+	const DataTable = useDocumentEnvironment().components
+		.DataTable as ComponentType<DataTableViewProps>;
 	const width = node.head.length;
 	const rows = node.rows.map((row) =>
 		Array.from({ length: width }, (_, index) => row[index] ?? ([] as InlineNode[])),
@@ -60,13 +65,15 @@ export const MarkdownTableView = memo(function MarkdownTableView({
 			data={data}
 			persistState={node.persist}
 			tableProps={{ id: node.id }}
-			renderHeader={(key) => renderInline(node.head[Number(key.slice(7))] ?? [])}
+			renderHeader={(key) => (
+				<CellText header={true}>{renderInline(node.head[Number(key.slice(7))] ?? [])}</CellText>
+			)}
 			renderCell={(row, key) => {
 				const index = Number(key.slice(7));
 				const column = columns[index];
 				// Unit columns use DataTable's shared-unit formatter.
 				if (column.type === "time" || column.type === "bytes") return undefined;
-				return renderInline(rows[row]?.[index] ?? []);
+				return <CellText header={false}>{renderInline(rows[row]?.[index] ?? [])}</CellText>;
 			}}
 		/>
 	);

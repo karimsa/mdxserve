@@ -17,6 +17,10 @@ import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { List, ListItem } from "@mdxserve/ui/primitives/List";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Heading, Link, Text } from "@mdxserve/ui/primitives/Text";
+import { DocumentEnvironmentProvider } from "@mdxserve/ui/document/environment";
+import { NodeList } from "@mdxserve/ui/document/nodes";
+import { appDocumentEnvironment } from "../../../src/document-environment";
+import { SAMPLE_DOCUMENT } from "../../../src/sample-document";
 import { useSideInsets } from "../../../src/side-insets";
 
 /*
@@ -102,6 +106,12 @@ export default function Gallery() {
 			testID="gallery-content"
 		>
 			<Stack.Screen options={{ title: "Gallery" }} />
+
+			<Section title="Document">
+				<DocumentEnvironmentProvider value={appDocumentEnvironment}>
+					<NodeList nodes={SAMPLE_DOCUMENT} />
+				</DocumentEnvironmentProvider>
+			</Section>
 
 			<Section title="Text">
 				<Text size="lg" weight="bold" tone="heading">

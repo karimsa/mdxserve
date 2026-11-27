@@ -52,7 +52,8 @@ describe("the app's compiled stylesheet", () => {
 describe("screens with the compiled stylesheet", () => {
 	it("render the gallery with the tokens' colours", async () => {
 		await renderRouter(APP_ROUTES, { initialUrl: "/gallery" });
-		const title = screen.getByText("Tip");
+		// The sample document has a tip callout too; every one is drawn the same.
+		const [title] = screen.getAllByText("Tip");
 		const { variables } = resolveTheme(sheet, "light");
 		expect(StyleSheet.flatten(title.props.style).color).toBe(variables["--text-accent"]);
 		expect(screen.getByRole("tab", { name: "Overview", selected: true })).toBeOnTheScreen();

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { queryClient, trpc } from "../api";
 import { DocContext } from "@mdxserve/ui/document/DocContext";
-import { Heading } from "../Heading";
+import { SectionHeading } from "@mdxserve/ui/document/elements";
 import { ErrorBox } from "../ErrorBox";
 import { useFullWidth } from "../hooks";
 import { ResizeHandle } from "../ui/ResizeHandle";
@@ -62,9 +62,9 @@ const Footnotes = memo(function Footnotes({ index }: { index: DocumentIndex }) {
 	if (index.footnotes.length === 0) return null;
 	return (
 		<section data-footnotes="" className="footnotes">
-			<Heading level={2} id={FOOTNOTES_ID} className="sr-only">
+			<SectionHeading level={2} id={FOOTNOTES_ID} className="sr-only">
 				Footnotes
-			</Heading>
+			</SectionHeading>
 			<ol>
 				{index.footnotes.map((definition) => {
 					const ids = footnoteIds(definition.label);
