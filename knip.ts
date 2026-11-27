@@ -40,11 +40,6 @@ const config: KnipConfig = {
 				.map((match) => `import "${match[1]}";`)
 				.join("\n"),
 	},
-	ignoreIssues: {
-		// Another change is rewriting src/servers/; its unused exports (defaultRegistryPath, and
-		// the test-only defaultLockPath, parseLockPid and toOutcome) are left for it to remove.
-		"src/servers/{server-registry,server-lock,remote}.ts": ["exports"],
-	},
 	ignoreDependencies: [
 		// Transitive @tiptap extensions pinned on purpose so their peers match our core and pm
 		// (see yarn.config.cjs); nothing imports them directly.
