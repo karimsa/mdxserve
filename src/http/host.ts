@@ -68,16 +68,53 @@ export function isSameOrigin(origin: string | undefined, hostHeader: string | un
  * HTTP). That is the DNS-rebinding defence for a server bound to loopback,
  * whose rooms may cover any document in its roots.
  *
+ * The one other `Host` a full server accepts is an address Tailscale itself
+ * reports as proxying `/` to this server (`tailnetHosts`), and only on a
+ * connection from loopback, which is where `tailscale serve` connects from.
+ * A rebinding page would need to control the local serve config to use it.
+ * Such a `Host` still fails `isTrustedHost`, so a tailnet reader never gets
+ * same-machine privileges over HTTP.
+ *
  * A restricted server skips the `Host` check: it is meant to be reached by
  * name (`mybox.local`, a domain behind a reverse proxy), its rooms only
  * cover public documents, and its signals carry nothing, so the check would
  * only refuse legitimate readers.
  */
-export function acceptsRealtimePeer(
+function acceptsRealtimePeer(
 	req: http.IncomingMessage,
 	permissions: PermissionMode,
+	tailnetHosts: ReadonlySet<string>,
 ): boolean {
 	if (!isSameOrigin(req.headers.origin, req.headers.host)) return false;
 	if (permissions === "restricted") return true;
-	return isTrustedHost(req.headers.host, req.socket.localAddress);
+	if (isTrustedHost(req.headers.host, req.socket.localAddress)) return true;
+	return (
+		isLoopbackAddress(req.socket.remoteAddress) && isTailnetHost(req.headers.host, tailnetHosts)
+	);
+}
+
+/** Whether a `Host` header is one `tailscale serve` publishes this server under. */
+function isTailnetHost(hostHeader: string | undefined, tailnetHosts: ReadonlySet<string>): boolean {
+	return hostHeader !== undefined && tailnetHosts.has(hostHeader.trim().toLowerCase());
+}
+
+function isLoopbackAddress(address: string | undefined): boolean {
+	return address !== undefined && LOOPBACK_NAMES.has(address.toLowerCase());
+}
+
+/** The per-process set of tailnet `Host` values, read once at server startup. */
+interface TailnetHostSource {
+	current(): ReadonlySet<string>;
+}
+
+/**
+ * The handshake check the live update socket runs. Without a source
+ * (`--no-tailscale`) no tailnet `Host` is accepted.
+ */
+export function realtimePeerCheck(
+	permissions: PermissionMode,
+	tailnet: TailnetHostSource | undefined,
+): (req: http.IncomingMessage) => boolean {
+	const empty: ReadonlySet<string> = new Set();
+	return (req) => acceptsRealtimePeer(req, permissions, tailnet?.current() ?? empty);
 }

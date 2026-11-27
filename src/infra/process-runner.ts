@@ -119,9 +119,13 @@ export async function runProcess(
 			}
 			options.signal.removeEventListener("abort", abort);
 		};
-		child.on("error", () => {
+		// Keep the errno code (ENOENT for a missing executable) so a caller can
+		// tell "not installed" from "failed to run".
+		child.on("error", (error: NodeJS.ErrnoException) => {
 			cleanup();
-			reject(new Error("Agent executable could not be started"));
+			reject(
+				Object.assign(new Error("Agent executable could not be started"), { code: error.code }),
+			);
 		});
 		child.on("close", (code) => {
 			cleanup();

@@ -11,6 +11,9 @@ rendered pages with syntax highlighting, mermaid diagrams, and a small library o
 components. `.md` and `.mdx` are treated identically, so the builtin
 components work in either.
 
+To start, stop or reach the server, or to add the folder you are writing in, use the
+`mdxserve:run` skill.
+
 Markdown files have many readers besides mdxserve (GitHub, editors, other tools). The goal
 is the **simplest Markdown that is still visual**: reach for richer features only when they
 add clarity, and prefer features that degrade gracefully everywhere else.

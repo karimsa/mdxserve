@@ -6,6 +6,7 @@ import { REALTIME_PATH, SERVER_EVENTS } from "../../shared/realtime.js";
 import { watch } from "chokidar";
 import { isWatchIgnored, signalFileChanges } from "../../src/http/watch-signals.js";
 import { MAX_JOINED_PATHS } from "../../src/realtime/server.js";
+import { TailnetHosts } from "../../src/tailscale/tailnet-hosts.js";
 import { io as connect } from "socket.io-client";
 import {
 	createRealtimeClient,
@@ -134,6 +135,67 @@ describe("attachRealtime handshake", () => {
 				.on("error", reject);
 		});
 		expect(status).toBe(404);
+	});
+});
+
+describe("attachRealtime handshake through tailscale serve", () => {
+	const name = "box.tail1234.ts.net";
+
+	/** A TailnetHosts whose detection reports `hosts()` and counts its calls. */
+	function tailnet(hosts: () => string[]) {
+		const state = { calls: 0 };
+		const source = new TailnetHosts(async () => {
+			state.calls += 1;
+			return {
+				kind: "running",
+				cli: "tailscale",
+				dnsName: name,
+				addresses: hosts().map((host) => ({ host, url: `https://${host}/`, funnel: false })),
+				unsupportedPaths: [],
+				suggestedHttpsPort: 4040,
+			};
+		});
+		return { source, state };
+	}
+
+	it("S1: accepts a detected tailnet Host in full mode, in both header shapes", async () => {
+		const { source } = tailnet(() => [name, `${name}:8443`]);
+		await source.detect();
+		harness = await startHarness("full", source);
+		expect(await handshakeStatus(harness.port, { host: name, origin: `https://${name}` })).toBe(
+			200,
+		);
+		expect(
+			await handshakeStatus(harness.port, { host: `${name}:8443`, origin: `https://${name}:8443` }),
+		).toBe(200);
+		// If the proxy rewrote Host to its loopback target, it is accepted as before.
+		expect(await handshakeStatus(harness.port, { host: `127.0.0.1:${harness.port}` })).toBe(200);
+		const socket = harness.client({ host: name, origin: `https://${name}` });
+		await connected(socket);
+		expect(await join(socket, { path: "doc.md" })).toEqual({ ok: true });
+	});
+
+	it("S2: refuses an unknown Host, and one the tailnet set has under another port", async () => {
+		const { source } = tailnet(() => [name]);
+		await source.detect();
+		harness = await startHarness("full", source);
+		expect(await handshakeStatus(harness.port, { host: "other.tail1234.ts.net" })).toBe(403);
+		expect(await handshakeStatus(harness.port, { host: `${name}:9999` })).toBe(403);
+		expect(
+			await handshakeStatus(harness.port, { host: name, origin: "https://attacker.example" }),
+		).toBe(403);
+	});
+
+	it("S4: an entry added after startup is refused, and no handshake runs the CLI", async () => {
+		let published: string[] = [];
+		const { source, state } = tailnet(() => published);
+		await source.detect();
+		harness = await startHarness("full", source);
+
+		published = [name];
+		expect(await handshakeStatus(harness.port, { host: name })).toBe(403);
+		expect(await handshakeStatus(harness.port, { host: "attacker.example" })).toBe(403);
+		expect(state.calls).toBe(1);
 	});
 });
 

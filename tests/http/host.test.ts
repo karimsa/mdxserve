@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import type http from "node:http";
-import {
-	acceptsRealtimePeer,
-	hostnameOf,
-	isSameOrigin,
-	isTrustedHost,
-} from "../../src/http/host.js";
+import { hostnameOf, isSameOrigin, isTrustedHost, realtimePeerCheck } from "../../src/http/host.js";
 
 describe("hostnameOf", () => {
 	it("strips a port, unwraps IPv6 brackets, and lower-cases", () => {
@@ -86,43 +81,124 @@ describe("isSameOrigin", () => {
 	});
 });
 
-describe("acceptsRealtimePeer", () => {
-	function request(headers: Record<string, string>, localAddress = "127.0.0.1") {
-		return { headers, socket: { localAddress } } as unknown as http.IncomingMessage;
+describe("realtimePeerCheck", () => {
+	function request(
+		headers: Record<string, string>,
+		localAddress = "127.0.0.1",
+		remoteAddress = "127.0.0.1",
+	) {
+		return { headers, socket: { localAddress, remoteAddress } } as unknown as http.IncomingMessage;
 	}
 
-	const full = (req: http.IncomingMessage) => acceptsRealtimePeer(req, "full");
-	const restricted = (req: http.IncomingMessage) => acceptsRealtimePeer(req, "restricted");
+	/** A tailnet source that knows `hosts`. */
+	function source(hosts: string[] = []) {
+		const known = new Set(hosts);
+		return { current: () => known };
+	}
 
-	it("in full mode, needs both a trusted Host and a same-origin Origin", () => {
-		expect(full(request({ host: "localhost:4040" }))).toBe(true);
-		expect(full(request({ host: "localhost:4040", origin: "http://localhost:4040" }))).toBe(true);
-		expect(full(request({ host: "attacker.example:4040" }))).toBe(false);
+	const full = (req: http.IncomingMessage, tailnet = source()) =>
+		Promise.resolve(realtimePeerCheck("full", tailnet)(req));
+	const restricted = (req: http.IncomingMessage) =>
+		Promise.resolve(realtimePeerCheck("restricted", source())(req));
+
+	it("in full mode, needs both a trusted Host and a same-origin Origin", async () => {
+		expect(await full(request({ host: "localhost:4040" }))).toBe(true);
+		expect(await full(request({ host: "localhost:4040", origin: "http://localhost:4040" }))).toBe(
+			true,
+		);
+		expect(await full(request({ host: "attacker.example:4040" }))).toBe(false);
 		expect(
-			full(request({ host: "attacker.example:4040", origin: "http://attacker.example:4040" })),
+			await full(
+				request({ host: "attacker.example:4040", origin: "http://attacker.example:4040" }),
+			),
 		).toBe(false);
-		expect(full(request({ host: "localhost:4040", origin: "http://attacker.example" }))).toBe(
+		expect(await full(request({ host: "localhost:4040", origin: "http://attacker.example" }))).toBe(
 			false,
 		);
-		expect(full(request({}))).toBe(false);
+		expect(await full(request({}))).toBe(false);
 	});
 
-	it("in full mode, accepts the LAN address the connection arrived on", () => {
-		expect(full(request({ host: "192.168.1.10:4040" }, "192.168.1.10"))).toBe(true);
-		expect(full(request({ host: "192.168.1.11:4040" }, "192.168.1.10"))).toBe(false);
+	it("in full mode, accepts the LAN address the connection arrived on", async () => {
+		expect(await full(request({ host: "192.168.1.10:4040" }, "192.168.1.10", "192.168.1.20"))).toBe(
+			true,
+		);
+		expect(await full(request({ host: "192.168.1.11:4040" }, "192.168.1.10"))).toBe(false);
 	});
 
-	it("in restricted mode, accepts a server name and needs only a same-origin Origin", () => {
+	it("in restricted mode, accepts a server name and needs only a same-origin Origin", async () => {
 		expect(
-			restricted(request({ host: "mybox.local:4040", origin: "http://mybox.local:4040" })),
+			await restricted(request({ host: "mybox.local:4040", origin: "http://mybox.local:4040" })),
 		).toBe(true);
 		expect(
-			restricted(request({ host: "docs.example.com", origin: "https://docs.example.com" })),
+			await restricted(request({ host: "docs.example.com", origin: "https://docs.example.com" })),
 		).toBe(true);
-		expect(restricted(request({ host: "docs.example.com" }))).toBe(true);
+		expect(await restricted(request({ host: "docs.example.com" }))).toBe(true);
 		expect(
-			restricted(request({ host: "docs.example.com", origin: "https://attacker.example" })),
+			await restricted(request({ host: "docs.example.com", origin: "https://attacker.example" })),
 		).toBe(false);
-		expect(restricted(request({ host: "docs.example.com", origin: "null" }))).toBe(false);
+		expect(await restricted(request({ host: "docs.example.com", origin: "null" }))).toBe(false);
+	});
+
+	const tailnetName = "box.tail1234.ts.net";
+
+	it("S1: in full mode, accepts a tailnet Host from loopback, on 443 and on another port", async () => {
+		const tailnet = source([tailnetName, `${tailnetName}:4040`]);
+		expect(
+			await full(request({ host: tailnetName, origin: `https://${tailnetName}` }), tailnet),
+		).toBe(true);
+		expect(
+			await full(
+				request({ host: `${tailnetName}:4040`, origin: `https://${tailnetName}:4040` }),
+				tailnet,
+			),
+		).toBe(true);
+		expect(await full(request({ host: tailnetName.toUpperCase() }), tailnet)).toBe(true);
+	});
+
+	it("S1: still accepts when the proxy rewrites Host to its loopback target", async () => {
+		expect(await full(request({ host: "127.0.0.1:4040" }), source([tailnetName]))).toBe(true);
+	});
+
+	it("S2: refuses a tailnet Host from a remote address, on another port, or cross-origin", async () => {
+		const tailnet = source([tailnetName]);
+		expect(await full(request({ host: tailnetName }, "100.64.0.1", "100.64.0.9"), tailnet)).toBe(
+			false,
+		);
+		expect(await full(request({ host: `${tailnetName}:8443` }), tailnet)).toBe(false);
+		expect(
+			await full(request({ host: tailnetName, origin: "https://attacker.example" }), tailnet),
+		).toBe(false);
+		expect(await full(request({ host: "other.tail1234.ts.net" }), tailnet)).toBe(false);
+	});
+
+	it("without a tailnet source (--no-tailscale), refuses a tailnet Host", async () => {
+		expect(await realtimePeerCheck("full", undefined)(request({ host: tailnetName }))).toBe(false);
+	});
+
+	it("property: a DNS name passes in full mode only from loopback and in the tailnet set, and never gets same-machine trust", async () => {
+		const label = fc.stringMatching(/^[a-z][a-z0-9-]{0,12}$/);
+		const dnsName = fc
+			.array(label, { minLength: 2, maxLength: 4 })
+			.map((labels) => labels.join("."))
+			.filter((name) => name !== "localhost");
+		await fc.assert(
+			fc.asyncProperty(dnsName, fc.boolean(), fc.boolean(), async (name, inSet, fromLoopback) => {
+				const tailnet = source(inSet ? [name] : []);
+				const remote = fromLoopback ? "127.0.0.1" : "100.64.0.9";
+				const local = fromLoopback ? "127.0.0.1" : "100.64.0.1";
+				expect(await full(request({ host: name }, local, remote), tailnet)).toBe(
+					inSet && fromLoopback,
+				);
+				expect(isTrustedHost(name, local)).toBe(false);
+			}),
+			{ numRuns: 200 },
+		);
+	});
+});
+
+describe("isTrustedHost and tailnet names (S3)", () => {
+	it("is false for a tailnet Host on loopback, so HTTP gives it no same-machine privileges", () => {
+		expect(isTrustedHost("box.tail1234.ts.net", "127.0.0.1")).toBe(false);
+		expect(isTrustedHost("box.tail1234.ts.net:4040", "127.0.0.1")).toBe(false);
 	});
 });

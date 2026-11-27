@@ -20,9 +20,12 @@ calling it.
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
 `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
-`document/`, `assets/`, `comments/`, and `preferences/`. `setup/` is
+`document/`, `assets/`, `comments/`, `preferences/`, and `tailscale/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
+`tailscale/` has no controller either: `TailscaleService.detect` asks the Tailscale CLI (through
+`tailscale/runner.ts`, the same adapter) which `tailscale serve` addresses reach this server.
+`startServer` holds the result in `TailnetHosts`, which the live update handshake trusts.
 `document/` has no controller either: `DocumentService.parse` turns source text into the JSON
 document tree, its diagnostics and its line ranges, and its procedure (`getDocument`) lives in
 `docs/controller.ts`, behind `DocsService.readDocument`.
@@ -57,6 +60,7 @@ genuinely per-process state is created once — in `startServer` (`src/http/star
 CLI command — and carried through the request context: `DocCache`, `SearchService`,
 `DocsService` (it owns the per-file save lock), `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
 `DiagramsService` (it owns conversion scheduling, sessions and temporary uploads),
+`TailnetHosts` (it owns the trusted tailnet `Host` set and its rate-limited refresh),
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
 is on loopback, and so whether a root mutation may run (`allowMutation`) — is a method
 argument, not a constructor argument.
