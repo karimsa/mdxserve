@@ -12,6 +12,8 @@ import { Icon } from "./Icon";
 import { nextCount } from "./toast-count";
 import { hasDocument } from "../document/query";
 import { isSelfWrite } from "../comments/self-writes";
+import { realtime } from "../realtime";
+import { rootFor } from "../router";
 
 export type ToastTone = "info" | "ok" | "warn" | "danger";
 
@@ -133,43 +135,26 @@ const TOAST_STYLE: CSSProperties = {
 
 /** Fixed bottom-right stack. Mount once near the app root. */
 export function ToastStack() {
-	// The server names the doc that was edited (`mdxserve:doc-changed`, sent
-	// from its file watcher).
-	useEffect(() => {
-		if (!import.meta.hot) return;
-		// The event covers every doc under every mounted root, so keep only the
-		// docs this tab has actually loaded — an agent editing forty
-		// unrelated files shouldn't rain toasts on a reader. Keyed by path so a
-		// burst of saves to one doc refreshes a single card (counter + bounce,
-		// timer restarted) instead of stacking copies.
-		const handleDocChanged = (data: {
-			files?: Array<{ path: string; root: string; rel: string }>;
-		}) => {
-			// A comment this tab just wrote is not an outside change to announce.
-			const files = (data?.files ?? []).filter(
-				(file) => hasDocument(file.path) && !isSelfWrite(file.path),
-			);
-			const [first] = files;
-			if (!first) return;
-			if (files.length === 1) {
+	// The live update socket signals the open doc's room when its file changes
+	// on disk.
+	useEffect(
+		() =>
+			// Only a real change is announced: a "stale" signal after a reconnect
+			// or a rejoin refetches quietly. Keyed by path so a burst of saves to
+			// one doc refreshes a single card (counter + bounce, timer restarted)
+			// instead of stacking copies.
+			realtime.onDocChanged((path, cause) => {
+				// A comment this tab just wrote is not an outside change to announce.
+				if (cause !== "changed" || !hasDocument(path) || isSelfWrite(path)) return;
+				const root = rootFor(path);
 				pushToast({
 					tone: "info",
-					text: `Reloaded ${first.rel}`,
-					dedupeKey: `reload:${first.path}`,
+					text: `Reloaded ${root ? path.slice(root.dir.length + 1) : path}`,
+					dedupeKey: `reload:${path}`,
 				});
-			} else {
-				pushToast({
-					tone: "info",
-					text: `Reloaded ${files.length} docs`,
-					dedupeKey: "reload:many",
-				});
-			}
-		};
-		import.meta.hot.on("mdxserve:doc-changed", handleDocChanged);
-		return () => {
-			import.meta.hot?.off?.("mdxserve:doc-changed", handleDocChanged);
-		};
-	}, []);
+			}),
+		[],
+	);
 
 	return (
 		<>

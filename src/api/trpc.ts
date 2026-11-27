@@ -7,6 +7,7 @@ import type { DocCache } from "../docs/doc-cache.js";
 import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
 import type { PermissionMode } from "../servers/bind-host.js";
+import { isSameOrigin } from "../http/host.js";
 
 /**
  * Everything a procedure resolver needs, built fresh per request by
@@ -47,21 +48,9 @@ const trpc = initTRPC.context<ApiContext>().meta<ProcedureMeta>().create();
 export const router = trpc.router;
 export const createCallerFactory = trpc.createCallerFactory;
 
-/**
- * A same-origin request either omits `Origin` (a plain navigation, or a
- * fetch without CORS) or sends one whose host matches the `Host` header it
- * arrived on. Anything else — including an unparsable or `null` origin — is
- * cross-origin.
- */
+/** See `isSameOrigin` in src/http/host.ts; the live update socket applies the same rule. */
 function isCrossOrigin(ctx: ApiContext): boolean {
-	if (ctx.origin === undefined) return false;
-	let originHost: string;
-	try {
-		originHost = new URL(ctx.origin).host;
-	} catch {
-		return true;
-	}
-	return originHost !== ctx.host;
+	return !isSameOrigin(ctx.origin, ctx.host);
 }
 
 // Mutations are write surfaces, and the server may be bound to 0.0.0.0 for

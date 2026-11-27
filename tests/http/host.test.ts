@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { hostnameOf, isTrustedHost } from "../../src/http/host.js";
+import type http from "node:http";
+import {
+	acceptsRealtimePeer,
+	hostnameOf,
+	isSameOrigin,
+	isTrustedHost,
+} from "../../src/http/host.js";
 
 describe("hostnameOf", () => {
 	it("strips a port, unwraps IPv6 brackets, and lower-cases", () => {
@@ -62,5 +68,61 @@ describe("isTrustedHost", () => {
 			}),
 			{ numRuns: 100 },
 		);
+	});
+});
+
+describe("isSameOrigin", () => {
+	it("accepts a missing Origin and one whose host matches Host", () => {
+		expect(isSameOrigin(undefined, "localhost:4040")).toBe(true);
+		expect(isSameOrigin("http://localhost:4040", "localhost:4040")).toBe(true);
+	});
+
+	it("refuses another host or port, a null origin, and an unparsable one", () => {
+		expect(isSameOrigin("http://attacker.example", "localhost:4040")).toBe(false);
+		expect(isSameOrigin("http://localhost:4041", "localhost:4040")).toBe(false);
+		expect(isSameOrigin("null", "localhost:4040")).toBe(false);
+		expect(isSameOrigin("not a url", "localhost:4040")).toBe(false);
+		expect(isSameOrigin("http://localhost:4040", undefined)).toBe(false);
+	});
+});
+
+describe("acceptsRealtimePeer", () => {
+	function request(headers: Record<string, string>, localAddress = "127.0.0.1") {
+		return { headers, socket: { localAddress } } as unknown as http.IncomingMessage;
+	}
+
+	const full = (req: http.IncomingMessage) => acceptsRealtimePeer(req, "full");
+	const restricted = (req: http.IncomingMessage) => acceptsRealtimePeer(req, "restricted");
+
+	it("in full mode, needs both a trusted Host and a same-origin Origin", () => {
+		expect(full(request({ host: "localhost:4040" }))).toBe(true);
+		expect(full(request({ host: "localhost:4040", origin: "http://localhost:4040" }))).toBe(true);
+		expect(full(request({ host: "attacker.example:4040" }))).toBe(false);
+		expect(
+			full(request({ host: "attacker.example:4040", origin: "http://attacker.example:4040" })),
+		).toBe(false);
+		expect(full(request({ host: "localhost:4040", origin: "http://attacker.example" }))).toBe(
+			false,
+		);
+		expect(full(request({}))).toBe(false);
+	});
+
+	it("in full mode, accepts the LAN address the connection arrived on", () => {
+		expect(full(request({ host: "192.168.1.10:4040" }, "192.168.1.10"))).toBe(true);
+		expect(full(request({ host: "192.168.1.11:4040" }, "192.168.1.10"))).toBe(false);
+	});
+
+	it("in restricted mode, accepts a server name and needs only a same-origin Origin", () => {
+		expect(
+			restricted(request({ host: "mybox.local:4040", origin: "http://mybox.local:4040" })),
+		).toBe(true);
+		expect(
+			restricted(request({ host: "docs.example.com", origin: "https://docs.example.com" })),
+		).toBe(true);
+		expect(restricted(request({ host: "docs.example.com" }))).toBe(true);
+		expect(
+			restricted(request({ host: "docs.example.com", origin: "https://attacker.example" })),
+		).toBe(false);
+		expect(restricted(request({ host: "docs.example.com", origin: "null" }))).toBe(false);
 	});
 });

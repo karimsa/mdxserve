@@ -58,6 +58,11 @@ export type ReadDocumentResult =
 	| { kind: "not-found"; message: string }
 	| { kind: "too-large" };
 
+export type LocateDocumentResult =
+	| { kind: "ok"; abs: string }
+	| { kind: "not-found"; message: string }
+	| { kind: "too-large"; size: number };
+
 export type ReadMetadataResult =
 	| { kind: "ok"; metadata: DocumentMetadata; diagnostics: MetadataDiagnostic[] }
 	| { kind: "not-found"; message: string };
@@ -219,6 +224,28 @@ export class DocsService implements MetadataPort {
 		return { kind: "ok", document: tree, version: read.source.version };
 	}
 
+	/**
+	 * Find the doc `readDocument` would read for `inputPath`, without reading
+	 * or parsing it: the same path rules, restricted-mode rules and size limit,
+	 * so `ok` here means `readDocument` would succeed for the same caller.
+	 * `abs` is the doc's absolute path inside its root, the form the file
+	 * watcher reports a change under.
+	 */
+	async locateDocument(inputPath: string, publicOnly = false): Promise<LocateDocumentResult> {
+		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
+		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
+		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
+
+		let size: number;
+		try {
+			size = (await fsp.stat(resolved.abs)).size;
+		} catch {
+			return { kind: "not-found", message: `${resolved.abs} not found` };
+		}
+		if (size > MAX_SOURCE_BYTES) return { kind: "too-large", size };
+		return { kind: "ok", abs: resolved.abs };
+	}
+
 	private async readResolved(
 		inputPath: string,
 		publicOnly: boolean,
@@ -227,14 +254,10 @@ export class DocsService implements MetadataPort {
 		| { kind: "not-found"; message: string }
 		| { kind: "too-large"; size: number }
 	> {
-		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
-		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
-		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
-
-		const stat = await fsp.stat(resolved.abs);
-		if (stat.size > MAX_SOURCE_BYTES) return { kind: "too-large", size: stat.size };
-		const text = await fsp.readFile(resolved.abs, "utf8");
-		return { kind: "ok", abs: resolved.abs, source: { text, version: versionOf(text) } };
+		const located = await this.locateDocument(inputPath, publicOnly);
+		if (located.kind !== "ok") return located;
+		const text = await fsp.readFile(located.abs, "utf8");
+		return { kind: "ok", abs: located.abs, source: { text, version: versionOf(text) } };
 	}
 
 	/** Read static page metadata without the editor's source-size limit or version hash. */

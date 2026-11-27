@@ -4,7 +4,7 @@ import { isDocFile, isServable } from "../roots/servable.js";
 import { rootInfoFor, type RootInfo } from "../roots/root-info.js";
 import { toPosix } from "../infra/paths.js";
 
-/** One edited doc, as the `mdxserve:doc-changed` event describes it to the viewer. */
+/** One edited doc. `path` names the room its `doc-changed` signal goes to. */
 export interface DocChange {
 	/** Absolute path of the file that changed. */
 	path: string;

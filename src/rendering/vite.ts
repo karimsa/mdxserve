@@ -131,6 +131,10 @@ export function sharedViteConfig(): SharedViteConfig {
 	// @trpc/server/unstable-core-do-not-import, so @trpc/server must be
 	// aliased too even though it looks server-only.
 	const trpcServerEntry = path.dirname(resolveFromPkg("@trpc/server/package.json"));
+	// client/realtime.ts. Aliased to the package dir (like react-hot-toast) so
+	// the optimizer's include entry resolves from the neutral Vite root and its
+	// "exports" map picks the ESM build.
+	const socketIoClientEntry = path.dirname(resolveFromPkg("socket.io-client/package.json"));
 
 	// shiki's subpaths map to single files in its "exports"; alias each one so
 	// the lazy highlighter is pre-bundled at startup rather than discovered
@@ -182,6 +186,7 @@ export function sharedViteConfig(): SharedViteConfig {
 		// Exact-file aliases, listed before nothing that prefixes them, so the
 		// optimizer's include entries resolve from the neutral Vite root.
 		...shikiAliases,
+		{ find: "socket.io-client", replacement: socketIoClientEntry },
 	];
 
 	const plugins: PluginOption[] = [react({ include: /\.(jsx|tsx|js|ts)$/ }), tailwindcss()];
@@ -218,6 +223,7 @@ export function sharedViteConfig(): SharedViteConfig {
 		"@trpc/tanstack-react-query",
 		"@trpc/server",
 		...shikiAliases.map((alias) => alias.find),
+		"socket.io-client",
 	];
 
 	return { plugins, resolve: { alias, dedupe: ["react", "react-dom"] }, optimizeDepsInclude };

@@ -11,9 +11,9 @@ import { allowFsDir, createDevServer, disallowFsDir } from "../rendering/vite.js
 import { renderAppCss } from "../rendering/app-css.js";
 import { getPackageRoot, resolveFromPkg } from "../infra/pkg.js";
 import { getViteCacheDir } from "../infra/cache.js";
-import { resolveRoot } from "../roots/paths.js";
-import { isServable } from "../roots/servable.js";
-import { describeDocChange, type DocChange } from "./doc-change.js";
+import { signalFileChanges } from "./watch-signals.js";
+import { acceptsRealtimePeer } from "./host.js";
+import { attachRealtime } from "../realtime/server.js";
 import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
@@ -252,56 +252,18 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		});
 	});
 
-	// Auto-refresh open listings: chokidar already watches every root for
-	// Vite's own HMR, so ride the same watcher instead of standing up a second
-	// one. Debounce so a bulk op (git checkout, rm -rf dir) fires one event
-	// instead of a storm.
-	const changedDirs = new Set<string>();
-	let flushTimer: NodeJS.Timeout | null = null;
+	// After the request listener: engine.io takes over the listeners already
+	// registered and forwards every request outside its own path to them.
+	const realtime = attachRealtime(httpServer, {
+		docs,
+		permissions,
+		acceptsPeer: (req) => acceptsRealtimePeer(req, permissions),
+	});
 
-	function onWatchEvent(changedPath: string): void {
-		if (!isServable(path.basename(changedPath))) return;
-		const liveRoots = rootsService.list().map((info) => info.dir);
-		const hit = resolveRoot(liveRoots, path.dirname(changedPath));
-		if (!hit) return;
-
-		changedDirs.add(hit.abs.endsWith("/") ? hit.abs : `${hit.abs}/`);
-		if (flushTimer) return;
-		flushTimer = setTimeout(() => {
-			flushTimer = null;
-			const dirs = [...changedDirs];
-			changedDirs.clear();
-			vite.ws.send({ type: "custom", event: "mdxserve:listing-changed", data: { dirs } });
-		}, 100);
-	}
-
-	vite.watcher.on("add", onWatchEvent);
-	vite.watcher.on("unlink", onWatchEvent);
-	vite.watcher.on("addDir", onWatchEvent);
-	vite.watcher.on("unlinkDir", onWatchEvent);
-
-	// Tell the viewer which doc was edited. Vite's own HMR payload can't: a
-	// doc module has no HMR boundary of its own, so its update is attributed
-	// to whichever importer accepted it (App.tsx), and the Tailwind rebuild
-	// the edit triggers arrives as a separate app.css update. Debounced the
-	// same way, keyed by path so an editor's double-write is one event.
-	const changedDocs = new Map<string, DocChange>();
-	let docFlushTimer: NodeJS.Timeout | null = null;
-
-	function onDocChange(changedPath: string): void {
-		const change = describeDocChange(rootsService.list(), changedPath);
-		if (!change) return;
-		changedDocs.set(change.path, change);
-		if (docFlushTimer) return;
-		docFlushTimer = setTimeout(() => {
-			docFlushTimer = null;
-			const files = [...changedDocs.values()];
-			changedDocs.clear();
-			vite.ws.send({ type: "custom", event: "mdxserve:doc-changed", data: { files } });
-		}, 100);
-	}
-
-	vite.watcher.on("change", onDocChange);
+	// Auto-refresh open listings and docs: chokidar already watches every root
+	// for Vite's own HMR, so ride the same watcher instead of standing up a
+	// second one.
+	const stopFileSignals = signalFileChanges(vite.watcher, () => rootsService.list(), realtime);
 
 	// Apply a live root change to the running Vite server: its fs.allow list
 	// and its watcher both need to move in lockstep with the mounted set, or a newly-added root's
@@ -309,7 +271,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	// By the time this runs the set has already changed, so nothing in here may
 	// reject: a failure would surface as an error on a mutation that did
 	// succeed, and a retry would then read as "already mounted". Each step is
-	// best-effort and logged; the registry write and the ws broadcast are
+	// best-effort and logged; the registry write and the socket broadcast are
 	// independent of the Vite steps and of each other.
 	rootsService.onChange(async ({ added, removed, roots: mountedRoots }) => {
 		const dirs = mountedRoots.map((info) => info.dir);
@@ -327,11 +289,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		}
 		serverRegistry.updateRoots(process.pid, dirs);
 		try {
-			vite.ws.send({
-				type: "custom",
-				event: "mdxserve:roots-changed",
-				data: { added, removed, roots: mountedRoots },
-			});
+			realtime.rootsChanged();
 		} catch (error) {
 			console.error(error);
 		}
@@ -368,7 +326,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		console.log("\n  Shutting down…");
 		try {
 			stopConfigWatch();
-			if (flushTimer) clearTimeout(flushTimer);
+			stopFileSignals();
+			realtime.close();
 			await vite.close();
 		} finally {
 			// The lock and registry row stay ours until the listener has actually

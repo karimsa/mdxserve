@@ -127,6 +127,8 @@
 		"rollup": "4.64.0",
 		"sharp": "0.35.5",
 		"shiki": "4.4.2",
+		"socket.io": "4.8.4",
+		"socket.io-client": "4.8.4",
 		"svg-pan-zoom": "3.6.2",
 		"tailwindcss": "4.3.3",
 		"tippy.js": "6.3.7",
