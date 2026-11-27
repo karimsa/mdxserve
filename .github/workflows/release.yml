@@ -47,7 +47,7 @@ jobs:
           yarn --immutable
 
       - name: Checks
-        run: yarn constraints && yarn format:check && yarn lint && yarn typecheck && yarn test
+        run: yarn constraints && yarn format:check && yarn lint && yarn deadcode && yarn typecheck && yarn test
 
       - name: Build
         run: yarn build

@@ -19,8 +19,7 @@ import { cachedHighlight, highlight, type HighlightedLine } from "./highlight";
  * (bg-code-bg / border-code-border / text-code-fg — see
  * client/design/tokens/colors.css). The code arrives as plain text and is
  * highlighted here with shiki, loaded as a lazy chunk on the first block; the
- * plain lines show until it lands. The markup is the one rehype-pretty-code
- * used to emit, so client/app.css styles it unchanged:
+ * plain lines show until it lands. client/app.css styles this markup:
  *
  *   <pre data-language data-theme>
  *     <code data-language data-theme style="display:grid"

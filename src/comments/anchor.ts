@@ -12,12 +12,13 @@ export function normalizeText(text: string): string {
  * The comparison key of a heading: its normalized text cut to the stored
  * heading limit. Must match `headingKey` in `client/comments/anchor.ts`, which
  * is what the browser stores, so a heading longer than the limit still matches.
+ * @internal Exported for its tests.
  */
 export function headingKey(text: string): string {
 	return normalizeText(text).slice(0, MAX_ANCHOR_HEADING).trimEnd();
 }
 
-export type AnchorState = "exact" | "block" | "section" | "detached";
+type AnchorState = "exact" | "block" | "section" | "detached";
 
 interface StaticBlock {
 	text: string;
@@ -25,12 +26,15 @@ interface StaticBlock {
 	section: number;
 }
 
-export interface Collected {
+interface Collected {
 	blocks: StaticBlock[];
 	headings: string[];
 }
 
-/** Blocks in document order, with the section each belongs to. */
+/**
+ * Blocks in document order, with the section each belongs to.
+ * @internal Exported for its tests.
+ */
 export function collectBlocks(tree: Root): Collected {
 	const blocks: StaticBlock[] = [];
 	const headings: string[] = [];
@@ -63,7 +67,10 @@ export function collectBlocks(tree: Root): Collected {
 	return { blocks, headings };
 }
 
-/** Static approximation of the browser's anchor resolution, over the mdast tree. */
+/**
+ * Static approximation of the browser's anchor resolution, over the mdast tree.
+ * @internal Exported for its tests.
+ */
 export function resolveAnchorStatically(
 	collected: Collected,
 	anchor: CommentThread["anchor"],

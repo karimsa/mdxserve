@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { procedure } from "../api/trpc.js";
 
-export const searchDocsInput = z.object({ query: z.string() });
+const searchDocsInput = z.object({ query: z.string() });
 
 // Matches src/search/service.ts's SearchResult, plus `score` from the MiniSearch hit
 // so the stdio bridge can merge results across servers.
+/** @internal Exported for its tests. */
 export const searchResultSchema = z.object({
 	path: z.string(),
 	/** Display label: `"<rootName>/<relative path>"`. */
@@ -22,7 +23,7 @@ export const searchResultSchema = z.object({
 	targetId: z.string().nullable(),
 });
 
-export const searchDocsResultSchema = z.object({ results: z.array(searchResultSchema) });
+const searchDocsResultSchema = z.object({ results: z.array(searchResultSchema) });
 
 const searchDocs = procedure(
 	"Full-text search across the titles, headings, and bodies of every served doc, ranked, capped at 30 results. Used by the ⌘K search dialog and `mdxserve search`; an empty query returns docs in tree order.",
@@ -34,7 +35,3 @@ const searchDocs = procedure(
 	);
 
 export const searchController = { searchDocs };
-
-export type SearchDocsInput = z.infer<typeof searchDocsInput>;
-export type SearchResultOutput = z.infer<typeof searchResultSchema>;
-export type SearchDocsResult = z.infer<typeof searchDocsResultSchema>;

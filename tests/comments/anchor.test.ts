@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createProcessor } from "@mdx-js/mdx";
+import type { Root } from "mdast";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkMdx from "remark-mdx";
 import remarkGfm from "remark-gfm";
 import {
 	anchorDiagnostics,
@@ -9,7 +12,12 @@ import {
 } from "../../src/comments/anchor.js";
 import type { CommentThread } from "../../src/comments/schema.js";
 
-const tree = createProcessor({ format: "md", remarkPlugins: [remarkGfm] }).parse(
+/** Parse the way `DocumentService` does, so the blocks match what the server anchors to. */
+function parse(source: string): Root {
+	return unified().use(remarkParse).use(remarkMdx).use(remarkGfm).parse(source) as Root;
+}
+
+const tree = parse(
 	"Intro line.\n\n# Install\n\nRun the *installer* now.\n\n| a | b |\n| - | - |\n| cell one | cell two |\n\n```sh\nnpm  i\n```\n\n## Install\n\nSecond section text.\n",
 );
 const collected = collectBlocks(tree);
@@ -142,9 +150,7 @@ describe("anchorDiagnostics", () => {
 describe("headings longer than the stored limit", () => {
 	it("matches an anchor holding the browser's truncated heading", () => {
 		const long = "word ".repeat(80).trim();
-		const longTree = createProcessor({ format: "md", remarkPlugins: [remarkGfm] }).parse(
-			`## ${long}\n\nA paragraph under the long heading.\n`,
-		);
+		const longTree = parse(`## ${long}\n\nA paragraph under the long heading.\n`);
 		const stored = normalizeText(long).slice(0, 300).trimEnd();
 		expect(stored.length).toBeLessThan(long.length);
 		const state = resolveAnchorStatically(collectBlocks(longTree), {

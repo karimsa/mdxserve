@@ -59,6 +59,9 @@ jobs:
       - name: Check linting
         run: yarn lint
 
+      - name: Check for dead code
+        run: yarn deadcode
+
       - name: Test types
         run: yarn typecheck
 

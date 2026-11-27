@@ -1,11 +1,5 @@
 import type { ThemeRegistrationRaw } from "shiki";
 
-// rehype-pretty-code tells a single JSON theme apart from a `{light, dark}`
-// theme map at runtime by checking `Object.hasOwn(value, "tokenColors")`
-// (see its `isJSONTheme` helper) — so this array must be exposed under the
-// `tokenColors` key for that detection to work, while shiki/vscode-textmate's
-// `ThemeRegistrationRaw` type requires a `settings` key with the same shape.
-// Both keys point at the same array to satisfy each.
 const tokenColors: NonNullable<ThemeRegistrationRaw["settings"]> = [
 	// Comments — muted, no italics.
 	{
@@ -252,6 +246,5 @@ export const designTokenTheme: ThemeRegistrationRaw = {
 		"editor.background": "transparent",
 		"editor.foreground": "var(--code-fg)",
 	},
-	tokenColors,
 	settings: tokenColors,
 };

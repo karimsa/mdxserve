@@ -4,7 +4,7 @@ import { z } from "zod";
 import { TRANSITIONS } from "../motion";
 import { Icon } from "./Icon";
 
-export const buttonProps = z.object({
+const buttonProps = z.object({
 	variant: z
 		.enum(["primary", "secondary", "ghost", "danger"])
 		.default("primary")

@@ -4,7 +4,7 @@ import type { AgentPort } from "../diagrams/types.js";
 import { discoverSkills, MCP_CLEANUPS, planSetup } from "./plan.js";
 import type { CommandRunner } from "./runner.js";
 
-export type CleanupStatus = "removed" | "absent" | "not-installed";
+type CleanupStatus = "removed" | "absent" | "not-installed";
 
 export type SetupResult =
 	| {

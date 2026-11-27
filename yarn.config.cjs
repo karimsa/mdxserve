@@ -18,9 +18,6 @@ function enforceConsistentDependenciesAcrossTheProject({ Yarn }) {
 		if (dependency.type === "peerDependencies") {
 			continue;
 		}
-		if (dependency.ident === "pdfjs-dist") {
-			continue;
-		}
 
 		for (const otherDependency of Yarn.dependencies({
 			ident: dependency.ident,

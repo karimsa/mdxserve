@@ -40,43 +40,27 @@ function makeContext(overrides: Partial<ApiContext> = {}): ApiContext {
 
 const createCaller = createCallerFactory(appRouter);
 
-describe("getDocSource", () => {
-	it("returns the raw text and a version token for those exact bytes", async () => {
+describe("getNodeSource", () => {
+	it("returns the lines of a node with the version of the bytes they came from", async () => {
 		const abs = path.join(fixtureDir, "good.md");
-		const source = await createCaller(makeContext()).getDocSource({ path: abs });
-		expect(source.text).toBe(await fs.readFile(abs, "utf8"));
-		expect(source.version).toBe(versionOf(source.text));
-	});
-
-	it("rejects a path outside every root with NOT_FOUND", async () => {
-		await expect(
-			createCaller(makeContext()).getDocSource({ path: path.join(outsideDir, "secret.md") }),
-		).rejects.toMatchObject({ code: "NOT_FOUND" });
+		const caller = createCaller(makeContext());
+		const result = await caller.getNodeSource({ path: abs, id: "good-doc" });
+		expect(result).toEqual({
+			markdown: "# Good doc\n\nSome plain GFM content about widgets and gadgets.",
+			version: versionOf(await fs.readFile(abs, "utf8")),
+		});
 	});
 
 	it("rejects a file over the editor size cap with PAYLOAD_TOO_LARGE", async () => {
 		const abs = path.join(fixtureDir, "huge.md");
 		await fs.writeFile(abs, "# Huge\n\n" + "x".repeat(2 * 1024 * 1024 + 1), "utf8");
 		try {
-			await expect(createCaller(makeContext()).getDocSource({ path: abs })).rejects.toMatchObject({
-				code: "PAYLOAD_TOO_LARGE",
-			});
+			await expect(
+				createCaller(makeContext()).getNodeSource({ path: abs, id: "huge" }),
+			).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
 		} finally {
 			await fs.rm(abs, { force: true });
 		}
-	});
-});
-
-describe("getNodeSource", () => {
-	it("returns the lines of a node with the version of the bytes they came from", async () => {
-		const abs = path.join(fixtureDir, "good.md");
-		const caller = createCaller(makeContext());
-		const result = await caller.getNodeSource({ path: abs, id: "good-doc" });
-		const source = await caller.getDocSource({ path: abs });
-		expect(result).toEqual({
-			markdown: "# Good doc\n\nSome plain GFM content about widgets and gadgets.",
-			version: source.version,
-		});
 	});
 
 	it("rejects an unknown id and a path outside every root with NOT_FOUND", async () => {
@@ -247,12 +231,11 @@ describe("saveDocNode", () => {
 });
 
 describe("getDocument", () => {
-	it("returns the parsed tree and the same version token getDocSource returns", async () => {
+	it("returns the parsed tree and the version token of the bytes it parsed", async () => {
 		const abs = path.join(fixtureDir, "good.md");
 		const caller = createCaller(makeContext());
 		const result = await caller.getDocument({ path: abs });
-		const source = await caller.getDocSource({ path: abs });
-		expect(result.version).toBe(source.version);
+		expect(result.version).toBe(versionOf(await fs.readFile(abs, "utf8")));
 		expect(result.document.schemaVersion).toBe(1);
 		expect(result.document.children).toMatchObject([
 			{ type: "section", id: "good-doc", level: 1, heading: [{ type: "text", value: "Good doc" }] },

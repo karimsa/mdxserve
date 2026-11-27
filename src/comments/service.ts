@@ -17,7 +17,7 @@ import {
 	commentAnchorSchema,
 } from "./schema.js";
 
-export type CommentsFailure =
+type CommentsFailure =
 	| { kind: "not-found"; message: string }
 	| { kind: "invalid-frontmatter"; message: string }
 	| { kind: "too-large" }

@@ -2,7 +2,6 @@ import type { TreeNode } from "../listing/tree.js";
 import type { DocTreeRoot } from "../listing/controller.js";
 import type { SearchResult } from "../search/service.js";
 import type { ValidationResult, Diagnostic } from "../validation/validate.js";
-import type { RootInfo } from "../roots/root-info.js";
 
 export const NO_SERVER_MESSAGE =
 	"No mdxserve server is running; start one with `mdxserve serve -w <dir>`";
@@ -10,11 +9,7 @@ export const NO_SERVER_MESSAGE =
 export const NO_ROOTS_MESSAGE =
 	"The mdxserve server is running but serves no folders yet; add one with `mdxserve roots add <dir>`";
 
-export function formatRoots(roots: RootInfo[]): string {
-	if (roots.length === 0) return "(no folders served)";
-	return roots.map((rootInfo) => `${rootInfo.name}  ${rootInfo.dir}`).join("\n");
-}
-
+/** @internal Exported for its tests. */
 export function formatDiagnostic(reportedPath: string, diagnostic: Diagnostic): string {
 	const line = diagnostic.line ?? 0;
 	const column = diagnostic.column ?? 0;
@@ -63,7 +58,7 @@ export function formatDocTree(roots: DocTreeRoot[], dirAbs: string | null): stri
 		.join("\n\n");
 }
 
-export function indentTree(nodes: TreeNode[], depth = 0): string[] {
+function indentTree(nodes: TreeNode[], depth = 0): string[] {
 	const lines: string[] = [];
 	for (const node of nodes) {
 		lines.push(`${"  ".repeat(depth)}${node.isDir ? `${node.name}/` : node.name}`);

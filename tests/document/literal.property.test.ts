@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { foldProgram, literalProgram, type Json } from "../../src/document/literal.js";
+import { foldProgram, type Json } from "../../src/document/literal.js";
 import { programOf } from "./estree.js";
 
 // JSON values with no `__proto__` key: a JS object literal treats that key as
@@ -83,17 +83,6 @@ describe("foldProgram (properties)", () => {
 					expect(foldProgram(programOf(source))).toEqual({ kind: "non-literal" });
 				},
 			),
-		);
-	});
-
-	it("literalProgram folds back to the value it was built from", () => {
-		fc.assert(
-			fc.property(jsonArb, (value) => {
-				expect(foldProgram(literalProgram(value))).toEqual({
-					kind: "literal",
-					value: JSON.parse(JSON.stringify(value)),
-				});
-			}),
 		);
 	});
 });

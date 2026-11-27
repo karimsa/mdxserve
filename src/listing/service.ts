@@ -7,7 +7,7 @@ import { readTree, type TreeNode } from "./tree.js";
 export type FolderListingResult =
 	{ kind: "ok"; listing: FolderListing } | { kind: "not-found"; message: string };
 
-export interface DocTreeRoot {
+interface DocTreeRoot {
 	name: string;
 	dir: string;
 	nodes: TreeNode[];

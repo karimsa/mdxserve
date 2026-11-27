@@ -21,7 +21,7 @@ export function isValidAuthoredId(id: string): boolean {
 }
 
 /** `<owner>>~<kind>-<n>`, such as `install>~callout-2`. */
-export function positionalId(owner: string, kind: string, count: number): string {
+function positionalId(owner: string, kind: string, count: number): string {
 	return `${owner}>~${kind}-${count}`;
 }
 

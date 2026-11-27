@@ -38,7 +38,7 @@ export interface ApiContext {
 	host?: string;
 }
 
-export interface ProcedureMeta {
+interface ProcedureMeta {
 	/** What this method is used for and by whom — shown in docs and tests. */
 	description: string;
 }
@@ -46,6 +46,7 @@ export interface ProcedureMeta {
 const trpc = initTRPC.context<ApiContext>().meta<ProcedureMeta>().create();
 
 export const router = trpc.router;
+/** @internal Exported for its tests. */
 export const createCallerFactory = trpc.createCallerFactory;
 
 /** See `isSameOrigin` in src/http/host.ts; the live update socket applies the same rule. */

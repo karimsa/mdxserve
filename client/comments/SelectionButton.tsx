@@ -29,6 +29,7 @@ interface Pending {
  * bottom of the screen instead: the system menu only goes below a selection
  * when there is room for it there, so it never reaches the dock. The comments
  * sheet covers the bottom of the screen when open, so dock just above it.
+ * @internal Exported for its tests.
  */
 export function dockOffset(): number {
 	const sheet = document.querySelector("[data-comments-sheet]");

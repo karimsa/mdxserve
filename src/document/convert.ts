@@ -844,7 +844,7 @@ function isLowercase(name: string): boolean {
 }
 
 /** A URL with no scheme that is not absolute, protocol-relative or an in-page anchor. */
-export function isDocumentRelative(url: string): boolean {
+function isDocumentRelative(url: string): boolean {
 	if (url === "" || /^[A-Za-z][A-Za-z0-9+.-]*:/.test(url)) return false;
 	return (
 		!url.startsWith("/") && !url.startsWith("#") && !url.startsWith("?") && !url.startsWith("\\")
@@ -867,6 +867,7 @@ const MAX_HIGHLIGHT_LINES = 10_000;
  * Read the fence meta of a code block: `title="…"`, `showLineNumbers` and
  * `{1,3-4}` line ranges, as rehype-pretty-code reads them. Line numbers past
  * the end of the block are left out.
+ * @internal Exported for its tests.
  */
 export function parseFenceMeta(
 	meta: string | null,

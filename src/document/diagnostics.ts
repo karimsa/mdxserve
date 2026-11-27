@@ -1,20 +1,24 @@
 import { VFileMessage } from "vfile-message";
 import type { Position } from "unist";
-import type { RestrictDiagnosticCode } from "./restrict.js";
+import { RESTRICT_DIAGNOSTIC_CODES } from "./restrict.js";
 
-export type DocumentDiagnosticCode =
-	| RestrictDiagnosticCode
-	| "mdx-syntax"
-	| "unknown-prop"
-	| "invalid-prop"
-	| "missing-id"
-	| "invalid-id"
-	| "duplicate-id"
-	| "id-conflicts-with-heading"
-	| "duplicate-heading"
-	| "duplicate-tab-value"
-	| "invalid-tab-default"
-	| "invalid-tabs-structure";
+/** Every code `DocumentService.parse` reports; `DIAGNOSTIC_CODES` in validation builds on them. */
+export const DOCUMENT_DIAGNOSTIC_CODES = [
+	"mdx-syntax",
+	...RESTRICT_DIAGNOSTIC_CODES,
+	"unknown-prop",
+	"invalid-prop",
+	"missing-id",
+	"invalid-id",
+	"duplicate-id",
+	"id-conflicts-with-heading",
+	"duplicate-heading",
+	"duplicate-tab-value",
+	"invalid-tab-default",
+	"invalid-tabs-structure",
+] as const;
+
+type DocumentDiagnosticCode = (typeof DOCUMENT_DIAGNOSTIC_CODES)[number];
 
 /** A problem `DocumentService.parse` found and repaired: the tree it returns still renders. */
 export interface DocumentDiagnostic {

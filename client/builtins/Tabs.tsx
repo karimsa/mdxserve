@@ -15,7 +15,7 @@ export function Tab(_props: TabProps) {
 	return null;
 }
 
-export interface TabsEntry {
+interface TabsEntry {
 	/** `<Tabs id>` + `>` + `<value>`: the panel's anchor. */
 	id: string;
 	value: string;

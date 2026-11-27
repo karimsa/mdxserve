@@ -17,7 +17,6 @@ import { realtime } from "./realtime";
 interface MdxserveApiWindow extends Window {
 	__mdxserveQueryClient?: QueryClient;
 	__mdxserveTrpcClient?: TRPCClient<AppRouter>;
-	__mdxserveHmrBound?: boolean;
 	__mdxserveRealtimeBound?: boolean;
 }
 
@@ -61,30 +60,6 @@ export const trpcClient: TRPCClient<AppRouter> = windowWithApi
 export const trpc = createTRPCOptionsProxy<AppRouter>({ client: trpcClient, queryClient });
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-// Files change on disk during a dev session; invalidate the relevant caches
-// whenever Vite applies an HMR update (edits to existing files) or the live
-// update socket reports a listing change (deletions/creations, which don't
-// trigger a module HMR update), so the sidebar/search/listings stay in sync
-// with the watcher.
-//
-// Bound once behind a window flag rather than the usual `if (import.meta.hot)`
-// module-scope guard: this module can itself be re-executed by HMR (anything
-// that imports it is reachable from entry.tsx, which self-accepts), and
-// without the flag every edit to this file would stack a duplicate pair of
-// listeners.
-if (import.meta.hot && windowWithApi && !windowWithApi.__mdxserveHmrBound) {
-	windowWithApi.__mdxserveHmrBound = true;
-
-	import.meta.hot.on("vite:afterUpdate", () => {
-		void queryClient.invalidateQueries({ ...trpc.getDocTree.queryFilter(), refetchType: "all" });
-		// Editing a doc's first h1 changes the title the sidebar shows for it,
-		// and that only ships as a module HMR update, not a listing-changed
-		// event — so refetch every listing currently mounted on screen (not
-		// every one ever cached) to pick the new title up.
-		void queryClient.invalidateQueries({ ...trpc.getFolderListing.queryFilter(), type: "active" });
-	});
-}
 
 /** The `detail` of the window `mdxserve:roots-changed` event that useRouter listens for. */
 interface RootsChangedDetail {
@@ -192,8 +167,9 @@ function requestRootsRefresh(): void {
 	})();
 }
 
-// Bound once per tab for the same reason as the HMR listener above, but not
-// behind `import.meta.hot`: these signals come from the live update socket.
+// Bound once per tab behind a window flag: this module can be re-executed by
+// HMR in `yarn dev` (entry.tsx self-accepts), and without the flag every edit
+// to it would stack another set of listeners.
 if (windowWithApi && !windowWithApi.__mdxserveRealtimeBound) {
 	windowWithApi.__mdxserveRealtimeBound = true;
 

@@ -2,9 +2,6 @@ import { z } from "zod";
 import { builtins } from "../../client/builtins/index.js";
 import type { Registry } from "../../src/components/registry.js";
 
-/** Names of every real builtin component, the set the server passes to `remarkRestrict`. */
-export const builtinNames: readonly string[] = builtins.map((builtin) => builtin.name);
-
 /** The registry `yarn build` writes to dist/registry.json, built in memory from the real builtins. */
 export const builtinRegistry: Registry = {
 	version: 1,

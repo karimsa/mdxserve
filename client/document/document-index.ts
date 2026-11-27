@@ -138,7 +138,10 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 	};
 }
 
-/** Table of contents entries in reading order, depth first. */
+/**
+ * Table of contents entries in reading order, depth first.
+ * @internal Exported for its tests.
+ */
 export function flattenToc(
 	entries: readonly TocEntry[],
 	depth = 0,

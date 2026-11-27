@@ -45,6 +45,9 @@ function assertRuntimeDependencies(results: esbuild.BuildResult<typeof buildOpti
 	}
 }
 
+// Start from an empty dist/, so a file an older build wrote (or one this build no
+// longer makes) is never packed.
+fs.rmSync("dist", { recursive: true, force: true });
 await $`tsx scripts/build-registry.ts`;
 const server = await esbuild.build({
 	...buildOptions,

@@ -16,6 +16,7 @@
 
 import { mermaidHeaderLineIndex } from "./mermaid-chart.js";
 
+/** @internal Exported for its tests. */
 export const FLOW_DIRECTIONS = ["TB", "BT", "LR", "RL"] as const;
 
 export type FlowDirection = (typeof FLOW_DIRECTIONS)[number];

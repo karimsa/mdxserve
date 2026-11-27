@@ -99,7 +99,7 @@ describe("analyzeTree / validateSource — GFM invariance", () => {
 	});
 });
 
-/** The diagnostics `remarkRestrict` reports for `tree` against the fixture registry. */
+/** The diagnostics `restrictTree` reports for `tree` against the fixture registry. */
 function restrictDiagnostics(tree: ReturnType<typeof parse>): RestrictDiagnostic[] {
 	const diagnostics: RestrictDiagnostic[] = [];
 	restrictTree(tree, {
@@ -109,7 +109,7 @@ function restrictDiagnostics(tree: ReturnType<typeof parse>): RestrictDiagnostic
 	return diagnostics;
 }
 
-describe("remarkRestrict — unknown components", () => {
+describe("restrictTree — unknown components", () => {
 	it("reports exactly one unknown-component diagnostic per injected name, at the right line", () => {
 		fc.assert(
 			fc.property(

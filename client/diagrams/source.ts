@@ -10,7 +10,10 @@ export function comparableSource(source: string): string {
 		.trim();
 }
 
-/** Locate the original fence without round-tripping the surrounding Markdown. */
+/**
+ * Locate the original fence without round-tripping the surrounding Markdown.
+ * @internal Exported for its tests.
+ */
 export function locateDiagram(markdown: string, target: ExistingDiagram) {
 	const diagrams: Code[] = [];
 	function visit(node: RootContent): void {

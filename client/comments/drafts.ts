@@ -1,6 +1,7 @@
 /** Pure helpers for the reply field and the per-thread unsent text. */
 
 export const FIELD_MIN_HEIGHT = 24;
+/** @internal Exported for its tests. */
 export const FIELD_MAX_HEIGHT = 120;
 
 /** Height of the one-line field for its content: grows to a cap, then scrolls. */

@@ -63,7 +63,7 @@ export function revealNode(id: string, options: { behavior?: ScrollBehavior } = 
 }
 
 /** The tabs to select, outermost first, for `element` to be visible. */
-export function tabStepsOf(element: Element): TabStep[] {
+function tabStepsOf(element: Element): TabStep[] {
 	const steps: TabStep[] = [];
 	for (
 		let panel = element.closest<HTMLElement>("[data-tab-panel]");

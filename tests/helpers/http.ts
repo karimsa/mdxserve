@@ -20,7 +20,7 @@ export function shellTemplate(): string {
 }
 
 /** A client bundle whose `assets/` and favicon live in `dir` (the source client/ by default). */
-export function testClientBundle(dir = path.join(getPackageRoot(), "client")): ClientBundle {
+function testClientBundle(dir = path.join(getPackageRoot(), "client")): ClientBundle {
 	return { dir, template: shellTemplate() };
 }
 

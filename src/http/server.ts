@@ -26,7 +26,10 @@ const MDXSERVE_PREFIX = "/__mdxserve/";
 /** Where the built client's `assets/` folder is served (Vite's `base` plus `assetsDir`). */
 const CLIENT_ASSETS_PREFIX = "/__mdxserve/assets/";
 
-/** The built browser client, read once at startup. */
+/**
+ * The built browser client, read once at startup.
+ * @internal Exported for its tests.
+ */
 export interface ClientBundle {
 	/** `dist/client`: `index.html`, `favicon.svg` and `assets/`. */
 	dir: string;

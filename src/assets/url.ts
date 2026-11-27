@@ -3,7 +3,10 @@ import path from "node:path";
 /** Where the server answers `getAsset`, the endpoint that serves a non-document file from a root. */
 export const GET_ASSET_PATH = "/__mdxserve/getAsset";
 
-/** The `getAsset` URL for the file at absolute path `absPath`, with an optional `#fragment`. */
+/**
+ * The `getAsset` URL for the file at absolute path `absPath`, with an optional `#fragment`.
+ * @internal Exported for its tests.
+ */
 export function getAssetUrl(absPath: string, fragment = ""): string {
 	return `${GET_ASSET_PATH}?${new URLSearchParams({ path: absPath }).toString()}${fragment}`;
 }

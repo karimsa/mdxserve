@@ -107,7 +107,7 @@ function renderInline(nodes: readonly InlineNode[]): ReactNode {
  * Query's structural sharing hands back the same object for a subtree that
  * did not change, so a refetch re-renders only what changed.
  */
-export const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
+const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 	switch (node.type) {
 		case "section":
 			return <SectionView node={node} />;

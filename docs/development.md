@@ -34,12 +34,27 @@ For a git worktree, `./worktree-setup.sh` runs `yarn` so the tree is ready to bu
 | `yarn registry`  | Only the registry step                                                                                             |
 | `yarn typecheck` | `tsc --noEmit`                                                                                                     |
 | `yarn lint`      | `oxlint` — includes the no-single-letter-names rule                                                                |
+| `yarn deadcode`  | `knip` (configured in `knip.ts`): unused files, exports, types and dependencies, and unlisted dependencies         |
 | `yarn format`    | `prettier --write .` (`format:check` is what CI runs)                                                              |
 | `yarn test`      | `vitest run`                                                                                                       |
 | `yarn smoke`     | Packs the tarball, installs it without dev dependencies (no `vite`), runs the CLI and serves `example/` from there |
 
 CI (`.github/workflows/verify-pr.yml`) runs, in order: `yarn constraints`, `format:check`,
-`lint`, `typecheck`, `test`, `build`, `smoke`. Run the same set before opening a PR.
+`lint`, `deadcode`, `typecheck`, `test`, `build`, `smoke`. Run the same set before opening a PR.
+
+### Dead code
+
+`yarn deadcode` runs knip twice. The first run covers everything, tests included, and reports
+unused files, exports, types, dependencies and devDependencies, and packages imported without
+being listed. The second, `knip --production`, starts from what ships (`src/index.ts`, the
+diagram worker, `client/index.html` and `scripts/build-registry.ts`) and leaves the tests out,
+so it also reports an export that only a test uses. Delete what either reports.
+
+A test that needs a helper the product keeps private should go through the public function
+when it can. When it cannot, tag the export `/** @internal Exported for its tests. */`; the
+production run accepts it. `knip.ts` keeps a short ignore list, each entry with its reason.
+knip cannot see a CSS selector that matches nothing the client renders, or a comment about
+code that is gone, so check those by hand when you remove something.
 
 ### The dev server
 

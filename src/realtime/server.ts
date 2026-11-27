@@ -44,6 +44,7 @@ type RealtimeSocket = Socket<ClientToServerEvents, ServerToClientEvents, never, 
  * The most paths one connection may hold joined at once. A tab holds one
  * (the open document); the cap bounds what a peer of a public server can
  * make the server remember.
+ * @internal Exported for its tests.
  */
 export const MAX_JOINED_PATHS = 16;
 

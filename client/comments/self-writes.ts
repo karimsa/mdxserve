@@ -2,6 +2,7 @@
  * Paths this tab just wrote comments to. The "Reloaded" toast consults it so the
  * author's own comment write does not announce a reload. Imports nothing, so
  * Toast.tsx and the comment code can share it without a cycle.
+ * @internal Exported for its tests.
  */
 export const SELF_WRITE_WINDOW_MS = 2000;
 

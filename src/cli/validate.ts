@@ -16,6 +16,7 @@ export interface ValidateDeps {
 	home: string;
 }
 
+/** @internal Exported for its tests. */
 export type ValidateJsonEntry = ValidationResult | { path: string; error: string };
 
 export async function runValidate(

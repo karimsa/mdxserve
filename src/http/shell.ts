@@ -51,7 +51,7 @@ export function loadShellTemplate(clientDir: string): string {
 // Route JSON is embedded inside an inline <script type="application/json">.
 // Escape "</" and "<!--" so nothing in a file/dir name (or the JSON itself)
 // can break out of the script tag or be misparsed as an HTML comment.
-export function escapeForInlineScript(json: string): string {
+function escapeForInlineScript(json: string): string {
 	return json.replaceAll("</", "<\\/").replaceAll("<!--", "<\\!--");
 }
 

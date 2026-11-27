@@ -45,8 +45,8 @@ because its result is the file's bytes, not JSON. Its query is still a zod schem
   `src/api/trpc.ts`, so it must say what it is for. A procedure constructs the service it
   needs, calls one method, and maps the result `kind` to a `TRPCError`; this is the only file
   allowed to throw one. It exports a `<module>Controller` object that `src/api/router.ts`
-  spreads into the aggregate router, and exports its schemas so `src/cli/` can reuse them
-  instead of keeping a second copy.
+  spreads into the aggregate router. A schema `src/cli/` needs is exported so the verb reuses
+  it instead of keeping a second copy; the rest stay private to the file.
 - Pure helpers stay plain exported functions in their own files (`roots/paths.ts`,
   `docs/edit.ts`, `listing/tree.ts`, …). Write a class only when there is a dependency to hold
   or state to own — never wrap a pure function in one for symmetry.
@@ -105,6 +105,14 @@ build bundles what `client/` imports from it.
   statements. `yarn lint` enforces this (`eslint/id-length`); the only exceptions are `_` for a
   binding you deliberately ignore, and `x`/`y` for a coordinate pair. Property names are not
   checked — `{ opacity: 0, y: 4 }` is a framer-motion key, not a name we chose
+- No dead code. `yarn deadcode` (knip, configured in `knip.ts`) fails on an unused file,
+  export, type, dependency or devDependency, and on a package imported but not listed. It
+  runs twice: once over everything, and once with `--production`, which leaves the tests out,
+  so an export only a test uses also fails. Delete what it reports. When a test genuinely
+  needs a helper the product keeps private, prefer testing through the public function; failing
+  that, tag the export `/** @internal Exported for its tests. */`. Do not add ignore entries
+  to `knip.ts` without a one-line reason. It cannot see CSS selectors that match nothing, or
+  comments about code that is gone: check those by hand
 
 ## Writing tests
 

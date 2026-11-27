@@ -65,6 +65,7 @@ function containsInlineMdx(node: RootContent): boolean {
  * or drops them), or a code fence with meta (the title, line numbers and
  * highlighted lines are lost). A section edit covers whole sections, so these
  * stay raw source, byte for byte, like flow JSX does.
+ * @internal Exported for its tests.
  */
 export function readLossyBlock(source: string): string | undefined {
 	const blankLine = source.search(/\n[ \t]*\n/);

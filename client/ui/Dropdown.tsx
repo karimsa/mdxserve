@@ -1,131 +1,36 @@
-import {
-	Children,
-	isValidElement,
-	useEffect,
-	useId,
-	useRef,
-	useState,
-	type KeyboardEvent,
-	type ReactElement,
-	type ReactNode,
-} from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
-import { z } from "zod";
-import { CrossFade } from "../CrossFade";
 import { TRANSITIONS, VARIANTS } from "../motion";
 import { Icon } from "./Icon";
 
-const dropdownOption = z.union([
-	z.string().describe("Option value and label, both the same string."),
-	z.object({
-		value: z.string().describe("Value reported for this option."),
-		label: z.string().describe("Text shown for this option."),
-		description: z
-			.string()
-			.optional()
-			.describe("One short line shown under the label in the menu."),
-	}),
-]);
+/** An option's value and label as one string, or a value with its own label and description. */
+type DropdownOption = string | { value: string; label: string; description?: string };
 
-export const dropdownProps = z.object({
-	label: z.string().optional().describe("Label shown above the control."),
-	icon: z
-		.string()
-		.optional()
-		.describe(
-			"Lucide icon name; renders an icon-only trigger instead of the labelled control. `label` becomes the accessible name.",
-		),
-	options: z
-		.array(dropdownOption)
-		.optional()
-		.describe(
-			"Strings, or { value, label, description? } objects, for a plain picker. Omit this and use `Option` children instead for a content-switching dropdown.",
-		),
-	value: z
-		.string()
-		.optional()
-		.describe("Selected value (controlled) — requires `onChange` to update it."),
-	defaultValue: z
-		.string()
-		.optional()
-		.describe("Initially selected value (uncontrolled). Defaults to the first option."),
-	placeholder: z
-		.string()
-		.optional()
-		.describe("Text shown on the trigger while nothing is selected."),
-	size: z.enum(["sm", "md"]).default("md").describe("Control height: sm (28px) or md (34px)."),
-	disabled: z.boolean().default(false).describe("Disables the control."),
-	onChange: z
-		.custom<(value: string) => void>()
-		.optional()
-		.describe("Called with the new value whenever the selection changes (JSX only)."),
-	children: z
-		.custom<ReactNode>()
-		.optional()
-		.describe(
-			"One or more `<Option>` elements. When present, `Dropdown` acts as a content switcher: the menu picks which option's content renders below, cross-faded.",
-		),
-});
-
-export type DropdownProps = z.input<typeof dropdownProps>;
-
-export const optionProps = z.object({
-	label: z.string().describe("Option label shown in the menu."),
-	value: z
-		.string()
-		.optional()
-		.describe("Stable identifier for this option; defaults to a slug of `label`."),
-	description: z.string().optional().describe("One short line shown under the label in the menu."),
-	children: z
-		.custom<ReactNode>()
-		.describe("Panel content shown when this option is selected; any MDX/Markdown content."),
-});
-
-export type OptionProps = z.infer<typeof optionProps>;
-
-/**
- * Renders nothing on its own — `Dropdown` reads each `Option` child's props
- * to build the menu and panels, matching on `props.label` rather than
- * `type === Option` (component identity changes under Fast Refresh).
- */
-export function Option(_props: OptionProps) {
-	return null;
-}
-
-function slugify(label: string): string {
-	return label
-		.toLowerCase()
-		.trim()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/(^-|-$)/g, "");
+interface DropdownProps {
+	/** Label shown above the control. */
+	label?: string;
+	/** Lucide icon name; renders an icon-only trigger instead, and `label` becomes its accessible name. */
+	icon?: string;
+	options?: DropdownOption[];
+	/** Selected value (controlled); requires `onChange` to update it. */
+	value?: string;
+	/** Initially selected value (uncontrolled). */
+	defaultValue?: string;
+	/** Text shown on the trigger while nothing is selected. */
+	placeholder?: string;
+	/** Control height: sm (28px) or md (34px). */
+	size?: "sm" | "md";
+	disabled?: boolean;
+	/** Called with the new value whenever the selection changes. */
+	onChange?: (value: string) => void;
 }
 
 interface Entry {
 	value: string;
 	label: string;
 	description?: string;
-	content?: ReactNode;
-}
-
-type OptionLikeElement = ReactElement<{
-	label: string;
-	value?: string;
-	description?: string;
-	children?: ReactNode;
-}>;
-
-function collectOptions(children: ReactNode): Entry[] {
-	return Children.toArray(children)
-		.filter(
-			(child): child is OptionLikeElement =>
-				isValidElement(child) && typeof (child.props as { label?: unknown }).label === "string",
-		)
-		.map((child) => {
-			const { label, value, description, children: content } = child.props;
-			return { value: value ?? slugify(label), label, description, content };
-		});
 }
 
 /* Trigger height and the text size shared by the trigger and the menu rows. */
@@ -153,20 +58,13 @@ export default function Dropdown({
 	size = "md",
 	disabled = false,
 	onChange,
-	children,
 }: DropdownProps) {
-	const switcherEntries = collectOptions(children);
-	const isSwitcher = switcherEntries.length > 0;
-	const entries: Entry[] = isSwitcher
-		? switcherEntries
-		: (options ?? []).map((option) =>
-				typeof option === "string" ? { value: option, label: option } : option,
-			);
+	const entries: Entry[] = (options ?? []).map((option) =>
+		typeof option === "string" ? { value: option, label: option } : option,
+	);
 
 	const controlled = value !== undefined;
-	const [internal, setInternal] = useState<string | undefined>(
-		defaultValue ?? (isSwitcher ? entries[0]?.value : undefined),
-	);
+	const [internal, setInternal] = useState<string | undefined>(defaultValue);
 	const current = controlled ? value : internal;
 	const selected = entries.find((entry) => entry.value === current);
 
@@ -177,7 +75,6 @@ export default function Dropdown({
 	const listRef = useRef<HTMLUListElement>(null);
 	const id = useId();
 	const listboxId = `${id}-listbox`;
-	const panelId = `${id}-panel`;
 
 	function select(next: string) {
 		if (!controlled) setInternal(next);
@@ -258,7 +155,7 @@ export default function Dropdown({
 		}
 	}
 
-	const control = (
+	return (
 		<div
 			ref={rootRef}
 			className={
@@ -390,27 +287,6 @@ export default function Dropdown({
 					</motion.ul>
 				) : null}
 			</AnimatePresence>
-		</div>
-	);
-
-	if (!isSwitcher) return control;
-
-	const activeEntry = selected ?? entries[0];
-
-	return (
-		<div>
-			{control}
-			<div id={panelId} aria-live="polite" className="mt-4">
-				<CrossFade
-					active={activeEntry.value}
-					panes={entries.map((entry) => ({
-						key: entry.value,
-						node: (
-							<div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{entry.content}</div>
-						),
-					}))}
-				/>
-			</div>
 		</div>
 	);
 }

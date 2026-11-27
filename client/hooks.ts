@@ -55,13 +55,14 @@ export function useFullWidth(): boolean {
  * How much of the bottom of the layout viewport is hidden, in px, given the
  * visual viewport's offset and height. Zero unless something (an on-screen
  * keyboard) has shrunk the visual viewport.
+ * @internal Exported for its tests.
  */
 export function coveredBottom(layoutHeight: number, offsetTop: number, height: number): number {
 	return Math.max(0, Math.round(layoutHeight - offsetTop - height));
 }
 
 /** Whether `element` takes typed text, and so brings up the on-screen keyboard. */
-export function isEditable(element: Element | null): boolean {
+function isEditable(element: Element | null): boolean {
 	if (!(element instanceof HTMLElement)) return false;
 	if (element.isContentEditable || element instanceof HTMLTextAreaElement) return true;
 	return element instanceof HTMLInputElement && !element.readOnly;

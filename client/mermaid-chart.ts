@@ -14,6 +14,7 @@
  * import-free and browser-safe: no `src/`, no Node builtins, no React.
  */
 
+/** @internal Exported for its tests. */
 export const CHART_DIAGRAM_KEYWORDS = [
 	"pie",
 	"xychart-beta",
@@ -73,7 +74,7 @@ export function mermaidHeaderLineIndex(lines: string[]): number {
  * The trimmed header line of a mermaid fence's `source`, or `undefined` when
  * there isn't one (an empty fence, or an unclosed front-matter block).
  */
-export function mermaidHeaderLine(source: string): string | undefined {
+function mermaidHeaderLine(source: string): string | undefined {
 	const lines = source.split(/\r?\n/);
 	const index = mermaidHeaderLineIndex(lines);
 	return index === -1 ? undefined : lines[index]!.trim();

@@ -38,7 +38,7 @@ export const roomRequestSchema = z.object({ path: z.string().min(1).max(4096) })
 /** `ok` is false when the server refused: a malformed request, or a document the peer could not fetch. */
 export const roomAckSchema = z.object({ ok: z.boolean() });
 
-export type RoomRequest = z.infer<typeof roomRequestSchema>;
+type RoomRequest = z.infer<typeof roomRequestSchema>;
 export type RoomAck = z.infer<typeof roomAckSchema>;
 
 /** socket.io's typed-events map for what the server emits. */

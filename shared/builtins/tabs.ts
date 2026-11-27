@@ -22,8 +22,6 @@ export const tabsProps = z.object({
 	children: z.custom<ReactNode>().describe("One or more `<Tab>` elements."),
 });
 
-export type TabsProps = z.infer<typeof tabsProps>;
-
 /** The `value` a tab gets when it has none: its label, lowercased, with each run of other characters turned into `-`. */
 export function tabValueFromLabel(label: string): string {
 	return label

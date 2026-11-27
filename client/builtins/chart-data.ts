@@ -47,8 +47,11 @@ export function countTicks(max: number, desired = 5): number[] {
 	return ticks;
 }
 
-/** Sturges' rule (`ceil(log2 n + 1)`), clamped to `[1, 20]` — 5–8 bins for
-    the tens-of-values datasets a histogram here is meant for. */
+/**
+ * Sturges' rule (`ceil(log2 n + 1)`), clamped to `[1, 20]` — 5–8 bins for
+ * the tens-of-values datasets a histogram here is meant for.
+ * @internal Exported for its tests.
+ */
 export function autoBinCount(count: number): number {
 	if (!Number.isFinite(count) || count <= 0) return 1;
 	return clamp(Math.ceil(Math.log2(count) + 1), 1, 20);

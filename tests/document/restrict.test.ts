@@ -9,6 +9,7 @@ import {
 	SUPPORTED_ELEMENTS,
 	type RestrictDiagnostic,
 } from "../../src/document/restrict.js";
+import { foldProgram } from "../../src/document/literal.js";
 import { fixtureComponentNames } from "../fixtures/registry.js";
 import { parseMdx } from "./estree.js";
 
@@ -100,17 +101,14 @@ describe("restrictTree — expressions in prose", () => {
 });
 
 describe("restrictTree — attribute expressions", () => {
-	it("rewrites a literal as a fresh literal program", () => {
+	it("keeps an attribute whose expression folds to a literal", () => {
 		const { tree, diagnostics } = restrict('<Callout title={`Hi`} tone={"warn"} />\n');
 		expect(diagnostics).toEqual([]);
 		const [callout] = elements(tree);
 		const title = callout.attributes[0];
 		expect(title.type === "mdxJsxAttribute" && typeof title.value === "object").toBe(true);
 		if (title.type !== "mdxJsxAttribute" || typeof title.value !== "object" || !title.value) return;
-		expect(title.value.data?.estree?.body[0]).toMatchObject({
-			type: "ExpressionStatement",
-			expression: { type: "Literal", value: "Hi" },
-		});
+		expect(foldProgram(title.value.data?.estree)).toEqual({ kind: "literal", value: "Hi" });
 	});
 
 	it("drops a non-literal attribute and keeps the element", () => {

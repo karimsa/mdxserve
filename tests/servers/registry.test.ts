@@ -306,7 +306,9 @@ describe("ServerRegistry across processes", () => {
 			expect(child.output().stderr).toBe("");
 			expect(child.output().stdout).toMatch(/writes [1-9]\d*/);
 		}
-		expect(rowCount(shared)).toBe(1);
+		// One row at most. It is none when the child that exits last ends on a `current()` that
+		// finds the other child's row and prunes it, because that child has already exited.
+		expect(rowCount(shared)).toBeLessThanOrEqual(1);
 	}, 30_000);
 
 	it("a writer SIGKILLed mid-write leaves a registry the next caller reads at once", async () => {

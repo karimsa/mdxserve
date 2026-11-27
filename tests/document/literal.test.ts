@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { foldProgram, literalProgram } from "../../src/document/literal.js";
+import { foldProgram } from "../../src/document/literal.js";
 import { programOf } from "./estree.js";
 
 function fold(expression: string) {
@@ -69,18 +69,5 @@ describe("foldProgram", () => {
 
 	it("treats a missing program as non-literal", () => {
 		expect(foldProgram(undefined)).toEqual({ kind: "non-literal" });
-	});
-});
-
-describe("literalProgram", () => {
-	it("builds a program that folds back to the same value", () => {
-		const value = {
-			label: "Mon",
-			values: [1, -2, 3.5],
-			ok: true,
-			none: null,
-			nested: { "a b": "c" },
-		};
-		expect(foldProgram(literalProgram(value))).toEqual({ kind: "literal", value });
 	});
 });

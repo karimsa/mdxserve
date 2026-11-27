@@ -39,7 +39,7 @@ export const listingSortAtom = atomWithStorage<SortKey>(
 
 export const SIDEBAR_MIN_WIDTH = 200;
 export const SIDEBAR_MAX_WIDTH = 560;
-export const SIDEBAR_DEFAULT_WIDTH = 264;
+const SIDEBAR_DEFAULT_WIDTH = 264;
 
 /** Docked sidebar width in px; dragged via the resize handle. */
 export const sidebarWidthAtom = atomWithStorage<number>(
@@ -51,7 +51,7 @@ export const sidebarWidthAtom = atomWithStorage<number>(
 
 export const TOC_MIN_WIDTH = 160;
 export const TOC_MAX_WIDTH = 420;
-export const TOC_DEFAULT_WIDTH = 220;
+const TOC_DEFAULT_WIDTH = 220;
 
 /** "On this page" rail width in px; dragged via the resize handle. */
 export const tocWidthAtom = atomWithStorage<number>(
@@ -109,6 +109,7 @@ export const contentLayoutAtom = atomWithStorage<ContentLayout>(
  */
 export type TocMode = "auto" | "hidden" | "right" | "above" | "disabled";
 
+/** @internal Exported for its tests. */
 export const TOC_MODES: readonly TocMode[] = ["auto", "hidden", "right", "above", "disabled"];
 
 function isTocMode(value: unknown): value is TocMode {
@@ -120,7 +121,10 @@ const LEGACY_TOC_VISIBLE_KEY = "mdxserve.toc.visible";
 
 const TOC_MODE_KEY = "mdxserve.toc.mode";
 
-/** The saved mode, falling back to what the old boolean setting meant, then to `fallback`. */
+/**
+ * The saved mode, falling back to what the old boolean setting meant, then to `fallback`.
+ * @internal Exported for its tests.
+ */
 export function readTocMode(storage: Pick<Storage, "getItem">, fallback: TocMode): TocMode {
 	try {
 		const raw = storage.getItem(TOC_MODE_KEY);

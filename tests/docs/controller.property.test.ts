@@ -99,7 +99,7 @@ describe("getNodeSource / saveDocNode properties", () => {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc, "utf8");
 							const caller = createCaller(makeContext(root, registry));
-							const before = await caller.getDocSource({ path: abs });
+							const before = await caller.getNodeSource({ path: abs, id: "title" });
 							const saved = await caller.saveDocNode({
 								path: abs,
 								id: "title",
@@ -109,10 +109,9 @@ describe("getNodeSource / saveDocNode properties", () => {
 							// The whole doc is the one "title" section, with no trailing blank line.
 							const oracle = spliceLines(doc, 1, doc.split("\n").length - 1, replacement);
 							expect(oracle.ok).toBe(true);
-							const after = await caller.getDocSource({ path: abs });
-							expect(after.text).toBe(oracle.ok ? oracle.text : "");
-							expect(after.version).toBe(saved.version);
-							expect(saved.version).toBe(versionOf(after.text));
+							const after = await fs.readFile(abs, "utf8");
+							expect(after).toBe(oracle.ok ? oracle.text : "");
+							expect(saved.version).toBe(versionOf(after));
 						} finally {
 							await fs.rm(root, { recursive: true, force: true });
 						}
@@ -136,7 +135,7 @@ describe("getNodeSource / saveDocNode properties", () => {
 							const abs = path.join(root, "doc.md");
 							await fs.writeFile(abs, doc, "utf8");
 							const caller = createCaller(makeContext(root, registry));
-							const before = await caller.getDocSource({ path: abs });
+							const before = await fs.readFile(abs, "utf8");
 							await expect(
 								caller.saveDocNode({
 									path: abs,
@@ -145,8 +144,7 @@ describe("getNodeSource / saveDocNode properties", () => {
 									markdown: replacement,
 								}),
 							).rejects.toMatchObject({ code: "CONFLICT" });
-							const after = await caller.getDocSource({ path: abs });
-							expect(after).toEqual(before);
+							expect(await fs.readFile(abs, "utf8")).toBe(before);
 						} finally {
 							await fs.rm(root, { recursive: true, force: true });
 						}

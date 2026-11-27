@@ -16,14 +16,14 @@ import { type DiffProps } from "../../shared/builtins/diff";
  * anything.
  */
 
-export type DiffRowKind = "context" | "add" | "del";
+type DiffRowKind = "context" | "add" | "del";
 
-export interface DiffSegment {
+interface DiffSegment {
 	text: string;
 	changed: boolean;
 }
 
-export interface DiffRow {
+interface DiffRow {
 	kind: DiffRowKind;
 	oldNo?: number;
 	newNo?: number;
@@ -35,7 +35,7 @@ export interface DiffRow {
 	pairId?: number;
 }
 
-export type DiffHunkRow = DiffRow | { kind: "collapsed"; count: number; rows: DiffRow[] };
+type DiffHunkRow = DiffRow | { kind: "collapsed"; count: number; rows: DiffRow[] };
 
 export interface DiffComputation {
 	rows: DiffHunkRow[];
@@ -322,7 +322,7 @@ function groupHunks(rows: DiffRow[], context: number): DiffHunkRow[] {
 	return result;
 }
 
-export function computeDiff(before: string, after: string, context: number): DiffComputation {
+function computeDiff(before: string, after: string, context: number): DiffComputation {
 	const { rows, additions, deletions } = flattenChanges(before, after);
 	return { rows: groupHunks(rows, context), additions, deletions };
 }
