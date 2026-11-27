@@ -128,6 +128,15 @@ describe("the ignore command", () => {
 		expect(run(path, { VERCEL_ENV: "preview", VERCEL_GIT_PREVIOUS_SHA: deployed })).toBe(0);
 	});
 
+	it("builds a commit that moves a site file out of the site", async () => {
+		const path = await createRepository();
+		const deployed = await commitFile(path, "apps/site/public/favicon.svg");
+		await mkdir(resolve(path, "docs"), { recursive: true });
+		git(path, "mv", "apps/site/public/favicon.svg", "docs/favicon.svg");
+		git(path, "commit", "-m", "Move the favicon");
+		expect(run(path, { VERCEL_ENV: "preview", VERCEL_GIT_PREVIOUS_SHA: deployed })).toBe(1);
+	});
+
 	it("builds a commit that changes the site since the last deployment", async () => {
 		const path = await createRepository();
 		const deployed = await commitFile(path, "packages/server/src/index.ts");

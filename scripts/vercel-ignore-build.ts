@@ -55,9 +55,13 @@ export function decideBuild({ branch, environment, changedPaths }: BuildInputs):
  */
 function changedSinceLastDeployment(previousSha: string | undefined): string[] | undefined {
 	if (!previousSha) return undefined;
-	const diff = spawnSync("git", ["diff", "--name-only", "-z", previousSha, "HEAD", "--"], {
-		encoding: "utf8",
-	});
+	const diff = spawnSync(
+		"git",
+		["diff", "--name-only", "--no-renames", "-z", previousSha, "HEAD", "--"],
+		{
+			encoding: "utf8",
+		},
+	);
 	if (diff.status !== 0) return undefined;
 	const paths = diff.stdout.split("\0").filter(Boolean);
 	// An empty diff is the same tree deployed again, as a redeploy does: build it.
