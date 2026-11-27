@@ -6,6 +6,7 @@ import {
 } from "./diagrams/edit-block";
 import type { ExistingDiagram } from "./diagrams/edit-context";
 import { blockSlash } from "./editor/slash";
+import { focusEditor } from "./editor/focus";
 import { MdxBlock } from "./editor/mdx-block";
 import { ImageDialog } from "./editor/ImageDialog";
 import { LinkDialog } from "./editor/LinkDialog";
@@ -200,7 +201,7 @@ export default function MdSectionEditor({
 	// throws; the replacement instance re-runs this effect and focuses.
 	useEffect(() => {
 		if (!editor || editor.isDestroyed) return;
-		editor.commands.focus("start");
+		focusEditor(editor, "start");
 		setEntered(true);
 	}, [editor]);
 
@@ -239,7 +240,7 @@ export default function MdSectionEditor({
 	const closeDiagram = useCallback(() => {
 		setDiagramRange(null);
 		setEditTarget(null);
-		editor?.commands.focus();
+		if (editor) focusEditor(editor);
 	}, [editor]);
 
 	async function save() {
@@ -345,13 +346,13 @@ export default function MdSectionEditor({
 				<LinkDialog
 					onClose={() => {
 						setLinkRange(null);
-						editor.commands.focus();
+						focusEditor(editor);
 					}}
 					onInsert={({ href, text }) => {
 						if (linkRange.to > editor.state.doc.content.size) return;
+						focusEditor(editor);
 						editor
 							.chain()
-							.focus()
 							.insertContentAt(linkRange, {
 								type: "text",
 								text,
@@ -366,7 +367,7 @@ export default function MdSectionEditor({
 				<ImageDialog
 					onClose={() => {
 						setImageRange(null);
-						editor.commands.focus();
+						focusEditor(editor);
 					}}
 					onInsert={(attrs) => {
 						if (imageRange.to > editor.state.doc.content.size) return;
@@ -377,9 +378,9 @@ export default function MdSectionEditor({
 								editor.state.doc.textBetween(imageRange.from, imageRange.to)
 						)
 							return;
+						focusEditor(editor);
 						editor
 							.chain()
-							.focus()
 							.insertContentAt({ from: position.before(), to: position.after() }, [
 								{ type: "image", attrs },
 								{ type: "paragraph" },
@@ -423,9 +424,9 @@ export default function MdSectionEditor({
 								});
 								return;
 							}
+							focusEditor(editor);
 							editor
 								.chain()
-								.focus()
 								.insertContentAt(
 									{ from: from.before(), to: from.after() },
 									{
