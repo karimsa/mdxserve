@@ -383,6 +383,13 @@ describe("anchors", () => {
 		expect(host.querySelector<HTMLElement>('[id="os>mac"]')!.hidden).toBe(false);
 	});
 
+	it("scrolls to a rendered element the fragment names, such as a footnote", async () => {
+		history.replaceState(null, "", "/#user-content-fn-n");
+		seed(parse("One[^n].\n\n[^n]: The note.\n"));
+		await mount();
+		expect(scrolled).toContain("user-content-fn-n");
+	});
+
 	it("falls back to the first entry whose path ends with the fragment", async () => {
 		history.replaceState(null, "", "/#examples");
 		const tree = parse(SOURCE);

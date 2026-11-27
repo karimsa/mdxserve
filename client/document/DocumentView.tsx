@@ -105,7 +105,12 @@ const Footnotes = memo(function Footnotes({ index }: { index: DocumentIndex }) {
 
 /** Scroll to the node a `#fragment` names, selecting the tabs that hide it. */
 function revealFragment(hash: string, tree: DocumentTree, index: DocumentIndex): void {
-	const id = resolveFragment(fragmentOf(hash), index, tree.toc);
+	const fragment = fragmentOf(hash);
+	// Any element the page rendered with this id (a footnote, a table) first:
+	// the browser's own jump happened before the document arrived.
+	const id = document.getElementById(fragment)
+		? fragment
+		: resolveFragment(fragment, index, tree.toc);
 	if (id !== null) revealNode(id, { behavior: "instant" });
 }
 
