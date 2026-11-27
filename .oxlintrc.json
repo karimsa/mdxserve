@@ -35,7 +35,7 @@
 		// library hands us. `x`/`y` are excepted for the same reason one step
 		// further: they are the DOM's own names for a coordinate pair, and
 		// `properties: "never"` does not reach the members of a TS type
-		// (see the `Point` interface in client/ui/ExpandModal.tsx).
+		// (see the `Point` interface in apps/web/src/ui/ExpandModal.tsx).
 		"eslint/id-length": [
 			"error",
 			{ "min": 2, "exceptions": ["_", "x", "y"], "properties": "never" }

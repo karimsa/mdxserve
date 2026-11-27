@@ -286,8 +286,8 @@ function PanZoomSvg({
 		if (!el) return;
 
 		// svg-pan-zoom touches `window` at module load, and this file is reachable
-		// from client/builtins/index.ts (via CodeBlock's CodeFrameHeader), which
-		// scripts/build-registry.ts imports under plain Node — so load it lazily,
+		// from apps/web/src/builtins/index.ts (via CodeBlock's CodeFrameHeader), which
+		// apps/web/scripts/build-registry.ts imports under plain Node — so load it lazily,
 		// like mermaid itself.
 		let cancelled = false;
 		let instance: SvgPanZoom.Instance | null = null;

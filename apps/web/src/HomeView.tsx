@@ -51,7 +51,7 @@ export function HomeView({ route }: { route: Extract<Route, { kind: "home" }> })
 						variants={rowVariants}
 						className="group flex items-center rounded-md hover:bg-surface-hover"
 					>
-						{/* Plain <a>: the router's global click delegation (client/router.ts)
+						{/* Plain <a>: the router's global click delegation (apps/web/src/router.ts)
 						    intercepts this for client-side navigation. */}
 						<a
 							href={`${root.dir}/`}

@@ -2,7 +2,7 @@
  *
  * Order matters:
  *   1. @imports — tippy's base css (see the Tooltip note below), then the design
- *      system's tokens and base styles (client/design/, ported verbatim from the
+ *      system's tokens and base styles (apps/web/src/design/, ported verbatim from the
  *      "mdxserve Design System" Claude Design project).
  *   2. @custom-variant dark — the `dark:` utility variant keys on the
  *      `data-theme` attribute that src/http/html.ts sets on <html>, not on the OS
@@ -15,10 +15,10 @@
  * The design tokens are deliberately left *unlayered*: `@theme inline` entries
  * whose name matches a token (`--font-mono`, `--radius-md`) emit a
  * self-reference inside `@layer theme`, and the unlayered `:root` declaration
- * is what wins the cascade. Wrapping client/design in @layer would break that.
+ * is what wins the cascade. Wrapping apps/web/src/design in @layer would break that.
  */
 
-/* Base tippy.js styles for the builtin Tooltip component (client/builtins/Tooltip.tsx).
+/* Base tippy.js styles for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
    Imported here (rather than from the component) so it flows through Vite's normal
    CSS pipeline and doesn't break scripts/build-registry.ts, which imports that
    component under plain Node to read its zod schema. */
@@ -39,7 +39,7 @@
 @import "./editor/component-fields.css";
 @import "./diagrams/style.css";
 
-/* `:root[...]` (not bare `[data-theme]`) because client/CodeBlock.tsx stamps
+/* `:root[...]` (not bare `[data-theme]`) because apps/web/src/CodeBlock.tsx stamps
    data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
 @custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
 
@@ -217,7 +217,7 @@ body {
    `:not(:where(.not-prose, .not-prose *))` guard, so a builtin that sets it on
    its root keeps its own typography. No rule is needed for the class itself. */
 
-/* Code blocks: hand off entirely to CodeFrame/Pre (client/CodeBlock.tsx) — prose
+/* Code blocks: hand off entirely to CodeFrame/Pre (apps/web/src/CodeBlock.tsx) — prose
    must not impose padding or background on them. The `.mdx-prose code` inline
    chip rule must not hit code inside a <pre> either. */
 .mdx-prose pre,
@@ -238,7 +238,7 @@ body {
 }
 
 /*
- * Code block line rendering (client/CodeBlock.tsx owns the surrounding card;
+ * Code block line rendering (apps/web/src/CodeBlock.tsx owns the surrounding card;
  * this handles the per-line grid rows it emits):
  *   - every line is a `<span data-line>` inside a `<code style="display:grid">`,
  *     so it stretches to the full (possibly scrolled) width by default.
@@ -282,7 +282,7 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	width: 4ch;
 }
 
-/* Tippy theme for the builtin Tooltip component (client/builtins/Tooltip.tsx).
+/* Tippy theme for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
    The arrow's border-*-color is `initial` (== currentcolor) per placement in
    tippy.js/dist/tippy.css, picking up whatever `color` is set on the arrow
    element itself — so setting `color` on `::before` (not just `.tippy-arrow`)
@@ -312,7 +312,7 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	border-radius: var(--radius-xs);
 }
 
-/* client/ui/Toast.tsx's attention bounce for a repeat push. Two keyframe sets
+/* apps/web/src/ui/Toast.tsx's attention bounce for a repeat push. Two keyframe sets
    with identical frames: CSS only restarts an animation when its
    animation-name changes, so a repeat push flips the wrapper between the two
    names to replay the bounce. */
@@ -352,7 +352,7 @@ code[data-line-numbers-max-digits="4"] [data-line]::before {
 	}
 }
 
-/* Comment highlights (client/comments/highlights.ts) use the CSS Custom Highlight API,
+/* Comment highlights (apps/web/src/comments/highlights.ts) use the CSS Custom Highlight API,
    so React's DOM is untouched. Browsers without it show the panel and no marks. */
 ::highlight(mdxserve-comment) {
 	background-color: var(--status-warn-bg);

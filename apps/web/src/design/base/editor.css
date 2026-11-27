@@ -1,4 +1,4 @@
-/* Base ProseMirror rules for the inline Tiptap editor (client/MdSectionEditor.tsx).
+/* Base ProseMirror rules for the inline Tiptap editor (apps/web/src/MdSectionEditor.tsx).
    Hand-written rather than importing prosemirror-view's style/prosemirror.css
    as a dependency — the file is tiny, and this keeps every value on an
    mdxserve design token so dark mode is free. Selectors and defaults are

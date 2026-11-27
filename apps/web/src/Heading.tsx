@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /**
  * A section heading. Its `id` is the section's id in the document tree, which
  * is also its URL anchor. h2 to h4 get the hover affordance that links to it
- * (`.mdx-anchor`, styled and positioned by client/design/base/prose.css — it
+ * (`.mdx-anchor`, styled and positioned by apps/web/src/design/base/prose.css — it
  * only shows on heading hover or focus).
  */
 export function Heading({

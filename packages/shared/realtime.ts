@@ -6,7 +6,7 @@ import { z } from "zod";
  * client that receives one refetches what it holds. The client's events ask
  * to receive, or stop receiving, one document's signal.
  *
- * Both src/realtime/ and client/realtime.ts import these values, and each
+ * Both packages/server/src/realtime/ and apps/web/src/realtime.ts import these values, and each
  * side validates what it receives against them.
  */
 

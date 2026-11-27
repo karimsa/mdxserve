@@ -97,7 +97,7 @@ function unwrapSoftBreaks(editor: Editor): void {
 
 /**
  * The Tiptap editing surface for one `MdSection`. This is the module
- * `client/MdSection.tsx` lazy-loads on click, so its ~300 KB of ProseMirror
+ * `apps/web/src/MdSection.tsx` lazy-loads on click, so its ~300 KB of ProseMirror
  * loads only when a reader edits.
  *
  * `StarterKit` 3.29 bundles Link, Underline and Strike itself (confirmed in
@@ -278,7 +278,7 @@ export default function MdSectionEditor({
 	}
 
 	// A phone has no Esc or ⌘S, so the shell shows these as buttons
-	// (client/EditorActionBar.tsx). The bar lives outside this component so it
+	// (apps/web/src/EditorActionBar.tsx). The bar lives outside this component so it
 	// can animate out after the editor has gone. Refs keep the published
 	// callbacks stable while pointing at the latest closures.
 	const saveRef = useRef(save);
@@ -297,7 +297,7 @@ export default function MdSectionEditor({
 		return () => setActions((current) => (current === actions ? null : current));
 	}, [saving, setActions]);
 
-	// Cmd/ctrl+click follows a link (client/editor-link.ts says why the
+	// Cmd/ctrl+click follows a link (apps/web/src/editor-link.ts says why the
 	// browser's own new-tab gesture is inert inside a contenteditable). A DOM
 	// `click` listener rather than ProseMirror's `handleClick` prop: that one
 	// only fires when ProseMirror's own mousedown→mouseup tracking survives,

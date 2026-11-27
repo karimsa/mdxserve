@@ -52,7 +52,7 @@ function requestBackend(
 /**
  * Dev only. The backend fills the built `index.html` with the route JSON and head metadata;
  * on the dev server a page navigation asks the backend for that shell, moves its filled
- * blocks into the source `client/index.html`, and runs Vite's HTML transform, so the page
+ * blocks into the source `apps/web/src/index.html`, and runs Vite's HTML transform, so the page
  * loads the client from source with HMR. Anything that is not the shell (a redirect, a
  * file in a root, an HTML file in a root) is passed back unchanged.
  */

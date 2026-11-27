@@ -75,7 +75,7 @@ interface RootsChangedDetail {
  * and diff its roots against the cached ones. The tree is then fresh
  * everywhere it's rendered (home page, sidebar), and any folder listing
  * currently on screen may live under a root that no longer exists. This
- * module can't import client/router.ts's `navigate` (that would be a cycle:
+ * module can't import apps/web/src/router.ts's `navigate` (that would be a cycle:
  * router.ts already imports from here), so dispatch the diff as a plain
  * window event and let useRouter — which owns navigation and knows the
  * current route — decide whether to redirect away from a removed root.

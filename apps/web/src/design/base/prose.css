@@ -12,7 +12,7 @@
 	   opportunities; let them wrap instead of pushing past the column. */
 	overflow-wrap: break-word;
 }
-/* `<MdSection>` (client/MdSection.tsx) wraps every editable run of top-level
+/* `<MdSection>` (apps/web/src/MdSection.tsx) wraps every editable run of top-level
    markdown nodes but must be visually transparent in read mode — no padding,
    border or overflow, just `position: relative` for the hover pencil — so
    its children's margins keep collapsing through it exactly as if `.mdx-prose`

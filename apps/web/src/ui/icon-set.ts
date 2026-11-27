@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 // pre-bundles a package's entry module as a unit. Reaching straight into
 // `dist/esm/icons/<name>.mjs` keeps each of these to exactly one icon.
 //
-// This is the static "chrome" tier of client/ui/Icon.tsx: every name an
+// This is the static "chrome" tier of apps/web/src/ui/Icon.tsx: every name an
 // mdxserve UI component passes to an icon prop, resolved synchronously with
 // no dynamic import so the header, toolbars, callouts and toasts never flicker.
 // Any other name (an author's `icon="rocket"` in a doc) falls through to

@@ -85,7 +85,7 @@ export const docWidthAtom = atomWithStorage<number | null>("mdxserve.doc.width",
  * null. Plain in-memory atom, not persisted, since an open editor holding
  * unsaved edits should never survive a reload. Only one node edits at a time:
  * a node that isn't this atom's value drops back to read mode, discarding
- * whatever it had open (see client/MdSection.tsx).
+ * whatever it had open (see apps/web/src/MdSection.tsx).
  */
 export const openSectionAtom = atom<string | null>(null);
 
@@ -158,7 +158,7 @@ export const tocModeAtom = atomWithStorage<TocMode>(
 	{ getOnInit: true },
 );
 
-/** What the open section editor offers the touch action bar (client/EditorActionBar.tsx). */
+/** What the open section editor offers the touch action bar (apps/web/src/EditorActionBar.tsx). */
 export interface SectionEditorActions {
 	save: () => void;
 	cancel: () => void;

@@ -16,7 +16,7 @@
 	}
 }
 
-/* Phone width: settings live in a bottom sheet (client/ui/BottomSheet.tsx),
+/* Phone width: settings live in a bottom sheet (apps/web/src/ui/BottomSheet.tsx),
    with the categories as a segmented row instead of a side column. */
 .settings-sheet {
 	display: flex;

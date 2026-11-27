@@ -3,18 +3,33 @@
 - Every worktree will automatically run `yarn` to update dependencies and make sure the build is ready to go
 - Run `yarn dev` to start a dev server: it runs the backend from source on a free port, under its own
   `MDXSERVE_HOME` in `node_modules/.cache/mdxserve-dev` (so it never meets the one-server lock of a real
-  server), and a Vite dev server for `client/` that proxies `/__mdxserve` (tRPC, `getAsset`, the socket)
+  server), and a Vite dev server for `apps/web` that proxies `/__mdxserve` (tRPC, `getAsset`, the socket)
   to it. Vite prints its URL; it moves off port 5173 when that is taken. Run it through `oxmgr`, for
   example `oxmgr start --name mdxserve-dev "yarn dev"`; `yarn dev -w <dir>` serves another folder
 - Test the visual interactivity and rendering in a browser by navigating over to the Vite dev server's port
-- Production never runs Vite: `yarn build` compiles `client/` into `dist/client/` (`vite.config.ts`), and
-  `node dist/cli.js serve` serves that bundle
+- Production never runs Vite: `yarn build` compiles `apps/web/src/` into `packages/server/dist/client/`
+  (`apps/web/vite.config.ts`), and `node packages/server/dist/cli.js serve` serves that bundle
+- Run the `yarn` scripts (`build`, `test`, `lint`, `typecheck`, `deadcode`, …) from the repository root
+
+## Workspaces
+
+| Workspace          | Package                                     | Holds                                                               |
+| ------------------ | ------------------------------------------- | ------------------------------------------------------------------- |
+| `packages/server/` | `@karimsa/mdxserve`, the only one published | the server and CLI (`src/`), its tests, build scripts and `skills/` |
+| `packages/shared/` | `@mdxserve/shared` (private)                | code both the server and the web client run                         |
+| `apps/web/`        | `@mdxserve/web` (private)                   | the browser client (`src/`) and its tests                           |
+| `apps/site/`       | `@mdxserve/site` (private)                  | the project website, deployed to Vercel                             |
+
+The root holds the shared tooling, `scripts/dev.ts` and `scripts/changelog.ts`.
+A workspace depends on another with a `workspace:*` range. The server's esbuild bundle inlines
+`@mdxserve/*` packages, so a workspace package is never left as an import in the published
+output. The web client's build writes into the server package's `dist/`.
 
 ## Architecture
 
-The backend is hexagonal: domain modules in the middle, adapters at the edges. An adapter
-only ever reaches the domain through a service, and a service never knows which adapter is
-calling it.
+The backend (`packages/server`) is hexagonal: domain modules in the middle, adapters at the
+edges. An adapter only ever reaches the domain through a service, and a service never knows
+which adapter is calling it. Paths in this section are relative to `packages/server/`.
 
 ### Domain modules
 
@@ -79,15 +94,21 @@ Adapters contain no business logic:
 | `src/infra/`    | package root and cache-dir helpers                                                                                                                                                         |
 | `src/index.ts`  | the commander CLI                                                                                                                                                                          |
 
-`client/` may only `import type` from `src/` (nothing under `src/` is served to the browser);
-for example `AppRouter` from `src/api/router` and the document tree types from
-`src/document/schema` (re-exported for the renderer by `client/document/tree-types.ts`).
+### Dependency direction
 
-`shared/` holds code both sides run: each builtin's zod prop schema
-(`shared/builtins/<name>.ts`) and the live update socket's event names and payload schemas
-(`shared/realtime.ts`). `client/` and `src/` may import values from it. It imports no
-React value (type-only imports are fine) and nothing from `client/` or `src/`; the client
-build bundles what `client/` imports from it.
+`yarn lint` enforces these:
+
+- The web client's source (`apps/web/src/`) may only `import type` from `@karimsa/mdxserve`
+  (nothing in the server package is served to the browser); for example `AppRouter` from
+  `@karimsa/mdxserve/src/api/router` and the document tree types from
+  `@karimsa/mdxserve/src/document/schema` (re-exported for the renderer by
+  `apps/web/src/document/tree-types.ts`). Its tests may run server code.
+- `@mdxserve/shared` holds code both sides run: each builtin's zod prop schema
+  (`builtins/<name>.ts`), the live update socket's event names and payload schemas
+  (`realtime.ts`) and mermaid header detection (`mermaid-chart.ts`). The server and the web
+  client import values from it through the subpaths in its `exports`. It imports no React value
+  (type-only imports are fine) and nothing from the server or the web client.
+- The server, its tests included, never imports the web client.
 
 ## General philosophy
 
@@ -105,7 +126,7 @@ build bundles what `client/` imports from it.
   statements. `yarn lint` enforces this (`eslint/id-length`); the only exceptions are `_` for a
   binding you deliberately ignore, and `x`/`y` for a coordinate pair. Property names are not
   checked — `{ opacity: 0, y: 4 }` is a framer-motion key, not a name we chose
-- No dead code. `yarn deadcode` (knip, configured in `knip.ts`) fails on an unused file,
+- No dead code. `yarn deadcode` (knip, configured per workspace in `knip.ts`) fails on an unused file,
   export, type, dependency or devDependency, and on a package imported but not listed. It
   runs twice: once over everything, and once with `--production`, which leaves the tests out,
   so an export only a test uses also fails. Delete what it reports. When a test genuinely
@@ -116,10 +137,12 @@ build bundles what `client/` imports from it.
 
 ## Writing tests
 
-- Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/realtime/`
+- Each workspace keeps its tests in its own `tests/` and its own `vitest.config.ts`; `yarn test` at the root runs them all
+- Server tests mirror the modules: `packages/server/tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/realtime/`
+- Web client tests live in `apps/web/tests/`, shared code tests in `packages/shared/tests/`, and tests of the root scripts and GitHub Actions gates in `tests/automation/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
-- The client renders documents from the JSON tree (`client/document/`): one memoized renderer per node type, keyed by node id or index. Heading and tab anchors are tree ids; navigate to a node with `revealNode(id)`, which selects the tabs on the way
+- The client renders documents from the JSON tree (`apps/web/src/document/`): one memoized renderer per node type, keyed by node id or index. Heading and tab anchors are tree ids; navigate to a node with `revealNode(id)`, which selects the tabs on the way
 
 ## Creating PRs
 
@@ -146,16 +169,17 @@ build bundles what `client/` imports from it.
 
 ## Releasing
 
-1. Create a release branch from the latest `origin/main`. Run
-   `npm version minor --no-git-tag-version` (or the requested version bump),
-   then fetch tags and run `yarn changelog <version>` to generate the new
-   `CHANGELOG.md` entry from merged commit subjects and PR references. Review
+1. Create a release branch from the latest `origin/main`. In `packages/server`, run
+   `npm version minor --no-git-tag-version --no-workspaces-update` (or the requested version
+   bump; without `--no-workspaces-update` npm fails on the `workspace:` ranges). Then fetch
+   tags and, from the repository root, run `yarn changelog <version>` to generate the new
+   root `CHANGELOG.md` entry from merged commit subjects and PR references. Review
    the notes, commit the version and changelog together with the required
    `Co-authored-by` trailer, and open a PR titled only with the version number.
    Regenerate the changelog if more changes merge before the release PR. `main`
    requires a PR and passing status checks.
 2. Wait for the release PR to merge, then fetch and check out the merged commit on `main`.
-   Confirm `package.json` contains the intended release version.
+   Confirm `packages/server/package.json` contains the intended release version.
 3. Create an annotated tag on that merged commit matching the package version
    (for example, `git tag -a v0.5.0 -m 'Release 0.5.0'`), then push that tag
    (`git push origin v0.5.0`). Create and push the release tag only after the PR merges.
@@ -167,16 +191,18 @@ build bundles what `client/` imports from it.
 A release candidate is an npm-only release: it is published under the `next` dist-tag and
 never changes the live site or `CHANGELOG.md`.
 
-1. Create a release branch from the latest `origin/main` and set the version explicitly, for
-   example `npm version 0.6.0-rc.1 --no-git-tag-version`. For a later candidate of the same
-   release, `npm version prerelease --no-git-tag-version` gives `0.6.0-rc.2`. Do not run
-   `yarn changelog`: it accepts stable versions only.
+1. Create a release branch from the latest `origin/main` and set the version explicitly in
+   `packages/server`, for example
+   `npm version 0.6.0-rc.1 --no-git-tag-version --no-workspaces-update`. For a later candidate
+   of the same release, `npm version prerelease --no-git-tag-version --no-workspaces-update`
+   gives `0.6.0-rc.2`. Do not run `yarn changelog`: it accepts stable versions only.
 2. Commit the version with the required `Co-authored-by` trailer and open a PR titled only
    with the version number (`0.6.0-rc.1`). The changelog generator omits these commits.
 3. After the PR merges, tag the merged commit to match the package version
    (`git tag -a v0.6.0-rc.1 -m 'Release 0.6.0-rc.1'`) and push the tag.
 4. Verify the Release workflow publishes to npm and skips the site promotion job. Install a
    candidate with `npm install @karimsa/mdxserve@next`.
-5. For the stable release, follow the steps above with `npm version 0.6.0 --no-git-tag-version`.
+5. For the stable release, follow the steps above with
+   `npm version 0.6.0 --no-git-tag-version --no-workspaces-update`.
    `yarn changelog 0.6.0` lists every change since the previous stable release, including
    those that shipped in candidates.

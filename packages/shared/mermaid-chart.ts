@@ -6,12 +6,9 @@
  * charts of data — the kind mdxserve's builtin `<Chart>` component already
  * covers, and renders far better (design tokens, hover, expand).
  *
- * Pure and import-free like `client/mermaid-direction.ts`, so it is safe to
- * ship in the browser bundle. `src/` importing a pure module from `client/`
- * is fine — the AGENTS.md rule against crossing the boundary is
- * one-directional, and `scripts/build-registry.ts` already imports
- * `client/builtins/index.ts` the same way — but this file itself must stay
- * import-free and browser-safe: no `src/`, no Node builtins, no React.
+ * The server's validation and the web client both import it. It must stay
+ * import-free and browser-safe, like `apps/web/src/mermaid-direction.ts`: no
+ * server code, no Node builtins, no React.
  */
 
 /** @internal Exported for its tests. */

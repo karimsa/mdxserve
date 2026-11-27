@@ -27,7 +27,7 @@ export default defineConfig(({ command }) => ({
 		chunkSizeWarningLimit: 1536,
 		rollupOptions: {
 			output: {
-				// The chrome imports its icons statically (client/ui/icon-set.ts), and lucide's
+				// The chrome imports its icons statically (apps/web/src/ui/icon-set.ts), and lucide's
 				// dynamicIconImports map reaches the same files lazily, which would otherwise
 				// give each of them a chunk of its own: dozens of preloads on every page.
 				manualChunks: (id, { getModuleInfo }) =>

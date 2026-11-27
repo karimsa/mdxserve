@@ -174,7 +174,7 @@ function Row({
 					{inner}
 				</div>
 			) : (
-				// Plain <a>: the router's global click delegation (client/router.ts)
+				// Plain <a>: the router's global click delegation (apps/web/src/router.ts)
 				// intercepts this for client-side navigation; no per-row handler needed.
 				// The checkbox above is a sibling, not a descendant, so it never triggers it.
 				<a
@@ -234,7 +234,7 @@ function SelectMenu({
 		setOpen(false);
 	}
 
-	// Close on outside click, mirroring client/ui/Dropdown.tsx.
+	// Close on outside click, mirroring apps/web/src/ui/Dropdown.tsx.
 	useEffect(() => {
 		if (!open) return;
 		const onPointerDown = (event: PointerEvent) => {

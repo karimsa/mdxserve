@@ -4,7 +4,7 @@ import { isTRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 import { queryClient, trpc } from "./api";
 import { realtime } from "./realtime";
-// Type-only: see the comment in client/api.ts — no server code enters the client bundle.
+// Type-only: see the comment in apps/web/src/api.ts — no server code enters the client bundle.
 import type { AppRouter } from "@karimsa/mdxserve/src/api/router";
 import type { DocumentMetadata } from "@karimsa/mdxserve/src/docs/metadata";
 

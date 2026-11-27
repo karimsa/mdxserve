@@ -23,7 +23,7 @@ export const stagger: Variants = {
 	enter: { transition: { staggerChildren: 0.02 } },
 };
 
-/* ── Design-system motion (mirrors client/design-ref/components/motion/MotionKit.jsx
+/* ── Design-system motion (mirrors apps/web/src/design-ref/components/motion/MotionKit.jsx
    and the --spring-* / --dur-* tokens in client/design/tokens/motion.css).
    Springs for anything physical, tweens for colour and opacity only. Nothing
    overshoots past 2%, nothing travels more than 10px. ── */

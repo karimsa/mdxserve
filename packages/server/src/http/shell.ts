@@ -20,7 +20,7 @@ export type Route =
 	  }
 	| { kind: "notfound"; path: string; rootName?: string; rootDir?: string };
 
-/** The two places in the built `index.html` (client/index.html) the server fills per request. */
+/** The two places in the built `index.html` (apps/web/src/index.html) the server fills per request. */
 const MARKERS = ["head", "body"] as const;
 type Marker = (typeof MARKERS)[number];
 
@@ -104,7 +104,7 @@ export interface ShellOptions {
  * and the route JSON the client boots from into the body. The view itself (listing, doc,
  * not-found) is rendered client-side. Each filled block stays between
  * `<!--mdxserve:<name>-->` and `<!--/mdxserve:<name>-->`, which the dev server
- * (scripts/dev-shell.ts) reads to move them into the source page.
+ * (apps/web/scripts/dev-shell.ts) reads to move them into the source page.
  */
 export function renderShell(template: string, route: Route, options: ShellOptions = {}): string {
 	const { rootCount = 1, sameMachine = false, permissions = "full", metadata } = options;

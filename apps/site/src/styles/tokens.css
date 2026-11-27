@@ -1,4 +1,4 @@
-/* Design tokens copied from client/design/tokens/ in the mdxserve package. The site is
+/* Design tokens copied from apps/web/src/design/tokens/ in the mdxserve package. The site is
    its own app and must not import from client/, so update these by hand when the
    product palette, type ramp, spacing or elevation changes. */
 

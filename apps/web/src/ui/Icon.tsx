@@ -1,5 +1,5 @@
 // The explicit .mjs extension matters: this module is also reachable from
-// scripts/build-registry.ts under plain Node, whose ESM resolver (unlike
+// apps/web/scripts/build-registry.ts under plain Node, whose ESM resolver (unlike
 // Vite's) requires a real extension since lucide-react's package.json has no
 // "exports" map for this subpath.
 import dynamicIconImports from "lucide-react/dynamicIconImports.mjs";
@@ -58,7 +58,7 @@ function loadDynamicIcon(name: DynamicIconName): Promise<LucideIcon | null> {
  * place that turns the name into a glyph. Unknown names render nothing rather
  * than throwing, so a typo in a doc never breaks the page.
  *
- * Two tiers: `staticIcons` (client/ui/icon-set.ts) covers the ~30 names
+ * Two tiers: `staticIcons` (apps/web/src/ui/icon-set.ts) covers the ~30 names
  * mdxserve's own chrome uses, resolved synchronously with no import at all.
  * Any other name is looked up in lucide-react's `dynamicIconImports` map and
  * loaded on demand — this is how MDX authors can write `icon="anything-in-

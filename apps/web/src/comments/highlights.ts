@@ -1,7 +1,7 @@
 /**
  * Highlights use the CSS Custom Highlight API, so React's DOM is never touched
  * and a doc re-render cannot clash with the marks. Browsers without it show the
- * panel and no marks. Styles live in client/app.css (`::highlight()`).
+ * panel and no marks. Styles live in apps/web/src/app.css (`::highlight()`).
  */
 const HIGHLIGHT_NAME = "mdxserve-comment";
 const ACTIVE_HIGHLIGHT_NAME = "mdxserve-comment-active";
