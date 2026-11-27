@@ -137,6 +137,26 @@ describe("DocumentService.parse — id fallbacks", () => {
 		expect(diagnostics[0].message).toContain("line 5");
 	});
 
+	it("keeps a Markdown table's id when a component or heading uses the same id", () => {
+		const table = "| Name |\n| - |\n| a |\n";
+		const tableId = (parse(table).tree.children[0] as { children: { id: string }[] }).children[0]
+			.id;
+		const { tree, diagnostics } = parse(
+			`${table}\n<details id="${tableId}">\n<summary>S</summary>\n\nBody\n</details>\n`,
+		);
+		const ids = idsOf(tree);
+		expect(new Set(ids).size).toBe(ids.length);
+		expect(findById(tree, tableId)).toMatchObject({ type: "table" });
+		expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["duplicate-id"]);
+		expect(diagnostics[0].message).toContain("Markdown table");
+
+		// A heading whose slug spells the table's id gets a suffixed id instead.
+		const withHeading = parse(`${table}\n# ${tableId}\n`).tree;
+		const headingIds = idsOf(withHeading);
+		expect(new Set(headingIds).size).toBe(headingIds.length);
+		expect(findById(withHeading, tableId)).toMatchObject({ type: "table" });
+	});
+
 	it("lets a heading keep an id that a component also claims", () => {
 		const { tree, diagnostics } = parse('# Setup\n\n<Diff id="setup" before="a" after="b" />\n');
 		expect(idsOf(tree)).toEqual(["setup", "setup>~diff-1"]);

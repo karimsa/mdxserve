@@ -115,6 +115,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 
 	const pathLines = new Map<string, { line: number | undefined; count: number }>();
 	const authoredLines = new Map<string, number | undefined>();
+	const tableIds = new Set([...options.tables.values()].map((identity) => identity.id));
 	let emptySlugCount = 0;
 	let failedCount = 0;
 
@@ -536,6 +537,12 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 				`The id "${value}" on ${label} is the anchor of the heading "${slugText.get(value) ?? value}", so a generated id is used. Rename the id.`,
 			);
 		}
+		if (tableIds.has(value)) {
+			return fallback(
+				"duplicate-id",
+				`The id "${value}" on ${label} is already the id of a Markdown table, so this one gets a generated id. Rename the id.`,
+			);
+		}
 		if (authoredLines.has(value)) {
 			const first = authoredLines.get(value);
 			const here = node.position?.start.line;
@@ -693,6 +700,9 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		return isDocumentRelative(url) ? options.assetUrl(url) : url;
 	}
 
+	// A table's id is a hash its persisted preferences are kept under, so it
+	// cannot move: reserve every one before any other node takes an id.
+	for (const { id } of options.tables.values()) ids.claim(id);
 	return { children: convertRoot(), ranges };
 }
 
