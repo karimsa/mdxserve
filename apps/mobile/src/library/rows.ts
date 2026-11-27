@@ -53,3 +53,11 @@ export function libraryRows(
 	others.sort(serverOrder);
 	return [...roots, ...others];
 }
+
+/**
+ * Whether the Library has shown its first full answer: the stored servers are read and every
+ * one of them has answered or failed once. Rows animate only after that.
+ */
+export function firstAnswersIn(loaded: boolean, states: readonly RootsState[]): boolean {
+	return loaded && states.every((state) => state.kind !== "loading");
+}

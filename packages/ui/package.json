@@ -24,7 +24,8 @@
 		"./primitives/*": "./src/primitives/*.tsx",
 		"./block-state/*": "./src/block-state/*.ts",
 		"./data-table/*": "./src/data-table/*.ts",
-		"./document/*": "./src/document/*.ts"
+		"./document/*": "./src/document/*.ts",
+		"./tokens/springs": "./src/tokens/springs.ts"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit"

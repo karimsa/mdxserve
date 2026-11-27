@@ -4,6 +4,8 @@
 // Everything else goes to React Native's jest resolver, which this one replaces.
 const path = require("node:path");
 const reactNativeResolver = require("@react-native/jest-preset/jest/resolver");
+// Reanimated (and its worklets) load their web build under jest; their resolver picks it.
+const reanimatedResolver = require("react-native-reanimated/jest/resolver");
 
 const uniwindRoot = path.dirname(require.resolve("uniwind/package.json"));
 const reactNativeRoot = path.dirname(require.resolve("react-native/package.json"));
@@ -22,5 +24,9 @@ module.exports = (request, options) => {
 	if (isReactNativeEntry(request) && !isInside(origin, uniwindRoot) && !fromReactNative) {
 		return reactNativeResolver("uniwind/components", options);
 	}
-	return reactNativeResolver(request, options);
+	return reanimatedResolver(request, {
+		...options,
+		defaultResolver: (next, nextOptions) =>
+			reactNativeResolver(next, { ...nextOptions, defaultResolver: options.defaultResolver }),
+	});
 };

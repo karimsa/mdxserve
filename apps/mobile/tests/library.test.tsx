@@ -5,7 +5,7 @@ import { Uniwind } from "uniwind";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
 import type { ProbeResult } from "../src/servers/connection";
 import { baseName, childPath, pathFromSegments, pathSegments } from "../src/library/paths";
-import { libraryRows, type RootsState } from "../src/library/rows";
+import { firstAnswersIn, libraryRows, type RootsState } from "../src/library/rows";
 import { SERVERS_KEY, type KnownServer } from "../src/servers/store";
 import { APP_ROUTES } from "./app-routes";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
@@ -134,6 +134,20 @@ describe("libraryRows", () => {
 			],
 		);
 		expect(rows.map((row) => row.server.id)).toEqual([STUDIO, LAPTOP]);
+	});
+});
+
+describe("firstAnswersIn", () => {
+	it("waits for the stored servers before the Library counts as answered", () => {
+		expect(firstAnswersIn(false, [])).toBe(false);
+		expect(firstAnswersIn(true, [])).toBe(true);
+		expect(firstAnswersIn(true, [{ kind: "loading" }])).toBe(false);
+		expect(
+			firstAnswersIn(true, [
+				{ kind: "ok", roots: [] },
+				{ kind: "failed", message: "x" },
+			]),
+		).toBe(true);
 	});
 });
 
@@ -571,6 +585,50 @@ describe("saving the sort order", () => {
 		).toEqual(["Document alpha.md", "Document zulu.md"]);
 	});
 
+	it("keeps the last choice when an earlier write fails and the same order was chosen again since", async () => {
+		await openNotes([
+			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
+			{ name: "zulu.md", isDir: false, isDoc: true, mtime: 900 },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		await screen.findByLabelText("Document alpha.md");
+		let failFirst: (error: Error) => void = () => {};
+		const restore = interceptNextSortWrite(
+			() => new Promise<void>((_resolve, reject) => (failFirst = reject)),
+		);
+		const choose = async (title: string) => {
+			const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+				(candidate) => candidate.props.title === "notes",
+			)!;
+			const menu = header.props.headerRightBarButtonItems.find(
+				(item: { type: string }) => item.type === "menu",
+			);
+			const item = menu.menu.items.find(
+				(candidate: { title: string }) => candidate.title === title,
+			);
+			await act(async () => {
+				header.props.onPressHeaderBarButtonMenuItem({ nativeEvent: { menuId: item.menuId } });
+			});
+		};
+		// Saved: Name. Last modified (its write hangs), then Name, then Last modified again.
+		await choose("Last modified");
+		await choose("Name");
+		await choose("Last modified");
+		await act(async () => failFirst(new Error("disk full")));
+		for (
+			let tries = 0;
+			(await AsyncStorage.getItem("mdxserve.listing.sort")) !== "modified";
+			tries += 1
+		) {
+			if (tries > 100) throw new Error("the last sort order was never saved");
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		restore();
+		expect(
+			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
+		).toEqual(["Document zulu.md", "Document alpha.md"]);
+	});
+
 	it("goes back to the saved order and says why when the only write fails", async () => {
 		await openNotes([
 			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
@@ -597,5 +655,60 @@ describe("saving the sort order", () => {
 			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
 		).toEqual(["Document alpha.md", "Document zulu.md"]);
 		restore();
+	});
+});
+
+describe("folder rows as the listing changes", () => {
+	it("keeps each row's element across a re-sort, so rows move instead of being replaced", async () => {
+		await openNotes([
+			{ name: "alpha.md", isDir: false, isDoc: true, mtime: 100 },
+			{ name: "zulu.md", isDir: false, isDoc: true, mtime: 900 },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		const alpha = await screen.findByLabelText("Document alpha.md");
+		const zulu = screen.getByLabelText("Document zulu.md");
+		const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+			(candidate) => candidate.props.title === "notes",
+		)!;
+		const menu = header.props.headerRightBarButtonItems.find(
+			(item: { type: string }) => item.type === "menu",
+		);
+		await act(async () => {
+			header.props.onPressHeaderBarButtonMenuItem({
+				nativeEvent: { menuId: menu.menu.items[1].menuId },
+			});
+		});
+		expect(
+			screen.getAllByLabelText(/^Document /).map((row) => row.props.accessibilityLabel),
+		).toEqual(["Document zulu.md", "Document alpha.md"]);
+		expect(screen.getByLabelText("Document alpha.md")).toBe(alpha);
+		expect(screen.getByLabelText("Document zulu.md")).toBe(zulu);
+	});
+
+	it("shows a refreshed listing in order, with the new row in and the removed row gone", async () => {
+		await openNotes([
+			{ name: "b.md", isDir: false, isDoc: true },
+			{ name: "c.md", isDir: false, isDoc: true },
+		]);
+		await renderRouter(APP_ROUTES, { initialUrl: FOLDER_URL });
+		const kept = await screen.findByLabelText("Document b.md");
+		mockListings.set(`${STUDIO_URL}/Users/me/notes`, {
+			path: "/Users/me/notes",
+			rootName: "notes",
+			rootDir: "/Users/me/notes",
+			entries: [
+				{ name: "b.md", isDir: false, isDoc: true },
+				{ name: "a.md", isDir: false, isDoc: true },
+				{ name: "drafts", isDir: true, isDoc: false },
+			],
+		});
+		const list = screen.getByTestId("folder-content");
+		await act(async () => list.props.refreshControl.props.onRefresh());
+		await waitFor(() =>
+			expect(
+				screen.getAllByLabelText(/^(Document|Folder) /).map((row) => row.props.accessibilityLabel),
+			).toEqual(["Folder drafts", "Document a.md", "Document b.md"]),
+		);
+		expect(screen.getByLabelText("Document b.md")).toBe(kept);
 	});
 });
