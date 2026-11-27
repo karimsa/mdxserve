@@ -162,6 +162,12 @@ describe.each(["light", "dark"] as const)("the shared builtins in the %s theme",
 		expect(screen.queryByText("Done")).toBeNull();
 		await fireEvent.press(screen.getByRole("button", { name: "Expand screenshot" }));
 		expect(screen.getByText("Done")).toBeOnTheScreen();
+		// The image fills the area the sheet gives it (on iPad narrower than the window).
+		await fireEvent(screen.getByTestId("screenshot-viewer-area"), "layout", {
+			nativeEvent: { layout: { x: 0, y: 0, width: 540, height: 620 } },
+		});
+		const images = screen.getAllByLabelText("The reader");
+		expect(styleOf(images[images.length - 1])).toMatchObject({ width: 540, height: 620 });
 		await fireEvent.press(screen.getByText("Done"));
 		expect(screen.queryByText("Done")).toBeNull();
 	});

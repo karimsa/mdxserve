@@ -1,13 +1,15 @@
-import { Image, Modal, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { useState } from "react";
+import { Image, Modal, ScrollView, Text, View } from "react-native";
 import { Pressable } from "../primitives/Pressable";
 import type { ExpandedScreenshot } from "./Screenshot";
 
 /**
  * The app's full-screen screenshot: a page sheet with the image fitted to it, pinch to zoom
- * (up to 8×) and drag to pan, and Done (or a swipe down) to close.
+ * (up to 8×) and drag to pan, and Done (or a swipe down) to close. The image is sized from the
+ * area the sheet gives it, which on iPad is narrower than the window.
  */
 export function ScreenshotViewer({ open, onClose, src, alt, title }: ExpandedScreenshot) {
-	const window = useWindowDimensions();
+	const [area, setArea] = useState<{ width: number; height: number } | null>(null);
 	return (
 		<Modal
 			visible={open}
@@ -30,6 +32,11 @@ export function ScreenshotViewer({ open, onClose, src, alt, title }: ExpandedScr
 					</Pressable>
 				</View>
 				<ScrollView
+					testID="screenshot-viewer-area"
+					onLayout={(event) => {
+						const { width, height } = event.nativeEvent.layout;
+						setArea({ width, height });
+					}}
 					maximumZoomScale={8}
 					minimumZoomScale={1}
 					centerContent={true}
@@ -37,12 +44,14 @@ export function ScreenshotViewer({ open, onClose, src, alt, title }: ExpandedScr
 					showsVerticalScrollIndicator={false}
 					contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center" }}
 				>
-					<Image
-						source={{ uri: src }}
-						accessibilityLabel={alt}
-						resizeMode="contain"
-						style={{ width: window.width, height: window.height - 96 }}
-					/>
+					{area ? (
+						<Image
+							source={{ uri: src }}
+							accessibilityLabel={alt}
+							resizeMode="contain"
+							style={{ width: area.width, height: area.height }}
+						/>
+					) : null}
 				</ScrollView>
 			</View>
 		</Modal>
