@@ -3,7 +3,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { queryClient, trpc } from "./api";
-import { formatModified, formatSize } from "./format";
+import { formatModified, formatSize } from "@mdxserve/client/format";
 import { useFullWidth } from "./hooks";
 import { stagger, TRANSITIONS, VARIANTS } from "./motion";
 import { Icon } from "@mdxserve/ui/primitives/Icon";

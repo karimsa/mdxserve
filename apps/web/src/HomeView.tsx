@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { shortenHome } from "./format";
+import { shortenHome } from "@mdxserve/client/format";
 import { stagger } from "./motion";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { HomeEmptyState } from "./HomeEmptyState";

@@ -7,7 +7,7 @@ import { IconButton } from "../ui/IconButton";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { ListingView } from "../ListingView";
 import { useFolderListing } from "../router";
-import { shortenHome } from "../format";
+import { shortenHome } from "@mdxserve/client/format";
 import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, sidebarWidthAtom } from "../state";
 
 const DOCKED_CLASS =

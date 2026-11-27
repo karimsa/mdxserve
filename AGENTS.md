@@ -17,6 +17,7 @@
 | ------------------ | ------------------------------------------- | ------------------------------------------------------------------- |
 | `packages/server/` | `@karimsa/mdxserve`, the only one published | the server and CLI (`src/`), its tests, build scripts and `skills/` |
 | `packages/shared/` | `@mdxserve/shared` (private)                | code both the server and the web client run                         |
+| `packages/client/` | `@mdxserve/client` (private)                | DOM-free client code the web client and the app both run            |
 | `packages/ui/`     | `@mdxserve/ui` (private)                    | components the web client and the app both render (`src/`)          |
 | `apps/web/`        | `@mdxserve/web` (private)                   | the browser client (`src/`) and its tests                           |
 | `apps/site/`       | `@mdxserve/site` (private)                  | the project website, deployed to Vercel                             |
@@ -145,6 +146,13 @@ Adapters contain no business logic:
   (`realtime.ts`) and mermaid header detection (`mermaid-chart.ts`). The server and the web
   client import values from it through the subpaths in its `exports`. It imports no React value
   (type-only imports are fine) and nothing from the server or the web client.
+- `@mdxserve/client` holds the DOM-free client code both clients run: the tRPC client factory
+  (`createApiClient(baseUrl)`), the live update client (`createRealtime(baseUrl)`), comment anchor
+  logic, the document index, plain text and date formatting. It has no DOM global (its tsconfig
+  has no DOM lib), no `react-dom`, `react-native` or Expo import and no import of either app; it
+  may only `import type` from `@karimsa/mdxserve` and may import values from `@mdxserve/shared`.
+  The server and `@mdxserve/shared` never import it. Anything that touches `window` stays in
+  the web client.
 - `@mdxserve/ui` holds the components both clients render, written with React Native
   primitives and Tailwind class names. Uniwind turns the class names into styles: through
   react-native-web in the web client (`apps/web/vite.config.ts`) and through Metro in the app
@@ -185,7 +193,7 @@ Adapters contain no business logic:
 - Each workspace keeps its tests in its own `tests/` and its own `vitest.config.ts`; `yarn test` at the root runs them all
 - Server tests mirror the modules: `packages/server/tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/realtime/`
 - App component tests live in `apps/mobile/tests/` and run under jest-expo, not vitest
-- Web client tests live in `apps/web/tests/`, shared code tests in `packages/shared/tests/`, and tests of the root scripts and GitHub Actions gates in `tests/automation/`
+- Web client tests live in `apps/web/tests/`, shared code tests in `packages/shared/tests/`, client package tests in `packages/client/tests/`, and tests of the root scripts and GitHub Actions gates in `tests/automation/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
 - The client renders documents from the JSON tree (`apps/web/src/document/`): one memoized renderer per node type, keyed by node id or index. Heading and tab anchors are tree ids; navigate to a node with `revealNode(id)`, which selects the tabs on the way

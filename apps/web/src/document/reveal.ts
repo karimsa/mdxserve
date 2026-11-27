@@ -1,4 +1,4 @@
-import type { DocumentIndex, TabStep } from "./document-index";
+import type { DocumentIndex, TabStep } from "@mdxserve/client/document/document-index";
 import { selectTabs } from "./tabs-state";
 
 interface OpenDocument {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import * as client from "../src/comments/anchor";
+import * as client from "../comments/anchor";
 import { normalizeText as serverNormalize } from "@karimsa/mdxserve/src/comments/anchor";
 import {
 	MAX_ANCHOR_HEADING,
@@ -27,7 +27,7 @@ describe("client and server comment limits agree", () => {
 	});
 });
 
-import { headingKey as clientHeadingKey } from "../src/comments/anchor";
+import { headingKey as clientHeadingKey } from "../comments/anchor";
 import { headingKey as serverHeadingKey } from "@karimsa/mdxserve/src/comments/anchor";
 
 describe("headingKey", () => {

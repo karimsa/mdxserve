@@ -9,7 +9,7 @@ import {
 	resolutionPosition,
 	type BlockDescription,
 	type ResolveIndex,
-} from "../src/comments/anchor";
+} from "../comments/anchor";
 
 function indexOf(sections: Array<{ heading: string | null; blocks: string[] }>): ResolveIndex {
 	const headings: ResolveIndex["headings"][number][] = [];

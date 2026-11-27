@@ -1,4 +1,4 @@
-import { formatModified, formatSize } from "../format";
+import { formatModified, formatSize } from "@mdxserve/client/format";
 import Button from "./Button";
 import type { ListingEntry } from "../router";
 import { Icon } from "@mdxserve/ui/primitives/Icon";

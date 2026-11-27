@@ -9,7 +9,7 @@ import {
 	type NodePoint,
 	type Resolution,
 	type ResolveIndex,
-} from "./anchor";
+} from "@mdxserve/client/comments/anchor";
 
 /** The innermost match of this selector inside the article is a block. */
 const BLOCK_SELECTOR = "p, li, td, th, h1, h2, h3, h4, h5, h6, pre, dt, dd, figcaption, summary";

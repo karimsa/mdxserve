@@ -10,7 +10,7 @@ import {
 	type BlockDescription,
 	type NodePoint,
 	type ResolveIndex,
-} from "../src/comments/anchor";
+} from "../comments/anchor";
 
 const piece = fc.constantFrom("a", "b", "word", " ", "  ", "\n", "\t", "é", "x y", "-");
 const nodeText = fc.array(piece, { maxLength: 6 }).map((parts) => parts.join(""));

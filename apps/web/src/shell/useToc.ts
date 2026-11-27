@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { documentQueryOptions } from "../document/query";
-import { indexDocument } from "../document/document-index";
+import { indexDocument } from "@mdxserve/client/document/document-index";
 import { FOOTNOTES_ID } from "../document/nodes";
 import type { TocEntry as TreeTocEntry } from "../document/tree-types";
 
