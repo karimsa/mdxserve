@@ -46,21 +46,25 @@ export function hasUnsavedInput(root: ParentNode): boolean {
 
 /** Vite dispatches `vite:preloadError` on `window` when a dynamic import fails to load. */
 export function installStaleBuildReload(): void {
+	const ask = () =>
+		pushToast({
+			tone: "warn",
+			text: "mdxserve was updated. Reload the page to keep going.",
+			dedupeKey: "stale-build",
+		});
 	window.addEventListener("vite:preloadError", () => {
-		const editing = hasUnsavedInput(document);
 		const now = Date.now();
-		if (staleBuildAction(editing, readReloadedAt(), now) === "ask") {
-			pushToast({
-				tone: "warn",
-				text: "mdxserve was updated. Reload the page to keep going.",
-				dedupeKey: "stale-build",
-			});
+		if (staleBuildAction(hasUnsavedInput(document), readReloadedAt(), now) === "ask") {
+			ask();
 			return;
 		}
 		try {
 			sessionStorage.setItem(RELOADED_AT_KEY, String(now));
 		} catch {
-			// Without storage there is no loop guard; a reload is still the right thing once.
+			// The time of this reload cannot be kept, so nothing would stop the next page from
+			// reloading again if the chunk is still missing. Leave the reload to the reader.
+			ask();
+			return;
 		}
 		location.reload();
 	});
