@@ -9,7 +9,7 @@ import { DocumentView } from "../../client/document/DocumentView";
 import { revealNode } from "../../client/document/reveal";
 import { tabSelectionAtom } from "../../client/document/tabs-state";
 import { DocumentService } from "../../src/document/service";
-import { loadRegistry } from "../../src/components/registry";
+import { builtinRegistry } from "../helpers/components.js";
 import type { DocumentTree } from "../../src/document/schema";
 
 const renders = vi.hoisted(() => ({ callout: 0 }));
@@ -96,7 +96,7 @@ const SOURCE = [
 ].join("\n");
 
 function parse(source: string): DocumentTree {
-	return new DocumentService(loadRegistry(), (relative) => relative).parse(source, PATH).tree;
+	return new DocumentService(builtinRegistry, (relative) => relative).parse(source, PATH).tree;
 }
 
 /** Let TanStack Query's batched notifications (a zero-delay timer) reach the observers. */
@@ -224,6 +224,25 @@ describe("DocumentView renders each node type", () => {
 			"Unsupported component <FutureWidget>",
 			"Unsupported element <marquee>",
 		]);
+	});
+});
+
+describe("footnotes and literal children", () => {
+	it("gives each reference to one footnote its own anchor and back link", async () => {
+		seed(parse("One[^n] and two[^n].\n\n[^n]: The note.\n"));
+		await mount();
+		const references = [...host.querySelectorAll("[data-footnote-ref]")].map((link) => link.id);
+		expect(references).toEqual(["user-content-fnref-n", "user-content-fnref-n-2"]);
+		const backrefs = [...host.querySelectorAll("[data-footnote-backref]")].map((link) =>
+			link.getAttribute("href"),
+		);
+		expect(backrefs).toEqual(["#user-content-fnref-n", "#user-content-fnref-n-2"]);
+	});
+
+	it("keeps a builtin's literal children prop when the element has no content", async () => {
+		seed(parse('Status: <Badge children="Ready" />\n'));
+		await mount();
+		expect(host.textContent).toContain("Ready");
 	});
 });
 

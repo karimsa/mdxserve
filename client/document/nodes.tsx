@@ -38,13 +38,33 @@ const EditScopeContext = createContext<EditScope>("root");
 /** Inside a paragraph, heading or table cell a component or element is inline. */
 const InlineContext = createContext(false);
 
-/** Footnote numbers by label, in order of first reference. */
-export const FootnoteContext = createContext<ReadonlyMap<string, number>>(new Map());
+/** What a footnote reference needs: its footnote's number and its own place among that footnote's references. */
+export interface FootnoteInfo {
+	numbers: ReadonlyMap<string, number>;
+	counts: ReadonlyMap<string, number>;
+	occurrences: WeakMap<object, number>;
+}
+export const FootnoteContext = createContext<FootnoteInfo>({
+	numbers: new Map(),
+	counts: new Map(),
+	occurrences: new WeakMap(),
+});
 
-/** The footnote element ids GFM gives a label, kept so old links still land. */
-export function footnoteIds(label: string): { definition: string; reference: string } {
+/**
+ * The footnote element ids GFM gives a label, kept so old links still land.
+ * The second and later references to one footnote get `-2`, `-3`, so each
+ * back link returns to its own reference.
+ */
+export function footnoteIds(
+	label: string,
+	occurrence = 1,
+): { definition: string; reference: string } {
 	const safe = encodeURIComponent(label.toLowerCase());
-	return { definition: `user-content-fn-${safe}`, reference: `user-content-fnref-${safe}` };
+	const suffix = occurrence > 1 ? `-${occurrence}` : "";
+	return {
+		definition: `user-content-fn-${safe}`,
+		reference: `user-content-fnref-${safe}${suffix}`,
+	};
 }
 
 /** The React key of a node: its id when it has one, else its index in the parent. */
@@ -153,7 +173,7 @@ export const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 		case "break":
 			return <br />;
 		case "footnoteReference":
-			return <FootnoteReference label={node.label} />;
+			return <FootnoteReference node={node} />;
 		default:
 			return <Placeholder what={`node type "${(node as { type?: unknown }).type}"`} />;
 	}
@@ -308,11 +328,13 @@ function ComponentView({ node }: { node: ComponentNode }) {
 	}
 	const props: Record<string, unknown> = { ...node.props };
 	if (STATEFUL.has(node.name) && node.id !== null) props.id = node.id;
-	const children = node.children.length > 0 ? <NodeList nodes={node.children} /> : undefined;
+	// A builtin's literal `children` prop (`<Badge children="Ready" />`) stays
+	// unless the element has content of its own.
+	if (node.children.length > 0) props.children = <NodeList nodes={node.children} />;
 	return (
 		<BlockEditWrapper id={node.id}>
 			<RenderErrorBoundary resetKey={node}>
-				<Component {...props}>{children}</Component>
+				<Component {...props} />
 			</RenderErrorBoundary>
 		</BlockEditWrapper>
 	);
@@ -393,9 +415,11 @@ function ElementView({ node }: { node: ElementNode }) {
 	return createElement(node.tag, props, content);
 }
 
-function FootnoteReference({ label }: { label: string }) {
-	const number = useContext(FootnoteContext).get(label);
-	const ids = footnoteIds(label);
+function FootnoteReference({ node }: { node: Extract<InlineNode, { type: "footnoteReference" }> }) {
+	const info = useContext(FootnoteContext);
+	const label = node.label;
+	const number = info.numbers.get(label);
+	const ids = footnoteIds(label, info.occurrences.get(node) ?? 1);
 	return (
 		<sup>
 			<a

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { DocumentService } from "../../src/document/service";
-import { loadRegistry } from "../../src/components/registry";
+import { builtinRegistry } from "../helpers/components.js";
 import { NodeList } from "../../client/document/nodes";
 import { Table } from "../../client/Table";
 import { MarkdownTable } from "../../client/MarkdownTable";
@@ -133,7 +133,7 @@ describe("typed table values", () => {
 });
 /** Render a document the way the viewer does: parsed to the tree, then through the node renderers. */
 async function renderMarkdown(source: string, extension = "md") {
-	const { tree } = new DocumentService(loadRegistry(), (relative) => relative).parse(
+	const { tree } = new DocumentService(builtinRegistry, (relative) => relative).parse(
 		source,
 		`/docs/table.${extension}`,
 	);

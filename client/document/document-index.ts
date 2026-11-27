@@ -22,6 +22,10 @@ export interface DocumentIndex {
 	anchors: ReadonlySet<string>;
 	/** Footnote numbers by label, in the order their first reference appears. */
 	footnoteNumbers: ReadonlyMap<string, number>;
+	/** How many times each footnote is referenced. */
+	footnoteReferenceCounts: ReadonlyMap<string, number>;
+	/** Each reference node's position among the references to its footnote, from 1. */
+	footnoteOccurrences: WeakMap<object, number>;
 	/** Each referenced footnote's definition, in number order. */
 	footnotes: readonly FootnoteDefinitionNode[];
 }
@@ -34,6 +38,8 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 	const sectionLevels = new Map<string, number>();
 	const anchors = new Set<string>();
 	const footnoteNumbers = new Map<string, number>();
+	const footnoteReferenceCounts = new Map<string, number>();
+	const footnoteOccurrences = new WeakMap<object, number>();
 	const definitions = new Map<string, FootnoteDefinitionNode>();
 
 	function visitAll(nodes: readonly AnyNode[], steps: readonly TabStep[]): void {
@@ -90,6 +96,8 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 				for (const row of node.rows) for (const cell of row) visitAll(cell, steps);
 				return;
 			case "footnoteReference":
+				footnoteReferenceCounts.set(node.label, (footnoteReferenceCounts.get(node.label) ?? 0) + 1);
+				footnoteOccurrences.set(node, footnoteReferenceCounts.get(node.label) ?? 1);
 				if (!footnoteNumbers.has(node.label))
 					footnoteNumbers.set(node.label, footnoteNumbers.size + 1);
 				return;
@@ -107,7 +115,15 @@ export function indexDocument(document: DocumentTree): DocumentIndex {
 		const definition = definitions.get(label);
 		return definition ? [definition] : [];
 	});
-	return { tabSteps, sectionLevels, anchors, footnoteNumbers, footnotes };
+	return {
+		tabSteps,
+		sectionLevels,
+		anchors,
+		footnoteNumbers,
+		footnoteReferenceCounts,
+		footnoteOccurrences,
+		footnotes,
+	};
 }
 
 /** Table of contents entries in reading order, depth first. */

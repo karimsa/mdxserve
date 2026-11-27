@@ -8,18 +8,43 @@ import { useFullWidth } from "../hooks";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "../state";
 import { fragmentOf, indexDocument, resolveFragment, type DocumentIndex } from "./document-index";
-import { FootnoteContext, NodeList, footnoteIds } from "./nodes";
+import { FootnoteContext, NodeList, footnoteIds, type FootnoteInfo } from "./nodes";
 import { documentQueryOptions } from "./query";
 import { clearOpenDocument, revealNode, setOpenDocument } from "./reveal";
 import type { DocumentTree } from "./tree-types";
 
-/** The same map as `previous` when the numbering did not change, so footnote references skip a render. */
-function useStableNumbers(numbers: ReadonlyMap<string, number>): ReadonlyMap<string, number> {
-	const previous = useRef(numbers);
-	const same =
-		previous.current.size === numbers.size &&
-		[...numbers].every(([label, number]) => previous.current.get(label) === number);
-	if (!same) previous.current = numbers;
+function sameEntries(left: ReadonlyMap<string, number>, right: ReadonlyMap<string, number>) {
+	return left.size === right.size && [...right].every(([key, value]) => left.get(key) === value);
+}
+
+const NO_FOOTNOTES: FootnoteInfo = {
+	numbers: new Map(),
+	counts: new Map(),
+	occurrences: new WeakMap(),
+};
+
+/**
+ * The same object as last time while the numbering and reference counts hold,
+ * so footnote references skip a render; it always carries the latest
+ * occurrence table.
+ */
+function useStableFootnotes(index: DocumentIndex | null): FootnoteInfo {
+	const previous = useRef<FootnoteInfo>(NO_FOOTNOTES);
+	if (!index) return NO_FOOTNOTES;
+	const current = previous.current;
+	if (
+		current !== NO_FOOTNOTES &&
+		sameEntries(current.numbers, index.footnoteNumbers) &&
+		sameEntries(current.counts, index.footnoteReferenceCounts)
+	) {
+		current.occurrences = index.footnoteOccurrences;
+		return current;
+	}
+	previous.current = {
+		numbers: index.footnoteNumbers,
+		counts: index.footnoteReferenceCounts,
+		occurrences: index.footnoteOccurrences,
+	};
 	return previous.current;
 }
 
@@ -33,15 +58,24 @@ const Footnotes = memo(function Footnotes({ index }: { index: DocumentIndex }) {
 			<ol>
 				{index.footnotes.map((definition) => {
 					const ids = footnoteIds(definition.label);
-					const backref = (
-						<a
-							href={`#${ids.reference}`}
-							data-footnote-backref=""
-							aria-label={`Back to reference ${index.footnoteNumbers.get(definition.label) ?? ""}`}
-						>
-							↩
-						</a>
-					);
+					const number = index.footnoteNumbers.get(definition.label) ?? "";
+					const count = index.footnoteReferenceCounts.get(definition.label) ?? 1;
+					// One back link per reference, as GFM renders them: ↩ ↩² ↩³.
+					const backref = Array.from({ length: count }, (_, position) => {
+						const occurrence = position + 1;
+						return (
+							<span key={occurrence}>
+								{position > 0 ? " " : null}
+								<a
+									href={`#${footnoteIds(definition.label, occurrence).reference}`}
+									data-footnote-backref=""
+									aria-label={`Back to reference ${number}${occurrence > 1 ? `-${occurrence}` : ""}`}
+								>
+									↩{occurrence > 1 ? <sup>{occurrence}</sup> : null}
+								</a>
+							</span>
+						);
+					});
 					// The back link closes the last paragraph, as GFM renders it.
 					const last = definition.children.at(-1);
 					if (last?.type !== "paragraph")
@@ -99,7 +133,7 @@ export const DocumentView = memo(function DocumentView({
 	const docContext = useMemo(() => ({ path }), [path]);
 	const tree = data?.document;
 	const index = useMemo(() => (tree ? indexDocument(tree) : null), [tree]);
-	const footnoteNumbers = useStableNumbers(index?.footnoteNumbers ?? new Map());
+	const footnotes = useStableFootnotes(index);
 
 	useLayoutEffect(() => {
 		if (!index) return;
@@ -170,7 +204,7 @@ export const DocumentView = memo(function DocumentView({
 			)}
 			<article className="mdx-prose min-w-0 max-w-full">
 				<DocContext value={docContext}>
-					<FootnoteContext value={footnoteNumbers}>
+					<FootnoteContext value={footnotes}>
 						<NodeList nodes={data.document.children} />
 						{index ? <Footnotes index={index} /> : null}
 					</FootnoteContext>
