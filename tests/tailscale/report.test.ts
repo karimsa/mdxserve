@@ -117,7 +117,7 @@ describe("tailscaleReport", () => {
 			loopbackFull,
 		);
 		expect(lines[0]).toBe(
-			`mdxserve: https://${NAME}/docs proxies to this server under a sub-path, which does not work: mount it at / instead.`,
+			`mdxserve: https://${NAME}/docs proxies to this server with a path, which does not work: mount it at / with a target that has no path, such as http://127.0.0.1:4040.`,
 		);
 		expect(lines[1]).toContain("Tailscale is running");
 	});

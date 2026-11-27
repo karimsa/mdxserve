@@ -12,7 +12,7 @@ interface ServeEntry {
 	/** The mount path of the handler, for example `/`. */
 	path: string;
 	/** The handler's `Proxy` target, when it is one. */
-	proxy: { protocol: "http" | "https"; hostname: string; port: number } | null;
+	proxy: { protocol: "http" | "https"; hostname: string; port: number; path: string } | null;
 	/** Whether `AllowFunnel["<hostname>:<port>"]` is true. */
 	funnel: boolean;
 }
@@ -102,7 +102,8 @@ function parseProxy(target: string | undefined): ServeEntry["proxy"] {
 	const port = url.port === "" ? (protocol === "http" ? 80 : 443) : parsePort(url.port);
 	if (port === undefined) return null;
 	const hostname = url.hostname.replace(/^\[(.*)\]$/, "$1").toLowerCase();
-	return { protocol, hostname, port };
+	// Tailscale prepends a target's path to every request it forwards.
+	return { protocol, hostname, port, path: url.pathname || "/" };
 }
 
 /**
@@ -111,7 +112,8 @@ function parseProxy(target: string | undefined): ServeEntry["proxy"] {
  * instead of guessing.
  */
 export function parseServeStatus(json: unknown): ServeConfig | undefined {
-	const parsed = serveStatusSchema.safeParse(json);
+	// Tailscale prints `null` when serve has never been configured.
+	const parsed = serveStatusSchema.safeParse(json === null ? {} : json);
 	if (!parsed.success) return undefined;
 	const entries: ServeEntry[] = [];
 	const usedPorts = new Set<number>();
@@ -177,11 +179,20 @@ function hostOf(entry: ServeEntry): string {
 	return entry.port === defaultPort ? entry.hostname : `${entry.hostname}:${entry.port}`;
 }
 
-/** The HTTPS addresses whose `/` proxies to this server. A plain HTTP listener is not one. */
+/**
+ * Whether an entry maps paths one to one: mounted at `/`, forwarding to the
+ * target's `/`. The client asks for absolute `/__mdxserve/...` URLs, so any
+ * other mount or target path cannot serve it.
+ */
+function mapsRoot(entry: ServeEntry): boolean {
+	return entry.path === "/" && entry.proxy?.path === "/";
+}
+
+/** The HTTPS addresses whose `/` proxies to this server's `/`. A plain HTTP listener is not one. */
 export function matchingAddresses(entries: ServeEntry[], server: ServerEndpoint): TailnetAddress[] {
 	const addresses = new Map<string, TailnetAddress>();
 	for (const entry of entries) {
-		if (!entry.https || entry.path !== "/" || !targetsServer(entry, server)) continue;
+		if (!entry.https || !mapsRoot(entry) || !targetsServer(entry, server)) continue;
 		const host = hostOf(entry);
 		addresses.set(host, { host, url: `https://${host}/`, funnel: entry.funnel });
 	}
@@ -189,12 +200,11 @@ export function matchingAddresses(entries: ServeEntry[], server: ServerEndpoint)
 }
 
 /**
- * The URL of each entry that proxies to this server under a path other than
- * `/`. The client asks for absolute `/__mdxserve/...` URLs, so such a mount
- * cannot serve it.
+ * The URL of each entry that proxies to this server but is mounted under a
+ * sub-path, or forwards to a path on the server, so it cannot serve it.
  */
 export function unsupportedPaths(entries: ServeEntry[], server: ServerEndpoint): string[] {
 	return entries
-		.filter((entry) => entry.path !== "/" && targetsServer(entry, server))
+		.filter((entry) => !mapsRoot(entry) && targetsServer(entry, server))
 		.map((entry) => `${entry.https ? "https" : "http"}://${hostOf(entry)}${entry.path}`);
 }

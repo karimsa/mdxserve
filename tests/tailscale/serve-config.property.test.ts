@@ -9,7 +9,13 @@ const mountPath = fc.constantFrom("/", "/", "/docs", "/a/b");
 const target = fc.constantFrom("127.0.0.1", "localhost", "[::1]", "192.168.1.10");
 const scheme = fc.constantFrom("http", "http", "https", "https+insecure");
 
-const handler = fc.record({ path: mountPath, scheme, target, port });
+const handler = fc.record({
+	path: mountPath,
+	scheme,
+	target,
+	port,
+	proxyPath: fc.constantFrom("", "", "/docs"),
+});
 const site = fc.record({
 	hostname,
 	port,
@@ -22,7 +28,7 @@ const site = fc.record({
 interface GeneratedSite {
 	hostname: string;
 	port: number;
-	handlers: { path: string; scheme: string; target: string; port: number }[];
+	handlers: { path: string; scheme: string; target: string; port: number; proxyPath: string }[];
 	funnel: boolean;
 	https: boolean;
 	foreground: boolean;
@@ -45,7 +51,7 @@ function serveStatus(sites: GeneratedSite[]) {
 		config.Web[key] ??= { Handlers: {} };
 		for (const entry of generated.handlers) {
 			config.Web[key].Handlers[entry.path] = {
-				Proxy: `${entry.scheme}://${entry.target}:${entry.port}`,
+				Proxy: `${entry.scheme}://${entry.target}:${entry.port}${entry.proxyPath}`,
 			};
 		}
 		if (generated.funnel) config.AllowFunnel[key] = true;
@@ -75,7 +81,8 @@ describe("serve-config properties", () => {
 								(entry) =>
 									entry.path === "/" &&
 									entry.proxy?.protocol === "http" &&
-									entry.proxy.port === serverPort,
+									entry.proxy.port === serverPort &&
+									entry.proxy.path === "/",
 							),
 						).toBe(true);
 						expect(address.url).toBe(`https://${address.host}/`);

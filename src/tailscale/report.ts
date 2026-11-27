@@ -60,7 +60,7 @@ export function tailscaleReport(detection: TailscaleDetection, context: ReportCo
 	}
 	for (const mounted of detection.unsupportedPaths) {
 		lines.push(
-			`mdxserve: ${mounted} proxies to this server under a sub-path, which does not work: mount it at / instead.`,
+			`mdxserve: ${mounted} proxies to this server with a path, which does not work: mount it at / with a target that has no path, such as ${proxyTarget(context)}.`,
 		);
 	}
 	if (detection.addresses.length === 0) {

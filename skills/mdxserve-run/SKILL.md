@@ -98,8 +98,8 @@ The server then lists the address as `https://<machine>.<tailnet>.ts.net:4040`.
 
 - Check what is published: `tailscale serve status`.
 - Turn it off: `tailscale serve --https=4040 off`.
-- Mount it at `/`. A sub-path such as `--set-path=/docs` does not work, and the server says
-  so.
+- Mount it at `/` with a target that has no path. A sub-path such as `--set-path=/docs`, or
+  a target such as `http://127.0.0.1:4040/docs`, does not work, and the server says so.
 - With full permissions, every device on the tailnet can edit the documents. Tell the user
   before running the command on a shared tailnet.
 - `tailscale funnel` makes the address public on the internet. The server warns when a

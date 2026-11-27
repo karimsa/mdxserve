@@ -224,7 +224,8 @@ What a tailnet reader gets:
 - Not the same-machine privileges: a request with a tailnet `Host` cannot mount or unmount
   roots.
 
-Mount the proxy at `/`; a sub-path (`--set-path`) does not work, and startup says so.
+Mount the proxy at `/` with a target that has no path; a sub-path (`--set-path`) or a target
+such as `http://127.0.0.1:4040/docs` does not work, and startup says so.
 `tailscale funnel` makes the address public on the internet; startup warns when a Funnel
 address reaches a server with full permissions. Turn it off with
 `tailscale funnel --https=<port> off`, or run with `--permissions restricted`.

@@ -133,10 +133,15 @@ describe("startup output with a fake Tailscale CLI", () => {
 	it("says a sub-path entry does not work", async () => {
 		const hosts = await run(await fakeCli("subpath", RUNNING, serveConfig(443, "/docs")));
 		expect(stdout).toEqual([]);
-		expect(stderr.join("\n")).toContain(
-			`https://${NAME}/docs proxies to this server under a sub-path`,
-		);
+		expect(stderr.join("\n")).toContain(`https://${NAME}/docs proxies to this server with a path`);
 		expect(hosts.current().size).toBe(0);
+	});
+
+	it("prints the hint when serve was never configured and prints null", async () => {
+		const cli = await fakeCli("never-configured", RUNNING, "null");
+		await run(cli);
+		expect(stdout).toEqual([]);
+		expect(stderr[0]).toContain("Tailscale is running.");
 	});
 
 	it("gives up on a CLI that hangs, quietly unless MDXSERVE_DEBUG is set", async () => {

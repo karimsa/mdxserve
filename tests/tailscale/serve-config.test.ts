@@ -29,7 +29,7 @@ describe("parseServeStatus", () => {
 			port: 443,
 			https: true,
 			path: "/",
-			proxy: { protocol: "http", hostname: "127.0.0.1", port: 8080 },
+			proxy: { protocol: "http", hostname: "127.0.0.1", port: 8080, path: "/" },
 			funnel: false,
 		});
 		expect(config?.entries).toHaveLength(3);
@@ -75,8 +75,26 @@ describe("parseServeStatus", () => {
 		]);
 	});
 
-	it("reads an empty config as no entries", () => {
+	it("reads an empty config, and the null a never-configured serve prints, as no entries", () => {
 		expect(parseServeStatus({})).toEqual({ entries: [], usedPorts: [] });
+		expect(parseServeStatus(null)).toEqual({ entries: [], usedPorts: [] });
+	});
+
+	it("treats a `/` handler whose target has a path as unsupported, not as an address", () => {
+		const config = parseServeStatus({
+			TCP: { "443": { HTTPS: true } },
+			Web: { [`${NAME}:443`]: { Handlers: { "/": { Proxy: "http://127.0.0.1:4040/docs" } } } },
+		});
+		expect(config?.entries[0].proxy).toEqual({
+			protocol: "http",
+			hostname: "127.0.0.1",
+			port: 4040,
+			path: "/docs",
+		});
+		expect(matchingAddresses(config?.entries ?? [], loopbackServer(4040))).toEqual([]);
+		expect(unsupportedPaths(config?.entries ?? [], loopbackServer(4040))).toEqual([
+			`https://${NAME}/`,
+		]);
 	});
 
 	it("reads several handlers, a sub-path, a text handler and an IPv6 target", () => {
@@ -93,15 +111,15 @@ describe("parseServeStatus", () => {
 			},
 		});
 		expect(config?.entries.map((entry) => [entry.path, entry.proxy])).toEqual([
-			["/", { protocol: "http", hostname: "::1", port: 4040 }],
-			["/docs", { protocol: "http", hostname: "localhost", port: 4040 }],
+			["/", { protocol: "http", hostname: "::1", port: 4040, path: "/" }],
+			["/docs", { protocol: "http", hostname: "localhost", port: 4040, path: "/" }],
 			["/hello", null],
-			["/insecure", { protocol: "https", hostname: "localhost", port: 8443 }],
+			["/insecure", { protocol: "https", hostname: "localhost", port: 8443, path: "/" }],
 		]);
 	});
 
 	it("rejects output that is not a serve config", () => {
-		for (const garbage of [null, "text", 42, [], { Web: "nope" }, { Web: { key: 1 } }]) {
+		for (const garbage of ["text", 42, [], { Web: "nope" }, { Web: { key: 1 } }]) {
 			expect(parseServeStatus(garbage)).toBeUndefined();
 		}
 	});
