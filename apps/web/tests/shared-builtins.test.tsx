@@ -4,6 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
+import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
+import FileTree from "@mdxserve/ui/builtins/FileTree";
+import Kbd from "@mdxserve/ui/builtins/Kbd";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 
 // The shared builtins (@mdxserve/ui) as the browser gets them: React Native components
@@ -113,5 +116,81 @@ describe("Tabs", () => {
 		draw(<Tabs id="os" tabs={tabs} selected="mac" onSelect={onSelect} />);
 		act(() => host.querySelectorAll<HTMLElement>('[role="tab"]')[1].click());
 		expect(onSelect).toHaveBeenCalledWith("linux");
+	});
+});
+
+describe("Kbd", () => {
+	it("is a <kbd> in the line of text", () => {
+		draw(
+			<p>
+				Press <Kbd>⌘</Kbd>
+				<Kbd>K</Kbd>
+			</p>,
+		);
+		const keys = host.querySelectorAll("p > kbd");
+		expect([...keys].map((key) => key.textContent)).toEqual(["⌘", "K"]);
+		expect(keys[0].className).toContain("border-b-2");
+		expect(host.querySelector("p div")).toBeNull();
+	});
+});
+
+describe("Card", () => {
+	it("is a link with href, a plain box without, inside a grid", () => {
+		draw(
+			<CardGrid columns="3">
+				<Card
+					title="Start"
+					description="Point it at a folder."
+					href="/01-markdown.md"
+					meta="2 min"
+					interactive={false}
+				/>
+				<Card title="Diagrams" interactive={true} />
+			</CardGrid>,
+		);
+		const grid = host.firstElementChild!;
+		expect(grid.className).toContain("web:lg:grid-cols-3");
+		const link = host.querySelector<HTMLAnchorElement>("a[href='/01-markdown.md']")!;
+		expect(link.textContent).toBe("StartPoint it at a folder.2 min");
+		expect(link.textContent).not.toContain("Diagrams");
+		expect(link.querySelector("p")!.textContent).toBe("Point it at a folder.");
+		expect(link.querySelector('svg[data-icon="arrow-right"]')).not.toBeNull();
+		expect(host.querySelectorAll("a")).toHaveLength(1);
+		expect(host.querySelectorAll("button")).toHaveLength(0);
+	});
+
+	it("keeps the document's inline content on one line", () => {
+		draw(
+			<Card title="Start" interactive={false}>
+				<span>First</span> <span>Second</span>
+			</Card>,
+		);
+		const first = [...host.querySelectorAll("span")].find((span) => span.textContent === "First")!;
+		const block = first.parentElement!;
+		expect(block.textContent).toBe("First Second");
+		expect(block.className).toContain("web:block");
+	});
+});
+
+describe("FileTree", () => {
+	it("opens and closes a folder from its button", () => {
+		draw(
+			<FileTree
+				id="tree"
+				activePath="deploy"
+				nodes={[
+					{ name: "docs", children: [{ name: "deploy.mdx", path: "deploy" }] },
+					{ name: "package.json" },
+				]}
+			/>,
+		);
+		const folder = host.querySelector<HTMLButtonElement>("button")!;
+		expect(folder.textContent).toBe("docs");
+		expect(folder.getAttribute("aria-expanded")).toBe("true");
+		expect(host.textContent).toContain("deploy.mdx");
+		act(() => folder.click());
+		expect(folder.getAttribute("aria-expanded")).toBe("false");
+		expect(host.textContent).not.toContain("deploy.mdx");
+		expect(host.querySelectorAll("button")).toHaveLength(1);
 	});
 });
