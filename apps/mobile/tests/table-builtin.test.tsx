@@ -38,11 +38,11 @@ function renderTable() {
 	);
 }
 
-/** The width a cell starts from: its long text wraps inside it rather than widening the grid. */
+/** The width of the cell a text sits in. */
 function cellWidth(text: ReturnType<typeof screen.getByText>): unknown {
 	for (let node = text.parent; node; node = node.parent) {
-		const basis = StyleSheet.flatten(node.props.style)?.flexBasis;
-		if (basis !== undefined) return basis;
+		if (/-(cell|header)-/.test(String(node.props.testID)))
+			return StyleSheet.flatten(node.props.style)?.width;
 	}
 	return undefined;
 }
@@ -88,6 +88,7 @@ describe.each(["light", "dark"] as const)("the app's DataTable (%s)", (theme) =>
 		expect(scroll.type).toBe("RCTScrollView");
 		expect(scroll.props.horizontal).toBe(true);
 		expect(cellWidth(screen.getByText(LONG_NOTE))).toBe(240);
+		expect(cellWidth(screen.getByText("Notes"))).toBe(240);
 		expect(cellWidth(screen.getByText("Alpha"))).toBeLessThan(240);
 
 		// Colours come from the theme's tokens.
