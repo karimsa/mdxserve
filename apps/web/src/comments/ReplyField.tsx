@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { MAX_MESSAGE_BODY } from "./anchor";
 import { canSend, fieldHeight, FIELD_MIN_HEIGHT } from "./drafts";
 

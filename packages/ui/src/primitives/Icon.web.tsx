@@ -2,23 +2,10 @@
 // this subpath, so a resolver stricter than Vite's (Node's ESM one) needs the real
 // file name.
 import dynamicIconImports from "lucide-react/dynamicIconImports.mjs";
-import type { LucideIcon, LucideProps } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
-import { staticIcons } from "./icon-set";
-
-const SIZES = { sm: 14, md: 16, lg: 20, xl: 24 } as const;
-
-type IconSize = keyof typeof SIZES | number;
-
-export interface IconProps extends Omit<LucideProps, "size" | "strokeWidth" | "ref"> {
-	/** Lucide icon name in kebab-case, e.g. "search", "chevron-right", "file-text". */
-	name: string;
-	/** 14 / 16 / 20 / 24 px, or an explicit pixel number. Default "md". */
-	size?: IconSize;
-	/** "light" dims the glyph to 75% for secondary chrome. */
-	strokeWidth?: "light";
-	style?: CSSProperties;
-}
+import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { staticIcons } from "./icon-set.web";
+import { iconPixels, type IconProps } from "./icon-props";
 
 type DynamicIconName = keyof typeof dynamicIconImports;
 
@@ -57,7 +44,7 @@ function loadDynamicIcon(name: DynamicIconName): Promise<LucideIcon | null> {
  * place that turns the name into a glyph. Unknown names render nothing rather
  * than throwing, so a typo in a doc never breaks the page.
  *
- * Two tiers: `staticIcons` (apps/web/src/ui/icon-set.ts) covers the ~30 names
+ * The web's `Icon` (Icon.tsx is the app's). Two tiers: `staticIcons` (icon-set.web.ts) covers the ~30 names
  * mdxserve's own chrome uses, resolved synchronously with no import at all.
  * Any other name is looked up in lucide-react's `dynamicIconImports` map and
  * loaded on demand — this is how MDX authors can write `icon="anything-in-
@@ -65,8 +52,8 @@ function loadDynamicIcon(name: DynamicIconName): Promise<LucideIcon | null> {
  * While a dynamic icon is loading, a same-size empty placeholder holds its
  * layout so nothing shifts once the glyph lands.
  */
-export function Icon({ name, size = "md", strokeWidth, style, ...rest }: IconProps) {
-	const px = typeof size === "number" ? size : SIZES[size];
+export function Icon({ name, size, strokeWidth, className }: IconProps) {
+	const px = iconPixels(size);
 	const opacity = strokeWidth === "light" ? 0.75 : undefined;
 
 	const StaticGlyph = staticIcons[name];
@@ -97,7 +84,7 @@ export function Icon({ name, size = "md", strokeWidth, style, ...rest }: IconPro
 	if (!Glyph) {
 		// Unresolved dynamic icon: still loading. Same footprint as the glyph
 		// it will become so nothing reflows once it lands.
-		return <svg aria-hidden="true" width={px} height={px} style={{ flex: "0 0 auto", ...style }} />;
+		return <svg aria-hidden="true" width={px} height={px} style={{ flex: "0 0 auto" }} />;
 	}
 
 	return (
@@ -106,8 +93,8 @@ export function Icon({ name, size = "md", strokeWidth, style, ...rest }: IconPro
 			data-icon={name}
 			size={px}
 			strokeWidth={1.75}
-			style={{ flex: "0 0 auto", opacity, ...style }}
-			{...rest}
+			style={{ flex: "0 0 auto", opacity }}
+			className={className}
 		/>
 	);
 }

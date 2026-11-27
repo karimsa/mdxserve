@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
-import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { Text, View, type LayoutChangeEvent } from "react-native";
+import { Pressable } from "../primitives/Pressable";
 import { FadeInView, SlideFromView, type SlideStart } from "../primitives/motion";
 import { webProps } from "../primitives/web-props";
 
@@ -101,7 +102,7 @@ export default function Tabs({ id, tabs, selected, onSelect }: TabsProps) {
 							tabIndex={isActive ? 0 : -1}
 							onPress={() => onSelect(tab.value)}
 							onLayout={underline.measure(tab.value)}
-							className="group relative h-[34px] cursor-pointer justify-center px-3"
+							className="group relative h-[34px] justify-center px-3"
 							{...webProps({ "aria-controls": tab.id })}
 						>
 							<Text

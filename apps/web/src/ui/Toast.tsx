@@ -8,7 +8,7 @@ import {
 	useToasterStore,
 	type Toast as HotToast,
 } from "react-hot-toast";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { nextCount } from "./toast-count";
 import { hasDocument } from "../document/query";
 import { isSelfWrite } from "../comments/self-writes";

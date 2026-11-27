@@ -1,7 +1,7 @@
 import { formatModified, formatSize } from "../format";
 import Button from "./Button";
 import type { ListingEntry } from "../router";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Modal } from "./Modal";
 
 export function ConfirmDeleteDialog({

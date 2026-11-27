@@ -11,7 +11,7 @@ import { DESKTOP_MEDIA } from "./platform";
 import Dropdown from "./ui/Dropdown";
 import { TRANSITIONS } from "./motion";
 import { CrossFade } from "./CrossFade";
-import { Icon } from "./ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { cachedHighlight, highlight, type HighlightedLine } from "./highlight";
 
 /**

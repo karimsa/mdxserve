@@ -1,4 +1,4 @@
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;

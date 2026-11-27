@@ -1,6 +1,6 @@
 import { useState, type HTMLAttributes, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { TRANSITIONS } from "../motion";
 
 export interface PageNavLink {

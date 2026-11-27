@@ -1,7 +1,7 @@
 import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
 import { useAtom, useSetAtom } from "jotai";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import type { AnchorFields } from "./anchor";
 import { captureSelection } from "./dom";
 import { useCommentsPanel, type CommentsModel } from "./model";

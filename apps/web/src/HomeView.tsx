@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { shortenHome } from "./format";
 import { stagger } from "./motion";
-import { Icon } from "./ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { HomeEmptyState } from "./HomeEmptyState";
 import { useTree, type Route, type TreeNode } from "./router";
 

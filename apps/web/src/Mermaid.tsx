@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Icon } from "./ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { IconButton } from "./ui/IconButton";
 import { ExpandModal } from "./ui/ExpandModal";
 import { TRANSITIONS, VARIANTS } from "./motion";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Modal } from "./Modal";
 import { useSpring } from "framer-motion";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { IconButton } from "./IconButton";
 import { Kbd } from "./Kbd";
 import { TRANSITIONS } from "../motion";
