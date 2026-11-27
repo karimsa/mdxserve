@@ -13,7 +13,8 @@ export type DocumentDiagnosticCode =
 	| "id-conflicts-with-heading"
 	| "duplicate-heading"
 	| "duplicate-tab-value"
-	| "invalid-tab-default";
+	| "invalid-tab-default"
+	| "invalid-tabs-structure";
 
 /** A problem `DocumentService.parse` found and repaired: the tree it returns still renders. */
 export interface DocumentDiagnostic {

@@ -108,16 +108,20 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
 		if (!slugText.has(slug)) slugText.set(slug, text);
 	}
-	/** The IDs that headings take as plain slugs; an authored `id` may not equal one. */
-	const headingIds = new Set(
-		[...slugCounts].filter(([, count]) => count === 1).map(([slug]) => slug),
-	);
+	/**
+	 * Every heading slug. An authored `id` may not equal one: a unique heading
+	 * takes its slug as its ID, and `#slug` falls back to the first heading of a
+	 * repeated one, so the id would break when the headings change.
+	 */
+	const headingIds = new Set(slugCounts.keys());
 
 	const pathLines = new Map<string, { line: number | undefined; count: number }>();
 	const authoredLines = new Map<string, number | undefined>();
 	const tableIds = new Set([...options.tables.values()].map((identity) => identity.id));
 	let emptySlugCount = 0;
 	let failedCount = 0;
+	/** How many inline `<Tabs>` the conversion is inside. */
+	let inlineTabsDepth = 0;
 
 	function setRange(id: string, startLine: number | undefined, endLine: number | undefined) {
 		if (startLine === undefined || endLine === undefined || lineCount === 0) return;
@@ -299,6 +303,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 					},
 				];
 			case "mdxJsxFlowElement":
+				if (node.name === "Tabs") return convertTabs(node, scope);
 				return [convertJsx(node, scope, "flow") as BlockNode];
 			default:
 				// yaml, definitions (resolved into their references), and anything
@@ -363,9 +368,22 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 	): ComponentNode | ElementNode | BlockNode {
 		const name = node.name ?? "";
 		if (isLowercase(name)) return convertElement(node, name, scope, position);
-		if (name === "Tabs" && position === "flow")
-			return convertTabs(node as MdxJsxFlowElement, scope);
-		return convertComponent(node, name, scope, position);
+		if (name !== "Tabs") return convertComponent(node, name, scope, position);
+		// A flow `<Tabs>` is converted by `convertTabs`; this one sits in a paragraph.
+		report({
+			severity: "error",
+			code: "invalid-tabs-structure",
+			message:
+				"<Tabs> is written inside a line of text, so it shows no tabs, only the content of each <Tab> in a row. Start <Tabs> on a line of its own, after a blank line, with each <Tab> on its own line.",
+			component: "Tabs",
+			...placeOf(node.position),
+		});
+		inlineTabsDepth += 1;
+		try {
+			return convertComponent(node, name, scope, position);
+		} finally {
+			inlineTabsDepth -= 1;
+		}
 	}
 
 	function jsxChildren(
@@ -389,6 +407,18 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		scope: Scope,
 		position: "flow" | "text",
 	): ComponentNode {
+		// A `<Tab>` directly inside a flow `<Tabs>` is converted by `convertTabs`.
+		// One inside an inline `<Tabs>` is covered by that `<Tabs>`'s diagnostic.
+		if (name === "Tab" && inlineTabsDepth === 0) {
+			report({
+				severity: "error",
+				code: "invalid-tabs-structure",
+				message:
+					"<Tab> is not directly inside a <Tabs>, so it is not a tab: its content is shown in place, without its label. Move it directly inside a <Tabs>, or remove the <Tab> and </Tab> tags.",
+				component: "Tab",
+				...placeOf(node.position),
+			});
+		}
 		const attributes = foldAttributes(node);
 		const kind = name.toLowerCase();
 		let id: string | null = null;
@@ -405,21 +435,53 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 		return { type: "component", id, name, props, children: jsxChildren(node, scope, position) };
 	}
 
-	function convertTabs(node: MdxJsxFlowElement, scope: Scope): BlockNode {
+	/**
+	 * A flow `<Tabs>`, and before it whatever sits directly inside it that is
+	 * not a `<Tab>`: that content is shown, in document order, ahead of the tabs.
+	 */
+	function convertTabs(node: MdxJsxFlowElement, scope: Scope): BlockNode[] {
 		const attributes = foldAttributes(node);
 		const id = statefulId(node, "<Tabs>", "tabs", attributes, scope);
 		attributes.delete("id");
 		nodeRange(id, node);
 		const props = checkProps("Tabs", attributes, node.position);
 
+		const stray: BlockNode[] = [];
+		const strayRun: RootContent[] = [];
+		const flushStray = () => {
+			if (strayRun.length === 0) return;
+			const first = strayRun[0].position;
+			const last = strayRun[strayRun.length - 1].position;
+			report({
+				severity: "error",
+				code: "invalid-tabs-structure",
+				message: `Content directly inside <Tabs id="${id}"> is not in a <Tab>, so it is shown before the tabs instead of in one. Move it into a <Tab label="…">, or out of <Tabs>.`,
+				component: "Tabs",
+				...placeOf(first && last ? { start: first.start, end: last.end } : node.position),
+			});
+			stray.push(...convertContainer(strayRun.splice(0), scope));
+		};
+
 		const tabs: TabNode[] = [];
 		const values = new Set<string>();
-		for (const child of node.children) {
-			if (child.type !== "mdxJsxFlowElement" || child.name !== "Tab") continue;
-			const tabProps = checkProps("Tab", foldAttributes(child), child.position);
-			if (typeof tabProps.label !== "string") continue;
-			const label = tabProps.label;
-			let value = tabValueFromLabel(label);
+		for (const child of node.children as RootContent[]) {
+			const isTab =
+				(child.type === "mdxJsxFlowElement" || child.type === "mdxJsxTextElement") &&
+				child.name === "Tab";
+			if (!isTab) {
+				// The space between tabs written on one line is not content.
+				if (child.type !== "text" || child.value.trim() !== "") strayRun.push(child);
+				continue;
+			}
+			flushStray();
+			const tab = child as JsxElement;
+			const tabProps = checkProps("Tab", foldAttributes(tab), tab.position, {
+				label: `the tab is labelled "Tab ${tabs.length + 1}"`,
+			});
+			const labelled = typeof tabProps.label === "string";
+			const label = labelled ? (tabProps.label as string) : `Tab ${tabs.length + 1}`;
+			// A tab with no label of its own gets a generated value, unless it has one.
+			let value = labelled ? tabValueFromLabel(label) : "";
 			if (typeof tabProps.value === "string") {
 				if (isValidAuthoredId(tabProps.value)) {
 					value = tabProps.value;
@@ -449,14 +511,15 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 			}
 			values.add(value);
 			const tabId = ids.claim(`${id}>${value}`);
-			nodeRange(tabId, child as FlowNode);
+			nodeRange(tabId, child);
 			tabs.push({
 				id: tabId,
 				value,
 				label,
-				children: convertContainer(child.children as FlowNode[], { owner: tabId, path: [tabId] }),
+				children: convertContainer(tab.children as FlowNode[], { owner: tabId, path: [tabId] }),
 			});
 		}
+		flushStray();
 
 		let defaultValue = tabs[0]?.value ?? "";
 		const authored = props.defaultValue;
@@ -475,7 +538,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 				});
 			}
 		}
-		return { type: "tabs", id, defaultValue, tabs };
+		return [...stray, { type: "tabs", id, defaultValue, tabs }];
 	}
 
 	function convertElement(
@@ -566,12 +629,14 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 	 * prop the schema (or the registry) does not declare, `key` and `ref`
 	 * included, is an `unknown-prop` warning; a value the zod schema rejects is
 	 * an `invalid-prop` error; both are dropped. A declared `children` is kept
-	 * without a check.
+	 * without a check. `outcomes` says, by prop, what the reader sees instead
+	 * of a missing or invalid value, when it is more than the prop being dropped.
 	 */
 	function checkProps(
 		name: string,
 		attributes: FoldedAttributes,
 		position: Position | undefined,
+		outcomes: Readonly<Record<string, string>> = {},
 	): Record<string, Json> {
 		const known = registryProps.get(name);
 		const knownNames = known ? Object.keys(known) : [];
@@ -608,7 +673,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 					report({
 						severity: "error",
 						code: "invalid-prop",
-						message: `The \`${prop}\` prop on <${name}> is not valid (${issueText(parsed.error)}), so it is dropped. Use ${expectedType(known?.[prop])}.`,
+						message: `The \`${prop}\` prop on <${name}> is not valid (${issueText(parsed.error)}), so ${Object.hasOwn(outcomes, prop) ? outcomes[prop] : "it is dropped"}. Use ${expectedType(known?.[prop])}.`,
 						component: name,
 						prop,
 						...placeOf(place ?? position),
@@ -625,7 +690,7 @@ export function convertDocument(root: Root, options: ConvertOptions): ConvertRes
 				report({
 					severity: "error",
 					code: "invalid-prop",
-					message: `<${name}> needs a \`${prop}\` prop, and has none. Add ${prop}={…} with ${expectedType(known?.[prop])}.`,
+					message: `<${name}> needs a \`${prop}\` prop, and has none${Object.hasOwn(outcomes, prop) ? `, so ${outcomes[prop]}` : ""}. Add ${prop}={…} with ${expectedType(known?.[prop])}.`,
 					component: name,
 					prop,
 					...placeOf(position),

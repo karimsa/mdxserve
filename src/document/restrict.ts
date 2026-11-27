@@ -222,7 +222,7 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 				message: `A fragment (\`<>…</>\`) is not supported, so only its content is shown. Remove the \`<>\` and \`</>\`.`,
 				...at(node.position),
 			});
-			return unwrap(node, insideTable);
+			return unwrap(node, "<>", insideTable);
 		}
 
 		if (isLowercase(name)) {
@@ -242,9 +242,9 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 					message: `<${name}> is not supported${where}, so only its content is shown. Use markdown or one of the supported elements: ${ELEMENT_LIST} (and ${TABLE_ELEMENTS.join(", ")} inside <table>).`,
 					...at(node.position),
 				});
-				return unwrap(node, insideTable);
+				return unwrap(node, name, insideTable);
 			}
-			restrictAttributes(node, name, ELEMENT_ATTRIBUTES[name] ?? []);
+			restrictAttributes(node, name, ELEMENT_ATTRIBUTES[name] ?? [], undefined);
 			restrictChildren(node, childInsideTable);
 			return [node];
 		}
@@ -256,7 +256,7 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 				component: name,
 				...at(node.position),
 			});
-			return unwrap(node, insideTable);
+			return unwrap(node, name, insideTable);
 		}
 
 		if (!components.has(name)) {
@@ -269,15 +269,22 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 				suggestions,
 				...at(node.position),
 			});
-			return unwrap(node, insideTable);
+			return unwrap(node, name, insideTable);
 		}
 
-		restrictAttributes(node, name, undefined);
+		restrictAttributes(node, name, undefined, name);
 		restrictChildren(node, insideTable);
 		return [node];
 	}
 
-	function unwrap(node: JsxElement, insideTable: boolean): RootContent[] {
+	/**
+	 * The children that take an unwrapped tag's place. Its attributes go with
+	 * the tag, but each one no tag allows (`className`, `style`, `on*`, a
+	 * spread, a non-literal value) is still reported, as on a builtin.
+	 */
+	function unwrap(node: JsxElement, tag: string, insideTable: boolean): RootContent[] {
+		const component = tag === "<>" || isLowercase(tag) ? undefined : tag;
+		restrictAttributes(node, tag, undefined, component);
 		restrictChildren(node, insideTable);
 		return node.children as RootContent[];
 	}
@@ -286,11 +293,14 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 	 * Drop attributes the tag does not allow and fold the rest. `allowed` is the
 	 * allowlist of a lowercase element; a builtin (`allowed` undefined) keeps
 	 * every prop except `className`, `style` and `on*`, which no tag allows.
+	 * `component` is the component each diagnostic names: none for a lowercase
+	 * element or a fragment.
 	 */
 	function restrictAttributes(
 		node: JsxElement,
 		tag: string,
 		allowed: readonly string[] | undefined,
+		component: string | undefined,
 	): void {
 		const kept: (MdxJsxAttribute | MdxJsxExpressionAttribute)[] = [];
 		for (const attribute of node.attributes) {
@@ -312,7 +322,7 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 				report({
 					code: "unsupported-attribute",
 					message: unsupportedAttributeMessage(tag, attributeName, allowed),
-					component: allowed === undefined ? tag : undefined,
+					component,
 					prop: attributeName,
 					...at(attribute.position ?? node.position),
 				});
@@ -326,7 +336,7 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 					report({
 						code: "non-literal-expression",
 						message: `The value of \`${attributeName}\` on <${tag}>, \`{${snippet(value.value)}}\`, is not a literal, so the attribute is dropped. ${LITERAL_HINT}`,
-						component: allowed === undefined ? tag : undefined,
+						component,
 						prop: attributeName,
 						...at(attribute.position ?? node.position),
 					});

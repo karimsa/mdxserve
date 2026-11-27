@@ -312,7 +312,7 @@ no `mdxserve serve` is running. Read the first line and every diagnostic under i
 the document-rule errors above such as `esm-not-supported`, `non-literal-expression`,
 `unknown-component` and `unsupported-attribute`, `invalid-prop` for a prop value of the wrong
 type, the id errors `missing-id`, `invalid-id`, `duplicate-id`, `id-conflicts-with-heading`,
-`duplicate-heading`, `duplicate-tab-value` and `invalid-tab-default`) and
+`duplicate-heading`, `duplicate-tab-value`, `invalid-tab-default` and `invalid-tabs-structure`) and
 any `unknown-prop` warning where a real prop was intended, then re-run until the first line is `OK` with only intended warnings. The
 exit code is 1 when any error was reported. A syntax error shows its whole `#`/`##` section as
 source instead of content, and the other errors silently drop what they name — invisible until

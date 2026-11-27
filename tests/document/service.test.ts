@@ -576,3 +576,137 @@ describe("DocumentService.parse — block builtin content", () => {
 		expect(two.children.map((child) => child.type)).toEqual(["paragraph"]);
 	});
 });
+
+describe("DocumentService.parse — Tabs structure", () => {
+	const tabsOf = (tree: ReturnType<typeof parse>["tree"], id: string) => {
+		const node = findById(tree, id);
+		return node && "tabs" in node ? node : undefined;
+	};
+
+	it("shows stray content directly inside Tabs before the tabs, in order, with an error for each run", () => {
+		const { tree, diagnostics } = parse(
+			[
+				'<Tabs id="os">',
+				"",
+				"Stray paragraph.",
+				"",
+				'<Tab label="Mac">',
+				"",
+				"Use brew.",
+				"",
+				"</Tab>",
+				"",
+				'<Callout title="Note">Stray callout.</Callout>',
+				"",
+				"<Widget>Unknown content.</Widget>",
+				"",
+				'<Tab label="Linux">',
+				"",
+				"Use apt.",
+				"",
+				"</Tab>",
+				"",
+				"</Tabs>",
+				"",
+			].join("\n"),
+		);
+		const preamble = tree.children[0] as Extract<BlockNode, { type: "preamble" }>;
+		expect(preamble.children.map((child) => child.type)).toEqual([
+			"paragraph",
+			"component",
+			"paragraph",
+			"tabs",
+		]);
+		const text = JSON.stringify(preamble.children.slice(0, 3));
+		expect(text.indexOf("Stray paragraph.")).toBeLessThan(text.indexOf("Stray callout."));
+		expect(text.indexOf("Stray callout.")).toBeLessThan(text.indexOf("Unknown content."));
+		expect(tabsOf(tree, "os")?.tabs.map((tab) => tab.label)).toEqual(["Mac", "Linux"]);
+		const structure = diagnostics.filter(
+			(diagnostic) => diagnostic.code === "invalid-tabs-structure",
+		);
+		expect(structure.map((diagnostic) => [diagnostic.line, diagnostic.endLine])).toEqual([
+			[3, 3],
+			[11, 13],
+		]);
+		expect(structure[0]).toMatchObject({ severity: "error", component: "Tabs" });
+		expect(structure[0].message).toBe(
+			'Content directly inside <Tabs id="os"> is not in a <Tab>, so it is shown before the tabs instead of in one. Move it into a <Tab label="…">, or out of <Tabs>.',
+		);
+		expect(codes(diagnostics)).toContain("unknown-component");
+	});
+
+	it("keeps the tabs of a Tabs written on one line, and ignores the space between them", () => {
+		const { tree, diagnostics } = parse(
+			'<Tabs id="row"><Tab label="One">first</Tab> <Tab label="Two">second</Tab></Tabs>\n',
+		);
+		expect(tabsOf(tree, "row")?.tabs.map((tab) => tab.id)).toEqual(["row>one", "row>two"]);
+		expect(JSON.stringify(tree)).toContain("second");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("keeps a Tab with no label as a tab with a generated label and value", () => {
+		const { tree, diagnostics } = parse(
+			'<Tabs id="pick">\n<Tab label="A">\n\na\n\n</Tab>\n<Tab>\n\nUnlabelled body.\n\n</Tab>\n<Tab label={3}>\n\nNumbered body.\n\n</Tab>\n</Tabs>\n',
+		);
+		const tabs = tabsOf(tree, "pick")!.tabs;
+		expect(tabs.map((tab) => [tab.id, tab.label])).toEqual([
+			["pick>a", "A"],
+			["pick>~2", "Tab 2"],
+			["pick>~3", "Tab 3"],
+		]);
+		expect(JSON.stringify(tabs[1].children)).toContain("Unlabelled body.");
+		expect(diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.prop])).toEqual([
+			["invalid-prop", "label"],
+			["invalid-prop", "label"],
+		]);
+		expect(diagnostics[0].message).toBe(
+			'<Tab> needs a `label` prop, and has none, so the tab is labelled "Tab 2". Add label={…} with a value of type string.',
+		);
+		expect(diagnostics[1].message).toContain('so the tab is labelled "Tab 3"');
+	});
+
+	it("reports a Tab outside Tabs and keeps its content", () => {
+		const { tree, diagnostics } = parse(
+			'# Guide\n\n<Tab label="Alone">\n\nTab body.\n\n</Tab>\n\nSee <Tab label="Inline">inline body</Tab>.\n',
+		);
+		const text = JSON.stringify(tree);
+		expect(text).toContain("Tab body.");
+		expect(text).toContain("inline body");
+		expect(diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.line])).toEqual([
+			["invalid-tabs-structure", 3],
+			["invalid-tabs-structure", 9],
+		]);
+		expect(diagnostics[0].message).toBe(
+			"<Tab> is not directly inside a <Tabs>, so it is not a tab: its content is shown in place, without its label. Move it directly inside a <Tabs>, or remove the <Tab> and </Tab> tags.",
+		);
+	});
+
+	it("reports Tabs written inside a line of text once, and keeps each tab's content", () => {
+		const { tree, diagnostics } = parse(
+			'# Guide\n\nPick <Tabs id="inline"><Tab label="A">alpha</Tab><Tab label="B">beta</Tab></Tabs> here.\n',
+		);
+		const text = JSON.stringify(tree);
+		expect(text).toContain("alpha");
+		expect(text).toContain("beta");
+		expect(diagnostics).toMatchObject([
+			{ code: "invalid-tabs-structure", component: "Tabs", line: 3 },
+		]);
+		expect(diagnostics[0].message).toContain("Start <Tabs> on a line of its own");
+	});
+});
+
+describe("DocumentService.parse — ids that equal a repeated heading's slug", () => {
+	it("flags an id equal to the slug of a heading that repeats, and gives it a generated id", () => {
+		const source =
+			'# Guide\n\n## Examples\n\nOne.\n\n## Again\n\n### Examples\n\nTwo.\n\n<Diff id="examples" before="a" after="b" />\n';
+		const { tree, diagnostics } = parse(source);
+		expect(codes(diagnostics)).toEqual(["id-conflicts-with-heading"]);
+		expect(diagnostics[0].message).toContain('"Examples"');
+		expect(idsOf(tree)).not.toContain("examples");
+		expect(idsOf(tree)).toContain("guide>again>examples>~diff-1");
+
+		// Removing one heading keeps the same diagnostic, so nothing changes for the reader.
+		const single = parse(source.replace("### Examples\n\nTwo.\n\n", ""));
+		expect(codes(single.diagnostics)).toEqual(["id-conflicts-with-heading"]);
+	});
+});

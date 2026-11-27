@@ -143,6 +143,32 @@ describe("restrictTree — components", () => {
 		expect(diagnostics[0].message).toContain("mdxserve components");
 	});
 
+	it("reports className, style, on*, spreads and non-literal values on an unknown component, but not its literal props", () => {
+		const { tree, diagnostics } = restrict(
+			'<Widget className="box" style={{ color: "red" }} onClick={go} {...rest} title={meta.title} tone="tip" count={2}>Kept</Widget>\n',
+		);
+		expect(mdastToString(tree)).toBe("Kept");
+		expect(diagnostics.map((diagnostic) => [diagnostic.code, diagnostic.prop])).toEqual([
+			["unknown-component", undefined],
+			["unsupported-attribute", "className"],
+			["unsupported-attribute", "style"],
+			["unsupported-attribute", "onClick"],
+			["non-literal-expression", undefined],
+			["non-literal-expression", "title"],
+		]);
+		expect(diagnostics.slice(1).every((diagnostic) => diagnostic.line === 1)).toBe(true);
+		expect(diagnostics[1]).toMatchObject({ component: "Widget" });
+		expect(diagnostics[1].message).toContain("Remove the attribute");
+		expect(diagnostics[5].message).toContain("{meta.title}");
+	});
+
+	it("reports the forbidden attributes of a removed component", () => {
+		expect(codes('<Button className="x" label="Go">Go</Button>\n')).toEqual([
+			"removed-component",
+			"unsupported-attribute",
+		]);
+	});
+
 	it("unwraps a member tag on a builtin", () => {
 		expect(codes("<Callout.Foo />\n")).toEqual(["unknown-component"]);
 	});
@@ -194,9 +220,15 @@ describe("restrictTree — lowercase elements", () => {
 		expect(diagnostics[0].message).toContain("kbd, abbr");
 	});
 
-	it("does not report the attributes of an element it unwraps", () => {
-		expect(codes('<div className="box" onClick={go}>Text</div>\n')).toEqual([
-			"unsupported-element",
+	it("reports each forbidden attribute of an element it unwraps, but not a plain one", () => {
+		const { tree, diagnostics } = restrict(
+			'<div className="box" onClick={go} title="plain">Text</div>\n',
+		);
+		expect(mdastToString(tree)).toBe("Text");
+		expect(diagnostics).toMatchObject([
+			{ code: "unsupported-element" },
+			{ code: "unsupported-attribute", prop: "className", component: undefined },
+			{ code: "unsupported-attribute", prop: "onClick", component: undefined },
 		]);
 	});
 
