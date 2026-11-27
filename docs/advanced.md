@@ -389,7 +389,7 @@ only when it clarifies, and validate the file afterwards. It points the agent at
 when it is installed), manage roots, stop it, and publish it with `tailscale serve`.
 `mdxserve setup` installs both with
 `npx skills add` for Claude Code, Codex, and `~/.agents/skills`; re-run `mdxserve setup` after
-upgrading (or, in a checkout, after editing anything under `skills/`), since the skills CLI
+upgrading (or, in a checkout, after editing anything under `packages/server/skills/`), since the skills CLI
 copies rather than symlinks.
 
 ## The cache

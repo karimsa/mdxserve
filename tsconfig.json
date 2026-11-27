@@ -1,27 +1,4 @@
 {
-	"compilerOptions": {
-		"target": "ES2022",
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
-		"jsx": "react-jsx",
-		"strict": true,
-		"skipLibCheck": true,
-		"noEmit": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"isolatedModules": true,
-		"types": ["node", "vite/client"]
-	},
-	"include": [
-		"src",
-		"client",
-		"shared",
-		"scripts",
-		"tests",
-		"vitest.config.ts",
-		"vite.config.ts",
-		"knip.ts"
-	]
+	"extends": "./tsconfig.base.json",
+	"include": ["scripts", "tests", "vitest.config.ts", "knip.ts"]
 }

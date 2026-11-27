@@ -18,7 +18,10 @@ yarn-error.log*
 # mdxserve per-directory cache
 .mdxserve/
 .github/screenshots/
-client/design-ref/
+apps/web/src/design-ref/
+# Copied from the repository root by the server package's prepack
+packages/server/README.md
+packages/server/LICENSE
 
 # Design documents and mockups stay local
 docs/design/

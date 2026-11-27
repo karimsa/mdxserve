@@ -5,9 +5,9 @@ from a running server goes through one [tRPC](https://trpc.io) router, mounted a
 `http://127.0.0.1:<port>/__mdxserve/trpc` (the startup banner prints it as `API:`).
 
 Every method has a zod schema on both its input and its output, and a required description.
-Each domain module's `controller.ts` (`src/roots/`, `src/listing/`, `src/search/`,
-`src/validation/`, `src/docs/`, `src/trash/`) defines its procedures and schemas;
-`src/api/router.ts` aggregates them. The browser and the bridge import the router's
+Each domain module's `controller.ts` in `packages/server/src/` (`roots/`, `listing/`,
+`search/`, `validation/`, `docs/`, `trash/`) defines its procedures and schemas;
+`packages/server/src/api/router.ts` aggregates them. The browser and the bridge import the router's
 `AppRouter` type, so a change to a method's shape fails to compile on every caller.
 
 ## Transport rules
@@ -22,7 +22,7 @@ Each domain module's `controller.ts` (`src/roots/`, `src/listing/`, `src/search/
 | Any mutation in `--permissions restricted` mode | `403`, including calls from loopback or a reverse proxy            |
 
 The request and response encoding is tRPC's; the reference client is the one the CLI and the
-stdio bridge use, in `src/servers/`. Reach for that (or any tRPC client pointed at the
+stdio bridge use, in `packages/server/src/servers/`. Reach for that (or any tRPC client pointed at the
 `AppRouter` type) before hand-writing requests.
 
 In `--permissions restricted` mode, queries for the reader, tree, search, components, and document source
@@ -59,7 +59,7 @@ Paths are absolute, in the same form as the site's URLs (`/Users/you/notes/foo.m
 endpoint, `GET /__mdxserve/getAsset?path=<absolute path>`, and it is how a page loads an
 image or other non-document file that sits in a mounted root. `path` is required, absolute,
 and at most 4096 characters; other query parameters are ignored. `HEAD` works too, and any
-other method gets `405`. The query is validated by `getAssetInputSchema` in `src/http/asset.ts`.
+other method gets `405`. The query is validated by `getAssetInputSchema` in `packages/server/src/http/asset.ts`.
 
 | Request                                                        | Response                                                    |
 | -------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -94,7 +94,7 @@ would pass 64 KiB), or `CONFLICT` (the file kept changing during the write).
 ## Live updates
 
 A browser tab learns that something changed on disk over one [socket.io](https://socket.io)
-connection at the path `/__mdxserve/socket.io` (`REALTIME_PATH` in `shared/realtime.ts`). It
+connection at the path `/__mdxserve/socket.io` (`REALTIME_PATH` in `packages/shared/realtime.ts`). It
 shares the server's port with the API.
 
 The server sends three signals, none with a payload. Each one means "what you hold may be
@@ -110,7 +110,7 @@ A client sends `join` and `leave` with `{ path }`, in the form `getDocument` tak
 an acknowledgement of `{ ok: boolean }`. A join is refused (`ok: false`) when the payload is
 malformed or when `getDocument` would refuse the same path for the same caller, including the
 restricted-mode path rules. Both sides validate what they receive against the zod schemas in
-`shared/realtime.ts`.
+`packages/shared/realtime.ts`.
 
 Signals are best-effort. A client that reconnects rejoins its document and refetches the
 document, the listings and the roots, which repairs any signal it missed while disconnected.

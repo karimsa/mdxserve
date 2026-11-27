@@ -1,0 +1,76 @@
+import { motion } from "framer-motion";
+import { fadeRise } from "../motion";
+import { Icon } from "../ui/Icon";
+import { type CalloutProps } from "@mdxserve/shared/builtins/callout";
+
+type Tone = NonNullable<CalloutProps["tone"]>;
+
+const TONES: Record<Tone, { icon: string; bg: string; fg: string; fgVar: string; label: string }> =
+	{
+		note: {
+			icon: "info",
+			bg: "bg-status-info-bg",
+			fg: "text-status-info-fg",
+			fgVar: "var(--status-info-fg)",
+			label: "Note",
+		},
+		tip: {
+			icon: "lightbulb",
+			bg: "bg-surface-accent-soft",
+			fg: "text-text-accent",
+			fgVar: "var(--text-accent)",
+			label: "Tip",
+		},
+		ok: {
+			icon: "circle-check",
+			bg: "bg-status-ok-bg",
+			fg: "text-status-ok-fg",
+			fgVar: "var(--status-ok-fg)",
+			label: "Works",
+		},
+		warn: {
+			icon: "triangle-alert",
+			bg: "bg-status-warn-bg",
+			fg: "text-status-warn-fg",
+			fgVar: "var(--status-warn-fg)",
+			label: "Careful",
+		},
+		danger: {
+			icon: "octagon-alert",
+			bg: "bg-status-danger-bg",
+			fg: "text-status-danger-fg",
+			fgVar: "var(--status-danger-fg)",
+			label: "Breaking",
+		},
+	};
+
+/** `type` is a deprecated alias kept so existing docs written before `tone` keep working. */
+function resolveTone({ tone, type }: Pick<CalloutProps, "tone" | "type">): Tone {
+	if (tone) return tone;
+	if (type === "warn") return "warn";
+	if (type === "info") return "note";
+	return "note";
+}
+
+export default function Callout({ tone, type, title, children }: CalloutProps) {
+	const resolved = resolveTone({ tone, type });
+	const style = TONES[resolved];
+
+	return (
+		<motion.div
+			variants={fadeRise}
+			initial="initial"
+			animate="enter"
+			className={`not-prose flex items-start gap-3 rounded-lg p-4 border border-transparent font-sans font-medium leading-normal text-[length:var(--size-md)] ${style.bg}`}
+			style={{ borderColor: `color-mix(in oklab, ${style.fgVar} 22%, transparent)` }}
+		>
+			<Icon name={style.icon} size="md" className={`mt-0.5 shrink-0 ${style.fg}`} />
+			<div className="min-w-0 flex-1">
+				<p className={`font-bold tracking-[var(--tracking-snug)] ${style.fg}`}>
+					{title || style.label}
+				</p>
+				<div className="mt-1 leading-6 text-text-body">{children}</div>
+			</div>
+		</motion.div>
+	);
+}

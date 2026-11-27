@@ -35,10 +35,76 @@
 		// library hands us. `x`/`y` are excepted for the same reason one step
 		// further: they are the DOM's own names for a coordinate pair, and
 		// `properties: "never"` does not reach the members of a TS type
-		// (see the `Point` interface in client/ui/ExpandModal.tsx).
+		// (see the `Point` interface in apps/web/src/ui/ExpandModal.tsx).
 		"eslint/id-length": [
 			"error",
 			{ "min": 2, "exceptions": ["_", "x", "y"], "properties": "never" }
 		]
-	}
+	},
+	// The workspace dependency direction (AGENTS.md): the web client only imports types from
+	// the server; shared imports neither and no React value; the server never imports the web
+	// client. Tests are outside these globs: a web client test may run server code.
+	"overrides": [
+		{
+			"files": ["apps/web/src/**", "apps/web/scripts/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": ["@karimsa/mdxserve", "@karimsa/mdxserve/**", "**/packages/server/**"],
+								"allowTypeImports": true,
+								"message": "The web client may only `import type` from the server package."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["packages/shared/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": [
+									"@karimsa/mdxserve",
+									"@karimsa/mdxserve/**",
+									"@mdxserve/web",
+									"@mdxserve/web/**",
+									"**/packages/server/**",
+									"**/apps/web/**"
+								],
+								"message": "Shared code imports neither the server nor the web client."
+							},
+							{
+								"group": ["react", "react/**", "react-dom", "react-dom/**"],
+								"allowTypeImports": true,
+								"message": "Shared code may only `import type` from React."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["packages/server/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": ["@mdxserve/web", "@mdxserve/web/**", "**/apps/web/**"],
+								"message": "The server never imports the web client."
+							}
+						]
+					}
+				]
+			}
+		}
+	]
 }

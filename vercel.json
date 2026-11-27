@@ -1,9 +1,9 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"framework": null,
-	"installCommand": "cd site && corepack yarn install --immutable",
-	"buildCommand": "cd site && corepack yarn build",
-	"outputDirectory": "site/dist",
+	"installCommand": "corepack yarn install --immutable",
+	"buildCommand": "corepack yarn workspace @mdxserve/site build",
+	"outputDirectory": "apps/site/dist",
 	"redirects": [
 		{
 			"source": "/srv/docs/README.mdx",

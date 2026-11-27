@@ -1,0 +1,117 @@
+@media (max-width: 639px) {
+	.diagram-settings .diagram-settings-body section {
+		padding: 20px;
+	}
+
+	.diagram-settings .diagram-setting-row {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.diagram-settings .diagram-setting-row .diagram-agent-select,
+	.diagram-settings .diagram-setting-row select {
+		width: 100%;
+		min-width: 0;
+	}
+}
+
+/* Phone width: settings live in a bottom sheet (apps/web/src/ui/BottomSheet.tsx),
+   with the categories as a segmented row instead of a side column. */
+.settings-sheet {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	width: auto;
+	min-height: 0;
+	max-height: none;
+	overflow: visible;
+}
+
+.settings-sheet-header {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: space-between;
+	height: 42px;
+	padding: 0 8px 0 16px;
+	border-bottom: 1px solid var(--border-subtle);
+	touch-action: none;
+}
+
+.settings-sheet-header h2 {
+	margin: 0;
+	font-size: var(--size-sm);
+	font-weight: 600;
+	color: var(--text-heading);
+}
+
+.settings-sheet .diagram-icon-button {
+	width: 36px;
+	height: 36px;
+}
+
+.settings-sheet nav {
+	display: flex;
+	flex-shrink: 0;
+	gap: 4px;
+	margin: 12px 16px 0;
+	padding: 3px;
+	border-radius: 9px;
+	background: var(--surface-sunken);
+}
+
+.settings-sheet nav .diagram-settings-category {
+	flex: 1;
+	justify-content: center;
+	width: auto;
+	min-height: 36px;
+	border-radius: 7px;
+	font-size: 13px;
+}
+
+.settings-sheet .diagram-settings-body {
+	display: block;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.settings-sheet .diagram-settings-body section {
+	padding: 18px 16px 20px;
+}
+
+.settings-sheet .diagram-setting-row {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 10px;
+}
+
+.settings-sheet .diagram-setting-row .diagram-agent-select {
+	width: 100%;
+}
+
+.settings-sheet .diagram-settings-body p,
+.settings-sheet .diagram-setting-row small {
+	font-size: 13px;
+}
+
+.settings-sheet .diagram-setting-row strong {
+	font-size: 15px;
+}
+
+/* 16px keeps mobile Safari from zooming the page when a control takes focus. */
+.settings-sheet .diagram-setting-row select,
+.settings-sheet .diagram-setting-row input[type="text"] {
+	width: 100%;
+	min-height: 44px;
+	font-size: 16px;
+}
+
+.settings-sheet .diagram-settings-footer {
+	flex-shrink: 0;
+	flex-wrap: wrap;
+	padding: 12px 16px;
+	font-size: 12px;
+}

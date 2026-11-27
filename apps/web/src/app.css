@@ -1,0 +1,709 @@
+/* mdxserve global stylesheet.
+ *
+ * Order matters:
+ *   1. @imports — tippy's base css (see the Tooltip note below), then the design
+ *      system's tokens and base styles (apps/web/src/design/, ported verbatim from the
+ *      "mdxserve Design System" Claude Design project).
+ *   2. @custom-variant dark — the `dark:` utility variant keys on the
+ *      `data-theme` attribute that src/http/html.ts sets on <html>, not on the OS
+ *      media query, so the in-app toggle works.
+ *   3. @theme inline — exposes the design tokens to Tailwind so utilities like
+ *      `bg-surface-card` / `text-text-muted` / `shadow-sm` point straight at
+ *      the CSS variables (no duplicated values, dark mode comes for free).
+ *   4. App-specific rules that are not part of the design system proper.
+ *
+ * The design tokens are deliberately left *unlayered*: `@theme inline` entries
+ * whose name matches a token (`--font-mono`, `--radius-md`) emit a
+ * self-reference inside `@layer theme`, and the unlayered `:root` declaration
+ * is what wins the cascade. Wrapping apps/web/src/design in @layer would break that.
+ */
+
+/* Base tippy.js styles for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
+   Imported here (rather than from the component) so it flows through Vite's normal
+   CSS pipeline and doesn't break scripts/build-registry.ts, which imports that
+   component under plain Node to read its zod schema. */
+@import "tippy.js/dist/tippy.css";
+
+@import "./design/tokens/fonts.css";
+@import "./design/tokens/colors.css";
+@import "./design/tokens/typography.css";
+@import "./design/tokens/spacing.css";
+@import "./design/tokens/elevation.css";
+@import "./design/tokens/motion.css";
+@import "./design/base/reset.css";
+@import "./design/base/prose.css";
+@import "./design/base/editor.css";
+@import "./ui/modal.css";
+@import "./Settings.css";
+@import "./editor/image-dialog.css";
+@import "./editor/component-fields.css";
+@import "./diagrams/style.css";
+
+/* `:root[...]` (not bare `[data-theme]`) because apps/web/src/CodeBlock.tsx stamps
+   data-theme="<shiki theme name>" on every <pre>/<code> it renders. */
+@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
+
+@theme inline {
+	/* fonts */
+	--font-sans: var(--font-core);
+	--font-mono: var(--font-mono);
+
+	/* surfaces */
+	--color-surface-page: var(--surface-page);
+	--color-surface-card: var(--surface-card);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-inverse: var(--surface-inverse);
+	--color-surface-hover: var(--surface-hover);
+	--color-surface-active: var(--surface-active);
+	--color-surface-accent-soft: var(--surface-accent-soft);
+	--color-surface-accent: var(--surface-accent);
+
+	/* text */
+	--color-text-body: var(--text-body);
+	--color-text-heading: var(--text-heading);
+	--color-text-muted: var(--text-muted);
+	--color-text-subtle: var(--text-subtle);
+	--color-text-inverse: var(--text-inverse);
+	--color-text-accent: var(--text-accent);
+	--color-text-link: var(--text-link);
+	--color-text-link-hover: var(--text-link-hover);
+
+	/* borders */
+	--color-border-subtle: var(--border-subtle);
+	--color-border-default: var(--border-default);
+	--color-border-strong: var(--border-strong);
+	--color-border-accent: var(--border-accent);
+	--color-focus-ring: var(--focus-ring);
+
+	/* status tints (callouts, badges, toasts) */
+	--color-status-info-bg: var(--status-info-bg);
+	--color-status-info-fg: var(--status-info-fg);
+	--color-status-ok-bg: var(--status-ok-bg);
+	--color-status-ok-fg: var(--status-ok-fg);
+	--color-status-warn-bg: var(--status-warn-bg);
+	--color-status-warn-fg: var(--status-warn-fg);
+	--color-status-danger-bg: var(--status-danger-bg);
+	--color-status-danger-fg: var(--status-danger-fg);
+	--color-status-note-bg: var(--status-note-bg);
+	--color-status-note-fg: var(--status-note-fg);
+
+	/* code surfaces */
+	--color-code-bg: var(--code-bg);
+	--color-code-bg-inline: var(--code-bg-inline);
+	--color-code-fg: var(--code-fg);
+	--color-code-border: var(--code-border);
+	--color-code-gutter: var(--code-gutter);
+	--color-code-highlight: var(--code-highlight);
+
+	/* raw ramps, for the few places the design names them directly */
+	--color-teal-50: var(--teal-50);
+	--color-teal-100: var(--teal-100);
+	--color-teal-200: var(--teal-200);
+	--color-teal-300: var(--teal-300);
+	--color-teal-400: var(--teal-400);
+	--color-teal-500: var(--teal-500);
+	--color-teal-550: var(--teal-550);
+	--color-teal-600: var(--teal-600);
+	--color-teal-700: var(--teal-700);
+	--color-teal-800: var(--teal-800);
+	--color-teal-900: var(--teal-900);
+	--color-n-0: var(--n-0);
+	--color-n-25: var(--n-25);
+	--color-n-50: var(--n-50);
+	--color-n-100: var(--n-100);
+	--color-n-200: var(--n-200);
+	--color-n-300: var(--n-300);
+	--color-n-400: var(--n-400);
+	--color-n-500: var(--n-500);
+	--color-n-600: var(--n-600);
+	--color-n-700: var(--n-700);
+	--color-n-800: var(--n-800);
+	--color-n-900: var(--n-900);
+	--color-n-950: var(--n-950);
+
+	/* shadows — the one namespace Tailwind would otherwise inline its own
+     literal values for, so these mappings are required, not cosmetic */
+	--shadow-xs: var(--shadow-xs);
+	--shadow-sm: var(--shadow-sm);
+	--shadow-md: var(--shadow-md);
+	--shadow-lg: var(--shadow-lg);
+	--shadow-hairline: var(--shadow-hairline);
+	--shadow-focus: var(--shadow-focus);
+
+	/* radii — token names already match Tailwind's; listed for the extras */
+	--radius-xs: var(--radius-xs);
+	--radius-sm: var(--radius-sm);
+	--radius-md: var(--radius-md);
+	--radius-lg: var(--radius-lg);
+	--radius-xl: var(--radius-xl);
+	--radius-pill: var(--radius-pill);
+
+	/* layout */
+	--spacing-sidebar: var(--sidebar-width);
+	--spacing-toc: var(--toc-width);
+	--spacing-topbar: var(--topbar-height);
+	--container-prose: var(--width-prose);
+	--container-content: var(--width-content);
+
+	/* motion */
+	--ease-standard: var(--ease-standard);
+	--ease-out: var(--ease-out);
+	--ease-in: var(--ease-in);
+}
+
+/* Opt out of the global focus ring for inputs whose container already shows
+   focus (the search palette's text field). */
+[data-bare-focus]:focus-visible {
+	box-shadow: none;
+}
+
+/* Anchor jumps (TOC, `.mdx-anchor`, in-page links) clear the sticky topbar and
+   glide rather than snap. Programmatic scrolls that should not animate (route
+   change reset, first-load hash) pass `behavior: "instant"` explicitly. */
+html {
+	scroll-padding-top: calc(var(--topbar-height) + var(--space-2));
+}
+
+/* Keep the page from panning sideways or rubber-banding on touch devices.
+   `clip` rather than `hidden`, so the sticky topbar and sidebar keep working;
+   wide content (code, tables, diagrams) scrolls inside its own box instead. */
+html,
+body {
+	overflow-x: clip;
+	overscroll-behavior: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+.mdx-prose h1,
+.mdx-prose h2,
+.mdx-prose h3,
+.mdx-prose h4 {
+	scroll-margin-top: calc(var(--topbar-height) + var(--space-2));
+}
+
+/* Tailwind preflight resets list-style; the design's prose.css assumes markers. */
+.mdx-prose ul:not(:where(.not-prose, .not-prose *)) {
+	list-style: disc;
+}
+
+.mdx-prose ol:not(:where(.not-prose, .not-prose *)) {
+	list-style: decimal;
+}
+
+.mdx-prose ul ul:not(:where(.not-prose, .not-prose *)) {
+	list-style: circle;
+}
+
+/* GFM task list items: the checkbox is the marker. */
+.mdx-prose li:has(> input[type="checkbox"]) {
+	list-style: none;
+	margin-left: -1.35em;
+}
+
+.mdx-prose li > input[type="checkbox"] {
+	margin: 0 0.5em 0 0;
+	accent-color: var(--teal-550);
+	vertical-align: -0.1em;
+}
+
+/* `not-prose` is a marker class (it used to come from @tailwindcss/typography).
+   Every element rule in client/design/base/prose.css carries a
+   `:not(:where(.not-prose, .not-prose *))` guard, so a builtin that sets it on
+   its root keeps its own typography. No rule is needed for the class itself. */
+
+/* Code blocks: hand off entirely to CodeFrame/Pre (apps/web/src/CodeBlock.tsx) — prose
+   must not impose padding or background on them. The `.mdx-prose code` inline
+   chip rule must not hit code inside a <pre> either. */
+.mdx-prose pre,
+.mdx-prose pre code {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	font: var(--type-code);
+	color: var(--code-fg);
+	border-radius: 0;
+}
+
+/* Padding lives here (not in utility classes) so the unlayered reset above
+   can't strip it; CodeFrame's <pre> relies on it. */
+.mdx-prose pre,
+.not-prose pre {
+	padding: var(--space-4) 0;
+}
+
+/*
+ * Code block line rendering (apps/web/src/CodeBlock.tsx owns the surrounding card;
+ * this handles the per-line grid rows it emits):
+ *   - every line is a `<span data-line>` inside a `<code style="display:grid">`,
+ *     so it stretches to the full (possibly scrolled) width by default.
+ *   - `showLineNumbers` meta sets `data-line-numbers` on `<code>` and
+ *     `data-line-numbers-max-digits` to the gutter's digit count.
+ *   - `{1,3-4}`-style meta sets `data-highlighted-line` on the matching lines.
+ */
+[data-line] {
+	padding-inline: var(--space-4);
+}
+
+[data-highlighted-line] {
+	background-color: var(--code-highlight);
+	box-shadow: inset 2px 0 0 var(--teal-400);
+}
+
+code[data-line-numbers] {
+	counter-reset: line;
+}
+
+code[data-line-numbers] [data-line]::before {
+	counter-increment: line;
+	content: counter(line);
+	display: inline-block;
+	width: 1ch;
+	margin-right: var(--space-4);
+	text-align: right;
+	color: var(--code-gutter);
+	user-select: none;
+}
+
+code[data-line-numbers-max-digits="2"] [data-line]::before {
+	width: 2ch;
+}
+
+code[data-line-numbers-max-digits="3"] [data-line]::before {
+	width: 3ch;
+}
+
+code[data-line-numbers-max-digits="4"] [data-line]::before {
+	width: 4ch;
+}
+
+/* Tippy theme for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
+   The arrow's border-*-color is `initial` (== currentcolor) per placement in
+   tippy.js/dist/tippy.css, picking up whatever `color` is set on the arrow
+   element itself — so setting `color` on `::before` (not just `.tippy-arrow`)
+   is what actually tints it. Inverse surface in both themes. */
+.tippy-box[data-theme~="mdxserve"] {
+	background: var(--surface-inverse);
+	color: var(--text-inverse);
+	font: var(--type-ui-sm);
+	font-size: var(--size-xs);
+	border-radius: var(--radius-md);
+	padding: var(--space-0-5) var(--space-1);
+	box-shadow: var(--shadow-md);
+}
+
+.tippy-box[data-theme~="mdxserve"] > .tippy-arrow::before {
+	color: var(--surface-inverse);
+}
+
+/* Folder listing titles are rendered from the doc's first h1 as inline HTML. */
+/* Keep this in lockstep with the `.mdx-prose code` chip in design/base/prose.css. */
+.listing-title code,
+.data-table-heading code {
+	font: var(--type-code-inline);
+	background: var(--code-bg-inline);
+	color: var(--text-accent);
+	padding: 0.12em 0.34em;
+	border-radius: var(--radius-xs);
+}
+
+/* apps/web/src/ui/Toast.tsx's attention bounce for a repeat push. Two keyframe sets
+   with identical frames: CSS only restarts an animation when its
+   animation-name changes, so a repeat push flips the wrapper between the two
+   names to replay the bounce. */
+@keyframes toast-bump-a {
+	0% {
+		transform: none;
+	}
+	40% {
+		transform: translateY(-6px) scale(1.03);
+	}
+	100% {
+		transform: none;
+	}
+}
+@keyframes toast-bump-b {
+	0% {
+		transform: none;
+	}
+	40% {
+		transform: translateY(-6px) scale(1.03);
+	}
+	100% {
+		transform: none;
+	}
+}
+.toast-bump-a {
+	animation: toast-bump-a 380ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+.toast-bump-b {
+	animation: toast-bump-b 380ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+/* The ×N chip already says a repeat landed; the bounce is decoration. */
+@media (prefers-reduced-motion: reduce) {
+	.toast-bump-a,
+	.toast-bump-b {
+		animation: none;
+	}
+}
+
+/* Comment highlights (apps/web/src/comments/highlights.ts) use the CSS Custom Highlight API,
+   so React's DOM is untouched. Browsers without it show the panel and no marks. */
+::highlight(mdxserve-comment) {
+	background-color: var(--status-warn-bg);
+	color: inherit;
+}
+::highlight(mdxserve-comment-active) {
+	background-color: color-mix(in oklab, var(--status-warn-fg) 32%, var(--status-warn-bg));
+	color: inherit;
+}
+
+/* Print: the reader gets the prose, nothing else. */
+@media print {
+	[data-print-hide] {
+		display: none !important;
+	}
+
+	.mdx-anchor {
+		display: none;
+	}
+}
+
+/* Document-style tables. Menus are portaled, but anchored to their header. */
+.data-table {
+	margin: 1.5rem 0;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-card);
+	overflow: hidden;
+	color: var(--text-body);
+	font-size: var(--size-sm);
+}
+.data-table-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 1rem;
+	flex-wrap: wrap;
+}
+.data-table-toolbar > span:first-child {
+	font-weight: 600;
+	color: var(--text-heading);
+}
+.data-table-count {
+	color: var(--text-muted);
+	font-size: var(--size-xs);
+}
+.data-table-scroll {
+	overflow-x: auto;
+}
+.data-table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-variant-numeric: tabular-nums;
+}
+.data-table th,
+.data-table td {
+	padding: 0 1rem;
+	border-bottom: 1px solid var(--border-subtle);
+	text-align: left;
+	position: relative;
+}
+.data-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+.data-table th {
+	padding: 0;
+	font-size: var(--size-xs);
+	font-weight: 400;
+	color: var(--text-muted);
+	height: 36px;
+	vertical-align: bottom;
+}
+.data-table td {
+	height: 49px;
+	padding-top: 0.6rem;
+	padding-bottom: 0.6rem;
+}
+.data-table td[data-numeric="true"] {
+	white-space: nowrap;
+}
+.data-table th[data-align="right"] .data-table-heading {
+	justify-content: flex-end;
+}
+.data-table [data-align="left"] {
+	text-align: left;
+}
+.data-table [data-align="center"] {
+	text-align: center;
+}
+.data-table [data-align="right"] {
+	text-align: right;
+}
+.data-table th[data-align="left"] .data-table-heading {
+	justify-content: flex-start;
+}
+.data-table th[data-align="center"] .data-table-heading {
+	justify-content: center;
+}
+.data-table td[data-bars="true"] {
+	padding-bottom: 0.9rem;
+}
+.data-table tbody tr:hover {
+	background: var(--surface-hover);
+}
+.data-table td[data-active="true"],
+.data-table td:focus-visible {
+	outline: 1.5px solid var(--border-accent);
+	outline-offset: -1.5px;
+	background: var(--surface-accent-soft);
+}
+.data-table-heading {
+	padding: 8px 0 8px 16px;
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	min-height: 36px;
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	white-space: nowrap;
+	cursor: pointer;
+	border-radius: 0;
+}
+.data-table-heading:hover,
+.data-table-heading[aria-expanded="true"] {
+	color: var(--text-heading);
+}
+.data-table-heading svg {
+	flex-shrink: 0;
+	opacity: 0.6;
+}
+.data-table-heading a {
+	color: var(--text-accent);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.data-table-heading strong {
+	font-weight: 700;
+}
+.data-table-unit {
+	color: var(--text-subtle);
+}
+.data-table-indicator {
+	color: var(--text-accent);
+}
+.data-table-groups th[scope="colgroup"] {
+	text-align: center;
+	height: 24px;
+	border-bottom: 1px solid var(--border-subtle);
+	font-size: var(--size-xs);
+}
+.data-table-bar {
+	position: absolute;
+	height: 2px;
+	bottom: 8px;
+	border-radius: 2px;
+	background: var(--border-accent);
+	opacity: 0.65;
+	pointer-events: none;
+}
+.data-table-value {
+	position: relative;
+	z-index: 1;
+}
+.data-table-note {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.6rem 1rem;
+	color: var(--text-muted);
+	border-top: 1px solid var(--border-subtle);
+	font-size: var(--size-xs);
+}
+.data-table-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	padding: 0 1rem 0.75rem;
+}
+.data-table-chips button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.2rem 0.5rem;
+	font-size: var(--size-xs);
+	color: var(--text-muted);
+	border: 1px solid var(--border-subtle);
+	border-radius: 5px;
+	cursor: pointer;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+}
+.data-table-chips button:hover {
+	background: var(--surface-hover);
+	color: var(--text-heading);
+}
+.data-table-menu {
+	position: fixed;
+	z-index: 1000;
+	width: 260px;
+	max-width: calc(100vw - 16px);
+	overflow-y: auto;
+	background: var(--surface-card);
+	color: var(--text-body);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	padding: 0.75rem;
+	font: var(--size-sm)/1.5 var(--font-core);
+}
+.data-table-menu-title {
+	font-weight: 600;
+	color: var(--text-heading);
+	padding: 0 4rem 0 0;
+	display: flex;
+	align-items: center;
+	min-height: 30px;
+}
+.data-table-menu button {
+	cursor: pointer;
+	border-radius: 5px;
+	padding: 0.4rem 0.5rem;
+}
+.data-table-menu button:hover,
+.data-table-menu button[aria-pressed="true"] {
+	background: var(--surface-hover);
+}
+.data-table-menu-sorting {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	display: flex;
+	gap: 2px;
+}
+.data-table-menu-sorting button {
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	display: grid;
+	place-items: center;
+	font-size: 16px;
+}
+.data-table-menu label {
+	display: block;
+	color: var(--text-muted);
+	font-size: var(--size-xs);
+}
+.data-table-menu-filter {
+	padding: 0.4rem 0;
+}
+.data-table-menu input:not([type="checkbox"]),
+.data-table-menu select {
+	width: 100%;
+	min-width: 0;
+	display: block;
+	border: 1px solid var(--border-default);
+	background: var(--surface-card);
+	color: var(--text-body);
+	border-radius: 5px;
+	padding: 0.4rem 0.5rem;
+	margin-top: 0.35rem;
+	font-size: var(--size-sm);
+}
+.data-table-menu input:focus-visible,
+.data-table-menu select:focus-visible {
+	outline: none;
+	border-color: var(--border-accent);
+	box-shadow: 0 0 0 1px var(--border-accent);
+}
+.data-table-range {
+	display: flex;
+	gap: 0.5rem;
+}
+.data-table-range label {
+	flex: 1;
+	min-width: 0;
+}
+.data-table-menu-unit {
+	border-top: 1px solid var(--border-subtle);
+	padding-top: 0.65rem;
+}
+.data-table-clear {
+	color: var(--text-muted);
+	width: 100%;
+	text-align: left;
+	margin-top: 0.65rem;
+	font-size: var(--size-xs);
+}
+.data-table-error {
+	color: var(--status-danger-fg);
+	padding: 0.5rem;
+	font-size: var(--size-xs);
+}
+@media (pointer: coarse) {
+	.data-table-heading,
+	.data-table-menu button {
+		min-height: 44px;
+	}
+	.data-table-menu input:not([type="checkbox"]),
+	.data-table-menu select {
+		font-size: 16px;
+	}
+}
+
+.data-table-header-control {
+	display: flex;
+	align-items: stretch;
+	min-height: 36px;
+	position: relative;
+}
+.data-table-header-chevron {
+	flex: 0 0 28px;
+	display: grid;
+	place-items: center;
+	cursor: pointer;
+	color: var(--text-subtle);
+	padding-right: 8px;
+}
+.data-table-header-control:hover {
+	background: var(--surface-hover);
+}
+.data-table-header-chevron:hover {
+	color: var(--text-heading);
+}
+.data-table th[data-active="true"] .data-table-header-control {
+	background: var(--surface-accent-soft);
+}
+.data-table th[data-active="true"] .data-table-header-control::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 1px solid var(--border-accent);
+	pointer-events: none;
+	z-index: 1;
+}
+.data-table-heading:focus-visible,
+.data-table-header-chevron:focus-visible {
+	outline: 0;
+	box-shadow: none;
+}
+@media (pointer: coarse) {
+	.data-table-header-chevron {
+		flex-basis: 40px;
+		min-height: 44px;
+	}
+	.data-table-menu-sorting button {
+		width: 40px;
+	}
+	.data-table-menu-title {
+		min-height: 44px;
+		padding-right: 5rem;
+	}
+}
