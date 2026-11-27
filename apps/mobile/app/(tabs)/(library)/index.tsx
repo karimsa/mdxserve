@@ -59,15 +59,6 @@ export default function Library() {
 			testID="library-content"
 		>
 			<Stack.Screen options={{ title: "Library" }} />
-			{/* A native bar item with an icon: iOS puts it in the top bar, or in the vertical bar
-			    beside the content when a folded display draws one. */}
-			<Stack.Toolbar placement="right">
-				<Stack.Toolbar.Button
-					icon="square.grid.2x2"
-					accessibilityLabel="Gallery"
-					onPress={() => router.push("/gallery")}
-				/>
-			</Stack.Toolbar>
 			{loaded && servers.length === 0 ? (
 				<View style={styles.empty}>
 					<Text weight="semibold">No servers yet</Text>

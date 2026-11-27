@@ -69,19 +69,6 @@ function contentPadding(testID: string) {
 
 const routes = APP_ROUTES;
 
-/** Presses the native bar item with `label`, as UIKit reports it. */
-async function pressBarItem(label: string) {
-	const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
-	const items = header.props.headerRightBarButtonItems as {
-		buttonId: string;
-		accessibilityLabel: string;
-	}[];
-	const item = items.find((candidate) => candidate.accessibilityLabel === label)!;
-	await act(async () => {
-		header.props.onPressHeaderBarButtonItem({ nativeEvent: { buttonId: item.buttonId } });
-	});
-}
-
 describe("layout beside the system's vertical bar", () => {
 	it("keeps the Library's content inside the left and right insets", async () => {
 		await renderRouter(routes);
@@ -89,19 +76,12 @@ describe("layout beside the system's vertical bar", () => {
 		expect(contentPadding("library-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("puts the wordmark in the header, and Gallery in the native bar, where iOS can move it", async () => {
+	it("leads the Library's header with the wordmark, with no bar items of its own", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
 		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
-		// A native bar button with an icon, not a custom view: UIKit places it in the top bar or
-		// in the vertical bar itself.
-		expect(header.props.headerRightBarButtonItems).toEqual([
-			expect.objectContaining({
-				type: "button",
-				accessibilityLabel: "Gallery",
-				icon: { type: "sfSymbol", name: "square.grid.2x2" },
-			}),
-		]);
+		expect(header.props.title).toBe("Library");
+		expect(header.props.headerRightBarButtonItems ?? []).toEqual([]);
 		expect(findHost(header.children, "RNSScreenStackHeaderSubview")!.props.type).toBe("left");
 		expect(screen.getAllByText("mdx").length).toBeGreaterThan(0);
 	});
@@ -113,10 +93,10 @@ describe("layout beside the system's vertical bar", () => {
 		expect(contentPadding("settings-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("opens the gallery from its bar item, and keeps its state when the display unfolds", async () => {
-		await renderRouter(routes);
+	it("opens the gallery from Settings, and keeps its state when the display unfolds", async () => {
+		await renderRouter(routes, { initialUrl: "/settings" });
 		await setInsets(FOLDED);
-		await pressBarItem("Gallery");
+		await fireEvent.press(screen.getByLabelText("Component gallery"));
 		expect(screen).toHavePathname("/gallery");
 		expect(contentPadding("gallery-content")).toEqual({ left: 16, right: 16 + 84 });
 		await fireEvent.press(screen.getByRole("tab", { name: "Example list" }));
