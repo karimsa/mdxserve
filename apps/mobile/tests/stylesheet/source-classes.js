@@ -16,7 +16,23 @@ const quoted = (text) => [...text.matchAll(/"([^"]*)"/g)].map((match) => match[1
  * @returns {string[]}
  */
 function classesInSource(file, classMaps = []) {
-	const source = fs.readFileSync(path.join(__dirname, "../../../../packages/ui/src", file), "utf8");
+	return classesIn(path.join(__dirname, "../../../../packages/ui/src", file), classMaps);
+}
+
+/**
+ * The same, for a file of the app itself.
+ *
+ * @param {string} file the path under apps/mobile
+ * @param {string[]} classMaps names of `const` objects whose values are class lists
+ * @returns {string[]}
+ */
+function classesInAppSource(file, classMaps = []) {
+	return classesIn(path.join(__dirname, "../..", file), classMaps);
+}
+
+function classesIn(absolutePath, classMaps) {
+	const file = path.basename(absolutePath);
+	const source = fs.readFileSync(absolutePath, "utf8");
 	const lists = [
 		...[...source.matchAll(/className="([^"]*)"/g)].map((match) => match[1]),
 		...[...source.matchAll(/className=\{`([^`]*)`\}/g)].flatMap((match) => [
@@ -32,4 +48,4 @@ function classesInSource(file, classMaps = []) {
 	return [...new Set(lists.flatMap((list) => list.split(/\s+/)).filter(Boolean))];
 }
 
-module.exports = { classesInSource };
+module.exports = { classesInAppSource, classesInSource };

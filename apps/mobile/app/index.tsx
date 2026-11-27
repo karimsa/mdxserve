@@ -77,6 +77,11 @@ export default function Home() {
 			    beside the content when a folded display draws one. */}
 			<Stack.Toolbar placement="right">
 				<Stack.Toolbar.Button
+					icon="server.rack"
+					accessibilityLabel="Servers"
+					onPress={() => router.push("/servers")}
+				/>
+				<Stack.Toolbar.Button
 					icon="gearshape"
 					accessibilityLabel="Settings"
 					onPress={() => router.push("/settings")}

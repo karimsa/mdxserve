@@ -5,6 +5,7 @@
    stylesheet imported by package name on its own. */
 @import "../../../packages/ui/src/theme.css";
 
-/* The routes, and the shared components (@mdxserve/ui) the app renders. */
+/* The routes, the app's own components, and the shared components (@mdxserve/ui) the app renders. */
 @source "../app";
+@source "../src";
 @source "../../../packages/ui/src";
