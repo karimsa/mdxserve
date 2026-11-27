@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-	isSelfWrite,
-	markSelfWrite,
-	SELF_WRITE_WINDOW_MS,
-} from "../../client/comments/self-writes";
-import { relativeTime } from "../../client/comments/time";
+import { isSelfWrite, markSelfWrite, SELF_WRITE_WINDOW_MS } from "../src/comments/self-writes";
+import { relativeTime } from "../src/comments/time";
 
 describe("self writes", () => {
 	it("holds a path for two seconds", () => {

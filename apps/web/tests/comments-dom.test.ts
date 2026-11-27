@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { headingKey, resolveAnchor } from "../../client/comments/anchor";
-import {
-	captureSelection,
-	collectDoc,
-	resolveInDom,
-	resolveIndexOf,
-} from "../../client/comments/dom";
+import { headingKey, resolveAnchor } from "../src/comments/anchor";
+import { captureSelection, collectDoc, resolveInDom, resolveIndexOf } from "../src/comments/dom";
 
 let article: HTMLElement;
 

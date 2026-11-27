@@ -8,7 +8,7 @@ import { analyzeTree, collectHints, validateSource } from "../../src/validation/
 import { fixtureComponentNames, fixtureRegistry } from "../fixtures/registry.js";
 import { restrictTree, type RestrictDiagnostic } from "../../src/document/restrict.js";
 import { DocumentService } from "../../src/document/service.js";
-import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
+import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "@mdxserve/shared/mermaid-chart";
 
 // Same parse helper as src/docs/doc-cache.ts.
 function parse(src: string) {

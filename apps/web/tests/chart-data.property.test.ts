@@ -8,7 +8,7 @@ import {
 	fitLabel,
 	labelColumnWidth,
 	niceMax,
-} from "../../client/builtins/chart-data.js";
+} from "../src/builtins/chart-data.js";
 
 const finiteValue = fc.double({ min: -1_000_000, max: 1_000_000, noNaN: true });
 const maybeNonFiniteValue = fc.oneof(

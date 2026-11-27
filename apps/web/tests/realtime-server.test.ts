@@ -2,18 +2,25 @@ import fsp from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { REALTIME_PATH, SERVER_EVENTS } from "../../shared/realtime.js";
+import { REALTIME_PATH, SERVER_EVENTS } from "@mdxserve/shared/realtime";
 import { watch } from "chokidar";
-import { isWatchIgnored, signalFileChanges } from "../../src/http/watch-signals.js";
-import { MAX_JOINED_PATHS } from "../../src/realtime/server.js";
-import { TailnetHosts } from "../../src/tailscale/tailnet-hosts.js";
+import { isWatchIgnored, signalFileChanges } from "@karimsa/mdxserve/src/http/watch-signals";
+import { MAX_JOINED_PATHS } from "@karimsa/mdxserve/src/realtime/server";
+import { TailnetHosts } from "@karimsa/mdxserve/src/tailscale/tailnet-hosts";
 import { io as connect } from "socket.io-client";
 import {
 	createRealtimeClient,
 	REFUSED_RETRY_DELAY_MS,
 	type RealtimeSocket,
-} from "../../client/realtime.js";
-import { connected, delay, join, record, startHarness, type Harness } from "../helpers/realtime.js";
+} from "../src/realtime.js";
+import {
+	connected,
+	delay,
+	join,
+	record,
+	startHarness,
+	type Harness,
+} from "@karimsa/mdxserve/tests/helpers/realtime";
 
 let harness: Harness | undefined;
 

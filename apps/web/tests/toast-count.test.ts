@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextCount } from "../../client/ui/toast-count.js";
+import { nextCount } from "../src/ui/toast-count.js";
 
 describe("nextCount", () => {
 	it("increments a repeat push on a live id", () => {

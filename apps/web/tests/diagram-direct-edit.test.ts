@@ -2,13 +2,13 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { DocContext } from "../../client/DocContext";
-import { NodeList } from "../../client/document/nodes";
-import { DocumentService } from "../../src/document/service";
-import { fixtureRegistry } from "../fixtures/registry";
+import { DocContext } from "../src/DocContext";
+import { NodeList } from "../src/document/nodes";
+import { DocumentService } from "@karimsa/mdxserve/src/document/service";
+import { fixtureRegistry } from "@karimsa/mdxserve/tests/fixtures/registry";
 
 const rpc = vi.hoisted(() => ({ save: vi.fn(), source: vi.fn(), invalidate: vi.fn() }));
-vi.mock("../../client/api", () => ({
+vi.mock("../src/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: async () => ({ agent: "codex" }) },
 		getNodeSource: { query: rpc.source },
@@ -19,13 +19,13 @@ vi.mock("../../client/api", () => ({
 	},
 	queryClient: { invalidateQueries: rpc.invalidate },
 }));
-vi.mock("../../client/MdSectionEditor", () => ({
+vi.mock("../src/MdSectionEditor", () => ({
 	default: () => {
 		throw new Error("Direct diagram editing must not mount Tiptap");
 	},
 }));
-vi.mock("../../client/Mermaid", () => ({ MermaidDiagram: () => null }));
-vi.mock("../../client/diagrams/Dialog", () => ({
+vi.mock("../src/Mermaid", () => ({ MermaidDiagram: () => null }));
+vi.mock("../src/diagrams/Dialog", () => ({
 	MermaidDialog: ({
 		initialSource,
 		onInsert,
@@ -77,7 +77,7 @@ const markdown = [
 // Load the lazy edit dialog up front, so its chunk does not finish loading
 // between two act() calls.
 beforeAll(async () => {
-	await import("../../client/diagrams/EditDialog");
+	await import("../src/diagrams/EditDialog");
 });
 beforeEach(() => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

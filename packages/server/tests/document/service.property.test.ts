@@ -3,7 +3,7 @@ import * as fc from "fast-check";
 import path from "node:path";
 import { DocumentService, countLines } from "../../src/document/service.js";
 import { documentTreeSchema } from "../../src/document/schema.js";
-import { builtinPropSchemas } from "../../shared/builtins/index.js";
+import { builtinPropSchemas } from "@mdxserve/shared/builtins";
 import { builtinRegistry } from "../helpers/components.js";
 import { idNodes, idsOf, tocIds } from "./tree.js";
 

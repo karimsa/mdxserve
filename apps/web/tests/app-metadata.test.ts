@@ -2,16 +2,16 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "../../client/App";
+import { App } from "../src/App";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient, trpc } from "../../client/api";
-import type { Route } from "../../client/router";
+import { queryClient, trpc } from "../src/api";
+import type { Route } from "../src/router";
 
-vi.mock("../../client/router", () => ({
+vi.mock("../src/router", () => ({
 	useRouter: (initialRoute: Route) => ({ route: initialRoute, navigate: () => {} }),
 	titleFor: () => "document.md",
 }));
-vi.mock("../../client/shell/AppShell", () => ({ AppShell: () => null }));
+vi.mock("../src/shell/AppShell", () => ({ AppShell: () => null }));
 
 const route: Extract<Route, { kind: "doc" }> = {
 	kind: "doc",

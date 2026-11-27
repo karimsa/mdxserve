@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { builtins } from "../../client/builtins";
-import { slashBlocks } from "../../client/editor/blocks";
-import { validateSource } from "../../src/validation/validate";
-import type { Registry } from "../../src/components/registry";
-import { createMetadataPort } from "../helpers/metadata.js";
+import { builtins } from "../src/builtins";
+import { slashBlocks } from "../src/editor/blocks";
+import { validateSource } from "@karimsa/mdxserve/src/validation/validate";
+import type { Registry } from "@karimsa/mdxserve/src/components/registry";
+import { createMetadataPort } from "@karimsa/mdxserve/tests/helpers/metadata";
 
 const registry: Registry = {
 	version: 1,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dockOffset } from "../../client/comments/SelectionButton";
+import { dockOffset } from "../src/comments/SelectionButton";
 
 function addSheet(top: number): HTMLElement {
 	const sheet = document.createElement("aside");

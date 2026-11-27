@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { locateDiagram, locateDiagramInBlock } from "../../client/diagrams/source";
+import { locateDiagram, locateDiagramInBlock } from "../src/diagrams/source";
 
 it("replaces only the selected diagram and preserves surrounding Markdown exactly", () => {
 	const source = "flowchart LR\n A --> B";

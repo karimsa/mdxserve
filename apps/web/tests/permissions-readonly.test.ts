@@ -3,12 +3,12 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { MdSection, type MdSectionProps } from "../../client/MdSection";
-import { ListingView } from "../../client/ListingView";
-import { shellInfo } from "../../client/router";
+import { MdSection, type MdSectionProps } from "../src/MdSection";
+import { ListingView } from "../src/ListingView";
+import { shellInfo } from "../src/router";
 
 const { getNodeSource } = vi.hoisted(() => ({ getNodeSource: vi.fn() }));
-vi.mock("../../client/api", () => ({
+vi.mock("../src/api", () => ({
 	trpcClient: { getNodeSource: { query: getNodeSource } },
 	trpc: {
 		moveDocsToTrash: {

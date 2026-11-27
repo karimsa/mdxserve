@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import * as client from "../../client/comments/anchor";
-import { normalizeText as serverNormalize } from "../../src/comments/anchor";
-import { MAX_ANCHOR_HEADING, MAX_ANCHOR_TEXT, MAX_MESSAGE_BODY } from "../../src/comments/schema";
+import * as client from "../src/comments/anchor";
+import { normalizeText as serverNormalize } from "@karimsa/mdxserve/src/comments/anchor";
+import {
+	MAX_ANCHOR_HEADING,
+	MAX_ANCHOR_TEXT,
+	MAX_MESSAGE_BODY,
+} from "@karimsa/mdxserve/src/comments/schema";
 
 describe("client and server comment limits agree", () => {
 	it("repeats the schema limits", () => {
@@ -23,8 +27,8 @@ describe("client and server comment limits agree", () => {
 	});
 });
 
-import { headingKey as clientHeadingKey } from "../../client/comments/anchor";
-import { headingKey as serverHeadingKey } from "../../src/comments/anchor.js";
+import { headingKey as clientHeadingKey } from "../src/comments/anchor";
+import { headingKey as serverHeadingKey } from "@karimsa/mdxserve/src/comments/anchor";
 
 describe("headingKey", () => {
 	it("is the same on the client and the server", () => {

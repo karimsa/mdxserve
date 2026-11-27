@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from "vitest";
-import { sessionId } from "../../client/diagrams/session-id";
+import { sessionId } from "../src/diagrams/session-id";
 it("makes unique UUID sessions without secure-context randomUUID", () => {
 	vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
 	try {

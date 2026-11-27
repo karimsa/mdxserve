@@ -6,18 +6,13 @@ import { TableKit } from "@tiptap/extension-table";
 import { Image } from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { builtins } from "../../client/builtins";
-import { MdxBlock } from "../../client/editor/mdx-block";
-import {
-	blockContent,
-	insertSlashBlock,
-	matchingBlocks,
-	slashBlocks,
-} from "../../client/editor/blocks";
-import { blockSlash } from "../../client/editor/slash";
-import { validateSource } from "../../src/validation/validate";
-import { builtinRegistry } from "../helpers/components";
-import { createMetadataPort } from "../helpers/metadata";
+import { builtins } from "../src/builtins";
+import { MdxBlock } from "../src/editor/mdx-block";
+import { blockContent, insertSlashBlock, matchingBlocks, slashBlocks } from "../src/editor/blocks";
+import { blockSlash } from "../src/editor/slash";
+import { validateSource } from "@karimsa/mdxserve/src/validation/validate";
+import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
+import { createMetadataPort } from "@karimsa/mdxserve/tests/helpers/metadata";
 
 let editor: Editor | undefined;
 afterEach(() => {

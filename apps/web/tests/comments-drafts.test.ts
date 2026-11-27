@@ -6,8 +6,8 @@ import {
 	FIELD_MAX_HEIGHT,
 	FIELD_MIN_HEIGHT,
 	withReplyDraft,
-} from "../../client/comments/drafts";
-import { layoutPins, pinLeft } from "../../client/comments/pins";
+} from "../src/comments/drafts";
+import { layoutPins, pinLeft } from "../src/comments/pins";
 
 describe("reply drafts", () => {
 	it("keeps text per thread and drops empty text", () => {
@@ -81,7 +81,7 @@ describe("gutter counters", () => {
 
 describe("pending sends", () => {
 	it("adds and removes a key, and returns the same set when nothing changes", async () => {
-		const { pendingReplyKey, withPendingSend } = await import("../../client/comments/state");
+		const { pendingReplyKey, withPendingSend } = await import("../src/comments/state");
 		const key = pendingReplyKey("/docs/a.md", "t1");
 		expect(key).not.toBe(pendingReplyKey("/docs/b.md", "t1"));
 		const empty: ReadonlySet<string> = new Set();

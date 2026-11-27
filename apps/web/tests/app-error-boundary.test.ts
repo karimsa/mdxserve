@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { AppErrorBoundary } from "../../client/AppErrorBoundary";
+import { AppErrorBoundary } from "../src/AppErrorBoundary";
 
 describe("AppErrorBoundary", () => {
 	it("switches to the error state for an error thrown below it", () => {

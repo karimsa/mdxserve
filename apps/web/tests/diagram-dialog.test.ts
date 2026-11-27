@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { MermaidDialog } from "../../client/diagrams/Dialog";
+import { MermaidDialog } from "../src/diagrams/Dialog";
 const rpc = vi.hoisted(() => ({
 	convert: vi.fn(),
 	cancel: vi.fn(),
@@ -11,7 +11,7 @@ const rpc = vi.hoisted(() => ({
 	parse: vi.fn(),
 }));
 vi.mock("mermaid", () => ({ default: { initialize: vi.fn(), parse: rpc.parse } }));
-vi.mock("../../client/api", () => ({
+vi.mock("../src/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: rpc.preferences },
 		convertDiagram: { mutate: rpc.convert },
@@ -19,7 +19,7 @@ vi.mock("../../client/api", () => ({
 		releaseDiagramSession: { mutate: rpc.release },
 	},
 }));
-vi.mock("../../client/Mermaid", async () => {
+vi.mock("../src/Mermaid", async () => {
 	const { useEffect } = await import("react");
 	return {
 		MermaidDiagram: ({

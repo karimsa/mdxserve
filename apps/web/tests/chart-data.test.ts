@@ -8,7 +8,7 @@ import {
 	labelColumnWidth,
 	niceMax,
 	toNumber,
-} from "../../client/builtins/chart-data.js";
+} from "../src/builtins/chart-data.js";
 
 describe("toNumber", () => {
 	it("passes finite numbers through", () => {

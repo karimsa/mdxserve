@@ -3,15 +3,15 @@ import * as fc from "fast-check";
 import { z } from "zod";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DocContext } from "../../client/DocContext";
-import { useBlockState, useDocumentBlockScope } from "../../client/block-state/useBlockState";
+import { DocContext } from "../src/DocContext";
+import { useBlockState, useDocumentBlockScope } from "../src/block-state/useBlockState";
 import {
 	blockStateKey,
 	restoreBlockState,
 	saveBlockState,
 	type BlockStateScope,
 	type BlockStateStorage,
-} from "../../client/block-state/storage";
+} from "../src/block-state/storage";
 
 const scope: BlockStateScope = {
 	documentPath: "/docs/report.md",

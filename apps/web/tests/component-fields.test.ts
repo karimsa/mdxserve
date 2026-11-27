@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { componentFields, updateComponentField } from "../../client/editor/component-fields";
+import { componentFields, updateComponentField } from "../src/editor/component-fields";
 
 it("edits a literal property without rewriting nested content or expressions", () => {
 	const source =

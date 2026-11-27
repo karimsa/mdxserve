@@ -6,7 +6,7 @@ import {
 	formatValue,
 	parseBound,
 	type Column,
-} from "../../client/data-table/model";
+} from "../src/data-table/model";
 
 it("numeric sorting preserves all values and produces monotonic order", () => {
 	assert(

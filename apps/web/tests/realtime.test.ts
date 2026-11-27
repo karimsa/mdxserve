@@ -6,7 +6,7 @@ import {
 	RETRY_DELAY_MS,
 	type DocChangeCause,
 	type RealtimeSocket,
-} from "../../client/realtime.js";
+} from "../src/realtime.js";
 
 /** A socket.io client socket stand-in: records emits and lets a test fire events. */
 class FakeSocket implements RealtimeSocket {

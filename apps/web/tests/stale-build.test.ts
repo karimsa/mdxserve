@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasUnsavedInput, staleBuildAction } from "../../client/stale-build";
+import { hasUnsavedInput, staleBuildAction } from "../src/stale-build";
 
 describe("staleBuildAction", () => {
 	it("reloads when a chunk fails to load and nothing is being edited", () => {

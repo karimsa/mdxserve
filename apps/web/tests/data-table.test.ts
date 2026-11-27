@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DocumentService } from "../../src/document/service";
-import { builtinRegistry } from "../helpers/components.js";
-import { NodeList } from "../../client/document/nodes";
-import DataTable from "../../client/builtins/DataTable";
+import { DocumentService } from "@karimsa/mdxserve/src/document/service";
+import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
+import { NodeList } from "../src/document/nodes";
+import DataTable from "../src/builtins/DataTable";
 import {
 	autoUnit,
 	inferColumn,
@@ -14,7 +14,7 @@ import {
 	parseBound,
 	unitFactor,
 	type Column,
-} from "../../client/data-table/model";
+} from "../src/data-table/model";
 
 const number: Column = { key: "value", label: "Value", type: "number" };
 const percent: Column = { ...number, type: "percent" };

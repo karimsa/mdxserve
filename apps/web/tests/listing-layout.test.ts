@@ -5,10 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDefaultStore } from "jotai";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ListingView } from "../../client/ListingView";
-import { contentLayoutAtom } from "../../client/state";
+import { ListingView } from "../src/ListingView";
+import { contentLayoutAtom } from "../src/state";
 
-vi.mock("../../client/api", () => ({
+vi.mock("../src/api", () => ({
 	trpc: { moveDocsToTrash: { mutationOptions: () => ({ mutationFn: vi.fn() }) } },
 }));
 let root: Root;

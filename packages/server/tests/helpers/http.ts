@@ -12,15 +12,18 @@ import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 
 /**
- * The source `client/index.html`, which carries the same fill markers as the built one, so
- * shell tests need no `yarn build` (CI runs tests first).
+ * The web client's source folder. Its `index.html` carries the same fill markers as the built
+ * one, so shell tests need no `yarn build` (CI runs tests first). The tests only read it.
  */
+const webClientSource = path.join(getPackageRoot(), "../../apps/web/src");
+
+/** The source `apps/web/src/index.html`, as the shell template. */
 export function shellTemplate(): string {
-	return loadShellTemplate(path.join(getPackageRoot(), "client"));
+	return loadShellTemplate(webClientSource);
 }
 
-/** A client bundle whose `assets/` and favicon live in `dir` (the source client/ by default). */
-function testClientBundle(dir = path.join(getPackageRoot(), "client")): ClientBundle {
+/** A client bundle whose `assets/` and favicon live in `dir` (the web client's source by default). */
+function testClientBundle(dir = webClientSource): ClientBundle {
 	return { dir, template: shellTemplate() };
 }
 

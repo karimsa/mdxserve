@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AnimatePresence } from "framer-motion";
-import { Modal } from "../../client/ui/Modal";
+import { Modal } from "../src/ui/Modal";
 
 let root: Root;
 let host: HTMLDivElement;

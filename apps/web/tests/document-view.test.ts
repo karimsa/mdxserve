@@ -4,18 +4,18 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { getDefaultStore } from "jotai";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { queryClient, trpc } from "../../client/api";
-import { DocumentView } from "../../client/document/DocumentView";
-import { revealNode } from "../../client/document/reveal";
-import { useToc } from "../../client/shell/useToc";
-import { tabSelectionAtom } from "../../client/document/tabs-state";
-import { DocumentService } from "../../src/document/service";
-import { builtinRegistry } from "../helpers/components.js";
-import type { DocumentTree } from "../../src/document/schema";
+import { queryClient, trpc } from "../src/api";
+import { DocumentView } from "../src/document/DocumentView";
+import { revealNode } from "../src/document/reveal";
+import { useToc } from "../src/shell/useToc";
+import { tabSelectionAtom } from "../src/document/tabs-state";
+import { DocumentService } from "@karimsa/mdxserve/src/document/service";
+import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
+import type { DocumentTree } from "@karimsa/mdxserve/src/document/schema";
 
 const renders = vi.hoisted(() => ({ callout: 0 }));
-vi.mock("../../client/builtins/Callout", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("../../client/builtins/Callout")>();
+vi.mock("../src/builtins/Callout", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../src/builtins/Callout")>();
 	const { createElement: create } = await import("react");
 	return {
 		default: (props: Parameters<typeof actual.default>[0]) => {
@@ -24,7 +24,7 @@ vi.mock("../../client/builtins/Callout", async (importOriginal) => {
 		},
 	};
 });
-vi.mock("../../client/Mermaid", () => ({ MermaidDiagram: () => null }));
+vi.mock("../src/Mermaid", () => ({ MermaidDiagram: () => null }));
 
 const PATH = "/docs/guide.md";
 const SOURCE = [

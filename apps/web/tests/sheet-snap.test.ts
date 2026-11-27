@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settleSheet, sheetSnapHeights } from "../../client/ui/sheet-snap";
+import { settleSheet, sheetSnapHeights } from "../src/ui/sheet-snap";
 
 const VIEWPORT = 800;
 const [peek, half, full] = sheetSnapHeights(VIEWPORT);

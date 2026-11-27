@@ -5,7 +5,7 @@ import {
 	readFlowchartDirection,
 	setFlowchartDirection,
 	type FlowDirection,
-} from "../../client/mermaid-direction.js";
+} from "../src/mermaid-direction.js";
 
 const direction = fc.constantFrom<FlowDirection>(...FLOW_DIRECTIONS);
 

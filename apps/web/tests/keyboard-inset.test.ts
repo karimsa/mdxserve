@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coveredBottom } from "../../client/hooks";
+import { coveredBottom } from "../src/hooks";
 
 describe("coveredBottom", () => {
 	it("is zero when the visual viewport fills the layout viewport", () => {

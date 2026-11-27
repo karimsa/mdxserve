@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { applyHeadMetadata } from "../../client/head-metadata";
+import { applyHeadMetadata } from "../src/head-metadata";
 
 beforeEach(() => {
 	document.head.innerHTML =

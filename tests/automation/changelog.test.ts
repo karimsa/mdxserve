@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -26,6 +26,15 @@ function runGenerator(repositoryPath: string, targetVersion?: string): void {
 	);
 }
 
+/** The release version lives in the published server package's manifest. */
+async function writeVersion(repositoryPath: string, version: string): Promise<void> {
+	await mkdir(resolve(repositoryPath, "packages/server"), { recursive: true });
+	await writeFile(
+		resolve(repositoryPath, "packages/server/package.json"),
+		JSON.stringify({ version }),
+	);
+}
+
 async function generate(repositoryPath: string, targetVersion?: string): Promise<string> {
 	runGenerator(repositoryPath, targetVersion);
 	return readFile(resolve(repositoryPath, "CHANGELOG.md"), "utf8");
@@ -45,7 +54,7 @@ it("regenerates tagged releases and the requested package version from original 
 	git(repositoryPath, "init", "-q");
 	git(repositoryPath, "config", "user.name", "Changelog Test");
 	git(repositoryPath, "config", "user.email", "changelog@example.com");
-	await writeFile(resolve(repositoryPath, "package.json"), JSON.stringify({ version: "0.5.0" }));
+	await writeVersion(repositoryPath, "0.5.0");
 	commit(repositoryPath, "Initial history");
 	commit(repositoryPath, "Add a first feature (#35)", "Body text must not become a bullet");
 	commit(repositoryPath, "Add CODEOWNERS for maintainers (#36)");
@@ -99,7 +108,7 @@ it("ignores release candidates: their tags and version commits fold into the nex
 	git(repositoryPath, "init", "-q");
 	git(repositoryPath, "config", "user.name", "Changelog Test");
 	git(repositoryPath, "config", "user.email", "changelog@example.com");
-	await writeFile(resolve(repositoryPath, "package.json"), JSON.stringify({ version: "0.6.0" }));
+	await writeVersion(repositoryPath, "0.6.0");
 	commit(repositoryPath, "Initial history");
 	commit(repositoryPath, "feat: an earlier feature (#50)");
 	git(repositoryPath, "tag", "v0.5.0");

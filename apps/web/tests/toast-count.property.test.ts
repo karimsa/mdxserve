@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import { nextCount } from "../../client/ui/toast-count.js";
+import { nextCount } from "../src/ui/toast-count.js";
 
 type Operation = { kind: "push"; id: string } | { kind: "remove"; id: string };
 

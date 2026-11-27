@@ -4,14 +4,14 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getDefaultStore } from "jotai";
-import { contentLayoutAtom, tocModeAtom } from "../../client/state";
-import { DiagramPreferences } from "../../client/diagrams/Preferences";
-import { useFullWidth } from "../../client/hooks";
-import { COMPACT_MEDIA } from "../../client/platform";
+import { contentLayoutAtom, tocModeAtom } from "../src/state";
+import { DiagramPreferences } from "../src/diagrams/Preferences";
+import { useFullWidth } from "../src/hooks";
+import { COMPACT_MEDIA } from "../src/platform";
 
 let compactScreen = false;
 const rpc = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), save: vi.fn(), probe: vi.fn() }));
-vi.mock("../../client/api", () => ({
+vi.mock("../src/api", () => ({
 	trpcClient: {
 		getDiagramPreferences: { query: rpc.get },
 		listDiagramModels: { mutate: rpc.list },

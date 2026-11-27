@@ -2,11 +2,11 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import MdSectionEditor from "../../client/MdSectionEditor";
-vi.mock("../../client/api", () => ({
+import MdSectionEditor from "../src/MdSectionEditor";
+vi.mock("../src/api", () => ({
 	trpcClient: { getDiagramPreferences: { query: async () => ({ agent: "codex" }) } },
 }));
-vi.mock("../../client/diagrams/Dialog", () => ({
+vi.mock("../src/diagrams/Dialog", () => ({
 	MermaidDialog: ({ initialSource, onClose }: { initialSource: string; onClose: () => void }) =>
 		createElement(
 			"dialog",

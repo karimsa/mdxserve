@@ -5,9 +5,9 @@ import {
 	fragmentOf,
 	indexDocument,
 	resolveFragment,
-} from "../../client/document/document-index";
-import { DocumentService } from "../../src/document/service";
-import { fixtureRegistry } from "../fixtures/registry";
+} from "../src/document/document-index";
+import { DocumentService } from "@karimsa/mdxserve/src/document/service";
+import { fixtureRegistry } from "@karimsa/mdxserve/tests/fixtures/registry";
 
 function parse(source: string) {
 	return new DocumentService(fixtureRegistry, (relative) => relative).parse(source, "/doc.md").tree;

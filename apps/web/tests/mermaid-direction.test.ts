@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFlowchartDirection, setFlowchartDirection } from "../../client/mermaid-direction.js";
+import { readFlowchartDirection, setFlowchartDirection } from "../src/mermaid-direction.js";
 
 describe("readFlowchartDirection", () => {
 	it("reads the direction off flowchart and graph headers", () => {

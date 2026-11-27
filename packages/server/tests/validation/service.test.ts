@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ValidationService } from "../../src/validation/service.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
-import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
+import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "@mdxserve/shared/mermaid-chart";
 
 const CHART_FENCE_BODY: Record<ChartDiagramKeyword, string> = {
 	pie: 'pie title Pets\n  "Dogs" : 40\n  "Cats" : 60',

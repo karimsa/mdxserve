@@ -6,7 +6,7 @@ import { EditorContent } from "@tiptap/react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { MdxBlock, readLossyBlock } from "../../client/editor/mdx-block";
+import { MdxBlock, readLossyBlock } from "../src/editor/mdx-block";
 
 it("returns a section with mermaid, builtins, inline components and fence meta unchanged", () => {
 	const section = [

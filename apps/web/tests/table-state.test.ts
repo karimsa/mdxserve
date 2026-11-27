@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { deriveTableView, normalizeTableState } from "../../client/data-table/table-state";
-import { emptyState, type Column, type TableState } from "../../client/data-table/model";
+import { deriveTableView, normalizeTableState } from "../src/data-table/table-state";
+import { emptyState, type Column, type TableState } from "../src/data-table/model";
 
 const columns: Column[] = [
 	{ key: "name", label: "Name", type: "text" },

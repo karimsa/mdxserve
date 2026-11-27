@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import { decodeRoutePath } from "../../client/route-path.js";
+import { decodeRoutePath } from "../src/route-path.js";
 
 describe("decodeRoutePath", () => {
 	it("decodes a percent-encoded pathname", () => {

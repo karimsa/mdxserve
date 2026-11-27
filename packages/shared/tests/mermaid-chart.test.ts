@@ -4,7 +4,7 @@ import {
 	chartDiagramKeyword,
 	chartDiagramMessage,
 	type ChartDiagramKeyword,
-} from "../../client/mermaid-chart.js";
+} from "../mermaid-chart.js";
 
 const REALISTIC: Record<ChartDiagramKeyword, string> = {
 	pie: 'pie title Pets\n  "Dogs" : 40\n  "Cats" : 60',

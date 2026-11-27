@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
-import { tocPresentation } from "../../client/shell/toc-mode";
-import { readTocMode, TOC_MODES } from "../../client/state";
+import { tocPresentation } from "../src/shell/toc-mode";
+import { readTocMode, TOC_MODES } from "../src/state";
 
 describe("tocPresentation", () => {
 	it("puts the rail on the right in auto, with the button standing in below laptop width", () => {

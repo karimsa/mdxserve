@@ -9,7 +9,7 @@ import { realtimePeerCheck } from "../../src/http/host.js";
 import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
 import type { PermissionMode } from "../../src/servers/bind-host.js";
-import { REALTIME_PATH } from "../../shared/realtime.js";
+import { REALTIME_PATH } from "@mdxserve/shared/realtime";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 /** A real http server on an ephemeral loopback port with the realtime adapter attached. */

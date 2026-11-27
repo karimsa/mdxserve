@@ -4,18 +4,18 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { getDefaultStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queryClient, trpc } from "../../client/api";
-import { DocumentView } from "../../client/document/DocumentView";
-import { tabSelectionAtom } from "../../client/document/tabs-state";
-import { useRouter, type Route } from "../../client/router";
-import { DocumentService } from "../../src/document/service";
-import { builtinRegistry } from "../helpers/components.js";
+import { queryClient, trpc } from "../src/api";
+import { DocumentView } from "../src/document/DocumentView";
+import { tabSelectionAtom } from "../src/document/tabs-state";
+import { useRouter, type Route } from "../src/router";
+import { DocumentService } from "@karimsa/mdxserve/src/document/service";
+import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
 
 // No socket: every realtime call does nothing, and each listener returns its unsubscribe.
-vi.mock("../../client/realtime", () => ({
+vi.mock("../src/realtime", () => ({
 	realtime: new Proxy({}, { get: () => () => () => {} }),
 }));
-vi.mock("../../client/Mermaid", () => ({ MermaidDiagram: () => null }));
+vi.mock("../src/Mermaid", () => ({ MermaidDiagram: () => null }));
 
 const FROM = "/docs/from.md";
 const TO = "/docs/to.md";

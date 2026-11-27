@@ -3,7 +3,7 @@ import { Editor } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { afterEach, expect, it } from "vitest";
-import { findDiagram, replaceDiagram, mermaidEditButtons } from "../../client/diagrams/edit-block";
+import { findDiagram, replaceDiagram, mermaidEditButtons } from "../src/diagrams/edit-block";
 const original = "flowchart LR\n A --> B";
 const replacement = "flowchart LR\n A --> C";
 let editor: Editor;
