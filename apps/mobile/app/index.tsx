@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
+import Diff from "@mdxserve/ui/builtins/Diff";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
 import DataTable from "@mdxserve/ui/builtins/DataTable";
@@ -173,6 +174,18 @@ export default function Home() {
 						fill
 					/>
 				</Text>
+				<Diff
+					id="sample-diff"
+					title="server.ts"
+					before={
+						'const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");'
+					}
+					after={
+						"const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(`listening on ${port}`);"
+					}
+					view="unified"
+					context={3}
+				/>
 				<Screenshot
 					id="sample-screenshot"
 					src="https://raw.githubusercontent.com/karimsa/mdxserve/main/example/assets/reader-light.jpg"

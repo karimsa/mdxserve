@@ -1,29 +1,19 @@
-import { useId, useState } from "react";
-import { motion } from "framer-motion";
 import { diffLines, diffWordsWithSpace } from "diff";
-import { TRANSITIONS } from "../motion";
-import { CrossFade } from "../CrossFade";
-import { Icon } from "@mdxserve/ui/primitives/Icon";
-
-import { CodeFrameHeader } from "../CodeBlock";
-import { type DiffProps } from "@mdxserve/shared/builtins/diff";
 
 /*
- * Diff computation
- * -----------------
- * Pure and unit-testable: `computeDiff(before, after, context)` is the only
- * entry point React code needs, so it can be exercised without mounting
- * anything.
+ * Diff computation, shared by both clients' renderers (Diff.tsx, diff-rows.tsx and
+ * diff-rows.web.tsx). Pure: `computeDiff(before, after, context)` is the entry point, so it can
+ * be exercised without mounting anything.
  */
 
-type DiffRowKind = "context" | "add" | "del";
+export type DiffRowKind = "context" | "add" | "del";
 
 interface DiffSegment {
 	text: string;
 	changed: boolean;
 }
 
-interface DiffRow {
+export interface DiffRow {
 	kind: DiffRowKind;
 	oldNo?: number;
 	newNo?: number;
@@ -35,9 +25,9 @@ interface DiffRow {
 	pairId?: number;
 }
 
-type DiffHunkRow = DiffRow | { kind: "collapsed"; count: number; rows: DiffRow[] };
+export type DiffHunkRow = DiffRow | { kind: "collapsed"; count: number; rows: DiffRow[] };
 
-export interface DiffComputation {
+interface DiffComputation {
 	rows: DiffHunkRow[];
 	additions: number;
 	deletions: number;
@@ -322,15 +312,10 @@ function groupHunks(rows: DiffRow[], context: number): DiffHunkRow[] {
 	return result;
 }
 
-function computeDiff(before: string, after: string, context: number): DiffComputation {
+export function computeDiff(before: string, after: string, context: number): DiffComputation {
 	const { rows, additions, deletions } = flattenChanges(before, after);
 	return { rows: groupHunks(rows, context), additions, deletions };
 }
-
-/*
- * Rendering
- * ---------
- */
 
 type FlatItem = DiffRow | { kind: "collapsed"; index: number; count: number };
 
@@ -350,7 +335,7 @@ function applyExpansion(rows: DiffHunkRow[], expanded: Set<number>): FlatItem[] 
 	return out;
 }
 
-type Block =
+export type Block =
 	{ type: "rows"; rows: DiffRow[] } | { type: "separator"; index: number; count: number };
 
 /** Group a flattened, expansion-applied item list into runs of plain rows
@@ -374,7 +359,12 @@ function partitionBlocks(items: FlatItem[]): Block[] {
 	return blocks;
 }
 
-function rowClasses(kind: DiffRowKind): { row: string; gutter: string; text: string } {
+/** The rows of `rows` to draw, with the separators still collapsed, in blocks. */
+export function visibleBlocks(rows: DiffHunkRow[], expanded: Set<number>): Block[] {
+	return partitionBlocks(applyExpansion(rows, expanded));
+}
+
+export function rowClasses(kind: DiffRowKind): { row: string; gutter: string; text: string } {
 	if (kind === "add")
 		return { row: "bg-status-ok-bg", gutter: "text-status-ok-fg", text: "text-status-ok-fg" };
 	if (kind === "del")
@@ -386,104 +376,16 @@ function rowClasses(kind: DiffRowKind): { row: string; gutter: string; text: str
 	return { row: "", gutter: "text-code-gutter", text: "text-code-fg" };
 }
 
-/** Word-level highlight: one step stronger than the row tint it sits on. */
-function highlightStyle(kind: "add" | "del"): { backgroundColor: string } {
-	const fgVar = kind === "add" ? "var(--status-ok-fg)" : "var(--status-danger-fg)";
-	return { backgroundColor: `color-mix(in oklab, ${fgVar} 35%, transparent)` };
-}
-
-function marker(kind: DiffRowKind): string {
+export function marker(kind: DiffRowKind): string {
 	return kind === "add" ? "+" : kind === "del" ? "−" : " ";
 }
 
-function Segments({ row }: { row: DiffRow }) {
-	if (row.text === "") return <>{" "}</>;
-	if (!row.segments) return <>{row.text}</>;
-	const style = row.kind === "add" || row.kind === "del" ? highlightStyle(row.kind) : undefined;
-	return (
-		<>
-			{row.segments.map((segment, index) =>
-				segment.changed ? (
-					<span key={index} className="rounded-[2px]" style={style}>
-						{segment.text}
-					</span>
-				) : (
-					<span key={index}>{segment.text}</span>
-				),
-			)}
-		</>
-	);
-}
-
-function Separator({ count, onExpand }: { count: number; onExpand: () => void }) {
-	return (
-		<button
-			type="button"
-			onClick={onExpand}
-			className="block w-full cursor-pointer bg-surface-accent-soft px-4 py-1 text-left text-xs text-text-accent hover:brightness-95"
-		>
-			{`↕ ${count} unchanged line${count === 1 ? "" : "s"}`}
-		</button>
-	);
-}
-
-function UnifiedRows({ rows }: { rows: DiffRow[] }) {
-	return (
-		<table className="min-w-full border-collapse text-left">
-			<tbody>
-				{rows.map((row, index) => {
-					const { row: rowClass, gutter, text } = rowClasses(row.kind);
-					return (
-						<tr key={index} className={rowClass}>
-							<td className={`w-1 select-none whitespace-pre px-2 text-right align-top ${gutter}`}>
-								{row.oldNo ?? ""}
-							</td>
-							<td className={`w-1 select-none whitespace-pre px-2 text-right align-top ${gutter}`}>
-								{row.newNo ?? ""}
-							</td>
-							<td className={`w-1 select-none whitespace-pre px-1 text-center align-top ${gutter}`}>
-								{marker(row.kind)}
-							</td>
-							<td className={`whitespace-pre px-2 align-top ${text}`}>
-								<Segments row={row} />
-							</td>
-						</tr>
-					);
-				})}
-			</tbody>
-		</table>
-	);
-}
-
-function UnifiedView({
-	rows,
-	expanded,
-	onExpand,
-}: {
-	rows: DiffHunkRow[];
-	expanded: Set<number>;
-	onExpand: (index: number) => void;
-}) {
-	const blocks = partitionBlocks(applyExpansion(rows, expanded));
-	return (
-		<div className="overflow-x-auto [tab-size:2]">
-			{blocks.map((block, index) =>
-				block.type === "separator" ? (
-					<Separator key={index} count={block.count} onExpand={() => onExpand(block.index)} />
-				) : (
-					<UnifiedRows key={index} rows={block.rows} />
-				),
-			)}
-		</div>
-	);
-}
-
-interface SplitRow {
+export interface SplitRow {
 	left?: DiffRow;
 	right?: DiffRow;
 }
 
-function toSplitRows(rows: DiffRow[]): SplitRow[] {
+export function toSplitRows(rows: DiffRow[]): SplitRow[] {
 	const out: SplitRow[] = [];
 	let index = 0;
 	while (index < rows.length) {
@@ -513,182 +415,4 @@ function toSplitRows(rows: DiffRow[]): SplitRow[] {
 		while (addIndex < adds.length) out.push({ right: adds[addIndex++] });
 	}
 	return out;
-}
-
-function SplitCell({ row, side }: { row?: DiffRow; side: "left" | "right" }) {
-	if (!row) {
-		return (
-			<tr className="bg-surface-sunken">
-				<td className="select-none whitespace-pre px-2 text-right text-code-gutter">{" "}</td>
-				<td className="whitespace-pre px-2 text-code-gutter">{" "}</td>
-			</tr>
-		);
-	}
-	const { row: rowClass, gutter, text } = rowClasses(row.kind);
-	return (
-		<tr className={rowClass}>
-			<td className={`w-1 select-none whitespace-pre px-2 text-right align-top ${gutter}`}>
-				{(side === "left" ? row.oldNo : row.newNo) ?? ""}
-			</td>
-			<td className={`whitespace-pre px-2 align-top ${text}`}>
-				<Segments row={row} />
-			</td>
-		</tr>
-	);
-}
-
-function SplitRows({ rows }: { rows: DiffRow[] }) {
-	const splitRows = toSplitRows(rows);
-	return (
-		<div className="grid grid-cols-2">
-			<div className="overflow-x-auto border-r border-code-border">
-				<table className="min-w-full border-collapse text-left">
-					<tbody>
-						{splitRows.map((sr, index) => (
-							<SplitCell key={index} row={sr.left} side="left" />
-						))}
-					</tbody>
-				</table>
-			</div>
-			<div className="overflow-x-auto">
-				<table className="min-w-full border-collapse text-left">
-					<tbody>
-						{splitRows.map((sr, index) => (
-							<SplitCell key={index} row={sr.right} side="right" />
-						))}
-					</tbody>
-				</table>
-			</div>
-		</div>
-	);
-}
-
-function SplitView({
-	rows,
-	expanded,
-	onExpand,
-}: {
-	rows: DiffHunkRow[];
-	expanded: Set<number>;
-	onExpand: (index: number) => void;
-}) {
-	const blocks = partitionBlocks(applyExpansion(rows, expanded));
-	return (
-		<div className="[tab-size:2]">
-			{blocks.map((block, index) =>
-				block.type === "separator" ? (
-					<Separator key={index} count={block.count} onExpand={() => onExpand(block.index)} />
-				) : (
-					<SplitRows key={index} rows={block.rows} />
-				),
-			)}
-		</div>
-	);
-}
-
-export default function Diff({
-	before,
-	after,
-	language,
-	title,
-	view = "unified",
-	context = 3,
-}: DiffProps) {
-	const [activeView, setActiveView] = useState<"unified" | "split">(view);
-	const [expanded, setExpanded] = useState<Set<number>>(new Set());
-	const [copied, setCopied] = useState(false);
-	const toggleId = useId();
-
-	const { rows, additions, deletions } = computeDiff(before, after, context);
-	const label = title ?? language ?? "diff";
-
-	function expand(index: number) {
-		setExpanded((prev) => {
-			const next = new Set(prev);
-			next.add(index);
-			return next;
-		});
-	}
-
-	async function handleCopy() {
-		try {
-			await navigator.clipboard.writeText(after);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 1500);
-		} catch {
-			// clipboard unavailable; ignore
-		}
-	}
-
-	const header = (
-		<span className="flex min-w-0 items-center gap-3">
-			<span className="truncate">{label}</span>
-			<span className="whitespace-nowrap font-mono font-normal leading-[1.62] text-[length:var(--size-xs)]">
-				<span className="text-status-ok-fg">{`+${additions}`}</span>{" "}
-				<span className="text-status-danger-fg">{`−${deletions}`}</span>
-			</span>
-		</span>
-	);
-
-	const actions = (
-		<>
-			<div role="tablist" className="inline-flex rounded-md bg-surface-sunken p-0.5 text-xs">
-				{(["unified", "split"] as const).map((option) => (
-					<button
-						key={option}
-						type="button"
-						role="tab"
-						aria-selected={activeView === option}
-						onClick={() => setActiveView(option)}
-						className={
-							"relative cursor-pointer rounded px-2 py-0.5 capitalize transition-colors " +
-							(activeView === option
-								? "text-text-heading"
-								: "text-text-subtle hover:text-text-body")
-						}
-					>
-						{activeView === option ? (
-							<motion.span
-								layoutId={`${toggleId}-pill`}
-								transition={TRANSITIONS.snap}
-								className="absolute inset-0 rounded bg-surface-hover"
-							/>
-						) : null}
-						<span className="relative">{option}</span>
-					</button>
-				))}
-			</div>
-			<button
-				type="button"
-				onClick={handleCopy}
-				className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-text-subtle transition-colors hover:text-text-body"
-			>
-				<Icon name={copied ? "check" : "copy"} size="sm" />
-				{copied ? "Copied" : "Copy"}
-			</button>
-		</>
-	);
-
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 6 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={TRANSITIONS.base}
-			className="not-prose overflow-hidden rounded-lg border border-code-border bg-code-bg"
-		>
-			<CodeFrameHeader label={header} actions={actions} />
-			<div className="font-mono font-normal text-[length:var(--size-xs)] leading-5">
-				<CrossFade
-					active={activeView}
-					panes={[
-						{
-							key: "unified",
-							node: <UnifiedView rows={rows} expanded={expanded} onExpand={expand} />,
-						},
-						{ key: "split", node: <SplitView rows={rows} expanded={expanded} onExpand={expand} /> },
-					]}
-				/>
-			</div>
-		</motion.div>
-	);
 }

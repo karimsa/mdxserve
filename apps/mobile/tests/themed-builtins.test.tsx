@@ -4,6 +4,8 @@ import { Linking, StyleSheet, Text } from "react-native";
 import { Uniwind } from "uniwind";
 import "../src/global.css";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
+import Diff from "@mdxserve/ui/builtins/Diff";
+import { ClipboardContext } from "@mdxserve/ui/primitives/clipboard";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
 import Screenshot from "@mdxserve/ui/builtins/Screenshot";
@@ -172,5 +174,46 @@ describe.each(["light", "dark"] as const)("the shared builtins in the %s theme",
 		expect(styleOf(images[images.length - 1])).toMatchObject({ width: 540, height: 620 });
 		await fireEvent.press(screen.getByText("Done"));
 		expect(screen.queryByText("Done")).toBeNull();
+	});
+
+	it("draws a diff, switches to the split view, expands unchanged lines and copies `after`", async () => {
+		Uniwind.setTheme(theme);
+		const copyText = jest.fn((_text: string) => Promise.resolve());
+		const before = ["a", "b", "c", "d", "e", "f", "g", "h", "old"].join("\n");
+		const after = ["a", "b", "c", "d", "e", "f", "g", "h", "new"].join("\n");
+		const { toJSON } = await render(
+			<ClipboardContext.Provider value={copyText}>
+				<Diff
+					id="diff"
+					before={before}
+					after={after}
+					title="config.yaml"
+					view="unified"
+					context={1}
+				/>
+			</ClipboardContext.Provider>,
+		);
+		expect(screen.getByText("config.yaml")).toBeOnTheScreen();
+		expect(styleOf(screen.getByText("+1")).color).toBe(variables["--status-ok-fg"]);
+		expect(styleOf(screen.getByText("−1")).color).toBe(variables["--status-danger-fg"]);
+		expect(unresolved(toJSON())).toEqual([]);
+
+		expect(screen.getAllByText("↕ 7 unchanged lines")).toHaveLength(2);
+		await fireEvent.press(screen.getAllByText("↕ 7 unchanged lines")[0]);
+		expect(screen.queryAllByText("↕ 7 unchanged lines")).toHaveLength(0);
+
+		await fireEvent.press(screen.getByRole("tab", { name: "split" }));
+		expect(screen.getByRole("tab", { name: "split", selected: true })).toBeOnTheScreen();
+
+		await fireEvent.press(screen.getByText("Copy"));
+		expect(copyText).toHaveBeenCalledWith(after);
+		expect(await screen.findByText("Copied")).toBeOnTheScreen();
+	});
+
+	it("hides a diff's copy button where there is no clipboard", async () => {
+		Uniwind.setTheme(theme);
+		await render(<Diff id="diff" before="a" after="b" view="unified" context={3} />);
+		expect(screen.getByText("diff")).toBeOnTheScreen();
+		expect(screen.queryByText("Copy")).toBeNull();
 	});
 });

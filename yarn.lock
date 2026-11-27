@@ -2814,6 +2814,7 @@ __metadata:
     "@testing-library/react-native": "npm:14.1.0"
     "@types/react": "npm:19.3.3"
     expo: "npm:58.0.26"
+    expo-clipboard: "npm:58.0.4"
     expo-constants: "npm:58.0.16"
     expo-dev-client: "npm:58.0.21"
     expo-doctor: "npm:1.21.8"
@@ -2883,6 +2884,7 @@ __metadata:
     "@types/ms": "npm:2.1.0"
     "@types/react": "npm:19.3.3"
     bytes: "npm:3.1.2"
+    diff: "npm:9.0.0"
     framer-motion: "npm:13.0.0"
     lucide-react: "npm:1.30.0"
     lucide-react-native: "npm:1.30.0"
@@ -2955,7 +2957,6 @@ __metadata:
     "@types/react-dom": "npm:19.3.0"
     "@vitejs/plugin-react": "npm:6.0.5"
     chokidar: "npm:5.0.0"
-    diff: "npm:9.0.0"
     fast-check: "npm:4.9.0"
     framer-motion: "npm:13.0.0"
     jotai: "npm:2.20.2"
@@ -8140,6 +8141,17 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/1890427f2a317dff9a39ac94e4aada182f11b422e3f9d41d08a0bd9aa93b5f3c1ca4e7133b361191370d2ef9420bf1e7ce2e25948570c613e49b752ab537ae04
+  languageName: node
+  linkType: hard
+
+"expo-clipboard@npm:58.0.4":
+  version: 58.0.4
+  resolution: "expo-clipboard@npm:58.0.4"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/471318371415ac8a5153e224603d3ec8506c07cf02e2afb4eb544aa172df4f43f47ff1a12bf449ea246ff283f59c0c8e008561b66c1138fa09aa432283c2d78b
   languageName: node
   linkType: hard
 

@@ -50,7 +50,6 @@
 		"@tiptap/suggestion": "3.29.2",
 		"@trpc/client": "11.18.0",
 		"@trpc/tanstack-react-query": "11.18.0",
-		"diff": "9.0.0",
 		"framer-motion": "13.0.0",
 		"jotai": "2.20.2",
 		"lucide-react": "1.30.0",

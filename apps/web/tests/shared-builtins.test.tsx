@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
+import Diff from "@mdxserve/ui/builtins/Diff";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
 import Screenshot from "@mdxserve/ui/builtins/Screenshot";
@@ -238,5 +239,51 @@ describe("Screenshot", () => {
 		expect(renderExpanded).toHaveBeenLastCalledWith(
 			expect.objectContaining({ open: true, src: "./assets/reader.png", title: "mdxserve" }),
 		);
+	});
+});
+
+describe("Diff", () => {
+	const before = ["a", "b", "c", "d", "e", "f", "g", "h", "old"].join("\n");
+	const after = ["a", "b", "c", "d", "e", "f", "g", "h", "new"].join("\n");
+
+	it("keeps the tables, switches views, expands unchanged lines and copies `after`", async () => {
+		const writeText = vi.fn(() => Promise.resolve());
+		vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+		draw(
+			<Diff
+				id="diff"
+				before={before}
+				after={after}
+				title="config.yaml"
+				view="unified"
+				context={1}
+			/>,
+		);
+		const [unified, split] = host.querySelectorAll<HTMLElement>("div.grid > div");
+		expect(unified.getAttribute("aria-hidden")).toBe("false");
+		expect(split.getAttribute("aria-hidden")).toBe("true");
+		expect(unified.querySelector("table tr")!.textContent).toBe("88 h");
+		const separators = () =>
+			[...host.querySelectorAll("button")].filter((button) =>
+				button.textContent!.includes("unchanged"),
+			);
+		expect(separators().map((button) => button.textContent)).toEqual([
+			"↕ 7 unchanged lines",
+			"↕ 7 unchanged lines",
+		]);
+		act(() => separators()[0].click());
+		expect(separators()).toHaveLength(0);
+
+		const splitTab = host.querySelector<HTMLElement>('[role="tab"]:nth-child(2)')!;
+		act(() => splitTab.click());
+		expect(splitTab.getAttribute("aria-selected")).toBe("true");
+		expect(split.getAttribute("aria-hidden")).toBe("false");
+
+		const copy = [...host.querySelectorAll<HTMLElement>('[role="button"], button')].find(
+			(button) => button.textContent === "Copy",
+		)!;
+		await act(async () => copy.click());
+		expect(writeText).toHaveBeenCalledWith(after);
+		expect(copy.textContent).toBe("Copied");
 	});
 });
