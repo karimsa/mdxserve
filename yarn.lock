@@ -2851,6 +2851,7 @@ __metadata:
     "@testing-library/react-native": "npm:14.1.0"
     "@types/react": "npm:19.3.3"
     expo: "npm:58.0.26"
+    expo-blur: "npm:58.0.6"
     expo-clipboard: "npm:58.0.4"
     expo-constants: "npm:58.0.16"
     expo-dev-client: "npm:58.0.21"
@@ -8207,6 +8208,17 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/1890427f2a317dff9a39ac94e4aada182f11b422e3f9d41d08a0bd9aa93b5f3c1ca4e7133b361191370d2ef9420bf1e7ce2e25948570c613e49b752ab537ae04
+  languageName: node
+  linkType: hard
+
+"expo-blur@npm:58.0.6":
+  version: 58.0.6
+  resolution: "expo-blur@npm:58.0.6"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/e5fd6e52ce3662b76e49e4bdb615822dc745ab6ff3731c372e70e099509f621d905ba55a6dfde30ab10b8d7333de9d861f678c7ff9ff3ea0d8fad291061d9dd2
   languageName: node
   linkType: hard
 

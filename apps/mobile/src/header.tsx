@@ -1,5 +1,6 @@
-import { useMemo, type ComponentProps } from "react";
-import { View } from "react-native";
+import type { ComponentProps } from "react";
+import { StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
 import type { Stack } from "expo-router";
 import { useUniwind } from "uniwind";
 import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
@@ -31,26 +32,47 @@ const WORDMARK_HEADER = {
 } satisfies StackOptions;
 
 /**
- * `WORDMARK_HEADER` on a translucent bar: content scrolls under it and shows through blurred by
- * the system's thin material, in the app's light or dark theme, so the wordmark and the trailing
- * items stay legible over text. The bar's own colour must be fully transparent: with any other
- * colour, react-native-screens builds an opaque bar appearance (`configureWithOpaqueBackground`)
- * and the bar draws solid. The header is transparent on every iOS version, not only iOS 26's
- * default, so content starts below the bar the same way everywhere: scroll views inset themselves
- * under it (`contentInsetAdjustmentBehavior="automatic"`). iOS 26's own scroll edge effect at the
- * top is off, since the blur does its job and the two would stack.
+ * How much of the page colour (`--surface-page`) lies over the blur behind the bar: the one
+ * number to tune from how the bar looks on a device. Lower shows more of the content beneath.
  */
-export function useWordmarkHeader() {
+const BAR_TINT_OPACITY = 0.6;
+/** How strongly the content under the bar is blurred, from 1 to 100 (expo-blur's `intensity`). */
+const BAR_BLUR_INTENSITY = 40;
+
+/**
+ * The bar's background, drawn by the app: content under the bar blurred, with the page colour
+ * over it at `BAR_TINT_OPACITY`. React Navigation lays it out over the status bar and the bar,
+ * the screen's full width, and it takes no touches, so the bar's items above it keep theirs.
+ */
+function BarBackground() {
 	const dark = useUniwind().theme === "dark";
-	return useMemo(
-		() =>
-			({
-				...WORDMARK_HEADER,
-				headerTransparent: true,
-				headerBlurEffect: dark ? "systemThinMaterialDark" : "systemThinMaterialLight",
-				headerStyle: { backgroundColor: "transparent" },
-				scrollEdgeEffects: { top: "hidden" },
-			}) satisfies StackOptions,
-		[dark],
+	return (
+		<View pointerEvents="none" style={StyleSheet.absoluteFill} testID="header-background">
+			<BlurView
+				tint={dark ? "dark" : "light"}
+				intensity={BAR_BLUR_INTENSITY}
+				style={StyleSheet.absoluteFill}
+			/>
+			<View
+				style={[StyleSheet.absoluteFill, { opacity: BAR_TINT_OPACITY }]}
+				className="bg-surface-page"
+			/>
+		</View>
 	);
 }
+
+/**
+ * `WORDMARK_HEADER` on a translucent bar the app draws itself (`BarBackground`): the native
+ * header stays fully transparent, because react-native-screens draws any header colour that is
+ * not fully transparent as an opaque bar (`configureWithOpaqueBackground`). The header is
+ * transparent on every iOS version, so content starts below the bar the same way everywhere:
+ * scroll views inset themselves under it (`contentInsetAdjustmentBehavior="automatic"`). iOS 26's
+ * own scroll edge effect at the top is off, since the background does its job and the two would
+ * stack.
+ */
+export const WORDMARK_HEADER_ON_GLASS = {
+	...WORDMARK_HEADER,
+	headerTransparent: true,
+	headerBackground: () => <BarBackground />,
+	scrollEdgeEffects: { top: "hidden" },
+} satisfies StackOptions;
