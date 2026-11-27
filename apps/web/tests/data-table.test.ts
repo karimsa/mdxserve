@@ -14,7 +14,7 @@ import {
 	parseBound,
 	unitFactor,
 	type Column,
-} from "../src/data-table/model";
+} from "@mdxserve/ui/data-table/model";
 
 const number: Column = { key: "value", label: "Value", type: "number" };
 const percent: Column = { ...number, type: "percent" };

@@ -1,11 +1,12 @@
 import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
+import DataTable from "@mdxserve/ui/builtins/DataTable";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
 import { Code, Heading, Text } from "@mdxserve/ui/primitives/Text";
@@ -15,6 +16,29 @@ import { useSideInsets } from "../src/side-insets";
 const TABS = [
 	{ id: "sample>overview", value: "overview", label: "Overview" },
 	{ id: "sample>details", value: "details", label: "Details" },
+];
+
+/** A small table, wider than a phone, to see the shared DataTable scroll sideways. */
+const TABLE_COLUMNS: ComponentProps<typeof DataTable>["columns"] = [
+	{ key: "version", label: "Version", type: "text" },
+	{ key: "notes", label: "Notes", type: "text" },
+	{ key: "size", label: "Bundle", type: "bytes", unit: "B", bars: true },
+	{ key: "build", label: "Build time", type: "time", unit: "ms" },
+];
+const TABLE_ROWS = [
+	{
+		version: "0.6.0",
+		notes: "Shared Badge, Callout and Tabs with the app",
+		size: 3_100_000,
+		build: 41_000,
+	},
+	{
+		version: "0.7.0",
+		notes: "Shared tokens, fonts and primitives",
+		size: 4_400_000,
+		build: 52_500,
+	},
+	{ version: "0.8.0", notes: "Shared DataTable", size: 4_450_000, build: 50_000 },
 ];
 
 /** The header's title: the wordmark the web client's top bar shows. */
@@ -112,6 +136,7 @@ export default function Home() {
 						{ name: "package.json" },
 					]}
 				/>
+				<DataTable id="sample-table" caption="Releases" columns={TABLE_COLUMNS} data={TABLE_ROWS} />
 			</View>
 		</ScrollView>
 	);

@@ -3,15 +3,16 @@ import * as fc from "fast-check";
 import { z } from "zod";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DocContext } from "../src/DocContext";
-import { useBlockState, useDocumentBlockScope } from "../src/block-state/useBlockState";
+import { DocContext } from "@mdxserve/ui/document/DocContext";
+import { useBlockState, useDocumentBlockScope } from "@mdxserve/ui/block-state/useBlockState";
 import {
 	blockStateKey,
+	createMemoryBlockStorage,
 	restoreBlockState,
 	saveBlockState,
 	type BlockStateScope,
 	type BlockStateStorage,
-} from "../src/block-state/storage";
+} from "@mdxserve/ui/block-state/storage";
 
 const scope: BlockStateScope = {
 	documentPath: "/docs/report.md",
@@ -21,11 +22,15 @@ const scope: BlockStateScope = {
 };
 const schema = z.object({ count: z.number().int() });
 
-function memoryStorage(): BlockStateStorage {
+const memoryStorage = createMemoryBlockStorage;
+
+/** The same storage answering through promises, as AsyncStorage does. */
+function asyncStorage(): BlockStateStorage & { values: Map<string, string> } {
 	const values = new Map<string, string>();
 	return {
-		getItem: (key) => values.get(key) ?? null,
-		setItem: (key, value) => {
+		values,
+		getItem: async (key) => values.get(key) ?? null,
+		setItem: async (key, value) => {
 			values.set(key, value);
 		},
 	};
@@ -140,5 +145,41 @@ describe("document block persistence", () => {
 		expect(renderToStaticMarkup(createElement(StateProbe))).toBe(
 			'<output data-document="">2</output>',
 		);
+	});
+
+	it("answers synchronously for a synchronous storage", () => {
+		const storage = memoryStorage();
+		saveBlockState(storage, scope, { count: 2 });
+		expect(restoreBlockState(storage, scope, schema)).toEqual({ count: 2 });
+	});
+});
+
+describe("document block persistence with an asynchronous storage", () => {
+	it("round-trips state and migrates legacy keys only when no current value exists", async () => {
+		const storage = asyncStorage();
+		storage.values.set("legacy-counter", '{"count":4}');
+		await expect(restoreBlockState(storage, scope, schema, ["legacy-counter"])).resolves.toEqual({
+			count: 4,
+		});
+		saveBlockState(storage, scope, { count: 9 });
+		await Promise.resolve();
+		await expect(restoreBlockState(storage, scope, schema, ["legacy-counter"])).resolves.toEqual({
+			count: 9,
+		});
+		storage.values.set(blockStateKey(scope), "corrupt");
+		await expect(
+			restoreBlockState(storage, scope, schema, ["legacy-counter"]),
+		).resolves.toBeUndefined();
+	});
+
+	it("never rejects when the storage rejects", async () => {
+		const failing: BlockStateStorage = {
+			getItem: () => Promise.reject(new Error("access denied")),
+			setItem: () => Promise.reject(new Error("quota exceeded")),
+		};
+		await expect(restoreBlockState(failing, scope, schema)).resolves.toBeUndefined();
+		expect(() => saveBlockState(failing, scope, { count: 1 })).not.toThrow();
+		// An unhandled rejection would fail the run.
+		await new Promise((resolve) => setTimeout(resolve, 0));
 	});
 });

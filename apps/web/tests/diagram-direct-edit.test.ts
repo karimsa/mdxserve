@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { DocContext } from "../src/DocContext";
+import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { NodeList } from "../src/document/nodes";
 import { DocumentService } from "@karimsa/mdxserve/src/document/service";
 import { fixtureRegistry } from "@karimsa/mdxserve/tests/fixtures/registry";

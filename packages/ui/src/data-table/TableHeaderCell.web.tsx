@@ -1,9 +1,9 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
-import { ColumnOptions } from "./ColumnOptions";
-import { ColumnMenu } from "./ColumnMenu";
+import { ColumnOptions } from "./ColumnOptions.web";
+import { ColumnMenu } from "./ColumnMenu.web";
 import { type Column, type Row, type TableState } from "./model";
 import { cycleSort, hasFilter, type ActiveCell, type VisibleRow } from "./table-state";
-import { navigateTable } from "./navigation";
+import { navigateTable } from "./navigation.web";
 
 export interface TableHeaderCellProps {
 	renderHeader?: (key: string) => ReactNode;
@@ -23,6 +23,7 @@ export interface TableHeaderCellProps {
 	openColumn: string | null;
 	setOpenColumn: Dispatch<SetStateAction<string | null>>;
 	tableRef: RefObject<HTMLTableElement | null>;
+	portal?: (menu: ReactNode) => ReactNode;
 }
 
 export function TableHeaderCell({
@@ -43,6 +44,7 @@ export function TableHeaderCell({
 	openColumn,
 	setOpenColumn,
 	tableRef,
+	portal,
 }: TableHeaderCellProps) {
 	const filtered = hasFilter(state.filters[column.key]);
 	const sorted = state.sort?.key === column.key;
@@ -60,6 +62,7 @@ export function TableHeaderCell({
 			aria-sort={sorted ? (state.sort?.descending ? "descending" : "ascending") : "none"}
 		>
 			<ColumnMenu
+				portal={portal}
 				tabIndex={selected || (!activeVisible && columnIndex === 0) ? 0 : -1}
 				onActivate={() => setActive({ row: -1, column: columnIndex })}
 				onNavigate={(event) =>

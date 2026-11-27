@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useAtom } from "jotai";
 import { trpcClient } from "./api";
-import { DocContext } from "./DocContext";
+import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { openSectionAtom } from "./state";
 import { shellInfo } from "./router";
 import { IconButton } from "./ui/IconButton";

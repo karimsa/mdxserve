@@ -2,7 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { queryClient, trpc } from "../api";
-import { DocContext } from "../DocContext";
+import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { Heading } from "../Heading";
 import { ErrorBox } from "../ErrorBox";
 import { useFullWidth } from "../hooks";

@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { useAtomValue } from "jotai";
 import SharedTabs, { type TabsEntry } from "@mdxserve/ui/builtins/Tabs";
-import { DocContext } from "../DocContext";
+import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { selectTabs, tabSelectionAtom, tabSelectionKey } from "../document/tabs-state";
 import type { TabProps } from "@mdxserve/shared/builtins/tabs";
 

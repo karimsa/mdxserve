@@ -1,6 +1,6 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 import { formatValue, type Column, type Row } from "./model";
-import { navigateTable } from "./navigation";
+import { navigateTable } from "./navigation.web";
 import type { ActiveCell, VisibleRow } from "./table-state";
 
 interface TableCellProps {
