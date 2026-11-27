@@ -3,9 +3,23 @@ import { connect, type Connection } from "./connection";
 import { useServers } from "./ServersProvider";
 import type { KnownServer } from "./store";
 
-/** The query key of a server's connection check, beside its `[serverId, procedure, input]` data. */
+/**
+ * The query key of a server's connection checks, beside its `[serverId, procedure, input]`
+ * data. It matches the check of every address list the server has had.
+ */
 export function connectionKey(serverId: string) {
 	return [serverId, "connection"] as const;
+}
+
+/**
+ * The key of one check: the server and the addresses it tried, so adding an address to a
+ * server, or an address leaving it, checks again.
+ */
+function connectionCheckKey(server: KnownServer) {
+	return [
+		...connectionKey(server.id),
+		server.addresses.map((address) => address.url).sort(),
+	] as const;
 }
 
 /**
@@ -16,7 +30,7 @@ export function connectionKey(serverId: string) {
 export function useConnection(server: KnownServer) {
 	const { probe, recordReached } = useServers();
 	return useQuery<Connection>({
-		queryKey: connectionKey(server.id),
+		queryKey: connectionCheckKey(server),
 		queryFn: async () => {
 			const connection = await connect(server, probe);
 			if (connection.kind === "reachable") recordReached(connection.info, connection.origin);

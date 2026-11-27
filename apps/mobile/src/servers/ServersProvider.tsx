@@ -34,6 +34,8 @@ interface ServersApi {
 	servers: KnownServer[];
 	/** Why the stored list could not be read, or the last save failed. */
 	problem: string | undefined;
+	/** True while a change is being written to storage. */
+	saving: boolean;
 	probe: Probe;
 	/** Ask what the typed address is, and add it (C1, C2, C5). */
 	addByAddress(input: string): Promise<AddResult>;
@@ -53,8 +55,8 @@ export function useServers(): ServersApi {
 /**
  * The reader's servers, read from `storage` once and written back after every change. Writes
  * run one at a time and each writes the latest list, so a quick second change cannot be lost
- * behind a slower first one. A failed write keeps the change on screen and says it is not
- * saved; the next change tries again.
+ * behind a slower first one. A failed write puts the list back to what storage last accepted
+ * and says why, so the screen never shows a change a restart would lose.
  */
 export function ServersProvider({
 	storage,
@@ -68,7 +70,10 @@ export function ServersProvider({
 	const [servers, setServers] = useState<KnownServer[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [problem, setProblem] = useState<string | undefined>();
+	const [pendingWrites, setPendingWrites] = useState(0);
 	const latest = useRef<KnownServer[]>([]);
+	/** The list as storage last accepted it. */
+	const saved = useRef<KnownServer[]>([]);
 	const writing = useRef<Promise<void>>(Promise.resolve());
 
 	useEffect(() => {
@@ -82,6 +87,7 @@ export function ServersProvider({
 			.then((result) => {
 				if (cancelled) return;
 				latest.current = result.servers;
+				saved.current = result.servers;
 				setServers(result.servers);
 				setProblem(result.kind === "corrupt" ? result.message : undefined);
 				setLoaded(true);
@@ -95,13 +101,25 @@ export function ServersProvider({
 		(next: (current: KnownServer[]) => KnownServer[]) => {
 			latest.current = next(latest.current);
 			setServers(latest.current);
-			writing.current = writing.current.then(() =>
-				saveServers(storage, latest.current).then(
-					() => setProblem(undefined),
-					(error: unknown) =>
-						setProblem(`The server list could not be saved on this device: ${String(error)}`),
-				),
-			);
+			setPendingWrites((count) => count + 1);
+			writing.current = writing.current.then(() => {
+				const list = latest.current;
+				return saveServers(storage, list)
+					.then(
+						() => {
+							saved.current = list;
+							setProblem(undefined);
+						},
+						(error: unknown) => {
+							// Back to what storage holds, so the screen never shows a change a restart
+							// would lose.
+							latest.current = saved.current;
+							setServers(saved.current);
+							setProblem(`The change was not saved on this device: ${String(error)}`);
+						},
+					)
+					.finally(() => setPendingWrites((count) => count - 1));
+			});
 		},
 		[storage],
 	);
@@ -133,6 +151,7 @@ export function ServersProvider({
 			loaded,
 			servers,
 			problem,
+			saving: pendingWrites > 0,
 			probe,
 			addByAddress,
 			rename: (id, label) => change((current) => renameServer(current, id, label)),
@@ -140,7 +159,7 @@ export function ServersProvider({
 			recordReached: (info, origin) =>
 				change((current) => recordReachedIn(current, info, origin, new Date())),
 		}),
-		[loaded, servers, problem, probe, addByAddress, change],
+		[loaded, servers, problem, pendingWrites, probe, addByAddress, change],
 	);
 
 	return <ServersContext value={api}>{children}</ServersContext>;

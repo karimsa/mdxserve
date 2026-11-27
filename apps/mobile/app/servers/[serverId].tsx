@@ -4,7 +4,7 @@ import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Text } from "@mdxserve/ui/primitives/Text";
 import { useServers } from "../../src/servers/ServersProvider";
-import { displayName } from "../../src/servers/store";
+import { displayName, type KnownServer } from "../../src/servers/store";
 import { useSideInsets } from "../../src/side-insets";
 
 /**
@@ -13,12 +13,11 @@ import { useSideInsets } from "../../src/side-insets";
  */
 export default function ServerDetails() {
 	const { serverId } = useLocalSearchParams<{ serverId: string }>();
-	const router = useRouter();
-	const { servers, rename, remove } = useServers();
+	const { loaded, servers, problem } = useServers();
 	const server = servers.find((candidate) => candidate.id === serverId);
-	const [label, setLabel] = useState(server?.label ?? "");
 	const sideInsets = useSideInsets();
 
+	if (!loaded) return <Stack.Screen options={{ title: "Server" }} />;
 	if (!server) {
 		return (
 			<View style={[styles.screen, sideInsets]}>
@@ -27,9 +26,17 @@ export default function ServerDetails() {
 			</View>
 		);
 	}
+	// A save that failed puts the stored name back; start the field again from it.
+	return <ServerForm key={`${server.id}:${problem ?? ""}`} server={server} />;
+}
+
+function ServerForm({ server }: { server: KnownServer }) {
+	const router = useRouter();
+	const { problem, saving, rename, remove } = useServers();
+	const [label, setLabel] = useState(server.label ?? "");
+	const sideInsets = useSideInsets();
 
 	function confirmRemove() {
-		if (!server) return;
 		Alert.alert(
 			`Remove ${displayName(server)}?`,
 			"The app forgets the server and its addresses. You can add it again by its address.",
@@ -71,8 +78,13 @@ export default function ServerDetails() {
 				className="rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body"
 			/>
 			<Text size="sm" tone="muted" paragraph={true}>
-				{`Leave it empty to use the server's own name, ${server.name}.`}
+				{saving ? "Saving…" : `Leave it empty to use the server's own name, ${server.name}.`}
 			</Text>
+			{problem === undefined ? null : (
+				<Text paragraph={true} accessibilityRole="alert">
+					{problem}
+				</Text>
+			)}
 			<Text weight="semibold" className="mt-4">
 				Addresses
 			</Text>

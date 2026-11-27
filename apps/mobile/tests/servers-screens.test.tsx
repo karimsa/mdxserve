@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import { router } from "expo-router";
 import { Alert } from "react-native";
 import { Uniwind } from "uniwind";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
@@ -192,6 +193,35 @@ describe("a known server", () => {
 		await waitFor(async () => expect((await storedServers())[0].label).toBe("Studio"));
 		await fireEvent.changeText(field, "");
 		await waitFor(async () => expect((await storedServers())[0]).not.toHaveProperty("label"));
+	});
+
+	it("shows its saved name when its page is the first one opened", async () => {
+		await seed({ label: "Studio" });
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		expect((await screen.findByLabelText("Name for this server")).props.value).toBe("Studio");
+	});
+
+	it("goes back to the saved name, and says so, when the device cannot save a rename", async () => {
+		await seed({ label: "Studio" });
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		// AsyncStorage's jest stand-in is a jest.fn: fail its next write only.
+		jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error("disk full"));
+		await fireEvent.changeText(await screen.findByLabelText("Name for this server"), "Desk");
+		expect(
+			await screen.findByText("The change was not saved on this device: Error: disk full"),
+		).toBeOnTheScreen();
+		expect(screen.getByLabelText("Name for this server").props.value).toBe("Studio");
+		expect((await storedServers())[0].label).toBe("Studio");
+	});
+
+	it("is checked again when an address that answers is added to it", async () => {
+		await seed();
+		await renderRouter(ROUTES, { initialUrl: "/servers" });
+		expect(await screen.findByText("Unreachable")).toBeOnTheScreen();
+		mockAnswers.set("http://192.168.1.10:4040", { kind: "ok", info: info({ tailnetUrls: [] }) });
+		await act(() => router.push("/servers/add"));
+		await addAddress("http://192.168.1.10:4040");
+		expect(await screen.findByText("Reachable at 192.168.1.10:4040")).toBeOnTheScreen();
 	});
 
 	it("is removed after the reader confirms (C4)", async () => {
