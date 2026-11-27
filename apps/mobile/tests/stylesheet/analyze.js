@@ -27,6 +27,9 @@ function loadStylesheet(code) {
 function fakeRuntime(theme) {
 	return {
 		colorScheme: theme,
+		// A breakpoint rule (`sm:`, and Tailwind's `container`, which a word in a comment is enough
+		// to generate) reads the window's size: a folded iPhone Duo's.
+		screen: { width: 466, height: 852 },
 		cubicBezier: (...points) => ({ cubicBezier: points }),
 		colorMix: (color, weight, mixColor) =>
 			typeof color === "string" && /^#[0-9a-f]{6,8}$/i.test(color)

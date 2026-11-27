@@ -75,6 +75,11 @@ export function CellText({ children }: Children & { header: boolean }) {
 	return <>{children}</>;
 }
 
+/** A run of inline nodes among a container's blocks: bare, as the HTML always had it. */
+export function InlineRun({ children }: Children) {
+	return <>{children}</>;
+}
+
 export function Rule() {
 	return <hr />;
 }

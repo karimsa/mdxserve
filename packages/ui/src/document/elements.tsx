@@ -93,6 +93,11 @@ export function CellText({ header, children }: Children & { header: boolean }) {
 	);
 }
 
+/** A run of inline nodes among a container's blocks: one line of prose. */
+export function InlineRun({ children }: Children) {
+	return <Text className={`my-1 ${PROSE}`}>{children}</Text>;
+}
+
 export function Rule() {
 	return <View className="my-4 h-px bg-border-default" />;
 }

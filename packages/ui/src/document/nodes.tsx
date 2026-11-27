@@ -17,6 +17,7 @@ import {
 	FailedSection,
 	FootnoteRef,
 	InlineCode,
+	InlineRun,
 	LineBreak,
 	List,
 	ListItem,
@@ -115,6 +116,60 @@ function InlineList({ nodes }: { nodes: readonly TreeNode[] }) {
 function renderInline(nodes: readonly InlineNode[]): ReactNode {
 	return <InlineList nodes={nodes} />;
 }
+
+/** The node types that only ever sit in a line of text. */
+const INLINE_TYPES = new Set<TreeNode["type"]>([
+	"text",
+	"emphasis",
+	"strong",
+	"delete",
+	"inlineCode",
+	"link",
+	"image",
+	"break",
+	"footnoteReference",
+]);
+
+/**
+ * The children of a block container (a builtin's body, a tab panel, `<details>`), which may
+ * mix blocks with bare inline runs: `<Callout>Careful.</Callout>` keeps its text inline. Each run
+ * of inline nodes is one `InlineRun`, a line of text in the app (React Native draws text only
+ * inside a `Text`) and nothing at all on the web, so the HTML stays as it was. A builtin or
+ * element joins the run it follows.
+ */
+function BlockChildren({ nodes }: { nodes: readonly TreeNode[] }) {
+	const parts: ReactNode[] = [];
+	let run: { start: number; nodes: TreeNode[] } | null = null;
+	const closeRun = () => {
+		if (!run) return;
+		parts.push(
+			<InlineRun key={`run@${run.start}`}>
+				<InlineList nodes={run.nodes} />
+			</InlineRun>,
+		);
+		run = null;
+	};
+	nodes.forEach((node, index) => {
+		const inline =
+			INLINE_TYPES.has(node.type) ||
+			(run !== null && (node.type === "component" || node.type === "element"));
+		if (inline) {
+			run ??= { start: index, nodes: [] };
+			run.nodes.push(node);
+			return;
+		}
+		closeRun();
+		parts.push(<NodeView key={keyOf(node, index)} node={node} />);
+	});
+	closeRun();
+	return <>{parts}</>;
+}
+
+/** Builtins that draw their children inside their own text (a badge's label), as runs of it. */
+const PHRASING_BUILTINS = new Set(["Badge", "Kbd", "Tooltip"]);
+
+/** The elements whose children are blocks, so a bare run of text among them needs its own line. */
+const BLOCK_ELEMENTS = new Set(["details", "table", "thead", "tbody", "tr"]);
 
 /**
  * One node of the document tree. Memoized on the node object: TanStack
@@ -330,7 +385,7 @@ function TabsView({ node }: { node: TabsNode }) {
 						id: tab.id,
 						value: tab.value,
 						label: tab.label,
-						content: <NodeList nodes={tab.children} />,
+						content: <BlockChildren nodes={tab.children} />,
 					})),
 				})}
 			</ErrorBoundary>
@@ -353,7 +408,12 @@ function ComponentView({ node }: { node: ComponentNode }) {
 	if (STATEFUL.has(node.name) && node.id !== null) props.id = node.id;
 	// A builtin's literal `children` prop (`<Badge children="Ready" />`) stays
 	// unless the element has content of its own.
-	if (node.children.length > 0) props.children = <NodeList nodes={node.children} />;
+	if (node.children.length > 0)
+		props.children = PHRASING_BUILTINS.has(node.name) ? (
+			<NodeList nodes={node.children} />
+		) : (
+			<BlockChildren nodes={node.children} />
+		);
 	return (
 		<BlockEditWrapper id={node.id}>
 			<ErrorBoundary resetKey={node}>
@@ -415,8 +475,15 @@ function ElementView({ node }: { node: ElementNode }) {
 		return (
 			<RawElement tag={node.tag} props={props}>
 				<Nested>
-					<NodeList nodes={node.children} />
+					<BlockChildren nodes={node.children} />
 				</Nested>
+			</RawElement>
+		);
+	}
+	if (BLOCK_ELEMENTS.has(node.tag)) {
+		return (
+			<RawElement tag={node.tag} props={props}>
+				<BlockChildren nodes={node.children} />
 			</RawElement>
 		);
 	}

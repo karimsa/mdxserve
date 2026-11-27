@@ -112,6 +112,27 @@ export const SAMPLE_DOCUMENT: BlockNode[] = [
 						props: { tone: "tip" },
 						children: [{ type: "paragraph", children: [text("A builtin inside the document.")] }],
 					},
+					// A one-line builtin keeps its text inline (`<Callout tone="warn">Careful.</Callout>`).
+					{
+						type: "component",
+						id: "callout-2",
+						name: "Callout",
+						props: { tone: "warn" },
+						children: [text("Careful: this callout was written on one line.")],
+					},
+					// A body that mixes a bare run of text with a block.
+					{
+						type: "component",
+						id: "card-1",
+						name: "Card",
+						props: { title: "Mixed content", interactive: false },
+						children: [
+							text("Press "),
+							{ type: "element", id: null, tag: "kbd", attrs: {}, children: [text("K")] },
+							text(" to search."),
+							{ type: "paragraph", children: [text("Then pick a document.")] },
+						],
+					},
 					{ type: "thematicBreak" },
 					{
 						type: "tabs",

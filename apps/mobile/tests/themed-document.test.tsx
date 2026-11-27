@@ -63,6 +63,8 @@ describe.each(["light", "dark"] as const)("a document in the %s theme", (theme) 
 		expect(screen.getByText("Tip")).toBeOnTheScreen();
 		expect(screen.getByText("Release")).toBeOnTheScreen();
 		expect(screen.getByText("Unsupported component <Mystery>")).toBeOnTheScreen();
+		expect(screen.getByText("Careful: this callout was written on one line.")).toBeOnTheScreen();
+		expect(screen.getByText("Press K to search.")).toBeOnTheScreen();
 		expect(unresolved(toJSON())).toEqual([]);
 	});
 
