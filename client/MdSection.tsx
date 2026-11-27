@@ -20,9 +20,27 @@ import { pushToast } from "./ui/Toast";
 // The Tiptap editor (~300 KB of ProseMirror) loads only when a reader opens
 // an editor; the loader runs when React commits the "edit" branch below.
 const loadEditor = () => import("./MdSectionEditor");
-const MdSectionEditor = lazy(loadEditor);
-const DiagramEditDialog = lazy(() =>
-	import("./diagrams/EditDialog").then((module) => ({ default: module.DiagramEditDialog })),
+
+/**
+ * Stands in for an editor whose chunk failed to load, which happens when the server was
+ * updated after the page loaded (see stale-build.ts, which reloads or tells the reader).
+ * It closes the editor, so the page shows the content again and does not go blank.
+ */
+function ClosedOnLoadFailure({ close }: { close: () => void }) {
+	useEffect(close, [close]);
+	return null;
+}
+
+const MdSectionEditor = lazy<typeof import("./MdSectionEditor").default>(() =>
+	loadEditor().catch(() => ({
+		default: ({ onDone }) => <ClosedOnLoadFailure close={onDone} />,
+	})),
+);
+const DiagramEditDialog = lazy<typeof import("./diagrams/EditDialog").DiagramEditDialog>(() =>
+	import("./diagrams/EditDialog").then(
+		(module) => ({ default: module.DiagramEditDialog }),
+		() => ({ default: ({ onClose }) => <ClosedOnLoadFailure close={onClose} /> }),
+	),
 );
 
 // Warm the editor chunk as soon as a pointer lands on any section, so by the
@@ -32,7 +50,8 @@ let editorPreloaded = false;
 function preloadEditor(): void {
 	if (editorPreloaded) return;
 	editorPreloaded = true;
-	void loadEditor();
+	// A failure is handled when the editor is opened.
+	loadEditor().catch(() => undefined);
 }
 
 type EditMode = "read" | "loading" | "open";

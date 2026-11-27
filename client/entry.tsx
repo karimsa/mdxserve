@@ -5,6 +5,7 @@ import { App } from "./App";
 import { queryClient } from "./api";
 import { ToastStack } from "./ui/Toast";
 import { shellInfo, type Route } from "./router";
+import { installStaleBuildReload } from "./stale-build";
 
 function parseInitialRoute(): Route {
 	const fallback: Route = { kind: "notfound", path: location.pathname };
@@ -41,6 +42,7 @@ function main() {
 	);
 }
 
+installStaleBuildReload();
 main();
 
 if (import.meta.hot) import.meta.hot.accept();
