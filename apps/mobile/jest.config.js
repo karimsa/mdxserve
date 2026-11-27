@@ -10,10 +10,12 @@ module.exports = {
 		transformIgnorePatterns[0].replace("(?!(", "(?!(uniwind|"),
 		...transformIgnorePatterns.slice(1),
 	],
+	// Components render with the app's real stylesheet, compiled by Uniwind as Metro would,
+	// and `react-native` resolves to Uniwind's components as it does under Metro.
+	globalSetup: "<rootDir>/tests/stylesheet/global-setup.js",
+	resolver: "<rootDir>/tests/stylesheet/resolver.js",
 	moduleNameMapper: {
-		// Uniwind compiles the stylesheet under Metro; under jest a component's `className` has
-		// no style, so the stylesheet is an empty module.
-		"\\.css$": "<rootDir>/tests/empty-stylesheet.js",
+		"\\.css$": require("./tests/stylesheet/compile.js").stylesheetOutputPath,
 		// React Native resolves lucide's ES module build, which jest cannot load; its CommonJS
 		// build sits beside it.
 		"^lucide-react-native/icons/(.*)$": `${path.dirname(require.resolve("lucide-react-native"))}/icons/$1.js`,

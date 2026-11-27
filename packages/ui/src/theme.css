@@ -16,6 +16,7 @@
 @import "./tokens/typography.css";
 @import "./tokens/spacing.css";
 @import "./tokens/elevation.css";
+@import "./tokens/motion.css";
 
 @theme inline {
 	/* fonts */

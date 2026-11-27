@@ -80,6 +80,9 @@ const config: KnipConfig = {
 			// knip's Expo plugin finds the routes in app/ and reads app.config.ts and metro.config.js;
 			// its Jest plugin finds the tests.
 			project: ["app/**/*.tsx!", "src/**/*.ts!", "tests/**/*.tsx"],
+			// jest.config.js maps stylesheets to the one tests/stylesheet/global-setup.js compiles
+			// before the tests run; it does not exist until then.
+			ignoreUnresolved: [/native-stylesheet\.ios\.js$/],
 			ignoreDependencies: [
 				// knip expects expo-updates unless app.config.ts turns updates off; the app has no
 				// over-the-air updates, so it has no expo-updates yet.
