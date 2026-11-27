@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
-import {
-	flattenToc,
-	fragmentOf,
-	indexDocument,
-	resolveFragment,
-} from "../src/document/document-index";
+import { flattenToc, fragmentOf, indexDocument, resolveFragment } from "../document/document-index";
 import { DocumentService } from "@karimsa/mdxserve/src/document/service";
 import { fixtureRegistry } from "@karimsa/mdxserve/tests/fixtures/registry";
 

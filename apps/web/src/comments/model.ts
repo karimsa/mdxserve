@@ -6,7 +6,7 @@ import { DESKTOP_MEDIA } from "../platform";
 import { shellInfo } from "../router";
 import { openSectionAtom } from "../state";
 import { revealElement } from "../document/reveal";
-import { resolutionPosition, type Resolution } from "./anchor";
+import { resolutionPosition, type Resolution } from "@mdxserve/client/comments/anchor";
 import { commentActions, useDocThreads, type CommentActions } from "./data";
 import { collectDoc, findArticle, resolveIndexOf, resolveInDom } from "./dom";
 import { clearHighlights, setHighlights, threadAtPoint, type HighlightEntry } from "./highlights";

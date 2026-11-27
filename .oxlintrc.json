@@ -41,7 +41,7 @@
 			{ "min": 2, "exceptions": ["_", "x", "y"], "properties": "never" }
 		]
 	},
-	// The workspace dependency direction (AGENTS.md): the web client and the app only import
+	// The workspace dependency direction (AGENTS.md): the web client, the client package and the app only import
 	// types from the server, and neither imports the other; shared imports none of them and no
 	// React value; the server never imports a client. Tests are outside these globs: a web
 	// client test may run server code.
@@ -84,8 +84,11 @@
 									"@mdxserve/mobile/**",
 									"@mdxserve/ui",
 									"@mdxserve/ui/**",
+									"@mdxserve/client",
+									"@mdxserve/client/**",
 									"**/packages/server/**",
 									"**/packages/ui/**",
+									"**/packages/client/**",
 									"**/apps/web/**",
 									"**/apps/mobile/**"
 								],
@@ -116,11 +119,56 @@
 									"@mdxserve/mobile/**",
 									"@mdxserve/ui",
 									"@mdxserve/ui/**",
+									"@mdxserve/client",
+									"@mdxserve/client/**",
 									"**/apps/web/**",
 									"**/apps/mobile/**",
-									"**/packages/ui/**"
+									"**/packages/ui/**",
+									"**/packages/client/**"
 								],
 								"message": "The server never imports a client or the shared components."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["packages/client/**"],
+			"excludeFiles": ["packages/client/tests/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": ["@karimsa/mdxserve", "@karimsa/mdxserve/**", "**/packages/server/**"],
+								"allowTypeImports": true,
+								"message": "The client package may only `import type` from the server package."
+							},
+							{
+								"group": [
+									"@mdxserve/web",
+									"@mdxserve/web/**",
+									"@mdxserve/mobile",
+									"@mdxserve/mobile/**",
+									"**/apps/web/**",
+									"**/apps/mobile/**"
+								],
+								"message": "The client package imports neither app."
+							},
+							{
+								"group": [
+									"react-dom",
+									"react-dom/**",
+									"react-native",
+									"react-native/**",
+									"expo",
+									"expo/**",
+									"expo-*",
+									"@expo/**"
+								],
+								"message": "The client package is DOM-free and runs on React Native: no react-dom, react-native or Expo import."
 							}
 						]
 					}

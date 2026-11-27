@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import type { AnchorFields } from "./anchor";
+import type { AnchorFields } from "@mdxserve/client/comments/anchor";
 import type { ReplyDrafts } from "./drafts";
 
 /** Desktop sidebar open state; persisted. Covers the table-of-contents rail while open. */

@@ -1,10 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpLink, type TRPCClient } from "@trpc/client";
+import type { TRPCClient } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 // client/ may only import types from src/ (AGENTS.md): this import is erased
 // by the compiler, so no server code reaches the client bundle.
 import type { AppRouter } from "@karimsa/mdxserve/src/api/router";
 import type { inferRouterOutputs } from "@trpc/server";
+import { createApiClient } from "@mdxserve/client/api";
 import { realtime } from "./realtime";
 
 /**
@@ -40,22 +41,13 @@ function makeQueryClient(): QueryClient {
 	});
 }
 
-function makeTrpcClient(): TRPCClient<AppRouter> {
-	return createTRPCClient<AppRouter>({
-		// httpLink, not a batch link: GET for queries, POST for mutations, one
-		// request per call — keeps Network tab entries legible and matches the
-		// one-route-per-call shape the old fetch() call sites had.
-		links: [httpLink({ url: "/__mdxserve/trpc" })],
-	});
-}
-
 export const queryClient: QueryClient = windowWithApi
 	? (windowWithApi.__mdxserveQueryClient ??= makeQueryClient())
 	: makeQueryClient();
 
 export const trpcClient: TRPCClient<AppRouter> = windowWithApi
-	? (windowWithApi.__mdxserveTrpcClient ??= makeTrpcClient())
-	: makeTrpcClient();
+	? (windowWithApi.__mdxserveTrpcClient ??= createApiClient(""))
+	: createApiClient("");
 
 export const trpc = createTRPCOptionsProxy<AppRouter>({ client: trpcClient, queryClient });
 

@@ -39,6 +39,12 @@ const config: KnipConfig = {
 			includeEntryExports: true,
 			project: ["**/*.ts!"],
 		},
+		"packages/client": {
+			// Each subpath in its package.json `exports` is an entry. Report the entries' exports too,
+			// so one that neither the web client nor the app imports is still found.
+			includeEntryExports: true,
+			project: ["**/*.ts!"],
+		},
 		"packages/ui": {
 			entry: [
 				// Each subpath in its package.json `exports` is an entry; a bundler picks a component's

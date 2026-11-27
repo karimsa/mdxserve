@@ -1,0 +1,31 @@
+{
+	"name": "@mdxserve/client",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./api": "./api.ts",
+		"./comments/anchor": "./comments/anchor.ts",
+		"./document/document-index": "./document/document-index.ts",
+		"./document/plain-text": "./document/plain-text.ts",
+		"./document/tree-types": "./document/tree-types.ts",
+		"./format": "./format.ts",
+		"./realtime": "./realtime.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@mdxserve/shared": "workspace:*",
+		"@trpc/client": "11.18.0",
+		"date-fns": "4.4.0",
+		"socket.io-client": "4.8.4"
+	},
+	"devDependencies": {
+		"@karimsa/mdxserve": "workspace:*",
+		"@trpc/server": "11.18.0",
+		"fast-check": "4.9.0",
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
+	}
+}

@@ -12,7 +12,7 @@ import {
 	createRealtimeClient,
 	REFUSED_RETRY_DELAY_MS,
 	type RealtimeSocket,
-} from "../src/realtime.js";
+} from "@mdxserve/client/realtime";
 import {
 	connected,
 	delay,

@@ -1,9 +1,9 @@
 /**
  * Pure anchor logic: no DOM types, so it runs under plain Node in tests.
  *
- * `client/` may only `import type` from `src/`, so the limits and
+ * `packages/client/` may only `import type` from `src/`, so the limits and
  * `normalizeText` below repeat `src/comments/schema.ts` and
- * `src/comments/anchor.ts`; tests/client/comments-limits.test.ts asserts the
+ * `src/comments/anchor.ts`; packages/client/tests/comments-limits.test.ts asserts the
  * two copies agree.
  */
 

@@ -8,7 +8,12 @@ import { ErrorBox } from "../ErrorBox";
 import { useFullWidth } from "../hooks";
 import { ResizeHandle } from "../ui/ResizeHandle";
 import { DOC_MAX_WIDTH, DOC_MIN_WIDTH, docWidthAtom, openSectionAtom } from "../state";
-import { fragmentOf, indexDocument, resolveFragment, type DocumentIndex } from "./document-index";
+import {
+	fragmentOf,
+	indexDocument,
+	resolveFragment,
+	type DocumentIndex,
+} from "@mdxserve/client/document/document-index";
 import { FOOTNOTES_ID, FootnoteContext, NodeList, footnoteIds, type FootnoteInfo } from "./nodes";
 import { documentQueryOptions } from "./query";
 import { clearOpenDocument, revealNode, setOpenDocument } from "./reveal";

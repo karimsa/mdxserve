@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { headingKey, resolveAnchor } from "../src/comments/anchor";
+import { headingKey, resolveAnchor } from "@mdxserve/client/comments/anchor";
 import { captureSelection, collectDoc, resolveInDom, resolveIndexOf } from "../src/comments/dom";
 
 let article: HTMLElement;
