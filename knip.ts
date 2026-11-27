@@ -89,6 +89,8 @@ const config: KnipConfig = {
 				"expo-updates",
 				// app.config.ts names it as a config plugin, which knip does not read as an import.
 				"expo-splash-screen",
+				// Native only: autolinking builds it into the development build; no file imports it.
+				"expo-dev-client",
 			],
 		},
 		"apps/site": {
