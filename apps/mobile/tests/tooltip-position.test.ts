@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { bubblePosition } from "@mdxserve/ui/builtins/Tooltip";
+import { bubblePosition, tooltipAnchor } from "@mdxserve/ui/builtins/Tooltip";
 
 // Where the app's tooltip bubble goes: always inside the window, on the side asked for when it fits.
 
@@ -48,5 +48,21 @@ describe("the tooltip bubble's position", () => {
 						inside: true,
 					});
 				}
+	});
+});
+
+describe("what the tooltip bubble points at", () => {
+	it("is the text's own box when it was measured", () => {
+		const box = { x: 40, y: 300, width: 72, height: 20 };
+		expect(tooltipAnchor(box, { pageX: 60, pageY: 310 })).toEqual(box);
+	});
+
+	it("is the touched line when the text has no box of its own (nested in another Text)", () => {
+		expect(tooltipAnchor({ x: 0, y: 0, width: 0, height: 0 }, { pageX: 180, pageY: 420 })).toEqual({
+			x: 180,
+			y: 410,
+			width: 0,
+			height: 20,
+		});
 	});
 });

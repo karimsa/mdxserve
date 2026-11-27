@@ -134,7 +134,9 @@ describe.each(["light", "dark"] as const)("the shared builtins in the %s theme",
 			textDecorationStyle: "dotted",
 			textDecorationColor: variables["--text-subtle"],
 		});
-		await fireEvent(screen.getByText("this word"), "longPress");
+		await fireEvent(screen.getByText("this word"), "longPress", {
+			nativeEvent: { pageX: 100, pageY: 300 },
+		});
 		const bubble = screen.getByText("A short explanation.");
 		expect(styleOf(bubble).backgroundColor).toBe(variables["--surface-inverse"]);
 		expect(styleOf(bubble).color).toBe(variables["--text-inverse"]);
