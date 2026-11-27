@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { procedure } from "../api/trpc.js";
+import { documentTreeSchema } from "../document/schema.js";
 
 export const getDocSourceInput = z.object({ path: z.string().min(1).max(4096) });
 
@@ -55,6 +56,36 @@ const getDocSource = procedure(
 		}
 	});
 
+export const getDocumentInput = z.object({ path: z.string().min(1).max(4096) });
+
+export const documentResultSchema = z.object({
+	/** The parsed document: what a client renders, with no executable content. */
+	document: documentTreeSchema,
+	/** The same version token `getDocSource` returns for these bytes. */
+	version: z.string(),
+});
+
+const getDocument = procedure(
+	"Returns one .md/.mdx doc parsed into its JSON document tree (schema version, metadata, table of contents, and block and inline nodes with stable ids) together with the version token of the bytes it was parsed from. Nothing in it is executable, so any caller may read it; restricted mode applies the same path rules as getDocSource. Used by clients that render documents from JSON and by `mdxserve document`.",
+)
+	.input(getDocumentInput)
+	.output(documentResultSchema)
+	.query(async ({ ctx, input }) => {
+		const result = await ctx.docs.readDocument(input.path, ctx.permissions === "restricted");
+		switch (result.kind) {
+			case "ok":
+				return { document: result.document, version: result.version };
+			case "not-found":
+				throw new TRPCError({ code: "NOT_FOUND", message: result.message });
+			case "too-large":
+				throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "File too large to parse" });
+			default: {
+				const exhaustiveResult: never = result;
+				throw new Error(`Unhandled readDocument result: ${JSON.stringify(exhaustiveResult)}`);
+			}
+		}
+	});
+
 const saveDocSection = procedure(
 	"Replaces one line range of a doc with edited markdown: the file must still hash to the version the caller read (otherwise CONFLICT), the resulting file must validate (otherwise UNPROCESSABLE_CONTENT), and the write is atomic. Used by the in-place section editor's Save.",
 )
@@ -86,9 +117,11 @@ const saveDocSection = procedure(
 		}
 	});
 
-export const docsController = { getDocSource, saveDocSection };
+export const docsController = { getDocSource, getDocument, saveDocSection };
 
 export type GetDocSourceInput = z.infer<typeof getDocSourceInput>;
 export type DocSourceOutput = z.infer<typeof docSourceSchema>;
 export type SaveDocSectionInput = z.infer<typeof saveDocSectionInput>;
 export type SaveDocSectionResult = z.infer<typeof saveDocSectionResultSchema>;
+export type GetDocumentInput = z.infer<typeof getDocumentInput>;
+export type DocumentResult = z.infer<typeof documentResultSchema>;

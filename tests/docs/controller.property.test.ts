@@ -9,6 +9,9 @@ import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext } from "../helpers/context.js";
+import { DocumentService } from "../../src/document/service.js";
+import { rootFileUrl } from "../../src/docs/asset-url.js";
+import { documentResultSchema } from "../../src/docs/controller.js";
 
 const createCaller = createCallerFactory(appRouter);
 const PROPERTY_TIMEOUT_MS = 30000;
@@ -109,6 +112,54 @@ describe("saveDocSection / getDocSource properties", () => {
 					},
 				),
 				{ numRuns: 25 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+});
+
+// --- getDocument ----------------------------------------------------------
+
+const docBlock = fc.oneof(
+	fc.constantFrom("# Title", "## Install", "## Install", "### Examples"),
+	proseLine,
+	fc.constantFrom(
+		'<Callout tone="tip">\n  Note\n</Callout>',
+		'<Tabs id="pick">\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>',
+		'<Tabs>\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>',
+		"Broken {1 +} here",
+		"```mermaid\ngraph TD; A-->B\n```",
+		"![pic](./pic.png)",
+	),
+);
+const anyDoc = fc.oneof(
+	fc.array(docBlock, { maxLength: 8 }).map((blocks) => blocks.join("\n\n") + "\n"),
+	fc.string(),
+);
+
+describe("getDocument properties", () => {
+	it(
+		"returns what DocumentService.parse builds for the bytes on disk, with their version, for any file",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(anyDoc, async (doc) => {
+					const root = await fs.realpath(
+						await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-get-document-prop-")),
+					);
+					try {
+						const abs = path.join(root, "doc.mdx");
+						await fs.writeFile(abs, doc, "utf8");
+						const result = await createCaller(makeContext(root, registry)).getDocument({
+							path: abs,
+						});
+						const expected = new DocumentService(registry, rootFileUrl).parse(doc, abs).tree;
+						expect(result).toEqual({ document: expected, version: versionOf(doc) });
+						expect(documentResultSchema.parse(result)).toEqual(result);
+					} finally {
+						await fs.rm(root, { recursive: true, force: true });
+					}
+				}),
+				{ numRuns: 40 },
 			);
 		},
 		PROPERTY_TIMEOUT_MS,

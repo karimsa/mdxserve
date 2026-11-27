@@ -1,35 +1,9 @@
 import ms from "ms";
 import bytes from "bytes";
-import { z } from "zod";
+import type { z } from "zod";
+import { columnSchema } from "../../shared/builtins/data-table";
 
-const common = {
-	key: z.string().min(1),
-	label: z.string().min(1),
-	group: z.string().optional(),
-	align: z
-		.enum(["left", "center", "right"])
-		.optional()
-		.describe("Explicit alignment overrides the column type default."),
-	bars: z
-		.boolean()
-		.optional()
-		.describe("Opt-in magnitude bars; zero is always included in the scale."),
-};
-export const columnSchema = z.discriminatedUnion("type", [
-	z.object({ ...common, type: z.literal("text") }),
-	z.object({ ...common, type: z.literal("number") }),
-	z.object({ ...common, type: z.literal("percent") }),
-	z.object({ ...common, type: z.literal("time"), unit: z.string().min(1) }),
-	z.object({ ...common, type: z.literal("bytes"), unit: z.string().min(1) }),
-	z.object({
-		...common,
-		type: z.literal("currency"),
-		currency: z
-			.string()
-			.regex(/^[A-Z]{3}$/, "Use an uppercase ISO 4217 currency code, e.g. USD")
-			.describe("Required ISO 4217 currency code, e.g. USD or EUR."),
-	}),
-]);
+export { columnSchema };
 export type Column = z.infer<typeof columnSchema>;
 export type Value = string | number | null;
 export type Row = Record<string, Value>;

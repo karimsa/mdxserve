@@ -15,6 +15,9 @@ import {
 	slashBlocks,
 } from "../../client/editor/blocks";
 import { blockSlash } from "../../client/editor/slash";
+import { validateSource } from "../../src/validation/validate";
+import { builtinRegistry } from "../helpers/components";
+import { createMetadataPort } from "../helpers/metadata";
 
 let editor: Editor | undefined;
 afterEach(() => {
@@ -112,8 +115,11 @@ describe("slash block insertion", () => {
 			expect(block.template).toContain(`<${builtin.name}`);
 			const instance = insert(block.id);
 			expect(instance.getJSON().content?.[0]?.type).toBe("mdxBlock");
+			const fixedId = block.template!.match(/id="example-([a-z]+)"/);
 			expect(instance.getMarkdown()).toContain(
-				block.id === "datatable" ? '<DataTable id="table-' : block.template!,
+				fixedId
+					? block.template!.slice(0, block.template!.indexOf(fixedId[0])) + `id="${fixedId[1]}-`
+					: block.template!,
 			);
 			instance.destroy();
 		}
@@ -132,11 +138,36 @@ describe("slash block insertion", () => {
 		}
 	});
 
+	const statefulBlocks = ["Tabs", "Tab", "Diff", "FileTree", "Chart", "DataTable", "Screenshot"];
+
+	it.each(statefulBlocks)(
+		"gives each inserted %s its own valid id, so two of them validate together",
+		async (label) => {
+			const block = slashBlocks.find((item) => item.label === label)!;
+			const sources = [insert(block.id), insert(block.id)].map((instance) => {
+				const source = instance.getJSON().content?.[0]?.attrs?.source as string;
+				instance.destroy();
+				return source;
+			});
+			const ids = sources.map((source) => /\bid="([^"]+)"/.exec(source)?.[1]);
+			expect(ids[0]).not.toBe(ids[1]);
+			for (const id of ids) expect(id).toMatch(/^[A-Za-z][A-Za-z0-9_-]*$/);
+			const result = await validateSource({
+				metadata: createMetadataPort(),
+				source: sources.join("\n\n") + "\n",
+				path: "/docs/two-blocks.mdx",
+				registry: builtinRegistry,
+			});
+			expect(result.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain("duplicate-id");
+			expect(result.diagnostics).toEqual([]);
+		},
+	);
+
 	it("wraps Tab in Tabs", () => {
 		const source = blockContent(slashBlocks.find((block) => block.label === "Tab")!).attrs as {
 			source: string;
 		};
-		expect(source.source).toContain("<Tabs>");
+		expect(source.source).toContain('<Tabs id="example-tabs">');
 	});
 
 	it("offers no template for a removed builtin", () => {

@@ -303,7 +303,7 @@ describe("escapeBareLt scanner states", () => {
 					path: `doc.${extension}`,
 					registry: fixtureRegistry,
 				});
-				expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(
+				expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mdx-syntax")).toBe(
 					false,
 				);
 			}
@@ -369,7 +369,7 @@ describe("escapeBareLt applies to both extensions", () => {
 					),
 				);
 				expect(md.diagnostics).toEqual(mdx.diagnostics);
-				expect(md.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(false);
+				expect(md.diagnostics.some((diagnostic) => diagnostic.code === "mdx-syntax")).toBe(false);
 			}),
 			{ numRuns: 25 },
 		);

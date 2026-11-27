@@ -225,3 +225,16 @@ describe("runValidate over a real server", () => {
 		expect(outside.stdout.join("\n")).toContain("Not validated:");
 	});
 });
+
+describe("runValidate — failed sections", () => {
+	it("exits 1 when any section of a document fails to parse", async () => {
+		const abs = path.join(fixtureDir, "half.mdx");
+		await fs.writeFile(abs, "# Half\n\n## Good\n\nfine\n\n## Bad\n\n{oops\n", "utf8");
+		const outcome = await runValidate([abs], { json: true }, deps());
+		expect(outcome.exitCode).toBe(1);
+		const [entry] = JSON.parse(outcome.stdout.join("\n")) as ValidateJsonEntry[];
+		expect(
+			"diagnostics" in entry && entry.diagnostics.map((diagnostic) => diagnostic.code),
+		).toEqual(["mdx-syntax"]);
+	});
+});

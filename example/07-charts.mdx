@@ -41,7 +41,7 @@ size the SVG.
 One series, one hue. `unit` suffixes the ticks and the hover value, `caption` sits below the
 plot on a hairline rule, and `filename` replaces the chart type in the header.
 
-<Chart
+<Chart id="requests-chart"
   type="bar"
   filename="render-time-by-doc.json"
   unit="ms"
@@ -66,7 +66,7 @@ the exact value; the expand button in the header opens the chart full-screen.
 Two to four series get their own hue each, in a fixed order, with a legend in the header.
 The `series` array names the keys of each entry to plot, and the key becomes the legend label.
 
-<Chart
+<Chart id="grouped-chart"
   type="bar"
   filename="cold-vs-warm.json"
   unit="ms"
@@ -92,7 +92,7 @@ Set `orientation="horizontal"` and the category axis moves to the left, with the
 column sized to the longest entry. Reach for it once labels are full paths, or once there
 are more than about six categories and a vertical chart would crowd them.
 
-<Chart
+<Chart id="horizontal-chart"
   type="bar"
   orientation="horizontal"
   filename="doc-size-by-path.json"
@@ -121,7 +121,7 @@ untouched. The choice carries into the expanded view, which has its own copy of 
 `line` draws one path per series with a point at each x position. Hover a column and the
 header shows every series' value for it, separated by dots.
 
-<Chart
+<Chart id="trend-chart"
   type="line"
   filename="page-views.json"
   data={[
@@ -144,7 +144,7 @@ Use `area` for a single series where the volume under the line is the story. Pas
 `legend={false}` hides the header legend even when there are several series; `height`
 changes the plot height in pixels (the default is 220).
 
-<Chart
+<Chart id="area-chart"
   type="area"
   filename="cache-hit-rate.json"
   unit="%"
@@ -171,7 +171,7 @@ opacity instead. Once you have more than one, prefer `line`.
 are ignored. `unit` labels the value axis (x); the y axis is always a count. Ticks sit at
 the bin edges rather than the bin centers, and hovering a bar reads out its range and count.
 
-<Chart
+<Chart id="histogram-chart"
   type="histogram"
   filename="render-time-ms.json"
   unit="ms"
@@ -188,7 +188,7 @@ the bin edges rather than the bin centers, and hovering a bar reads out its rang
 Leaving `bins` off falls back to a Sturges estimate (`⌈log2(n) + 1⌉`, capped at 20), which
 keeps a small sample from splitting into bins with one point apiece:
 
-<Chart
+<Chart id="binned-chart"
   type="histogram"
   filename="requests-per-doc.json"
   values={[3, 7, 4, 9, 12, 5, 8, 6, 11, 4, 7, 9, 3, 15, 6, 8, 10, 5, 7, 9]}
@@ -201,15 +201,15 @@ The same dataset again, in each `type`. The bars make the per-day comparison eas
 the line makes the downward trend in cold renders easiest; the area exaggerates the gap
 between the two series, which is why it works best with one.
 
-<Tabs>
+<Tabs id="shape-tabs">
   <Tab label="Bar">
-    <Chart type="bar" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
+    <Chart id="shape-bar" type="bar" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
   <Tab label="Line">
-    <Chart type="line" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
+    <Chart id="shape-line" type="line" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
   <Tab label="Area">
-    <Chart type="area" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
+    <Chart id="shape-area" type="area" filename="renders.json" unit="ms" data={[{ label: "Mon", cold: 118, warm: 34 }, { label: "Tue", cold: 104, warm: 31 }, { label: "Wed", cold: 131, warm: 38 }, { label: "Thu", cold: 97, warm: 29 }, { label: "Fri", cold: 88, warm: 27 }]} series={["cold", "warm"]} />
   </Tab>
 </Tabs>
 
@@ -222,7 +222,7 @@ between the two series, which is why it works best with one.
 ## Cheat sheet
 
 ```mdx
-<Chart
+<Chart id="cheat-sheet-chart"
   type="line"                      // "bar" | "line" | "area" | "histogram"
   orientation="horizontal"         // bar only; flips category/value axes
   data={[{ label: "Mon", p50: 42, p99: 180 }]}

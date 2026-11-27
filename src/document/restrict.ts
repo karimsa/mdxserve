@@ -71,6 +71,12 @@ export const TABLE_ELEMENTS: readonly string[] = ["thead", "tbody", "tr", "th", 
 /** Builtins that no longer exist. Each is unwrapped like an unknown component, with its own message. */
 export const REMOVED_COMPONENTS: readonly string[] = ["Button", "Dropdown", "Option"];
 
+/**
+ * Props of builtins that become a link's `href`, scheme-checked like `<a href>`.
+ * Image sources are not links and are not checked.
+ */
+const BUILTIN_LINK_PROPS: Record<string, readonly string[]> = { Card: ["href"] };
+
 /** Elements removed together with their content rather than unwrapped. */
 const DROPPED_ELEMENTS = new Set(["script", "style"]);
 
@@ -337,15 +343,32 @@ export function restrictTree(tree: Root, options: RestrictOptions): void {
 					attribute.value = "";
 				}
 			}
+			if (allowed === undefined && BUILTIN_LINK_PROPS[tag]?.includes(attributeName)) {
+				const target = linkTarget(attribute.value);
+				if (target !== undefined && !isAllowedHref(target)) {
+					// A builtin's link prop is dropped, not emptied: the component then
+					// renders as it does with no link at all.
+					reportHref(
+						target,
+						attribute.position ?? node.position,
+						`the \`${attributeName}\` prop on <${tag}> is dropped`,
+					);
+					continue;
+				}
+			}
 			kept.push(attribute);
 		}
 		node.attributes = kept;
 	}
 
-	function reportHref(href: string, position: Position | undefined): void {
+	function reportHref(
+		href: string,
+		position: Position | undefined,
+		outcome = "the link has no target",
+	): void {
 		report({
 			code: "invalid-href",
-			message: `The link target \`${snippet(href)}\` uses an unsupported scheme, so the link has no target. Use http, https, mailto, a relative path or an anchor.`,
+			message: `The link target \`${snippet(href)}\` uses an unsupported scheme, so ${outcome}. Use http, https, mailto, a relative path or an anchor.`,
 			...at(position),
 		});
 	}
@@ -395,6 +418,14 @@ export function isAllowedHref(href: string): boolean {
 	const normalized = href.replace(/[\u0000- \u007f]/g, "");
 	const match = normalized.match(SCHEME);
 	return match === null || ALLOWED_SCHEMES.has(match[1].toLowerCase());
+}
+
+/** The string an attribute holds, written plainly or as a folded literal; undefined otherwise. */
+function linkTarget(value: MdxJsxAttribute["value"]): string | undefined {
+	if (typeof value === "string") return value;
+	if (value === null || value === undefined) return undefined;
+	const folded = foldProgram(value.data?.estree);
+	return folded.kind === "literal" && typeof folded.value === "string" ? folded.value : undefined;
 }
 
 function isAllowedHrefValue(value: Json): boolean {

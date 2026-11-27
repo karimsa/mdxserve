@@ -101,13 +101,13 @@ export const slashBlocks: SlashBlock[] = [
 	component(
 		"Tabs",
 		"Tabbed content panels",
-		'<Tabs>\n  <Tab label="First">First panel</Tab>\n  <Tab label="Second">Second panel</Tab>\n</Tabs>',
+		'<Tabs id="example-tabs">\n  <Tab label="First">First panel</Tab>\n  <Tab label="Second">Second panel</Tab>\n</Tabs>',
 		["panels"],
 	),
 	component(
 		"Tab",
 		"A tab inside Tabs",
-		'<Tabs>\n  <Tab label="First">First panel</Tab>\n  <Tab label="Second">Second panel</Tab>\n</Tabs>',
+		'<Tabs id="example-tabs">\n  <Tab label="First">First panel</Tab>\n  <Tab label="Second">Second panel</Tab>\n</Tabs>',
 		["panel"],
 	),
 	component("Badge", "Small status label", '<Badge tone="ok">\n  Ready\n</Badge>', [
@@ -117,7 +117,7 @@ export const slashBlocks: SlashBlock[] = [
 	component(
 		"Diff",
 		"Before and after code",
-		'<Diff before="old value" after="new value" language="text" />',
+		'<Diff id="example-diff" before="old value" after="new value" language="text" />',
 		["changes", "compare"],
 	),
 	component(
@@ -136,13 +136,13 @@ export const slashBlocks: SlashBlock[] = [
 	component(
 		"FileTree",
 		"Directory layout",
-		'<FileTree nodes={[{ name: "src", children: [{ name: "index.ts" }] }]} />',
+		'<FileTree id="example-tree" nodes={[{ name: "src", children: [{ name: "index.ts" }] }]} />',
 		["files", "folder"],
 	),
 	component(
 		"Chart",
 		"Small data chart",
-		'<Chart data={[{ label: "First", value: 3 }, { label: "Second", value: 5 }]} />',
+		'<Chart id="example-chart" data={[{ label: "First", value: 3 }, { label: "Second", value: 5 }]} />',
 		["graph", "bar chart"],
 	),
 	component("Sparkline", "Inline trend line", "<Sparkline values={[2, 3, 5, 4, 7]} />", [
@@ -158,7 +158,7 @@ export const slashBlocks: SlashBlock[] = [
 	component(
 		"Screenshot",
 		"App screenshot in a window",
-		'<Screenshot src="/screenshot.png" alt="Description of the screenshot" title="Example" />',
+		'<Screenshot id="example-screenshot" src="/screenshot.png" alt="Description of the screenshot" title="Example" />',
 		["window", "screen capture"],
 	),
 ];
@@ -266,10 +266,13 @@ export function insertSlashBlock(editor: Editor, range: Range, block: SlashBlock
 	if (block.kind === "image") return false;
 	const replacement = { from: start.before(), to: start.after() };
 	const content = blockContent(block);
-	if (block.id === "datatable") {
-		const identifier = `table-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+	// A builtin that keeps reader state needs an id unique in the document, so
+	// each insertion swaps the template's `id="example-<kind>"` for a fresh one.
+	const templateId = block.template?.match(/id="example-([a-z]+)"/);
+	if (templateId) {
+		const identifier = `${templateId[1]}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 		(content.attrs as { source: string }).source = block.template!.replace(
-			'id="example-table"',
+			templateId[0],
 			`id="${identifier}"`,
 		);
 	}

@@ -4,15 +4,10 @@ import fc from "fast-check";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
-import {
-	analyzeTree,
-	collectHints,
-	fromCompileError,
-	validateSource,
-	type Diagnostic,
-} from "../../src/validation/validate.js";
+import { analyzeTree, collectHints, validateSource } from "../../src/validation/validate.js";
 import { fixtureComponentNames, fixtureRegistry } from "../fixtures/registry.js";
 import { restrictTree, type RestrictDiagnostic } from "../../src/document/restrict.js";
+import { DocumentService } from "../../src/document/service.js";
 import { CHART_DIAGRAM_KEYWORDS, type ChartDiagramKeyword } from "../../client/mermaid-chart.js";
 
 // Same parse helper as src/docs/doc-cache.ts.
@@ -82,7 +77,7 @@ describe("analyzeTree / validateSource — GFM invariance", () => {
 		fc.assert(
 			fc.property(docArb, (doc) => {
 				const tree = parse(doc);
-				expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
+				expect(analyzeTree(tree)).toEqual([]);
 			}),
 		);
 	});
@@ -142,7 +137,7 @@ describe("remarkRestrict — unknown components", () => {
 						expect(diag!.line).toBe(expectedLine);
 					}
 					// The tags are gone, so analyzeTree has nothing left to report.
-					expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
+					expect(analyzeTree(tree)).toEqual([]);
 				},
 			),
 		);
@@ -178,7 +173,9 @@ describe("remarkRestrict — unknown components", () => {
 	});
 });
 
-describe("analyzeTree — props", () => {
+describe("DocumentService.parse — unknown props", () => {
+	const documents = new DocumentService(fixtureRegistry, (relative) => relative);
+
 	const componentArb = fc.constantFrom(...fixtureRegistry.components);
 
 	function propNamesOf(entry: (typeof fixtureRegistry.components)[number]): string[] {
@@ -193,11 +190,8 @@ describe("analyzeTree — props", () => {
 				const chosen = propNames.filter(() => stream.next().value);
 				const attrs = chosen.map((prop) => `${prop}="v"`).join(" ");
 				const src = `<${entry.name}${attrs ? " " + attrs : ""} />`;
-				const tree = parse(src);
-				const diagnostics = analyzeTree(tree, fixtureRegistry);
-				expect(
-					diagnostics.filter((diagnostic: Diagnostic) => diagnostic.code === "unknown-prop"),
-				).toEqual([]);
+				const { diagnostics } = documents.parse(src, "x.mdx");
+				expect(diagnostics.filter((diagnostic) => diagnostic.code === "unknown-prop")).toEqual([]);
 			}),
 		);
 	});
@@ -206,13 +200,16 @@ describe("analyzeTree — props", () => {
 		fc.assert(
 			fc.property(componentArb, fc.stringMatching(/^[a-z][a-zA-Z0-9]{0,9}$/), (entry, extra) => {
 				const propNames = propNamesOf(entry);
-				fc.pre(!propNames.includes(extra) && extra !== "children" && extra !== "key");
-				const src = `<${entry.name} ${extra}="v" />`;
-				const tree = parse(src);
-				const diagnostics = analyzeTree(tree, fixtureRegistry);
-				const propDiags = diagnostics.filter(
-					(diagnostic: Diagnostic) => diagnostic.code === "unknown-prop",
+				// `id` is the stateful builtins' own prop, checked by the id rules instead.
+				fc.pre(
+					!propNames.includes(extra) &&
+						!["children", "key", "id", "class", "style"].includes(extra) &&
+						// `on*` attributes are dropped earlier as unsupported-attribute.
+						!/^on/i.test(extra),
 				);
+				const src = `<${entry.name} ${extra}="v" />`;
+				const { diagnostics } = documents.parse(src, "x.mdx");
+				const propDiags = diagnostics.filter((diagnostic) => diagnostic.code === "unknown-prop");
 				expect(propDiags.length).toBe(1);
 				expect(propDiags[0].prop).toBe(extra);
 				expect(propDiags[0].component).toBe(entry.name);
@@ -229,7 +226,7 @@ describe("analyzeTree — lowercase tags", () => {
 				fc.constantFrom("<div>text</div>", '<span class="x">text</span>', "<br />", "<p>hi</p>"),
 				(src) => {
 					const tree = parse(src);
-					expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
+					expect(analyzeTree(tree)).toEqual([]);
 				},
 			),
 		);
@@ -237,7 +234,7 @@ describe("analyzeTree — lowercase tags", () => {
 });
 
 describe("validateSource — examples", () => {
-	it("an unclosed <Callout> is a single mdx-compile error with a numeric line", async () => {
+	it("an unclosed <Callout> is a single mdx-syntax error with a numeric line", async () => {
 		const result = await validateSource({
 			metadata: createMetadataPort(),
 			source: "<Callout>\n\nhi",
@@ -246,7 +243,7 @@ describe("validateSource — examples", () => {
 		});
 		expect(result.ok).toBe(false);
 		expect(result.diagnostics.length).toBe(1);
-		expect(result.diagnostics[0].code).toBe("mdx-compile");
+		expect(result.diagnostics[0].code).toBe("mdx-syntax");
 		expect(typeof result.diagnostics[0].line).toBe("number");
 	});
 
@@ -264,22 +261,13 @@ describe("validateSource — examples", () => {
 	});
 });
 
-describe("fromCompileError", () => {
-	it("a plain Error has no line", () => {
-		const diag = fromCompileError(new Error("boom"));
-		expect(diag.code).toBe("mdx-compile");
-		expect(diag.message).toBe("boom");
-		expect(diag.line).toBeUndefined();
-	});
-});
-
 describe("member tags on builtins", () => {
 	it("reports <Builtin.Member> as unknown and does not check its props", () => {
 		const tree = parse('<Callout.Foo tone="warn" bogus="x" />\n');
 		const diagnostics = restrictDiagnostics(tree);
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({ code: "unknown-component", component: "Callout.Foo" });
-		expect(analyzeTree(tree, fixtureRegistry)).toEqual([]);
+		expect(analyzeTree(tree)).toEqual([]);
 	});
 });
 
@@ -441,7 +429,7 @@ describe("analyzeTree — mermaid-chart", () => {
 					const lines = full.split("\n");
 
 					const tree = parse(full);
-					const diagnostics = analyzeTree(tree, fixtureRegistry);
+					const diagnostics = analyzeTree(tree);
 					const chartDiagnostics = diagnostics.filter(
 						(diagnostic) => diagnostic.code === "mermaid-chart",
 					);
@@ -469,7 +457,7 @@ describe("analyzeTree — mermaid-chart", () => {
 					const parts = doc ? [doc, ...fences] : fences;
 					const full = parts.join("\n\n");
 					const tree = parse(full);
-					const diagnostics = analyzeTree(tree, fixtureRegistry);
+					const diagnostics = analyzeTree(tree);
 					expect(diagnostics.filter((diagnostic) => diagnostic.code === "mermaid-chart")).toEqual(
 						[],
 					);

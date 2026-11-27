@@ -1,17 +1,29 @@
 import type { ComponentType } from "react";
 import type { z } from "zod";
-import Callout, { calloutProps } from "./Callout";
-import Tooltip, { tooltipProps } from "./Tooltip";
-import Tabs, { Tab, tabsProps, tabProps } from "./Tabs";
-import Badge, { badgeProps } from "./Badge";
-import Diff, { diffProps } from "./Diff";
-import Card, { CardGrid, cardProps, cardGridProps } from "./Card";
-import Kbd, { kbdProps } from "./Kbd";
-import FileTree, { fileTreeProps } from "./FileTree";
-import Chart, { chartProps } from "./Chart";
-import Sparkline, { sparklineProps } from "./Sparkline";
-import DataTable, { dataTableProps } from "./DataTable";
-import Screenshot, { screenshotProps } from "./Screenshot";
+import Callout from "./Callout";
+import Tooltip from "./Tooltip";
+import Tabs, { Tab } from "./Tabs";
+import Badge from "./Badge";
+import Diff from "./Diff";
+import Card, { CardGrid } from "./Card";
+import Kbd from "./Kbd";
+import FileTree from "./FileTree";
+import Chart from "./Chart";
+import Sparkline from "./Sparkline";
+import DataTable from "./DataTable";
+import Screenshot from "./Screenshot";
+import { calloutProps } from "../../shared/builtins/callout";
+import { tooltipProps } from "../../shared/builtins/tooltip";
+import { tabProps, tabsProps } from "../../shared/builtins/tabs";
+import { badgeProps } from "../../shared/builtins/badge";
+import { diffProps } from "../../shared/builtins/diff";
+import { cardGridProps, cardProps } from "../../shared/builtins/card";
+import { kbdProps } from "../../shared/builtins/kbd";
+import { fileTreeProps } from "../../shared/builtins/file-tree";
+import { chartProps } from "../../shared/builtins/chart";
+import { sparklineProps } from "../../shared/builtins/sparkline";
+import { dataTableProps } from "../../shared/builtins/data-table";
+import { screenshotProps } from "../../shared/builtins/screenshot";
 
 export interface BuiltinDefinition {
 	name: string;
@@ -54,7 +66,7 @@ export const builtins: BuiltinDefinition[] = [
 		description:
 			"A tabbed container that switches between panels of content, each declared with a `Tab` child.",
 		whenToUse:
-			"Use to present a few alternative or sequential views of content (e.g. per-language code samples, per-OS instructions) without showing them all at once. Each direct child should be a `Tab` with a `label`; the panel content cross-fades and the underline animates between tabs.",
+			"Use to present a few alternative or sequential views of content (e.g. per-language code samples, per-OS instructions) without showing them all at once. Each direct child should be a `Tab` with a `label`; the panel content cross-fades and the underline animates between tabs. Requires an `id` that is unique in the document; reader state for the block is kept under it.",
 		props: tabsProps,
 		Component: Tabs,
 	},
@@ -79,7 +91,7 @@ export const builtins: BuiltinDefinition[] = [
 		description:
 			"Renders the difference between two code snippets with GitHub-style unified or side-by-side views.",
 		whenToUse:
-			"Use for before/after API changes, config migrations, or 'change this to that' instructions. Prefer a plain fence when only showing the final code.",
+			"Use for before/after API changes, config migrations, or 'change this to that' instructions. Prefer a plain fence when only showing the final code. Requires an `id` that is unique in the document; reader state for the block is kept under it.",
 		props: diffProps,
 		Component: Diff,
 	},
@@ -112,7 +124,7 @@ export const builtins: BuiltinDefinition[] = [
 		name: "FileTree",
 		description: "A collapsible file/folder tree, for showing a project layout.",
 		whenToUse:
-			"Use to show the shape of a directory a reader needs to navigate, e.g. 'here's what the generated project looks like'. Pass `nodes` as a plain JSON array of `{ name, path?, children?, open? }`; set `activePath` to highlight one row.",
+			"Use to show the shape of a directory a reader needs to navigate, e.g. 'here's what the generated project looks like'. Pass `nodes` as a plain JSON array of `{ name, path?, children?, open? }`; set `activePath` to highlight one row. Requires an `id` that is unique in the document; reader state for the block is kept under it.",
 		props: fileTreeProps,
 		Component: FileTree,
 	},
@@ -121,7 +133,7 @@ export const builtins: BuiltinDefinition[] = [
 		description:
 			"A bar, line, area or histogram chart rendered as inline SVG, framed like a code block.",
 		whenToUse:
-			'For bar, line and area: `data` is `[{ label, <series>: number }, ...]`; `series` lists which keys to plot (defaults to `["value"]`), for small, self-contained datasets (four series or fewer) that are clearer as a shape than a table. Set `orientation="horizontal"` on a bar chart when labels are long or there are more than ~6 categories. For a histogram, set `type="histogram"` and pass raw numbers as `values`; leave `data`/`series` off and optionally cap the bin count with `bins`. Prefer a table once there\'s more data than a chart can read at a glance.',
+			'For bar, line and area: `data` is `[{ label, <series>: number }, ...]`; `series` lists which keys to plot (defaults to `["value"]`), for small, self-contained datasets (four series or fewer) that are clearer as a shape than a table. Set `orientation="horizontal"` on a bar chart when labels are long or there are more than ~6 categories. For a histogram, set `type="histogram"` and pass raw numbers as `values`; leave `data`/`series` off and optionally cap the bin count with `bins`. Prefer a table once there\'s more data than a chart can read at a glance. Requires an `id` that is unique in the document; reader state for the block is kept under it.',
 		props: chartProps,
 		Component: Chart,
 	},
@@ -138,7 +150,7 @@ export const builtins: BuiltinDefinition[] = [
 		description:
 			"An image framed as a macOS window — traffic-light buttons, an optional title, a raised border — for app and UI screenshots.",
 		whenToUse:
-			"Use instead of a plain Markdown image when the picture is a screenshot of an app, web page, or terminal, so it reads as a window rather than a bare bitmap. `src` resolves like a Markdown image; add `title` for the window name and `caption` for a note below. The title bar's expand control opens the image full-screen with pan and zoom, so a dense screenshot can stay small inline. Keep plain `![alt](src)` for diagrams, logos, and photos.",
+			"Use instead of a plain Markdown image when the picture is a screenshot of an app, web page, or terminal, so it reads as a window rather than a bare bitmap. `src` resolves like a Markdown image; add `title` for the window name and `caption` for a note below. The title bar's expand control opens the image full-screen with pan and zoom, so a dense screenshot can stay small inline. Keep plain `![alt](src)` for diagrams, logos, and photos. Requires an `id` that is unique in the document; reader state for the block is kept under it.",
 		props: screenshotProps,
 		Component: Screenshot,
 	},

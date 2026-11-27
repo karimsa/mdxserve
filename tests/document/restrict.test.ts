@@ -295,6 +295,26 @@ describe("restrictTree — links", () => {
 		});
 	});
 
+	it("drops a builtin's link prop with an unsupported scheme, but not an image source", () => {
+		const tree = parseMdx(
+			'<Card title="x" href="javascript:alert(1)">card</Card>\n\n<Card href={"JaVa\\tscript:1"} />\n\n<Card href="https://example.com" />\n\n<Screenshot src="javascript:1" />\n',
+		);
+		const diagnostics: RestrictDiagnostic[] = [];
+		restrictTree(tree, {
+			components: ["Card", "Screenshot"],
+			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+		});
+		expect(diagnostics).toMatchObject([
+			{ code: "invalid-href", line: 1 },
+			{ code: "invalid-href", line: 3 },
+		]);
+		expect(diagnostics[0].message).toContain("`href` prop on <Card> is dropped");
+		const attributes = elements(tree).map((element) =>
+			element.attributes.map((attribute) => (attribute as { name: string }).name),
+		);
+		expect(attributes).toEqual([["title"], [], ["href"], ["src"]]);
+	});
+
 	it("checks definitions and <a href>", () => {
 		expect(codes("[x][ref]\n\n[ref]: data:text/html,hi\n")).toEqual(["invalid-href"]);
 		const { tree, diagnostics } = restrict(

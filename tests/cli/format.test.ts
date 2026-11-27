@@ -34,7 +34,7 @@ describe("formatValidationResult hints", () => {
 		const lines = formatValidationResult({
 			...base,
 			ok: false,
-			diagnostics: [{ severity: "error", code: "mdx-compile", message: "boom", line: 3 }],
+			diagnostics: [{ severity: "error", code: "mdx-syntax", message: "boom", line: 3 }],
 			hints: ["use Screenshot"],
 		}).split("\n");
 		expect(lines[0]).toContain("boom");
@@ -55,7 +55,7 @@ describe("renderStatusLine", () => {
 		const status = renderStatusLine({
 			...base,
 			ok: false,
-			diagnostics: [{ severity: "error", code: "mdx-compile", message: "boom" }],
+			diagnostics: [{ severity: "error", code: "mdx-syntax", message: "boom" }],
 		});
 		expect(status).toBe("Not rendered (fix the errors above first)");
 	});

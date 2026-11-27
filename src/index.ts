@@ -13,6 +13,7 @@ import { liveServerFrom } from "./servers/mounted-roots.js";
 import { NO_SERVER_MESSAGE } from "./cli/format.js";
 import { printOutcome } from "./cli/outcome.js";
 import { runValidate } from "./cli/validate.js";
+import { runDocument } from "./cli/document.js";
 import { runSearch } from "./cli/search.js";
 import { runDocs } from "./cli/docs.js";
 import { runRootsAdd, runRootsList, runRootsRemove } from "./cli/roots.js";
@@ -167,6 +168,24 @@ program
 				cwd: process.cwd(),
 				home: os.homedir(),
 			}),
+		);
+	});
+
+program
+	.command("document <file>")
+	.description("Print a .md/.mdx file as the JSON document tree a client renders")
+	.option("--json", "print the whole tree as JSON (without it, the table of contents and anchors)")
+	.action(async (file: string, opts: { json?: boolean }) => {
+		let registry;
+		try {
+			registry = loadRegistry();
+		} catch (error) {
+			console.error((error as Error).message);
+			process.exitCode = 1;
+			return;
+		}
+		printOutcome(
+			await runDocument(file, opts, { registry, cwd: process.cwd(), home: os.homedir() }),
 		);
 	});
 

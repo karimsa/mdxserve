@@ -1,6 +1,6 @@
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import Tippy from "@tippyjs/react";
-import { z } from "zod";
+import { type TooltipProps } from "../../shared/builtins/tooltip";
 
 // tippy.js's base CSS is pulled in via client/app.css (`@import
 // "tippy.js/dist/tippy.css"`) instead of a side-effect import here: this
@@ -8,18 +8,6 @@ import { z } from "zod";
 // tsx) to read `tooltipProps`, and a top-level `import "*.css"` there would
 // crash with ERR_UNKNOWN_FILE_EXTENSION. Routing all CSS through app.css also
 // matches how the rest of the app's styling is centralized.
-
-export const tooltipProps = z.object({
-	content: z.string().describe("Tooltip text shown on hover/focus."),
-	placement: z
-		.enum(["top", "bottom", "left", "right"])
-		.default("top")
-		.describe("Preferred side of the target."),
-	delay: z.number().default(100).describe("Delay in milliseconds before the tooltip appears."),
-	children: z.custom<ReactNode>().describe("The element the tooltip is attached to."),
-});
-
-export type TooltipProps = z.infer<typeof tooltipProps>;
 
 export default function Tooltip({
 	content,

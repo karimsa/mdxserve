@@ -31,7 +31,7 @@ like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
 
 ## Tabs
 
-<Tabs>
+<Tabs id="builtin-tabs">
   <Tab label="Overview">
     `Tabs` reads its `Tab` children to build a tab list and cross-fades between panels.
     Panel content is regular prose — lists, code fences, anything MDX supports.
@@ -43,7 +43,7 @@ like this <Tooltip content="Tooltips can wrap a Badge too." placement="right">
   </Tab>
   <Tab label="Code">
     ```tsx
-    <Tabs defaultValue="b">
+    <Tabs id="nested-tabs" defaultValue="b">
       <Tab label="A" value="a">First panel</Tab>
       <Tab label="B" value="b">Second panel</Tab>
     </Tabs>
@@ -67,7 +67,7 @@ Status dots: <Badge tone="ok" dot>Online</Badge> <Badge tone="danger" dot>Offlin
 
 ## Diff
 
-<Diff
+<Diff id="config-diff"
   title="server.ts"
   language="ts"
   before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
@@ -83,7 +83,7 @@ With a longer snippet, unchanged runs longer than `2 * context` (or just `contex
 start/end) collapse into a clickable separator — set `context={1}` here to make that show up
 with only two small, far-apart changes:
 
-<Diff
+<Diff id="server-diff"
   title="config.yaml"
   context={1}
   before={`service:
@@ -129,7 +129,7 @@ with only two small, far-apart changes:
 />
 
 ```mdx
-<Diff
+<Diff id="server-diff"
   title="server.ts"
   language="ts"
   before={`const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log("listening");`}
@@ -154,7 +154,7 @@ Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search, or <Kbd>esc</Kbd> to close it.
 
 ## FileTree
 
-<FileTree
+<FileTree id="project-tree"
   nodes={[
     { name: "docs", children: [
       { name: "guides", children: [
@@ -173,7 +173,7 @@ it has to be JSON-serializable. `activePath` highlights the matching row.
 
 ## Chart
 
-<Chart
+<Chart id="latency-chart"
   filename="requests.json"
   type="bar"
   unit="ms"
@@ -206,7 +206,7 @@ window rather than a bare bitmap. `src` resolves relative to the document like a
 image; `title` names the window and `caption` adds a note underneath. The expand control in the
 title bar opens the image full-screen, where you can drag to pan and scroll to zoom.
 
-<Screenshot
+<Screenshot id="app-screenshot"
   src="./assets/reader-light.jpg"
   alt="mdxserve rendering a Markdown document in the light theme"
   title="mdxserve — 01-markdown.md"

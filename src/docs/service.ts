@@ -8,6 +8,9 @@ import { resolveDocPath } from "../roots/paths.js";
 import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
+import { DocumentService } from "../document/service.js";
+import type { DocumentTree } from "../document/schema.js";
+import { rootFileUrl } from "./asset-url.js";
 import type { Diagnostic } from "../validation/validate.js";
 import {
 	MAX_METADATA_PREFIX_BYTES,
@@ -48,6 +51,11 @@ export type ReadSourceResult =
 	| { kind: "ok"; source: DocSource }
 	| { kind: "not-found"; message: string }
 	| { kind: "too-large"; size: number };
+
+export type ReadDocumentResult =
+	| { kind: "ok"; document: DocumentTree; version: string }
+	| { kind: "not-found"; message: string }
+	| { kind: "too-large" };
 
 export type ReadMetadataResult =
 	| { kind: "ok"; metadata: DocumentMetadata; diagnostics: MetadataDiagnostic[] }
@@ -171,15 +179,44 @@ export class DocsService implements MetadataPort {
 	 * into the on-disk file, not the transformed one.
 	 */
 	async readSource(inputPath: string, publicOnly = false): Promise<ReadSourceResult> {
-		const rootInfos = this.roots.list();
-		const rootDirs = rootInfos.map((rootInfo) => rootInfo.dir);
+		const read = await this.readResolved(inputPath, publicOnly);
+		if (read.kind !== "ok") return read;
+		return { kind: "ok", source: read.source };
+	}
+
+	/**
+	 * Read a doc and parse it into the tree a client renders, with the version
+	 * token of the bytes it was parsed from. Same path rules and size limit as
+	 * `readSource`; an image path relative to the doc becomes the URL the
+	 * server serves that file at.
+	 */
+	async readDocument(inputPath: string, publicOnly = false): Promise<ReadDocumentResult> {
+		const read = await this.readResolved(inputPath, publicOnly);
+		if (read.kind === "not-found") return read;
+		if (read.kind === "too-large") return { kind: "too-large" };
+		const { tree } = new DocumentService(this.registry, rootFileUrl).parse(
+			read.source.text,
+			read.abs,
+		);
+		return { kind: "ok", document: tree, version: read.source.version };
+	}
+
+	private async readResolved(
+		inputPath: string,
+		publicOnly: boolean,
+	): Promise<
+		| { kind: "ok"; abs: string; source: DocSource }
+		| { kind: "not-found"; message: string }
+		| { kind: "too-large"; size: number }
+	> {
+		const rootDirs = this.roots.list().map((rootInfo) => rootInfo.dir);
 		const resolved = await resolveDocPath(rootDirs, inputPath, publicOnly);
 		if (!resolved.ok) return { kind: "not-found", message: resolved.error };
 
 		const stat = await fsp.stat(resolved.abs);
 		if (stat.size > MAX_SOURCE_BYTES) return { kind: "too-large", size: stat.size };
 		const text = await fsp.readFile(resolved.abs, "utf8");
-		return { kind: "ok", source: { text, version: versionOf(text) } };
+		return { kind: "ok", abs: resolved.abs, source: { text, version: versionOf(text) } };
 	}
 
 	/** Read static page metadata without the editor's source-size limit or version hash. */

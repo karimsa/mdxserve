@@ -128,7 +128,7 @@ Minimal usage:
   Rotate the key first; the old one stops working immediately.
 </Callout>
 
-<Tabs>
+<Tabs id="install-tabs">
   <Tab label="macOS">`brew install foo`</Tab>
   <Tab label="Linux">`apt install foo`</Tab>
 </Tabs>
@@ -137,7 +137,7 @@ Status: <Badge tone="ok" dot>Online</Badge>
 
 The <Tooltip content="Mean time to recovery">MTTR</Tooltip> improved.
 
-<Diff before={`port: 3000`} after={`port: 4000`} />
+<Diff id="port-diff" before={`port: 3000`} after={`port: 4000`} />
 
 Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search.
 ```
@@ -145,6 +145,14 @@ Press <Kbd>⌘</Kbd><Kbd>K</Kbd> to open search.
 Components contain ordinary Markdown: a `Tab` can hold lists, paragraphs, and code fences.
 Leave a blank line between a component tag and a Markdown block inside it so the block is
 parsed as Markdown.
+
+`Tabs`, `DataTable`, `Diff`, `FileTree`, `Chart`, `Screenshot` and `<details>` keep reader
+state, so each needs an `id`: short, descriptive, unique in the document, starting with a
+letter and using only letters, digits, `-` and `_` (`id="install-tabs"`). It must not equal a
+heading's anchor (the heading's slug, so not `id="install"` next to `## Install`). Keep the
+`id` when you edit the block. Give sibling headings distinct text: two `## Steps` under the
+same parent are an error. `mdxserve document <file>` prints the table of contents with the id
+of every entry.
 
 ## Tables: data versus facts
 
@@ -299,19 +307,21 @@ comments:
 
 After saving any `.md`/`.mdx` file, run `mdxserve validate <absolute path>`. It works even when
 no `mdxserve serve` is running. Read the first line and every diagnostic under it: it is
-`OK: <path>`, `OK with N warnings: <path>`, or a list of problems. Fix every `error` (MDX
-compile errors, the document-rule errors above such as `esm-not-supported`,
-`non-literal-expression`, `unknown-component` and `unsupported-attribute`, `render-error`) and
-any `unknown-prop` warning where a real
-prop was intended, then re-run until the first line is `OK` with only intended warnings. The
-exit code is 1 when any error was reported. Compile errors and unknown components blank the
-page or throw at render time — invisible until a human opens it — so this is not optional.
+`OK: <path>`, `OK with N warnings: <path>`, or a list of problems. Fix every `error` (`mdx-syntax`,
+the document-rule errors above such as `esm-not-supported`, `non-literal-expression`,
+`unknown-component` and `unsupported-attribute`, `invalid-prop` for a prop value of the wrong
+type, the id errors `missing-id`, `invalid-id`, `duplicate-id`, `id-conflicts-with-heading`,
+`duplicate-heading`, `duplicate-tab-value` and `invalid-tab-default`, and `render-error`) and
+any `unknown-prop` warning where a real prop was intended, then re-run until the first line is `OK` with only intended warnings. The
+exit code is 1 when any error was reported. A syntax error shows its whole `#`/`##` section as
+source instead of content, and the other errors silently drop what they name — invisible until
+a human opens the page — so this is not optional.
 
 `validate` also renders the doc server-side and reports any throw as a `render-error` — this is
 what catches a component that compiles fine but blanks the page (e.g. a stray identifier that
 only breaks at render time). Read the line after the diagnostics: `Rendered OK`, or
 `Not rendered (…)` when no `mdxserve serve` is reachable, meaning only the static checks
-(compile, unknown component/prop) ran. Treat that as a weaker pass and mention it to the user
+(syntax, document rules, components, props, ids) ran. Treat that as a weaker pass and mention it to the user
 rather than treating `OK` alone as a full clean bill of health. Even with `Rendered OK`, errors
 thrown inside a `useEffect`/`useLayoutEffect` and hydration mismatches are never caught — those
 stay browser-only. `hint:` lines are advisory and never affect the result. When scripting, use
@@ -332,5 +342,7 @@ silently.
 - No raw HTML beyond the supported elements, no `className` or `style`, no imports or exports,
   no custom components, and only literal values in braces.
 - Any builtin component used was checked with `components show` and genuinely clarifies.
+- Every `Tabs`, `DataTable`, `Diff`, `FileTree`, `Chart`, `Screenshot` and `<details>` has a
+  unique `id`, and no two sibling headings share their text.
 - The file still reads well as plain text.
 - `mdxserve validate` printed `OK`, ideally `Rendered OK`.

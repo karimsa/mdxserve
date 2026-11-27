@@ -337,6 +337,8 @@ export async function createDevServer(options: CreateDevServerOptions): Promise<
 					...roots,
 					cacheDir,
 					path.join(pkgRoot, "client"),
+					// The builtins' prop schemas, which client/ imports.
+					path.join(pkgRoot, "shared"),
 					...dependencyRoots(pkgRoot),
 					...extraFsAllow,
 				],

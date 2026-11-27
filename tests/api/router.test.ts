@@ -40,6 +40,7 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"moveDocsToTrash",
 	"validateDoc",
 	"getDocSource",
+	"getDocument",
 	"saveDocSection",
 	"listComponents",
 	"getComponent",

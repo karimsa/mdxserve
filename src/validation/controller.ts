@@ -12,7 +12,7 @@ export const validateDocInput = z.object({ path: z.string().min(1).max(4096) });
 export const diagnosticSchema = z.object({
 	severity: z.enum(["error", "warning"]),
 	code: z.enum([
-		"mdx-compile",
+		"mdx-syntax",
 		"esm-not-supported",
 		"non-literal-expression",
 		"unknown-component",
@@ -21,6 +21,14 @@ export const diagnosticSchema = z.object({
 		"unsupported-attribute",
 		"invalid-href",
 		"unknown-prop",
+		"invalid-prop",
+		"missing-id",
+		"invalid-id",
+		"duplicate-id",
+		"id-conflicts-with-heading",
+		"duplicate-heading",
+		"duplicate-tab-value",
+		"invalid-tab-default",
 		"render-error",
 		"mermaid-chart",
 		"frontmatter-metadata",
@@ -48,7 +56,7 @@ export const validationResultSchema = z.object({
 });
 
 const validateDoc = procedure(
-	"Validates one .md/.mdx file: MDX compile errors, unknown components/props against the builtin registry, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by `mdxserve validate`.",
+	"Validates one .md/.mdx file with the same parse that builds the document tree: syntax errors per section, the document language rules, builtin component names, prop names and prop values against each builtin's schema, the `id` rules for stateful builtins and headings, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by `mdxserve validate`.",
 )
 	.input(validateDocInput)
 	.output(validationResultSchema)

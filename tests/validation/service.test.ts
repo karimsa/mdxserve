@@ -86,12 +86,12 @@ describe("ValidationService.validateDoc", () => {
 		expect(diagnostic?.component).toBe("Badge");
 	});
 
-	it("reports MDX that does not compile, with a line number", async () => {
+	it("reports MDX that does not parse, with a line number", async () => {
 		const abs = await writeDoc("broken.mdx", "# Doc\n\n<Callout>unclosed\n");
 		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
 		expect(outcome.kind).toBe("ok");
 		if (outcome.kind !== "ok") return;
-		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "mdx-compile");
+		const diagnostic = outcome.result.diagnostics.find((entry) => entry.code === "mdx-syntax");
 		expect(diagnostic?.severity).toBe("error");
 		expect(typeof diagnostic?.line).toBe("number");
 	});
@@ -477,5 +477,45 @@ describe("ValidationService.validateText — document rules", () => {
 		});
 		expect(result.diagnostics).toEqual([]);
 		expect(result.ok).toBe(true);
+	});
+});
+
+describe("ValidationService.validateDoc — document tree diagnostics", () => {
+	it("fails a document with a section that does not parse, and still reports the rest", async () => {
+		const abs = await writeDoc(
+			"partly-broken.mdx",
+			"# Doc\n\n## Broken\n\nSome {1 +} text\n\n## Fine\n\n<Calout>x</Calout>\n",
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") return;
+		expect(outcome.result.ok).toBe(false);
+		expect(outcome.result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+			"mdx-syntax",
+			"unknown-component",
+		]);
+	});
+
+	it("reports a stateful component with no id and names the fix", async () => {
+		const abs = await writeDoc(
+			"no-id.mdx",
+			'# Doc\n\n<Tabs>\n  <Tab label="One">\n    one\n  </Tab>\n</Tabs>\n',
+		);
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		if (outcome.kind !== "ok") throw new Error(outcome.kind);
+		expect(outcome.result.ok).toBe(false);
+		expect(outcome.result.diagnostics).toMatchObject([
+			{ severity: "error", code: "missing-id", component: "Tabs", line: 3 },
+		]);
+		expect(outcome.result.diagnostics[0].message).toContain('Add id="…"');
+	});
+
+	it("reports a repeated heading under the same parent", async () => {
+		const abs = await writeDoc("dup.md", "# Doc\n\n## Steps\n\n## Steps\n");
+		const outcome = await serviceWith().validateDoc({ path: abs, allowRender: false });
+		if (outcome.kind !== "ok") throw new Error(outcome.kind);
+		expect(outcome.result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+			"duplicate-heading",
+		]);
 	});
 });
