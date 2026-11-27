@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { diffLines, diffWordsWithSpace } from "diff";
 import { TRANSITIONS } from "../motion";
 import { CrossFade } from "../CrossFade";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 
 import { CodeFrameHeader } from "../CodeBlock";
 import { type DiffProps } from "@mdxserve/shared/builtins/diff";

@@ -1,6 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { motion, type MotionProps } from "framer-motion";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { TRANSITIONS } from "../motion";
 
 const BOX: Record<"sm" | "md" | "lg", string> = {

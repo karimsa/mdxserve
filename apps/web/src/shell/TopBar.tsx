@@ -1,4 +1,4 @@
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { IconButton } from "../ui/IconButton";
 import { Kbd } from "../ui/Kbd";
 import type { Theme } from "../theme";

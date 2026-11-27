@@ -4,7 +4,13 @@
 	"type": "module",
 	"exports": {
 		"./builtins/*": "./src/builtins/*.tsx",
-		"./brand/*": "./src/brand/*.tsx"
+		"./brand/*": "./src/brand/*.tsx",
+		"./primitives/Icon": {
+			"types": "./src/primitives/Icon.tsx",
+			"react-native": "./src/primitives/Icon.tsx",
+			"default": "./src/primitives/Icon.web.tsx"
+		},
+		"./primitives/*": "./src/primitives/*.tsx"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit"

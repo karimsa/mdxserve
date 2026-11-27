@@ -1,7 +1,7 @@
 import { LayoutGroup } from "framer-motion";
 import { useRef } from "react";
 import { useAtom } from "jotai";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { BottomSheet } from "../ui/BottomSheet";
 import { IconButton } from "../ui/IconButton";
 import { ResizeHandle } from "../ui/ResizeHandle";

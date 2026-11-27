@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 import { TRANSITIONS, VARIANTS } from "../motion";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 
 /** An option's value and label as one string, or a value with its own label and description. */
 type DropdownOption = string | { value: string; label: string; description?: string };

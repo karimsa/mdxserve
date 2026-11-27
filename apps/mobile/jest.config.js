@@ -18,6 +18,6 @@ module.exports = {
 		"\\.css$": require("./tests/stylesheet/compile.js").stylesheetOutputPath,
 		// React Native resolves lucide's ES module build, which jest cannot load; its CommonJS
 		// build sits beside it.
-		"^lucide-react-native/icons/(.*)$": `${path.dirname(require.resolve("lucide-react-native"))}/icons/$1.js`,
+		"^lucide-react-native/icons$": `${path.dirname(require.resolve("lucide-react-native"))}/icons/index.js`,
 	},
 };

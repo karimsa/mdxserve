@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { TRANSITIONS } from "../motion";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { type CardProps, type CardGridProps } from "@mdxserve/shared/builtins/card";
 
 export default function Card({

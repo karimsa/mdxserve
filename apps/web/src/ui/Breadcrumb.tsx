@@ -1,5 +1,5 @@
 import { Fragment, type HTMLAttributes, type ReactNode } from "react";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 
 export interface BreadcrumbItem {
 	label: ReactNode;

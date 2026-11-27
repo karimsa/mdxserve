@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { type FileTreeProps, type FileNode } from "@mdxserve/shared/builtins/file-tree";
 
 function Row({ node, depth, activePath }: { node: FileNode; depth: number; activePath?: string }) {

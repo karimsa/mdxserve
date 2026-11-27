@@ -6,7 +6,7 @@ import { queryClient, trpc } from "./api";
 import { formatModified, formatSize } from "./format";
 import { useFullWidth } from "./hooks";
 import { stagger, TRANSITIONS, VARIANTS } from "./motion";
-import { Icon } from "./ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { ConfirmDeleteDialog } from "./ui/ConfirmDeleteDialog";
 import { pushToast } from "./ui/Toast";

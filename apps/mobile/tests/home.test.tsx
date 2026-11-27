@@ -38,7 +38,7 @@ describe("home screen", () => {
 	it("shows the app name, the app version and the React Native version", async () => {
 		await renderRouter({ _layout: RootLayout, index: Home });
 
-		expect(screen.getByRole("header", { name: "mdxserve" })).toBeOnTheScreen();
+		expect(screen.getByRole("heading", { name: "mdxserve" })).toBeOnTheScreen();
 		// The navigation bar shows the app's name, not the route's file name.
 		expect(headerTitles(screen.toJSON())).toEqual(["mdxserve"]);
 		expect(screen.getByText("Version 0.1.0")).toBeOnTheScreen();

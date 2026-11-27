@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TRANSITIONS } from "../motion";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { findArticle } from "./dom";
 import type { CommentsModel, ThreadView } from "./model";
 import { layoutPins, pinLeft, type PinAnchor } from "./pins";

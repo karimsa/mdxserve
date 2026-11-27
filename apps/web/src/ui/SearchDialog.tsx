@@ -9,7 +9,7 @@ import {
 	type ReactNode,
 } from "react";
 import { motion, type MotionProps } from "framer-motion";
-import { Icon } from "./Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Kbd } from "./Kbd";
 import { useMediaQuery } from "../hooks";
 import { TRANSITIONS } from "../motion";

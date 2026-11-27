@@ -1,5 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
-import { Icon } from "../ui/Icon";
+import { Icon } from "@mdxserve/ui/primitives/Icon";
 
 export interface CtlButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	icon: string;
