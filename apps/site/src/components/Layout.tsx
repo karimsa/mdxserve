@@ -42,7 +42,7 @@ function ThemeToggle() {
 	);
 }
 
-export function Wordmark() {
+function Wordmark() {
 	return (
 		<span className="wordmark">
 			mdx<span className="wordmark-accent">serve</span>

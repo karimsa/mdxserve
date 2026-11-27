@@ -1,51 +1,72 @@
 import type { KnipConfig } from "knip";
 
+// Follow CSS `@import`s, so packages only a stylesheet loads (the fonts, tailwind and tippy's
+// base css) count as used.
+const cssImports = (text: string) =>
+	[...text.matchAll(/@import\s+["']([^"']+)["']/g)]
+		.map((match) => `import "${match[1]}";`)
+		.join("\n");
+
 const config: KnipConfig = {
 	// Entries marked `!` are production code. `yarn deadcode` also runs `knip --production`,
 	// which leaves the tests out, so a file or export that only a test uses is reported. A
 	// deliberate test seam says so with a `/** @internal Exported for its tests. */` tag, which
-	// the production run accepts.
-	//
-	// site/ is not listed: it is a separate Yarn project (its own package.json and yarn.lock)
-	// that CI installs, typechecks and builds in its own job.
-	entry: [
-		// The CLI and the diagram worker that esbuild bundles (scripts/build.ts).
-		"src/index.ts!",
-		"src/diagrams/adapters/validate-worker.ts!",
-		// The browser client Vite builds from client/index.html, which loads client/entry.tsx.
-		"client/index.html!",
-		// index.html links this stylesheet by its served path, which knip does not resolve.
-		"client/index.css!",
-		// Writes dist/registry.json from the builtins, which the package ships.
-		"scripts/build-registry.ts!",
-		// Tooling that never ships: the build, dev and release scripts package.json runs, and
-		// the GitHub Actions gates with their node:test suites.
-		"scripts/{build,changelog,dev}.ts",
-		".github/scripts/*.cjs",
-		"tests/automation/*.test.cjs",
-	],
-	project: [
-		"src/**/*.ts!",
-		"client/**/*.{ts,tsx,css}!",
-		"shared/**/*.ts!",
-		"scripts/**/*.ts",
-		".github/scripts/*.cjs",
-		"tests/**/*.{ts,cjs}",
-	],
-	// Follow CSS `@import`s, so packages only a stylesheet loads (the fonts, tailwind and
-	// tippy's base css) count as used.
-	compilers: {
-		css: (text: string) =>
-			[...text.matchAll(/@import\s+["']([^"']+)["']/g)]
-				.map((match) => `import "${match[1]}";`)
-				.join("\n"),
+	// the production run accepts. Each workspace reports its own unused files, exports and
+	// dependencies.
+	workspaces: {
+		".": {
+			entry: [
+				// The dev and release scripts package.json runs, and the GitHub Actions gates
+				// with their node:test suites.
+				"scripts/{changelog,dev}.ts",
+				".github/scripts/*.cjs",
+				"tests/automation/*.test.{ts,cjs}",
+			],
+			project: ["scripts/**/*.ts", ".github/scripts/*.cjs", "tests/**/*.{ts,cjs}"],
+		},
+		"packages/server": {
+			entry: [
+				// The CLI and the diagram worker that esbuild bundles (scripts/build.ts).
+				"src/index.ts!",
+				"src/diagrams/adapters/validate-worker.ts!",
+				"scripts/build.ts",
+			],
+			project: ["src/**/*.ts!", "scripts/**/*.ts", "tests/**/*.ts"],
+		},
+		"packages/shared": {
+			// Each subpath in its package.json `exports` is an entry. Report the entries' exports too,
+			// so one that neither the server nor the web client imports is still found.
+			includeEntryExports: true,
+			project: ["**/*.ts!"],
+		},
+		"apps/web": {
+			entry: [
+				// The browser client Vite builds from src/index.html, which loads src/entry.tsx.
+				"src/index.html!",
+				// index.html links this stylesheet by its served path, which knip does not resolve.
+				"src/index.css!",
+				// Writes the server package's dist/registry.json from the builtins, which it ships.
+				"scripts/build-registry.ts!",
+			],
+			project: [
+				"src/**/*.{ts,tsx,css}!",
+				"scripts/build-registry.ts!",
+				"scripts/**/*.ts",
+				"tests/**/*.ts",
+			],
+			ignoreDependencies: [
+				// Transitive @tiptap extensions pinned on purpose so their peers match our core and
+				// pm (see yarn.config.cjs); nothing imports them directly.
+				/^@tiptap\/extension-/,
+				"@tiptap/extensions",
+			],
+		},
+		"apps/site": {
+			entry: ["src/main.tsx!", "deployment/*.mjs"],
+			project: ["src/**/*.{ts,tsx,css}!", "deployment/*.mjs"],
+		},
 	},
-	ignoreDependencies: [
-		// Transitive @tiptap extensions pinned on purpose so their peers match our core and pm
-		// (see yarn.config.cjs); nothing imports them directly.
-		/^@tiptap\/extension-/,
-		"@tiptap/extensions",
-	],
+	compilers: { css: cssImports },
 };
 
 export default config;

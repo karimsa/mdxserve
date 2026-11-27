@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "yarn registry && vite build",
+		"build": "yarn registry && vite build --logLevel warn",
 		"registry": "tsx --no-experimental-webstorage scripts/build-registry.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run"

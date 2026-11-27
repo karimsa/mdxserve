@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -6,19 +7,20 @@ import { devShell } from "./scripts/dev-shell.js";
 const LUCIDE_ICON = /\/lucide-react\/dist\/esm\/icons\/[^/]+\.mjs$/;
 
 /**
- * The browser client. `yarn build` compiles it into `dist/client/`, which the server serves
- * under `/__mdxserve/`; the server never runs Vite. `yarn dev` (scripts/dev.ts) runs this
- * config's dev server in front of a backend and proxies `/__mdxserve` to it.
+ * The browser client. `yarn build` compiles `src/` into the server package's `dist/client/`,
+ * which the server serves under `/__mdxserve/`; the server never runs Vite. `yarn dev` (the
+ * repository root's scripts/dev.ts) runs this config's dev server in front of a backend and
+ * proxies `/__mdxserve` to it.
  */
 export default defineConfig(({ command }) => ({
-	root: "client",
+	root: fileURLToPath(new URL("src", import.meta.url)),
 	// Built asset URLs are absolute under the server's own prefix. The dev server keeps `/`,
 	// so its module URLs never collide with the proxied `/__mdxserve` paths.
 	base: command === "build" ? "/__mdxserve/" : "/",
 	appType: "custom",
 	plugins: [react(), tailwindcss(), devShell()],
 	build: {
-		outDir: "../dist/client",
+		outDir: fileURLToPath(new URL("../../packages/server/dist/client", import.meta.url)),
 		emptyOutDir: true,
 		assetsDir: "assets",
 		// Mermaid, the highlighter and the editor are dynamic imports and stay lazy chunks.

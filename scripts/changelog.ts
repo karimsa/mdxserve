@@ -43,7 +43,7 @@ if (!targetTag) {
 const isDraft = !releaseTags.includes(targetTag);
 if (isDraft) {
 	const packageJson = JSON.parse(
-		await readFile(resolve(repositoryPath, "package.json"), "utf8"),
+		await readFile(resolve(repositoryPath, "packages/server/package.json"), "utf8"),
 	) as {
 		version?: string;
 	};

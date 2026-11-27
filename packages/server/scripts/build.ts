@@ -1,14 +1,30 @@
 import fs from "node:fs";
 import * as esbuild from "esbuild";
-import { build as viteBuild } from "vite";
-import { $ } from "zx";
+
+/** Workspace packages are private (never on npm), so the bundles inline them. */
+const WORKSPACE_SCOPE = "@mdxserve/";
+
+/**
+ * Keep every npm package external, as esbuild's `packages: "external"` does, except the
+ * workspace packages, which are bundled.
+ */
+const externalPackages: esbuild.Plugin = {
+	name: "external-packages",
+	setup(build) {
+		build.onResolve({ filter: /^[^./]/ }, (args) =>
+			args.kind === "entry-point" || args.path.startsWith(WORKSPACE_SCOPE)
+				? undefined
+				: { path: args.path, external: true },
+		);
+	},
+};
 
 const buildOptions = {
 	bundle: true,
 	platform: "node",
 	target: "node22",
 	format: "esm",
-	packages: "external",
+	plugins: [externalPackages],
 	logLevel: "info",
 	metafile: true,
 } satisfies esbuild.BuildOptions;
@@ -20,9 +36,10 @@ function packageNameOf(specifier: string): string {
 }
 
 /**
- * The server bundles keep every package external, so a published install resolves them
+ * The server bundles keep every npm package external, so a published install resolves them
  * from `dependencies`. Fail the build when one of them imports a package that is only a
- * dev dependency (the client's packages are, since dist/client is prebuilt).
+ * dev dependency (the client's packages are, since dist/client is prebuilt), or leaves a
+ * workspace package as an import.
  */
 function assertRuntimeDependencies(results: esbuild.BuildResult<typeof buildOptions>[]): void {
 	const manifest = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
@@ -34,7 +51,9 @@ function assertRuntimeDependencies(results: esbuild.BuildResult<typeof buildOpti
 			for (const imported of output.imports) {
 				if (!imported.external || imported.path.startsWith("node:")) continue;
 				const name = packageNameOf(imported.path);
-				if (!(name in manifest.dependencies)) missing.add(name);
+				if (name.startsWith(WORKSPACE_SCOPE) || !(name in manifest.dependencies)) {
+					missing.add(name);
+				}
 			}
 		}
 	}
@@ -46,11 +65,9 @@ function assertRuntimeDependencies(results: esbuild.BuildResult<typeof buildOpti
 }
 
 // Start from an empty dist/, so a file an older build wrote (or one this build no
-// longer makes) is never packed.
+// longer makes) is never packed. The web client's build writes dist/client and
+// dist/registry.json afterwards (apps/web), so `yarn build` at the root runs this first.
 fs.rmSync("dist", { recursive: true, force: true });
-// The builtins import client/state.ts, whose localStorage access makes Node 25+
-// warn without --localstorage-file; the registry never needs storage.
-await $`tsx --no-experimental-webstorage scripts/build-registry.ts`;
 const server = await esbuild.build({
 	...buildOptions,
 	entryPoints: ["src/index.ts"],
@@ -63,5 +80,3 @@ const worker = await esbuild.build({
 	outfile: "dist/diagram-worker.js",
 });
 assertRuntimeDependencies([server, worker]);
-// The browser client, into dist/client (vite.config.ts). Tailwind runs here only.
-await viteBuild({ configFile: "vite.config.ts", logLevel: "warn" });

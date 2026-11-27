@@ -5,9 +5,10 @@ import { createServer } from "vite";
 import { $ } from "zx";
 
 /**
- * `yarn dev`: the backend from source (tsx) serving `example/`, and a Vite dev server for
- * `client/` in front of it with HMR. Vite proxies `/__mdxserve` (tRPC, getAsset and the
- * live update socket) to the backend and asks it for each page's shell (scripts/dev-shell.ts).
+ * `yarn dev`: the backend from source (tsx, packages/server) serving `example/`, and a Vite dev
+ * server for the web client (apps/web) in front of it with HMR. Vite proxies `/__mdxserve`
+ * (tRPC, getAsset and the live update socket) to the backend and asks it for each page's
+ * shell (apps/web/scripts/dev-shell.ts).
  *
  * The backend runs on a free port under its own `MDXSERVE_HOME` unless one is set, so it
  * never meets the one-server-per-user lock of a server already running on this machine.
@@ -46,7 +47,7 @@ function waitForPort(port: number, backend: ChildProcess): Promise<void> {
 	});
 }
 
-await $`tsx scripts/build.ts`;
+await $`yarn build`;
 
 const port = Number(process.env.MDXSERVE_DEV_BACKEND_PORT) || (await freePort());
 const home = process.env.MDXSERVE_HOME ?? path.resolve("node_modules/.cache/mdxserve-dev");
@@ -54,14 +55,18 @@ const extraArgs = process.argv.slice(2).filter((arg) => arg !== "--");
 const serveArgs = extraArgs.some((arg) => arg === "-w" || arg.startsWith("--watch"))
 	? extraArgs
 	: ["-w", "example", ...extraArgs];
-const backend = spawn("tsx", ["src/index.ts", "serve", "-p", String(port), ...serveArgs], {
-	stdio: "inherit",
-	env: { ...process.env, MDXSERVE_HOME: home },
-});
+const backend = spawn(
+	"tsx",
+	["packages/server/src/index.ts", "serve", "-p", String(port), ...serveArgs],
+	{
+		stdio: "inherit",
+		env: { ...process.env, MDXSERVE_HOME: home },
+	},
+);
 await waitForPort(port, backend);
 
 process.env.MDXSERVE_DEV_BACKEND = `http://127.0.0.1:${port}`;
-const vite = await createServer({ configFile: "vite.config.ts" });
+const vite = await createServer({ configFile: "apps/web/vite.config.ts" });
 await vite.listen();
 vite.printUrls();
 
