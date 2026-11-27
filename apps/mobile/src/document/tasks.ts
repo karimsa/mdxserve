@@ -80,6 +80,11 @@ const COMMENTS = [
 	["{/*", "*/}"],
 ] as const;
 
+/** How many blockquotes a line is inside: its leading `>` markers. */
+function quotesOf(line: string): number {
+	return (/^(?:[ \t]*>)*/.exec(line)?.[0].match(/>/g) ?? []).length;
+}
+
 export type TaskEdit =
 	| { kind: "ok"; markdown: string }
 	/** The lines do not hold the task the tree describes: the file changed, or the scan cannot tell. */
@@ -98,10 +103,12 @@ export function setTaskInSource(
 ): TaskEdit {
 	const lines = markdown.split("\n");
 	const boxes: { line: number; column: number; checked: boolean }[] = [];
-	let fence: { marker: string; length: number } | null = null;
+	let fence: { marker: string; length: number; quotes: number } | null = null;
 	// The end of the comment the scan is inside, HTML's or an MDX expression comment's.
 	let commentEnd: string | null = null;
 	lines.forEach((line, index) => {
+		// A fence inside a blockquote also ends where the blockquote does, closed or not.
+		if (fence && quotesOf(line) < fence.quotes) fence = null;
 		if (fence) {
 			const close = FENCE.exec(line);
 			if (
@@ -119,7 +126,7 @@ export function setTaskInSource(
 		}
 		const open = FENCE.exec(line);
 		if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
-			fence = { marker: open[1][0], length: open[1].length };
+			fence = { marker: open[1][0], length: open[1].length, quotes: quotesOf(line) };
 			return;
 		}
 		const task = TASK.exec(line);

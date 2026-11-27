@@ -150,6 +150,14 @@ describe("setTaskInSource", () => {
 		});
 	});
 
+	it("ends a quoted fence where its blockquote ends, closed or not", () => {
+		const quoted = "> ```\n> - [ ] example in the quote\n\n- [ ] Ship it";
+		expect(setTaskInSource(quoted, { ordinal: 0, count: 1 }, true)).toEqual({
+			kind: "ok",
+			markdown: quoted.replace("- [ ] Ship it", "- [x] Ship it"),
+		});
+	});
+
 	it("keeps Windows line endings", () => {
 		const crlf = "- [ ] one\r\n- [ ] two\r\n";
 		expect(setTaskInSource(crlf, { ordinal: 1, count: 2 }, true)).toEqual({
