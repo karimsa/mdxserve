@@ -82,11 +82,14 @@
 									"@mdxserve/web/**",
 									"@mdxserve/mobile",
 									"@mdxserve/mobile/**",
+									"@mdxserve/ui",
+									"@mdxserve/ui/**",
 									"**/packages/server/**",
+									"**/packages/ui/**",
 									"**/apps/web/**",
 									"**/apps/mobile/**"
 								],
-								"message": "Shared code imports neither the server nor a client."
+								"message": "Shared code imports neither the server, a client nor the shared components."
 							},
 							{
 								"group": ["react", "react/**", "react-dom", "react-dom/**"],
@@ -111,10 +114,98 @@
 									"@mdxserve/web/**",
 									"@mdxserve/mobile",
 									"@mdxserve/mobile/**",
+									"@mdxserve/ui",
+									"@mdxserve/ui/**",
+									"**/apps/web/**",
+									"**/apps/mobile/**",
+									"**/packages/ui/**"
+								],
+								"message": "The server never imports a client or the shared components."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["packages/ui/**"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": [
+									"@karimsa/mdxserve",
+									"@karimsa/mdxserve/**",
+									"@mdxserve/web",
+									"@mdxserve/web/**",
+									"@mdxserve/mobile",
+									"@mdxserve/mobile/**",
+									"**/packages/server/**",
 									"**/apps/web/**",
 									"**/apps/mobile/**"
 								],
-								"message": "The server never imports a client."
+								"message": "The shared components import neither the server nor a client; the clients import them."
+							},
+							{
+								"group": ["react-dom", "react-dom/**", "expo", "expo/**", "expo-*", "@expo/**"],
+								"message": "The shared components render with React Native primitives only: no react-dom and no Expo module."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			// DOM elements and browser globals belong in a component's `Name.web.tsx` only. This
+			// replaces the rule above for these files, so it repeats its patterns.
+			"files": ["packages/ui/src/**/*.ts", "packages/ui/src/**/*.tsx"],
+			"excludeFiles": [
+				"packages/ui/src/**/*.web.ts",
+				"packages/ui/src/**/*.web.tsx",
+				"packages/ui/src/**/*.d.ts"
+			],
+			"rules": {
+				"no-restricted-globals": [
+					"error",
+					{ "name": "window", "message": "Browser globals belong in a Name.web.tsx." },
+					{ "name": "document", "message": "Browser globals belong in a Name.web.tsx." },
+					{ "name": "navigator", "message": "Browser globals belong in a Name.web.tsx." },
+					{ "name": "localStorage", "message": "Browser globals belong in a Name.web.tsx." },
+					{ "name": "matchMedia", "message": "Browser globals belong in a Name.web.tsx." },
+					{ "name": "HTMLElement", "message": "Browser globals belong in a Name.web.tsx." }
+				],
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": [
+									"@karimsa/mdxserve",
+									"@karimsa/mdxserve/**",
+									"@mdxserve/web",
+									"@mdxserve/web/**",
+									"@mdxserve/mobile",
+									"@mdxserve/mobile/**",
+									"**/packages/server/**",
+									"**/apps/web/**",
+									"**/apps/mobile/**"
+								],
+								"message": "The shared components import neither the server nor a client; the clients import them."
+							},
+							{
+								"group": ["react-dom", "react-dom/**", "expo", "expo/**", "expo-*", "@expo/**"],
+								"message": "The shared components render with React Native primitives only: no react-dom and no Expo module."
+							},
+							{
+								"group": [
+									"react-native-web",
+									"react-native-web/**",
+									"lucide-react",
+									"lucide-react/**"
+								],
+								"message": "The web's own modules belong in a Name.web.tsx."
 							}
 						]
 					}

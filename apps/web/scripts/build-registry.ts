@@ -2,14 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { builtins } from "../src/builtins/index.js";
+import { builtinCatalog } from "../src/builtins/catalog.js";
 import { builtinPropSchemas } from "@mdxserve/shared/builtins";
 
 // The server package ships the registry; the web client holds each builtin's description.
 const outDir = fileURLToPath(new URL("../../../packages/server/dist", import.meta.url));
 const outFile = path.join(outDir, "registry.json");
 
-const components = builtins.map(({ name, description, whenToUse }) => {
+const components = builtinCatalog.map(({ name, description, whenToUse }) => {
 	// The prop schemas live in @mdxserve/shared so the server's document parser checks
 	// props against the same objects; the client only adds the component.
 	const props = builtinPropSchemas[name];

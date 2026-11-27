@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { builtins } from "../src/builtins";
+import { builtinPropSchemas } from "@mdxserve/shared/builtins";
+import { builtinCatalog } from "../src/builtins/catalog";
 import { slashBlocks } from "../src/editor/blocks";
 import { validateSource } from "@karimsa/mdxserve/src/validation/validate";
 import type { Registry } from "@karimsa/mdxserve/src/components/registry";
@@ -8,7 +9,8 @@ import { createMetadataPort } from "@karimsa/mdxserve/tests/helpers/metadata";
 
 const registry: Registry = {
 	version: 1,
-	components: builtins.map(({ name, description, whenToUse, props }) => {
+	components: builtinCatalog.map(({ name, description, whenToUse }) => {
+		const props = builtinPropSchemas[name];
 		const hasChildren = "children" in props.shape;
 		const schema = hasChildren ? props.omit({ children: true }) : props;
 		return {

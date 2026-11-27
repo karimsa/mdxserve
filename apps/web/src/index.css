@@ -1,5 +1,8 @@
 /* The stylesheet entry the client build compiles (vite.config.ts). Tailwind scans client/ only:
  * documents cannot use class names, so no mounted root is ever scanned. */
 @import "tailwindcss" source(none);
+@import "uniwind";
 @import "./app.css";
 @source "./";
+/* The shared components (@mdxserve/ui) the client renders. */
+@source "../../../packages/ui/src";

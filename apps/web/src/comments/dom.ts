@@ -16,13 +16,14 @@ const BLOCK_SELECTOR = "p, li, td, th, h1, h2, h3, h4, h5, h6, pre, dt, dd, figc
 const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
 /**
  * Never part of a block or its text. `.mdx-anchor` is the hover "#" link
- * Heading.tsx appends to a heading: it is chrome, not rendered text.
+ * Heading.tsx appends to a heading: it is chrome, not rendered text. A tab is
+ * a control like a button, though react-native-web renders it as a `div`.
  */
-const EXCLUDED_SELECTOR = "[data-editing], svg, button, .mdx-anchor";
+const EXCLUDED_SELECTOR = '[data-editing], svg, button, [role="tab"], .mdx-anchor';
 /**
  * Content a view toggle keeps mounted but out of the page, such as a
- * diagram's code pane. An unselected tab is not this: its panel carries
- * `hidden`, and its text stays anchorable so a comment can point into it.
+ * diagram's code pane. An unselected tab is not this: its panel is only not
+ * displayed, and its text stays anchorable so a comment can point into it.
  */
 const HIDDEN_SELECTOR = '[inert], [aria-hidden="true"]';
 

@@ -17,6 +17,7 @@
 | ------------------ | ------------------------------------------- | ------------------------------------------------------------------- |
 | `packages/server/` | `@karimsa/mdxserve`, the only one published | the server and CLI (`src/`), its tests, build scripts and `skills/` |
 | `packages/shared/` | `@mdxserve/shared` (private)                | code both the server and the web client run                         |
+| `packages/ui/`     | `@mdxserve/ui` (private)                    | components the web client and the app both render (`src/`)          |
 | `apps/web/`        | `@mdxserve/web` (private)                   | the browser client (`src/`) and its tests                           |
 | `apps/site/`       | `@mdxserve/site` (private)                  | the project website, deployed to Vercel                             |
 | `apps/mobile/`     | `@mdxserve/mobile` (private)                | the Expo iOS app (`app/` routes, `src/`) and its tests              |
@@ -137,7 +138,13 @@ Adapters contain no business logic:
   (`realtime.ts`) and mermaid header detection (`mermaid-chart.ts`). The server and the web
   client import values from it through the subpaths in its `exports`. It imports no React value
   (type-only imports are fine) and nothing from the server or the web client.
-- The server, its tests included, never imports the web client.
+- `@mdxserve/ui` holds the components both clients render, written with React Native
+  primitives and Tailwind class names. Uniwind turns the class names into styles: through
+  react-native-web in the web client (`apps/web/vite.config.ts`) and through Metro in the app
+  (`apps/mobile/metro.config.js`). It imports neither client nor the server, no `react-dom`
+  and no Expo module. A file that needs the DOM is a `Name.web.tsx` beside `Name.tsx`, which
+  the web build picks instead; browser globals and web-only modules appear only there
+- The server, its tests included, never imports the web client or `@mdxserve/ui`.
 
 ## General philosophy
 

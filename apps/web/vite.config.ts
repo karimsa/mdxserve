@@ -1,8 +1,14 @@
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { uniwind } from "uniwind/vite";
 import { devShell } from "./scripts/dev-shell.js";
+
+/** Uniwind takes its files relative to the working directory, which `yarn dev` sets to the repository root. */
+const fromHere = (file: string) =>
+	path.relative(process.cwd(), fileURLToPath(new URL(file, import.meta.url)));
 
 const LUCIDE_ICON = /\/lucide-react\/dist\/esm\/icons\/[^/]+\.mjs$/;
 
@@ -18,9 +24,24 @@ export default defineConfig(({ command }) => ({
 	// so its module URLs never collide with the proxied `/__mdxserve` paths.
 	base: command === "build" ? "/__mdxserve/" : "/",
 	appType: "custom",
-	plugins: [react(), tailwindcss(), devShell()],
-	// One React for every workspace (yarn.config.cjs): never bundle a second copy.
-	resolve: { dedupe: ["react", "react-dom"] },
+	// Uniwind renders @mdxserve/ui's React Native components through react-native-web: it
+	// points `react-native` at its own wrappers, which hand each `className` to the DOM as a
+	// real Tailwind class, and keeps react-native-web's styles under Tailwind's utilities.
+	plugins: [
+		react(),
+		tailwindcss(),
+		uniwind({
+			cssEntryFile: fromHere("src/index.css"),
+			dtsFile: fromHere("src/uniwind-types.d.ts"),
+		}),
+		devShell(),
+	],
+	resolve: {
+		// One React for every workspace (yarn.config.cjs): never bundle a second copy.
+		dedupe: ["react", "react-dom"],
+		// A shared component's `Name.web.tsx` replaces its `Name.tsx` in the browser.
+		extensions: [".web.tsx", ".web.ts", ".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"],
+	},
 	build: {
 		outDir: fileURLToPath(new URL("../../packages/server/dist/client", import.meta.url)),
 		emptyOutDir: true,

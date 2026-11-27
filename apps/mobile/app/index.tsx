@@ -1,24 +1,64 @@
 import { Stack, useTheme } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Badge from "@mdxserve/ui/builtins/Badge";
+import Callout from "@mdxserve/ui/builtins/Callout";
+import Tabs from "@mdxserve/ui/builtins/Tabs";
 import { readAppInfo } from "../src/app-info";
 
-/** Placeholder home screen until the server list arrives (phase 4). */
+const TABS = [
+	{ id: "sample>overview", value: "overview", label: "Overview" },
+	{ id: "sample>details", value: "details", label: "Details" },
+];
+
+/**
+ * Placeholder home screen until the server list arrives (phase 4). Below the app's details it
+ * shows the builtins the app shares with the web client (@mdxserve/ui).
+ */
 export default function Home() {
 	const { colors } = useTheme();
 	const info = readAppInfo();
+	const [tab, setTab] = useState("overview");
 	return (
-		<View style={styles.screen}>
+		<ScrollView contentContainerStyle={styles.screen}>
 			<Stack.Screen options={{ title: info.name }} />
 			<Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
 				{info.name}
 			</Text>
 			<Text style={{ color: colors.text }}>Version {info.version}</Text>
 			<Text style={{ color: colors.text }}>React Native {info.reactNativeVersion}</Text>
-		</View>
+			<View style={styles.samples}>
+				<View style={styles.row}>
+					<Badge tone="ok" variant="soft" dot={true}>
+						Online
+					</Badge>
+					<Badge tone="warn" variant="solid" dot={false}>
+						Degraded
+					</Badge>
+					<Badge tone="teal" variant="outline" dot={false}>
+						Shared
+					</Badge>
+				</View>
+				<Callout tone="tip" title="From @mdxserve/ui">
+					<Text className="text-text-body">The web client renders this same component.</Text>
+				</Callout>
+				<Tabs
+					id="sample"
+					selected={tab}
+					onSelect={setTab}
+					tabs={TABS.map((entry) => ({
+						...entry,
+						content: <Text className="text-text-body">{`The ${entry.label} panel.`}</Text>,
+					}))}
+				/>
+			</View>
+		</ScrollView>
 	);
 }
 
 const styles = StyleSheet.create({
-	screen: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+	screen: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 8, padding: 16 },
 	title: { fontSize: 28, fontWeight: "600" },
+	samples: { alignSelf: "stretch", gap: 16, marginTop: 24 },
+	row: { flexDirection: "row", gap: 8 },
 });

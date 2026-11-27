@@ -14,8 +14,8 @@ import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
 import type { DocumentTree } from "@karimsa/mdxserve/src/document/schema";
 
 const renders = vi.hoisted(() => ({ callout: 0 }));
-vi.mock("../src/builtins/Callout", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("../src/builtins/Callout")>();
+vi.mock("@mdxserve/ui/builtins/Callout", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@mdxserve/ui/builtins/Callout")>();
 	const { createElement: create } = await import("react");
 	return {
 		default: (props: Parameters<typeof actual.default>[0]) => {
@@ -141,6 +141,7 @@ beforeEach(() => {
 		"ResizeObserver",
 		class {
 			observe() {}
+			unobserve() {}
 			disconnect() {}
 		},
 	);
@@ -178,6 +179,11 @@ async function mount() {
 			),
 		),
 	);
+}
+
+/** An unselected tab panel stays mounted but is not displayed: it carries Tailwind's `hidden`. */
+function isHidden(panel: Element): boolean {
+	return panel.classList.contains("hidden");
 }
 
 describe("DocumentView renders each node type", () => {
@@ -324,8 +330,8 @@ describe("tabs", () => {
 		await mount();
 		const mac = host.querySelector<HTMLElement>('[id="os>mac"]')!;
 		const linux = host.querySelector<HTMLElement>('[id="os>linux"]')!;
-		expect(mac.hidden).toBe(false);
-		expect(linux.hidden).toBe(true);
+		expect(isHidden(mac)).toBe(false);
+		expect(isHidden(linux)).toBe(true);
 		expect(linux.textContent).toContain("Use apt.");
 	});
 
@@ -335,14 +341,14 @@ describe("tabs", () => {
 		await act(async () => {
 			expect(revealNode("os>linux")).toBe(true);
 		});
-		expect(host.querySelector<HTMLElement>('[id="os>linux"]')!.hidden).toBe(false);
-		expect(host.querySelector<HTMLElement>('[id="os>mac"]')!.hidden).toBe(true);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>linux"]')!)).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>mac"]')!)).toBe(true);
 		expect(scrolled.at(-1)).toBe("os");
 
 		await act(async () => {
 			expect(revealNode("install")).toBe(true);
 		});
-		expect(host.querySelector<HTMLElement>('[id="os>mac"]')!.hidden).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>mac"]')!)).toBe(false);
 		expect(scrolled.at(-1)).toBe("install");
 		expect(revealNode("no-such-node")).toBe(false);
 	});
@@ -356,7 +362,7 @@ describe("tabs", () => {
 		await act(async () => seed(parse(SOURCE.replace("First.", "First, edited."))));
 		await settle();
 		expect(host.textContent).toContain("First, edited.");
-		expect(host.querySelector<HTMLElement>('[id="os>linux"]')!.hidden).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>linux"]')!)).toBe(false);
 	});
 });
 
@@ -379,7 +385,7 @@ describe("switching documents", () => {
 		await act(async () => {
 			expect(revealNode("os>linux")).toBe(true);
 		});
-		expect(host.querySelector<HTMLElement>('[id="os>linux"]')!.hidden).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>linux"]')!)).toBe(false);
 	});
 });
 
@@ -392,7 +398,7 @@ describe("anchors", () => {
 		});
 		await mount();
 		expect(scrolled).toContain("install");
-		expect(host.querySelector<HTMLElement>('[id="os>mac"]')!.hidden).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>mac"]')!)).toBe(false);
 	});
 
 	it("scrolls to a rendered element the fragment names, such as a footnote", async () => {

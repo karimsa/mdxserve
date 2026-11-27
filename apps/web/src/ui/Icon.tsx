@@ -1,7 +1,6 @@
-// The explicit .mjs extension matters: this module is also reachable from
-// apps/web/scripts/build-registry.ts under plain Node, whose ESM resolver (unlike
-// Vite's) requires a real extension since lucide-react's package.json has no
-// "exports" map for this subpath.
+// The explicit .mjs extension: lucide-react's package.json has no "exports" map for
+// this subpath, so a resolver stricter than Vite's (Node's ESM one) needs the real
+// file name.
 import dynamicIconImports from "lucide-react/dynamicIconImports.mjs";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";

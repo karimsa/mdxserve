@@ -19,9 +19,8 @@
  */
 
 /* Base tippy.js styles for the builtin Tooltip component (apps/web/src/builtins/Tooltip.tsx).
-   Imported here (rather than from the component) so it flows through Vite's normal
-   CSS pipeline and doesn't break scripts/build-registry.ts, which imports that
-   component under plain Node to read its zod schema. */
+   Imported here (rather than from the component) so all of the client's CSS flows
+   through this one stylesheet. */
 @import "tippy.js/dist/tippy.css";
 
 @import "./design/tokens/fonts.css";

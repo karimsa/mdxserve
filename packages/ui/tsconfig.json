@@ -1,0 +1,8 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// className on React Native's components comes from Uniwind's type augmentation.
+		"types": ["uniwind/types"]
+	},
+	"include": ["src"]
+}

@@ -1,0 +1,116 @@
+/* The tokens the shared builtins use, for the app (Uniwind reads this through Metro).
+ *
+ * The values are the web client's (apps/web/src/design/tokens/), restated in the form Uniwind
+ * reads on native: one `@variant` block per theme under `@layer theme`, where the web keys
+ * dark mode on `:root[data-theme="dark"]`. Only the tokens Badge, Callout and Tabs use are
+ * here. The next step moves every token into one theme.css that both clients read, and this
+ * file goes away. */
+
+@layer theme {
+	:root {
+		@variant light {
+			--n-0: #ffffff;
+			--n-500: #82817a;
+			--n-600: #615f5a;
+			--teal-200: #9bd8d5;
+			--teal-300: #63c1be;
+			--teal-500: #0e8f8c;
+			--teal-550: #0c8280;
+
+			--surface-page: #fbfbf9;
+			--surface-sunken: #f6f6f3;
+			--surface-accent-soft: #e8f6f5;
+			--text-body: #2b2a27;
+			--text-heading: #111110;
+			--text-muted: #615f5a;
+			--text-subtle: #82817a;
+			--text-inverse: #fbfbf9;
+			--text-accent: #0a7472;
+			--border-default: #e3e2dd;
+
+			--status-info-bg: #dce7fd;
+			--status-info-fg: #1d4dab;
+			--status-ok-bg: #d8f0e3;
+			--status-ok-fg: #12603b;
+			--status-warn-bg: #fbeccd;
+			--status-warn-fg: #855603;
+			--status-danger-bg: #fbdfd9;
+			--status-danger-fg: #9a2f20;
+			--status-note-bg: #e6e2fb;
+			--status-note-fg: #433a9e;
+		}
+
+		@variant dark {
+			--n-0: #ffffff;
+			--n-500: #82817a;
+			--n-600: #615f5a;
+			--teal-200: #9bd8d5;
+			--teal-300: #63c1be;
+			--teal-500: #0e8f8c;
+			--teal-550: #0c8280;
+
+			--surface-page: #030712;
+			--surface-sunken: #020509;
+			--surface-accent-soft: #042c2b;
+			--text-body: #d1d5db;
+			--text-heading: #f9fafb;
+			--text-muted: #9ca3af;
+			--text-subtle: #6b7280;
+			--text-inverse: #111110;
+			--text-accent: #63c1be;
+			--border-default: #1f2937;
+
+			--status-info-bg: #182a4d;
+			--status-info-fg: #9dbcfb;
+			--status-ok-bg: #122f22;
+			--status-ok-fg: #8fd8b0;
+			--status-warn-bg: #33260a;
+			--status-warn-fg: #e9c078;
+			--status-danger-bg: #39190f;
+			--status-danger-fg: #eda99b;
+			--status-note-bg: #221d44;
+			--status-note-fg: #b9b1f2;
+		}
+	}
+}
+
+@theme inline {
+	/* Manrope arrives with the fonts step; until then the system font. */
+	--font-sans: System;
+
+	--color-surface-page: var(--surface-page);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-surface-accent-soft: var(--surface-accent-soft);
+	--color-text-body: var(--text-body);
+	--color-text-heading: var(--text-heading);
+	--color-text-muted: var(--text-muted);
+	--color-text-subtle: var(--text-subtle);
+	--color-text-inverse: var(--text-inverse);
+	--color-text-accent: var(--text-accent);
+	--color-border-default: var(--border-default);
+	--color-status-info-bg: var(--status-info-bg);
+	--color-status-info-fg: var(--status-info-fg);
+	--color-status-ok-bg: var(--status-ok-bg);
+	--color-status-ok-fg: var(--status-ok-fg);
+	--color-status-warn-bg: var(--status-warn-bg);
+	--color-status-warn-fg: var(--status-warn-fg);
+	--color-status-danger-bg: var(--status-danger-bg);
+	--color-status-danger-fg: var(--status-danger-fg);
+	--color-status-note-bg: var(--status-note-bg);
+	--color-status-note-fg: var(--status-note-fg);
+	--color-teal-200: var(--teal-200);
+	--color-teal-300: var(--teal-300);
+	--color-teal-500: var(--teal-500);
+	--color-teal-550: var(--teal-550);
+	--color-n-0: var(--n-0);
+	--color-n-500: var(--n-500);
+	--color-n-600: var(--n-600);
+}
+
+/* The type scale the builtins read through `var()` (apps/web/src/design/tokens/typography.css). */
+@theme static {
+	--size-xs: 12px;
+	--size-sm: 13px;
+	--size-md: 15px;
+	--tracking-snug: -0.012em;
+}
