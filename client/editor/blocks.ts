@@ -1,3 +1,4 @@
+import { focusEditor } from "./focus";
 import type { Editor, Range } from "@tiptap/core";
 
 type BlockGroup = "Basic blocks" | "Media and structure" | "Components";
@@ -278,5 +279,6 @@ export function insertSlashBlock(editor: Editor, range: Range, block: SlashBlock
 			`id="${identifier}"`,
 		);
 	}
-	return editor.chain().focus().insertContentAt(replacement, content).run();
+	focusEditor(editor);
+	return editor.chain().insertContentAt(replacement, content).run();
 }
