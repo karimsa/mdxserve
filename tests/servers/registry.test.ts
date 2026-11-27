@@ -226,15 +226,30 @@ describe("ServerRegistry", () => {
 // `servers.db.lock`; a process killed inside a statement left it behind, and
 // every later command waited out the busy timeout and failed.
 describe("ServerRegistry with a lock directory an older release left behind", () => {
-	it("reads without waiting or warning, and removes the empty directory", async () => {
+	it("reads without waiting or warning, and removes the empty directory once it is old", async () => {
 		registry.register({ port: 5101, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
 		await fs.mkdir(`${dbPath}.lock`);
+		const longAgo = new Date(Date.now() - 10 * 60_000);
+		await fs.utimes(`${dbPath}.lock`, longAgo, longAgo);
 
 		const { result, warnings, ms } = observe(() => registry.current());
 		expect(result).toMatchObject({ port: 5101, roots: ["/a"] });
 		expect(warnings).toEqual([]);
 		expect(ms).toBeLessThan(500);
 		expect(existsSync(`${dbPath}.lock`)).toBe(false);
+	});
+
+	// A still-running older release holds an empty directory just as briefly as
+	// any statement; removing it would drop that release's own exclusion.
+	it("leaves a freshly created lock directory in place, and still reads at once", async () => {
+		registry.register({ port: 5104, pid: process.pid, host: "127.0.0.1", roots: ["/a"] });
+		await fs.mkdir(`${dbPath}.lock`);
+
+		const { result, warnings, ms } = observe(() => registry.current());
+		expect(result).toMatchObject({ port: 5104 });
+		expect(warnings).toEqual([]);
+		expect(ms).toBeLessThan(500);
+		expect(existsSync(`${dbPath}.lock`)).toBe(true);
 	});
 
 	it("writes without waiting or warning", async () => {

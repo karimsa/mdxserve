@@ -52,12 +52,18 @@ function assertNodeApiSupported(): void {
  * Releases before better-sqlite3 used a WASM SQLite that locked by creating a
  * `servers.db.lock` directory, which a killed process could leave behind.
  * SQLite no longer looks at it, so remove it when it is empty to keep it from
- * suggesting otherwise. rmdir refuses a missing or non-empty directory, and
- * either is fine to leave alone.
+ * suggesting otherwise. An older release that is still running holds that
+ * directory for the length of one statement, so only one that has existed
+ * far longer than that is removed. rmdir refuses a missing or non-empty
+ * directory, and either is fine to leave alone.
  */
+const LEGACY_LOCK_MIN_AGE_MS = 60_000;
+
 function removeLegacyLockDir(dbPath: string): void {
+	const lockDir = `${dbPath}.lock`;
 	try {
-		fs.rmdirSync(`${dbPath}.lock`);
+		if (Date.now() - fs.statSync(lockDir).mtimeMs < LEGACY_LOCK_MIN_AGE_MS) return;
+		fs.rmdirSync(lockDir);
 	} catch {
 		// Missing, not empty, or not ours to remove.
 	}
