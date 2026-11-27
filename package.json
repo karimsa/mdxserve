@@ -10,6 +10,7 @@
 		"build": "yarn workspace @karimsa/mdxserve build && yarn workspace @mdxserve/web build",
 		"registry": "yarn workspace @mdxserve/web registry",
 		"dev": "tsx scripts/dev.ts",
+		"mobile": "yarn workspace @mdxserve/mobile",
 		"typecheck": "tsc --noEmit && yarn workspaces foreach --all --exclude mdxserve-repo --parallel run typecheck",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",

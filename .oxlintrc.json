@@ -41,9 +41,10 @@
 			{ "min": 2, "exceptions": ["_", "x", "y"], "properties": "never" }
 		]
 	},
-	// The workspace dependency direction (AGENTS.md): the web client only imports types from
-	// the server; shared imports neither and no React value; the server never imports the web
-	// client. Tests are outside these globs: a web client test may run server code.
+	// The workspace dependency direction (AGENTS.md): the web client and the app only import
+	// types from the server, and neither imports the other; shared imports none of them and no
+	// React value; the server never imports a client. Tests are outside these globs: a web
+	// client test may run server code.
 	"overrides": [
 		{
 			"files": ["apps/web/src/**", "apps/web/scripts/**"],
@@ -56,6 +57,10 @@
 								"group": ["@karimsa/mdxserve", "@karimsa/mdxserve/**", "**/packages/server/**"],
 								"allowTypeImports": true,
 								"message": "The web client may only `import type` from the server package."
+							},
+							{
+								"group": ["@mdxserve/mobile", "@mdxserve/mobile/**", "**/apps/mobile/**"],
+								"message": "The web client never imports the app."
 							}
 						]
 					}
@@ -75,10 +80,13 @@
 									"@karimsa/mdxserve/**",
 									"@mdxserve/web",
 									"@mdxserve/web/**",
+									"@mdxserve/mobile",
+									"@mdxserve/mobile/**",
 									"**/packages/server/**",
-									"**/apps/web/**"
+									"**/apps/web/**",
+									"**/apps/mobile/**"
 								],
-								"message": "Shared code imports neither the server nor the web client."
+								"message": "Shared code imports neither the server nor a client."
 							},
 							{
 								"group": ["react", "react/**", "react-dom", "react-dom/**"],
@@ -98,8 +106,42 @@
 					{
 						"patterns": [
 							{
+								"group": [
+									"@mdxserve/web",
+									"@mdxserve/web/**",
+									"@mdxserve/mobile",
+									"@mdxserve/mobile/**",
+									"**/apps/web/**",
+									"**/apps/mobile/**"
+								],
+								"message": "The server never imports a client."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["apps/mobile/app/**", "apps/mobile/src/**"],
+			"rules": {
+				// expo-status-bar's `style` is a string ("auto", "light", "dark"), not a style object.
+				"react/style-prop-object": ["warn", { "allow": ["StatusBar"] }],
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"group": ["@karimsa/mdxserve", "@karimsa/mdxserve/**", "**/packages/server/**"],
+								"allowTypeImports": true,
+								"message": "The app may only `import type` from the server package."
+							},
+							{
 								"group": ["@mdxserve/web", "@mdxserve/web/**", "**/apps/web/**"],
-								"message": "The server never imports the web client."
+								"message": "The app never imports the web client."
+							},
+							{
+								"group": ["react-dom", "react-dom/**"],
+								"message": "The app renders with React Native, never react-dom."
 							}
 						]
 					}

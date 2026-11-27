@@ -1,0 +1,8 @@
+# Expo
+.expo/
+dist/
+expo-env.d.ts
+
+# Generated native projects (`expo prebuild`, `expo run:ios`)
+/ios
+/android

@@ -1,0 +1,43 @@
+{
+	"name": "@mdxserve/mobile",
+	"private": true,
+	"main": "expo-router/entry",
+	"expo": {
+		"install": {
+			"exclude": [
+				"typescript"
+			]
+		}
+	},
+	"scripts": {
+		"start": "expo start",
+		"ios": "expo run:ios",
+		"typecheck": "tsc --noEmit",
+		"test": "jest",
+		"doctor": "expo-doctor"
+	},
+	"dependencies": {
+		"@tanstack/react-query": "5.101.4",
+		"expo": "58.0.26",
+		"expo-constants": "58.0.16",
+		"expo-linking": "58.0.17",
+		"expo-router": "58.0.32",
+		"expo-status-bar": "58.0.5",
+		"expo-system-ui": "58.0.7",
+		"react": "19.3.0",
+		"react-native": "0.88.1",
+		"react-native-safe-area-context": "5.11.1",
+		"react-native-screens": "4.30.1"
+	},
+	"devDependencies": {
+		"@jest/globals": "30.5.2",
+		"@react-native/jest-preset": "0.88.1",
+		"@testing-library/react-native": "14.1.0",
+		"@types/react": "19.3.3",
+		"expo-doctor": "1.21.8",
+		"jest": "30.5.2",
+		"jest-expo": "58.0.15",
+		"test-renderer": "1.3.0",
+		"typescript": "7.0.2"
+	}
+}

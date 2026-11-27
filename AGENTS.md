@@ -19,11 +19,38 @@
 | `packages/shared/` | `@mdxserve/shared` (private)                | code both the server and the web client run                         |
 | `apps/web/`        | `@mdxserve/web` (private)                   | the browser client (`src/`) and its tests                           |
 | `apps/site/`       | `@mdxserve/site` (private)                  | the project website, deployed to Vercel                             |
+| `apps/mobile/`     | `@mdxserve/mobile` (private)                | the Expo iOS app (`app/` routes, `src/`) and its tests              |
 
 The root holds the shared tooling, `scripts/dev.ts` and `scripts/changelog.ts`.
 A workspace depends on another with a `workspace:*` range. The server's esbuild bundle inlines
 `@mdxserve/*` packages, so a workspace package is never left as an import in the published
 output. The web client's build writes into the server package's `dist/`.
+
+## Working on the app
+
+`apps/mobile/` is an Expo app (SDK 58, Expo Router). `yarn mobile <script>` runs one of its
+scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CLI command:
+
+- `yarn mobile start` starts Metro (`expo start`). Open the app by scanning its QR code with
+  Expo Go on an iPhone on the same network
+- `yarn mobile ios` (`expo run:ios`) builds the app and opens it in the iOS simulator, which
+  needs Xcode and an iOS simulator runtime
+- Expo Go is enough for now: the app uses only modules Expo Go ships. Once phase 4 adds native
+  modules of its own (Bonjour, the selection menu), it needs a development build
+  (`expo-dev-client`) and Expo Go stops working
+- Test anything that touches the local network on a device: the iOS simulator does not enforce
+  local network privacy
+- `yarn mobile test` runs the jest-expo component tests in `apps/mobile/tests/`; the root
+  `yarn test` runs them too. `yarn mobile typecheck` and `yarn mobile doctor` (Expo Doctor)
+  check the rest. The `Mobile` CI job runs those three and bundles the app for iOS
+  (`yarn mobile expo export --platform ios`)
+- Every workspace uses the React version the Expo SDK pins, and `yarn constraints` fails when
+  they disagree. Upgrade React only together with the Expo SDK; `yarn mobile doctor` lists the
+  versions the SDK expects
+- The app uses TypeScript 7 like every other workspace, not the 6.x Expo expects, so
+  `typescript` is in `expo.install.exclude` in its `package.json`
+- The bundle identifier (`co.alibhai.mdxserve`) and display name in `app.config.ts` are
+  placeholders until they are settled. Never run `eas build` or `eas submit` unasked
 
 ## Architecture
 
@@ -139,6 +166,7 @@ Adapters contain no business logic:
 
 - Each workspace keeps its tests in its own `tests/` and its own `vitest.config.ts`; `yarn test` at the root runs them all
 - Server tests mirror the modules: `packages/server/tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/realtime/`
+- App component tests live in `apps/mobile/tests/` and run under jest-expo, not vitest
 - Web client tests live in `apps/web/tests/`, shared code tests in `packages/shared/tests/`, and tests of the root scripts and GitHub Actions gates in `tests/automation/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
