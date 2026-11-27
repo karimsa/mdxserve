@@ -266,10 +266,13 @@ export function insertSlashBlock(editor: Editor, range: Range, block: SlashBlock
 	if (block.kind === "image") return false;
 	const replacement = { from: start.before(), to: start.after() };
 	const content = blockContent(block);
-	if (block.id === "datatable") {
-		const identifier = `table-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+	// A builtin that keeps reader state needs an id unique in the document, so
+	// each insertion swaps the template's `id="example-<kind>"` for a fresh one.
+	const templateId = block.template?.match(/id="example-([a-z]+)"/);
+	if (templateId) {
+		const identifier = `${templateId[1]}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 		(content.attrs as { source: string }).source = block.template!.replace(
-			'id="example-table"',
+			templateId[0],
 			`id="${identifier}"`,
 		);
 	}
