@@ -2952,6 +2952,7 @@ __metadata:
     react: "npm:19.3.0"
     react-dom: "npm:19.3.0"
     react-hot-toast: "npm:2.6.0"
+    react-native-svg: "npm:15.16.0"
     react-native-web: "npm:0.21.4"
     shiki: "npm:4.4.2"
     socket.io-client: "npm:4.8.4"

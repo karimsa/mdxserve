@@ -8,7 +8,7 @@ import {
 	labelColumnWidth,
 	niceMax,
 	toNumber,
-} from "../src/builtins/chart-data.js";
+} from "@mdxserve/ui/charts/chart-data";
 
 describe("toNumber", () => {
 	it("passes finite numbers through", () => {

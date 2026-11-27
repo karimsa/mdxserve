@@ -10,6 +10,7 @@
 		},
 		"./builtins/*": "./src/builtins/*.tsx",
 		"./brand/*": "./src/brand/*.tsx",
+		"./charts/chart-data": "./src/charts/chart-data.ts",
 		"./primitives/Icon": {
 			"types": "./src/primitives/Icon.tsx",
 			"react-native": "./src/primitives/Icon.tsx",

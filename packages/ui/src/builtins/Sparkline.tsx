@@ -1,5 +1,9 @@
+import Svg, { Circle, Path } from "react-native-svg";
 import { type SparklineProps } from "@mdxserve/shared/builtins/sparkline";
+import { webProps } from "../primitives/web-props";
+import { useChartLook } from "../charts/use-chart-look";
 
+/** A small trend line that sits in a line of text. Fewer than two numbers draw nothing. */
 export default function Sparkline({
 	values = [],
 	width = 84,
@@ -7,9 +11,11 @@ export default function Sparkline({
 	color = "var(--chart-1)",
 	fill = true,
 }: SparklineProps) {
+	const look = useChartLook();
 	const nums = values.map(Number).filter((value) => !Number.isNaN(value));
 	if (nums.length < 2) return null;
 
+	const paint = look.color(color);
 	const min = Math.min(...nums);
 	const max = Math.max(...nums);
 	const span = max - min || 1;
@@ -22,29 +28,29 @@ export default function Sparkline({
 		.join(" ");
 
 	return (
-		<svg
+		<Svg
 			width={width}
 			height={height}
 			viewBox={`0 0 ${width} ${height}`}
-			className="not-prose inline-block align-middle"
 			role="img"
+			{...webProps({ className: "not-prose inline-block align-middle" })}
 		>
 			{fill ? (
-				<path
+				<Path
 					d={`${pathData} L${width - 1} ${height} L1 ${height} Z`}
-					fill={color}
+					fill={paint}
 					opacity="0.13"
 				/>
 			) : null}
-			<path
+			<Path
 				d={pathData}
 				fill="none"
-				stroke={color}
+				stroke={paint}
 				strokeWidth="1.5"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			/>
-			<circle cx={xAt(nums.length - 1)} cy={yAt(nums[nums.length - 1])} r="2" fill={color} />
-		</svg>
+			<Circle cx={xAt(nums.length - 1)} cy={yAt(nums[nums.length - 1]!)} r="2" fill={paint} />
+		</Svg>
 	);
 }

@@ -8,7 +8,7 @@ import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Chart from "./Chart";
-import Sparkline from "./Sparkline";
+import Sparkline from "@mdxserve/ui/builtins/Sparkline";
 import DataTable from "./DataTable";
 import Screenshot from "./Screenshot";
 
