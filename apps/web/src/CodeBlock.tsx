@@ -37,7 +37,7 @@ import { cachedHighlight, highlight, type HighlightedLine } from "./highlight";
  * language label on the left, arbitrary actions (copy button, view toggle) on
  * the right.
  */
-export function CodeFrameHeader({ label, actions }: { label?: ReactNode; actions?: ReactNode }) {
+function CodeFrameHeader({ label, actions }: { label?: ReactNode; actions?: ReactNode }) {
 	return (
 		<div className="flex h-[38px] items-center gap-3 border-b border-code-border pr-2.5 pl-4">
 			<span className="min-w-0 flex-1 truncate font-mono text-[length:var(--size-xs)] text-text-subtle">

@@ -34,6 +34,7 @@
 		"@mdxserve/shared": "workspace:*",
 		"@tippyjs/react": "4.2.6",
 		"bytes": "3.1.2",
+		"diff": "9.0.0",
 		"framer-motion": "13.0.0",
 		"lucide-react": "1.30.0",
 		"lucide-react-native": "1.30.0",

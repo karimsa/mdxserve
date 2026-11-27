@@ -1,7 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
-import { Text, View, type LayoutChangeEvent } from "react-native";
+import { useRef, type ReactNode } from "react";
+import { Text, View } from "react-native";
 import { Pressable } from "../primitives/Pressable";
-import { FadeInView, SlideFromView, type SlideStart } from "../primitives/motion";
+import { FadeInView, SlideFromView } from "../primitives/motion";
+import { useSlideStart } from "../primitives/use-slide-start";
 import { webProps } from "../primitives/web-props";
 
 export interface TabsEntry {
@@ -20,11 +21,6 @@ interface TabsProps {
 	onSelect(value: string): void;
 }
 
-interface TabBox {
-	x: number;
-	width: number;
-}
-
 /** The arrow, Home and End keys move along the tab list, wrapping at either end. */
 function nextIndexFor(key: string, activeIndex: number, count: number): number | null {
 	if (key === "ArrowRight") return (activeIndex + 1) % count;
@@ -35,37 +31,13 @@ function nextIndexFor(key: string, activeIndex: number, count: number): number |
 }
 
 /**
- * Where the underline starts when the selection moves: under the tab selected before, relative
- * to the tab selected now. Null on the first render, or before both tabs have been laid out.
- */
-function useUnderlineStart(selected: string) {
-	const boxes = useRef(new Map<string, TabBox>()).current;
-	const [underlined, setUnderlined] = useState(selected);
-	const [start, setStart] = useState<SlideStart | null>(null);
-	if (underlined !== selected) {
-		// Derived during render, so the first frame with the new selection already starts there.
-		const from = boxes.get(underlined);
-		const to = boxes.get(selected);
-		setUnderlined(selected);
-		setStart(
-			from && to && to.width > 0 ? { dx: from.x - to.x, scale: from.width / to.width } : null,
-		);
-	}
-	const measure = (value: string) => (event: LayoutChangeEvent) => {
-		const { x, width } = event.nativeEvent.layout;
-		boxes.set(value, { x, width });
-	};
-	return { start, measure };
-}
-
-/**
  * A tab list over panels that all stay mounted. Inactive panels are not displayed, so a
  * printout shows only the selected tab while comment anchors and links still find the text of
  * the others. The caller owns the selection.
  */
 export default function Tabs({ id, tabs, selected, onSelect }: TabsProps) {
 	const tabRefs = useRef(new Map<string, { focus(): void }>()).current;
-	const underline = useUnderlineStart(selected);
+	const underline = useSlideStart(selected);
 
 	const activeTab = tabs.find((tab) => tab.value === selected) ?? tabs[0];
 	if (!activeTab) return null;
