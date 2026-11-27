@@ -395,9 +395,9 @@ export default function MdSectionEditor({
 					<MermaidDialog
 						initialSource={editTarget?.source}
 						onClose={closeDiagram}
-						onInsert={(source) => {
+						onInsert={(diagramSource) => {
 							if (editTarget) {
-								if (!replaceDiagram(editor, editTarget, source)) {
+								if (!replaceDiagram(editor, editTarget, diagramSource)) {
 									pushToast({
 										tone: "warn",
 										text: "Diagram changed. Reopen it before applying changes.",
@@ -432,7 +432,7 @@ export default function MdSectionEditor({
 									{
 										type: "codeBlock",
 										attrs: { language: "mermaid" },
-										content: [{ type: "text", text: source }],
+										content: [{ type: "text", text: diagramSource }],
 									},
 								)
 								.run();

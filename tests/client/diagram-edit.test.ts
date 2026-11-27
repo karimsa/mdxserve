@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { Editor } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import { StarterKit } from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { afterEach, expect, it } from "vitest";
 import { findDiagram, replaceDiagram, mermaidEditButtons } from "../../client/diagrams/edit-block";

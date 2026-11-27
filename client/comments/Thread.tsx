@@ -177,8 +177,8 @@ export function Thread({
 	const [pendingSends, setPendingSends] = useAtom(pendingSendsAtom);
 	const replyKey = pendingReplyKey(model.path, thread.id);
 	const replying = pendingSends.has(replyKey);
-	const setReplying = (active: boolean) =>
-		setPendingSends((previous) => withPendingSend(previous, replyKey, active));
+	const setReplying = (sending: boolean) =>
+		setPendingSends((previous) => withPendingSend(previous, replyKey, sending));
 	const [resolving, setResolving] = useState(false);
 	const { readOnly, writesDisabled, actions } = model;
 	const popover = variant === "popover";

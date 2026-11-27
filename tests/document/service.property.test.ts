@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
+import * as fc from "fast-check";
 import path from "node:path";
 import { DocumentService, countLines } from "../../src/document/service.js";
 import { documentTreeSchema } from "../../src/document/schema.js";
@@ -267,9 +267,9 @@ describe("DocumentService.parse properties", () => {
 					const { tree, diagnostics } = parse(source, docPath);
 					const text = JSON.stringify(tree);
 					for (const marker of markers) expect(text).toContain(`${marker} body`);
-					const tabs = idNodes(tree).find((node) => "type" in node && node.type === "tabs");
+					const tabsNode = idNodes(tree).find((node) => "type" in node && node.type === "tabs");
 					const tabCount = kinds.filter((kind) => kind === "tab" || kind === "unlabelled-tab");
-					expect(tabs && "tabs" in tabs ? tabs.tabs.length : -1).toBe(tabCount.length);
+					expect(tabsNode && "tabs" in tabsNode ? tabsNode.tabs.length : -1).toBe(tabCount.length);
 					const stray = kinds.some((kind) => kind.startsWith("stray") || kind === "nested-tab");
 					expect(
 						diagnostics.some((diagnostic) => diagnostic.code === "invalid-tabs-structure"),
