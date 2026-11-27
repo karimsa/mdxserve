@@ -3,6 +3,7 @@ import { act, fireEvent, renderRouter, screen } from "expo-router/testing-librar
 import { StyleSheet } from "react-native";
 import type { EdgeInsets } from "react-native-safe-area-context";
 import RootLayout from "../app/_layout";
+import Gallery from "../app/gallery";
 import Home from "../app/index";
 import Settings from "../app/settings";
 
@@ -53,7 +54,20 @@ function contentPadding(testID: string) {
 	return { left: style.paddingLeft, right: style.paddingRight };
 }
 
-const routes = { _layout: RootLayout, index: Home, settings: Settings };
+const routes = { _layout: RootLayout, index: Home, settings: Settings, gallery: Gallery };
+
+/** Presses the native bar item with `label`, as UIKit reports it. */
+async function pressBarItem(label: string) {
+	const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
+	const items = header.props.headerRightBarButtonItems as {
+		buttonId: string;
+		accessibilityLabel: string;
+	}[];
+	const item = items.find((candidate) => candidate.accessibilityLabel === label)!;
+	await act(async () => {
+		header.props.onPressHeaderBarButtonItem({ nativeEvent: { buttonId: item.buttonId } });
+	});
+}
 
 describe("layout beside the system's vertical bar", () => {
 	it("keeps the home screen's content inside the left and right insets", async () => {
@@ -62,17 +76,23 @@ describe("layout beside the system's vertical bar", () => {
 		expect(contentPadding("home-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("puts the wordmark in the header and Settings and Servers in the native bar, where iOS can move it", async () => {
+	it("puts the wordmark in the header, and Settings, Gallery and Servers in the native bar, where iOS can move them", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
 		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
 		// A native bar button with an icon, not a custom view: UIKit places it in the top bar or
 		// in the vertical bar itself.
 		expect(header.props.headerRightBarButtonItems).toEqual([
+			// UIKit orders the right-hand items from the edge inwards.
 			expect.objectContaining({
 				type: "button",
 				accessibilityLabel: "Settings",
 				icon: { type: "sfSymbol", name: "gearshape" },
+			}),
+			expect.objectContaining({
+				type: "button",
+				accessibilityLabel: "Gallery",
+				icon: { type: "sfSymbol", name: "square.grid.2x2" },
 			}),
 			expect.objectContaining({
 				type: "button",
@@ -88,23 +108,22 @@ describe("layout beside the system's vertical bar", () => {
 	it("opens Settings from the bar item, inside the same insets", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
-		const header = findHost(screen.toJSON(), "RNSScreenStackHeaderConfig")!;
-		const [item] = header.props.headerRightBarButtonItems as { buttonId: string }[];
-		await act(async () => {
-			header.props.onPressHeaderBarButtonItem({ nativeEvent: { buttonId: item.buttonId } });
-		});
+		await pressBarItem("Settings");
 		expect(screen).toHavePathname("/settings");
 		expect(contentPadding("settings-content")).toEqual({ left: 16, right: 16 + 84 });
 	});
 
-	it("keeps the screen's state when the display unfolds", async () => {
+	it("opens the gallery from its bar item, and keeps its state when the display unfolds", async () => {
 		await renderRouter(routes);
 		await setInsets(FOLDED);
-		await fireEvent.press(screen.getByRole("tab", { name: "Details" }));
-		expect(screen.getByRole("tab", { name: "Details", selected: true })).toBeOnTheScreen();
+		await pressBarItem("Gallery");
+		expect(screen).toHavePathname("/gallery");
+		expect(contentPadding("gallery-content")).toEqual({ left: 16, right: 16 + 84 });
+		await fireEvent.press(screen.getByRole("tab", { name: "Example list" }));
+		expect(screen.getByRole("tab", { name: "Example list", selected: true })).toBeOnTheScreen();
 
 		await setInsets(UNFOLDED);
-		expect(contentPadding("home-content")).toEqual({ left: 16, right: 16 });
-		expect(screen.getByRole("tab", { name: "Details", selected: true })).toBeOnTheScreen();
+		expect(contentPadding("gallery-content")).toEqual({ left: 16, right: 16 });
+		expect(screen.getByRole("tab", { name: "Example list", selected: true })).toBeOnTheScreen();
 	});
 });
