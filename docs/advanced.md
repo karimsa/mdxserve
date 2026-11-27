@@ -206,13 +206,12 @@ Full network access exposes **all configured roots**, including roots saved duri
 earlier local sessions and roots added through later config edits. The following
 caller restrictions still apply in full mode.
 
-Network clients can read and search the served roots. Three things are held back for callers that are not on the same machine:
+Network clients can read and search the served roots. Two things are held back for callers that are not on the same machine:
 
-| Capability                                                  | Loopback caller          | Remote caller                                                          |
-| ----------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------- |
-| Render-time validation (`mdxserve validate`, `validateDoc`) | Runs the doc in a worker | Static checks only, `rendered: false`                                  |
-| `mdxserve roots add \| remove`, `addRoots` / `removeRoots`  | Allowed                  | `FORBIDDEN`                                                            |
-| Any mutation                                                | Allowed                  | Rejected with 403 when the request's `Origin` doesn't match its `Host` |
+| Capability                                                 | Loopback caller | Remote caller                                                          |
+| ---------------------------------------------------------- | --------------- | ---------------------------------------------------------------------- |
+| `mdxserve roots add \| remove`, `addRoots` / `removeRoots` | Allowed         | `FORBIDDEN`                                                            |
+| Any mutation                                               | Allowed         | Rejected with 403 when the request's `Origin` doesn't match its `Host` |
 
 The `Origin` check means a page on another site cannot drive the write endpoints even when
 the server is bound to `0.0.0.0`. The section editor and the Trash action are mutations too,
@@ -230,33 +229,30 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 
 ### Verbs
 
-| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mdxserve validate <paths...>`         | Parses each `.md`/`.mdx` file with the same parser that builds the document tree a reader gets, and reports syntax errors (per `#`/`##` section), every break of the [document rules](#document-rules), unknown props, prop values of the wrong type, the [`id` rules](#ids-and-anchors), mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), render-time errors, and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
-| `mdxserve document <file>`             | Parses one file into the JSON document tree a client receives from `getDocument`, with no server. `--json` prints the tree; without it, the table of contents with each entry's anchor                                                                                                                                                                                                                                                                                                                                                          |
-| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Verb                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdxserve validate <paths...>`         | Parses each `.md`/`.mdx` file with the same parser that builds the document tree a reader gets, and reports syntax errors (per `#`/`##` section), every break of the [document rules](#document-rules), unknown props, prop values of the wrong type, the [`id` rules](#ids-and-anchors), mermaid chart fences (`pie`/`xychart-beta`/`quadrantChart`/`sankey-beta` — use `<Chart>` instead), and comment threads in the frontmatter (malformed entries and anchors that no longer match, as warnings). Exits 1 on any error |
+| `mdxserve document <file>`             | Parses one file into the JSON document tree a client receives from `getDocument`, with no server. `--json` prints the tree; without it, the table of contents with each entry's anchor                                                                                                                                                                                                                                                                                                                                      |
+| `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ### What happens with no server, or no roots
 
-| State                    | `search`, `docs`                                                                                            | `validate`                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| No server running        | "No mdxserve server is running; start one with `mdxserve serve -w <dir>`", exit 1                           | Static checks only, then `Not rendered (no mdxserve server is reachable; …)` |
-| Server running, no roots | "The mdxserve server is running but serves no folders yet; add one with `mdxserve roots add <dir>`", exit 1 | Absolute path works fully                                                    |
+| State                    | `search`, `docs`                                                                                            | `validate`                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| No server running        | "No mdxserve server is running; start one with `mdxserve serve -w <dir>`", exit 1                           | Validates the file directly; the checks are the same |
+| Server running, no roots | "The mdxserve server is running but serves no folders yet; add one with `mdxserve roots add <dir>`", exit 1 | Absolute path works fully                            |
 
-### `mdxserve validate` and `rendered`
+### What `mdxserve validate` checks
 
-The `--json` result carries `rendered` next to `ok`; the text output prints `Rendered OK` or
-`Not rendered (…)`. When a live server owns the path and the caller
-is on the same machine, the doc is rendered server-side in a worker thread and any throw comes
-back as a `render-error` diagnostic — this catches a component that compiles fine but blanks
-the page. `rendered: false` means only the static checks ran (syntax, unknown component,
-document rules, prop names and values, ids, mermaid chart fence, comments). The render step runs only when
-the static checks found no error. Even with `rendered: true`, errors thrown inside `useEffect` /
-`useLayoutEffect` and hydration mismatches are never caught; those stay browser-only.
+`validate` reads the file with the parser that builds the document tree a reader gets and
+checks it statically: syntax (per `#`/`##` section), the document rules, component and prop
+names, prop values against each builtin's schema, ids, mermaid chart fences and comments. It
+does not run or render the document; a document is data, so a builtin that throws for props it
+accepted is a bug in mdxserve, shown on the page as an error box in place of that builtin.
 
 A `pie`, `xychart-beta`, `quadrantChart`, or `sankey-beta` mermaid fence is always an `error`
 diagnostic with code `mermaid-chart` — mdxserve doesn't render these, so the doc should use the
@@ -310,8 +306,14 @@ kept under.
 
 A heading inside a tab is pathed from its tab (`os>macos>install`), so the same heading in
 two tabs is not a repeat. These ids are what the JSON document tree (`getDocument`,
-`mdxserve document`) carries; the rendered page still anchors a heading by its slug, adding
-`-1`, `-2` to repeats, as earlier releases did.
+`mdxserve document`) carries, and they are the page's URL anchors: a heading, and a tab
+(`#os>macos` selects that tab and scrolls to it). A fragment that matches no id goes to the
+first table of contents entry whose id ends with `>` and the fragment, so `#examples` still
+reaches an "Examples" heading after a second one turned both ids into paths. Repeated headings
+no longer get the `-1`, `-2` anchors of earlier releases, but those still resolve: when no id
+and no `>` suffix matches, `#examples-1` goes to the second heading whose own slug is
+`examples`, in document order, and `#examples-2` to the third. A heading whose slug really
+ends in a number, such as `## Step 1` (`step-1`), matches exactly first.
 
 Each break of these rules is an `error` that names the fix, and the document still renders:
 

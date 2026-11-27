@@ -31,6 +31,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { isTRPCClientError } from "@trpc/client";
 import { useSetAtom } from "jotai";
 import { trpcClient } from "./api";
+import { invalidateDocument } from "./document/query";
 import { sectionEditorActionsAtom } from "./state";
 import { TRANSITIONS } from "./motion";
 import { isApplePlatform } from "./platform";
@@ -48,13 +49,13 @@ const hint = {
 
 export interface MdSectionEditorProps {
 	initialDiagram?: ExistingDiagram;
-	/** Raw markdown for exactly [startLine, endLine], sliced by MdSection.tsx. */
+	/** The node's source, exactly as `getNodeSource` returned it. */
 	source: string;
 	/** Version token for the whole file at the moment `source` was fetched — the save's stale-write guard. */
 	version: string;
 	path: string;
-	startLine: number;
-	endLine: number;
+	/** The node's id in the document tree; the save addresses it by this. */
+	id: string;
 	/** Called after a successful save, or on Cancel — either way the section returns to read mode. */
 	onDone: () => void;
 }
@@ -96,8 +97,7 @@ function unwrapSoftBreaks(editor: Editor): void {
 /**
  * The Tiptap editing surface for one `MdSection`. This is the module
  * `client/MdSection.tsx` lazy-loads on click, so its ~300 KB of ProseMirror
- * never ships with a doc's own bundle and is never touched by the SSR render
- * worker (which only ever renders sections in read mode).
+ * loads only when a reader edits.
  *
  * `StarterKit` 3.29 bundles Link, Underline and Strike itself (confirmed in
  * node_modules/@tiptap/starter-kit/src/starter-kit.ts), so no separate
@@ -108,11 +108,13 @@ export default function MdSectionEditor({
 	source,
 	version,
 	path,
-	startLine,
-	endLine,
+	id,
 	onDone,
 }: MdSectionEditorProps) {
 	const [saving, setSaving] = useState(false);
+	// A load and save with no edit must not rewrite the file: Tiptap's
+	// serializer normalizes some Markdown (table padding, list markers).
+	const dirty = useRef(false);
 	const diagramEnabled = useRef(false);
 	const [diagramReady, setDiagramReady] = useState(false);
 	const [editTarget, setEditTarget] = useState<DiagramEditTarget | null>(null);
@@ -179,6 +181,10 @@ export default function MdSectionEditor({
 		content: source,
 		contentType: "markdown",
 		onCreate: ({ editor: created }) => unwrapSoftBreaks(created),
+		// The soft-break unwrap on create is not an edit; it stays out of history.
+		onUpdate: ({ transaction }) => {
+			if (transaction.getMeta("addToHistory") !== false) dirty.current = true;
+		},
 		editorProps: { attributes: { class: "mdx-editor", "aria-label": "Section editor" } },
 	});
 
@@ -238,19 +244,21 @@ export default function MdSectionEditor({
 
 	async function save() {
 		if (!editor || saving) return;
+		if (!dirty.current) {
+			onDone();
+			return;
+		}
 		setSaving(true);
 		try {
-			await trpcClient.saveDocSection.mutate({
+			await trpcClient.saveDocNode.mutate({
 				path,
-				startLine,
-				endLine,
+				id,
 				version,
 				markdown: editor.getMarkdown(),
 			});
-			// The write lands on disk, chokidar → Vite HMR re-executes the doc
-			// module, and Fast Refresh re-renders this section's MdSection
-			// wrapper with fresh line numbers — no need to do anything here
-			// beyond leaving edit mode.
+			// The watcher announces the write too; refetching now updates the
+			// page in place without waiting for it.
+			void invalidateDocument(path);
 			onDone();
 		} catch (error) {
 			const code = isTRPCClientError(error) ? error.data?.code : undefined;

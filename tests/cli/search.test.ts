@@ -30,6 +30,7 @@ const canned: SearchResult[] = [
 		excerpt: "This result only exists on the remote server.",
 		terms: ["widgets"],
 		score: 5,
+		targetId: null,
 	},
 ];
 

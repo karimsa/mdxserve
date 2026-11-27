@@ -1,5 +1,4 @@
 import { AnimatePresence } from "framer-motion";
-import { DiagramEditContext, type ExistingDiagram } from "./diagrams/edit-context";
 import {
 	lazy,
 	startTransition,
@@ -18,12 +17,8 @@ import { shellInfo } from "./router";
 import { IconButton } from "./ui/IconButton";
 import { pushToast } from "./ui/Toast";
 
-// The Tiptap editor (~300 KB of ProseMirror) must never be part of a doc
-// module's own bundle, and must never be evaluated by the SSR render worker
-// (client/ssr-entry.tsx), which only ever renders sections in read mode. A
-// module-scope `lazy()` call is safe in both places: it just builds a
-// component descriptor around a loader, and the loader only actually runs
-// when React commits the "edit" branch below, which SSR never reaches.
+// The Tiptap editor (~300 KB of ProseMirror) loads only when a reader opens
+// an editor; the loader runs when React commits the "edit" branch below.
 const loadEditor = () => import("./MdSectionEditor");
 const MdSectionEditor = lazy(loadEditor);
 const DiagramEditDialog = lazy(() =>
@@ -40,242 +35,192 @@ function preloadEditor(): void {
 	void loadEditor();
 }
 
-export interface MdSectionProps {
-	/** 0-based order among a doc's sections, as a string (mdxJsxFlowElement attributes are always strings). */
-	index: string;
-	/** 1-based, inclusive source line numbers, as strings. */
-	startLine: string;
-	endLine: string;
-	/** Raw JSX renders nested diagrams whose source cannot be edited as a Markdown fence. */
-	rawJsx?: string;
-	children: ReactNode;
-}
+type EditMode = "read" | "loading" | "open";
 
 /**
- * MDXProvider registration (see client/mdx-components.ts) for the synthetic
- * `<MdSection>` element the server's remark-sections compiler plugin wraps
- * around editable top-level Markdown and JSX blocks. In read mode
- * it's invisible — same children, same DOM — until hovered, when a pencil
- * appears to swap it into an inline Tiptap editor seeded from the raw file.
- *
- * This outer component only resolves `path`. `Section` is deliberately not
- * keyed on its line range: anything that adds lines above it — a comment
- * growing the frontmatter, an edit to an earlier section — shifts the range,
- * and a key would remount every section below, diagrams included. `Section`
- * drops back to read mode itself when its range moves.
+ * The edit state of one node, addressed by its id: fetches the node's source
+ * (`getNodeSource`) when opened and keeps the version it was read at for the
+ * save. Only one node edits at a time across the page: opening claims
+ * `openSectionAtom`, and a node that loses it drops back to read mode,
+ * discarding what it had open (no autosave; Save or Esc).
  */
-export function MdSection({ index, startLine, endLine, rawJsx, children }: MdSectionProps) {
-	const ctxPath = useContext(DocContext)?.path;
-	// MdSection also renders inside the SSR worker (client/ssr-entry.tsx, used
-	// by the `mdxserve validate` render check via renderToString), which has no
-	// router and so no DocContext provider — and no `location` global at all.
-	// Read mode never needs `path`, so falling back to "" there is fine.
-	const path =
-		ctxPath ?? (typeof location !== "undefined" ? decodeURIComponent(location.pathname) : "");
-
-	return (
-		<Section
-			path={path}
-			index={index}
-			startLine={Number(startLine)}
-			endLine={Number(endLine)}
-			rawJsx={rawJsx === "true"}
-		>
-			{children}
-		</Section>
-	);
-}
-
-function Section({
-	path,
-	index,
-	startLine,
-	endLine,
-	rawJsx,
-	children,
-}: {
-	path: string;
-	index: string;
-	startLine: number;
-	endLine: number;
-	rawJsx: boolean;
-	children: ReactNode;
-}) {
-	const [mode, setMode] = useState<"read" | "loading" | "edit" | "diagram">("read");
-	const [initialDiagram, setInitialDiagram] = useState<ExistingDiagram | undefined>();
+function useNodeEditor(id: string) {
+	const path = useContext(DocContext)?.path ?? "";
+	const [mode, setMode] = useState<EditMode>("read");
 	const [source, setSource] = useState("");
 	const [version, setVersion] = useState("");
 	const [openSection, setOpenSection] = useAtom(openSectionAtom);
-	const key = `${path}:${startLine}:${endLine}`;
+	const key = `${path}:${id}`;
+	const editable = shellInfo.permissions !== "restricted";
 
-	// The range moved under this section (a save or an outside write shifted
-	// it), so an open editor now points at stale line numbers: back to read
-	// mode. Reset during render so the editor never commits with the new range.
-	const [renderedKey, setRenderedKey] = useState(key);
-	if (renderedKey !== key) {
-		setRenderedKey(key);
-		setMode("read");
-	}
-
-	// Only one section edits (or loads) at a time. The atom is claimed the
-	// moment a section starts opening, so if a different section claims it
-	// while this one is mid-fetch or mid-edit, this one drops back to read
-	// mode and discards whatever it had — no confirmation, matching the
-	// "explicit Save / Esc cancels, no autosave" model. Claiming up front
-	// (rather than when the fetch lands) is what makes a slow earlier click
-	// lose to a faster later one instead of clobbering it.
 	useEffect(() => {
 		if (mode !== "read" && openSection !== key) setMode("read");
 	}, [openSection, key, mode]);
 
-	// If this section unmounts while it owns the atom — a navigation away, or
-	// the HMR remount after another section's save shifted our line range —
-	// release it, or DocView would keep the doc's resize handles hidden.
+	// Release the atom if this node unmounts while it owns it (a navigation
+	// away, or the node leaving the document), or the page keeps its resize
+	// handles hidden.
 	useEffect(() => {
 		return () => {
 			setOpenSection((current) => (current === key ? null : current));
 		};
 	}, [key, setOpenSection]);
 
-	async function startEdit(target?: ExistingDiagram) {
-		if (shellInfo.permissions === "restricted") return;
-		// Double-click and the pencil can both fire while a fetch is in flight.
-		if (mode !== "read") return;
-		setInitialDiagram(target);
+	async function open() {
+		if (!editable || mode !== "read") return;
 		setOpenSection(key);
 		setMode("loading");
 		try {
 			// The vanilla client, not the query cache: the source must be exactly
 			// what is on disk at this moment, never a cached copy.
-			const data = await trpcClient.getDocSource.query({ path });
-			// Functional update so a response that lands after another section
-			// took the atom (the effect above has already reset us to "read")
-			// is dropped rather than resurrecting this section's editor.
-			const lines = data.text.split(/\r?\n/);
-			const sliced = lines.slice(startLine - 1, endLine).join("\n");
+			const data = await trpcClient.getNodeSource.query({ path, id });
 			setMode((current) => {
 				if (current !== "loading") return current;
-				setSource(sliced);
+				setSource(data.markdown);
 				setVersion(data.version);
 				return current;
 			});
-			// A transition, so React keeps the read-mode DOM on screen until the
-			// lazy editor chunk has resolved and MdSectionEditor can commit in
-			// one go — instead of swapping in the Suspense fallback first and
-			// then the editor, which read as a flash.
+			// A transition, so the read-mode DOM stays until the lazy editor chunk
+			// has resolved and the editor commits in one go.
 			startTransition(() => {
-				setMode((current) => (current === "loading" ? (target ? "diagram" : "edit") : current));
+				setMode((current) => (current === "loading" ? "open" : current));
 			});
 		} catch {
-			pushToast({ tone: "danger", text: "Couldn't open section for editing" });
+			pushToast({ tone: "danger", text: "Couldn't open this block for editing" });
 			setMode((current) => (current === "loading" ? "read" : current));
 			setOpenSection((current) => (current === key ? null : current));
 		}
 	}
 
-	// Called by MdSectionEditor on both Save-success and Cancel — this section
-	// is (by construction — see the effect above) still the open one whenever
-	// its own editor is what's calling this, so clearing unconditionally is safe.
-	function finishEdit() {
+	function close() {
 		// Only release the atom if it is still ours: a slow save can resolve
-		// after another section has claimed it, and clearing unconditionally
-		// would close that newer editor and discard its unsaved edits.
+		// after another node has claimed it.
 		setOpenSection((current) => (current === key ? null : current));
 		setMode("read");
 	}
 
-	// MdSectionEditor renders its own `.mdx-section[data-editing]` wrapper (it
-	// needs to be the direct parent of `.ProseMirror` for the prose rhythm
-	// rules in client/design/base/prose.css to reach it), so this branch adds
-	// nothing around it — a second `.mdx-section` here would double-nest and
-	// throw off the `:is(.mdx-prose, .mdx-section, …) > * + *` selectors.
-	//
-	// The fallback is the read-mode content itself, not a skeleton: with the
-	// transition in startEdit this branch normally never suspends visibly, and
-	// if it ever does (chunk evicted, slow network) the section simply stays
-	// as it was until the editor is ready.
-	if (mode === "edit") {
+	return { path, mode, source, version, editable, open, close };
+}
+
+export interface MdSectionProps {
+	/** The node's id in the document tree: a section, the preamble, or a block builtin. */
+	id: string;
+	/** A block builtin sits inside a section and keeps its own pencil. */
+	kind: "section" | "block";
+	children: ReactNode;
+}
+
+/**
+ * An editable block of the document: a level 1 or 2 section (or the content
+ * before the first heading), or a block builtin. In read mode it is
+ * invisible — same children, same DOM — until hovered, when a pencil appears
+ * to swap it into an inline Tiptap editor seeded with the node's source. A
+ * double-click on its prose opens the editor too.
+ */
+export function MdSection({ id, kind, children }: MdSectionProps) {
+	const editor = useNodeEditor(id);
+	const group = kind === "section" ? "group/section" : "group/block";
+	const reveal =
+		kind === "section" ? "group-hover/section:opacity-100" : "group-hover/block:opacity-100";
+
+	if (editor.mode === "open") {
+		// MdSectionEditor renders its own `.mdx-section[data-editing]` wrapper (it
+		// must be the direct parent of `.ProseMirror` for the prose rhythm rules
+		// to reach it). The fallback is the read-mode content itself.
 		return (
 			<Suspense
 				fallback={
-					<div className="mdx-section" data-md-section={index}>
+					<div className="mdx-section" data-node-id={id}>
 						{children}
 					</div>
 				}
 			>
 				<MdSectionEditor
-					source={source}
-					version={version}
-					path={path}
-					startLine={startLine}
-					endLine={endLine}
-					onDone={finishEdit}
+					source={editor.source}
+					version={editor.version}
+					path={editor.path}
+					id={id}
+					onDone={editor.close}
 				/>
 			</Suspense>
 		);
 	}
 
-	// Double-clicking prose is the fast path into the editor. It has to stay
-	// out of the way where a double-click already means something: following/
-	// selecting a link, a button (code copy, tabs), a task checkbox, selecting a
-	// word inside a code block, and svg-pan-zoom's double-click zoom on a
-	// mermaid diagram (client/Mermaid.tsx `dblClickZoomEnabled`), and the inline
-	// table of contents (client/shell/TocAbove.tsx), which is not doc content.
+	// Double-clicking prose is the fast path into the editor. It stays out of
+	// the way where a double-click already means something: a link, a button
+	// (code copy, tabs), a task checkbox, a word inside a code block,
+	// svg-pan-zoom's double-click zoom on a diagram, and the inline table of
+	// contents, which is not document content.
 	function onDoubleClick(event: MouseEvent<HTMLDivElement>) {
-		if (shellInfo.permissions === "restricted") return;
 		const target = event.target as Element | null;
 		if (target?.closest("a, button, input, select, textarea, summary, pre, svg, [data-toc-above]"))
 			return;
+		// The innermost editable block takes it.
+		event.stopPropagation();
 		event.preventDefault();
-		void startEdit();
+		void editor.open();
 	}
 
 	return (
-		<DiagramEditContext.Provider
-			value={
-				shellInfo.permissions !== "restricted" && mode === "read" && !rawJsx
-					? (target) => void startEdit(target)
-					: null
-			}
+		<div
+			className={`mdx-section ${group}`}
+			data-node-id={id}
+			onDoubleClick={editor.editable ? onDoubleClick : undefined}
+			onPointerEnter={editor.editable ? preloadEditor : undefined}
 		>
+			{children}
+			{/* Floats over the block's top-right corner rather than in the left
+			    gutter, which is where the page's left resize handle lives. */}
+			{editor.editable && (
+				<IconButton
+					icon="pencil"
+					label={kind === "section" ? "Edit section" : "Edit block"}
+					size="sm"
+					variant="outline"
+					data-print-hide
+					disabled={editor.mode === "loading"}
+					onClick={() => void editor.open()}
+					className={`mdx-section-edit absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity ${reveal} focus-visible:opacity-100`}
+				/>
+			)}
+		</div>
+	);
+}
+
+/**
+ * The edit action of a mermaid block: opens the diagram dialog on the block's
+ * own source and saves it back by the block's id. `render` receives the
+ * handler to put on the block's Edit button, or undefined where the reader
+ * may not edit.
+ */
+export function DiagramEditor({
+	id,
+	value,
+	render,
+}: {
+	id: string;
+	/** The diagram text as rendered, to find the fence in the fetched source. */
+	value: string;
+	render: (onEdit: (() => void) | undefined) => ReactNode;
+}) {
+	const editor = useNodeEditor(id);
+	return (
+		<>
 			<AnimatePresence>
-				{mode === "diagram" && initialDiagram && (
+				{editor.mode === "open" && (
 					<Suspense fallback={null}>
 						<DiagramEditDialog
-							source={source}
-							target={initialDiagram}
-							path={path}
-							version={version}
-							startLine={startLine}
-							endLine={endLine}
-							onClose={finishEdit}
+							source={editor.source}
+							target={{ index: 0, source: value }}
+							path={editor.path}
+							id={id}
+							version={editor.version}
+							onClose={editor.close}
 						/>
 					</Suspense>
 				)}
 			</AnimatePresence>
-			<div
-				className="mdx-section group"
-				data-md-section={index}
-				onDoubleClick={shellInfo.permissions === "restricted" ? undefined : onDoubleClick}
-				onPointerEnter={shellInfo.permissions === "restricted" ? undefined : preloadEditor}
-			>
-				{children}
-				{/* Floats over the section's top-right corner rather than in the left
-			    gutter, which is where DocView's left ResizeHandle lives — the two
-			    hover affordances were fighting for the same strip of pixels. */}
-				{shellInfo.permissions !== "restricted" && (
-					<IconButton
-						icon="pencil"
-						label="Edit section"
-						size="sm"
-						variant="outline"
-						data-print-hide
-						disabled={mode === "loading"}
-						onClick={() => void startEdit()}
-						className="mdx-section-edit absolute -top-3 right-0 z-20 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-					/>
-				)}
-			</div>
-		</DiagramEditContext.Provider>
+			{render(editor.editable ? () => void editor.open() : undefined)}
+		</>
 	);
 }

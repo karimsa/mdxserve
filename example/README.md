@@ -11,9 +11,10 @@ alongside everything else.
 MDX files as a browsable site. Point it at a directory and it will:
 
 - List subfolders and `.md` / `.mdx` files when you browse a directory
-- Render a file in the browser when you click it, using Vite + MDX
+- Render a file in the browser when you click it, from the JSON document tree the server
+  parses it into
 - Apply Tailwind's `prose` typography styles automatically, so you don't write any CSS
-- Highlight code blocks with Shiki (via `rehype-pretty-code`), with fence meta on
+- Highlight code blocks with Shiki in the browser, with fence meta on
   the opening ` ```ts ` line for a title (`title="server.ts"`), a line-number gutter
   (`showLineNumbers`), and highlighted lines (`{1,3-4}`) — see `01-markdown.md`
 - Support GitHub Flavored Markdown (tables, task lists, strikethrough, etc.) via `remark-gfm`

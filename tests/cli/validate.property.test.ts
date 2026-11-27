@@ -20,14 +20,12 @@ const diagnosticArb: fc.Arbitrary<Diagnostic> = fc.record({
 const resultArb: fc.Arbitrary<ValidationResult> = fc
 	.record({
 		diagnostics: fc.array(diagnosticArb, { maxLength: 4 }),
-		rendered: fc.boolean(),
 		hints: fc.array(fc.constantFrom("hint a", "hint b"), { maxLength: 2 }),
 	})
-	.map(({ diagnostics, rendered, hints }) => ({
+	.map(({ diagnostics, hints }) => ({
 		ok: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
 		path: "/p.md",
 		diagnostics,
-		rendered,
 		hints,
 	}));
 

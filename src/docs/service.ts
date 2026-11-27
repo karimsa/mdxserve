@@ -8,6 +8,7 @@ import { resolveDocPath } from "../roots/paths.js";
 import type { RootsService } from "../roots/service.js";
 import type { Registry } from "../components/registry.js";
 import { ValidationService } from "../validation/service.js";
+import { introducedErrors } from "../validation/introduced.js";
 import { DocumentService } from "../document/service.js";
 import type { DocumentTree } from "../document/schema.js";
 import { rootFileUrl } from "./asset-url.js";
@@ -72,23 +73,28 @@ function isUnavailableFile(error: unknown): boolean {
 	);
 }
 
-export interface SaveSectionInput {
+export type ReadNodeSourceResult =
+	| { kind: "ok"; markdown: string; version: string }
+	| { kind: "not-found"; message: string }
+	| { kind: "too-large" };
+
+export interface SaveNodeInput {
 	path: string;
-	startLine: number;
-	endLine: number;
-	/** The version token the caller read the file at (see `readSource`). */
+	/** The ID of the node to replace, from the document tree the caller read. */
+	id: string;
+	/** The version token the caller read the file at (see `readDocument`). */
 	version: string;
 	markdown: string;
 }
 
-export type SaveSectionResult =
+export type SaveNodeResult =
 	| { kind: "ok"; version: string }
 	| { kind: "not-found"; message: string }
 	/** The file changed since the caller read it; `version` is the current one. */
 	| { kind: "stale"; version: string }
-	/** The file has fewer lines than the caller's range expects. */
+	/** The node's line range no longer fits the file. */
 	| { kind: "invalid-range"; message: string }
-	/** The spliced file would not compile; nothing was written. */
+	/** The spliced file has errors the original did not; nothing was written. */
 	| { kind: "invalid-doc"; message: string; diagnostics: Diagnostic[] };
 
 export type FrontmatterUpdate<Abort> =
@@ -128,6 +134,18 @@ function withFrontmatter(source: string, yaml: string): string {
 		block,
 		...lines.slice(existing.endLine - 1),
 	].join("");
+}
+
+/**
+ * The last line of `range` that an editor sees: a node's range can end in the
+ * blank lines that separate it from the next node, and `spliceLines` drops
+ * trailing blank lines from what it is given, so saving would otherwise eat
+ * the separator. A range of only blank lines is left whole.
+ */
+function editableEndLine(lines: string[], range: { startLine: number; endLine: number }): number {
+	let end = range.endLine;
+	while (end > range.startLine && lines[end - 1]?.trim() === "") end -= 1;
+	return end;
 }
 
 /** Owns per-file save locks, so a `DocsService` is per-process state. */
@@ -337,15 +355,42 @@ export class DocsService implements MetadataPort {
 	}
 
 	/**
-	 * Write back exactly the line range a section editor was seeded from. The
-	 * version token is checked against the file the client actually read (not
-	 * "now"), so an edit made elsewhere between open and save is caught as a
-	 * conflict instead of silently overwritten; the proposed full-file text is
-	 * then run through the same validator as validate_doc before anything
-	 * touches disk, so a save can never leave a doc broken.
+	 * Read the source lines of one node (a section, a tab, a block) by its ID in
+	 * the document tree, for an in-place editor to seed itself from. Joined with
+	 * "\n" as `spliceLines` counts lines, and without the blank lines that end the
+	 * node's range, so saving the text back unchanged reproduces the file.
 	 */
-	async saveSection(input: SaveSectionInput): Promise<SaveSectionResult> {
-		const { startLine, endLine, version, markdown } = input;
+	async readNodeSource(
+		inputPath: string,
+		id: string,
+		publicOnly = false,
+	): Promise<ReadNodeSourceResult> {
+		const read = await this.readResolved(inputPath, publicOnly);
+		if (read.kind === "not-found") return read;
+		if (read.kind === "too-large") return { kind: "too-large" };
+		const { ranges } = new DocumentService(this.registry, rootFileUrl).parse(
+			read.source.text,
+			read.abs,
+		);
+		const range = ranges.get(id);
+		if (!range) return { kind: "not-found", message: `No editable node with id "${id}"` };
+		const lines = read.source.text.split(/\r?\n/);
+		const endLine = editableEndLine(lines, range);
+		const markdown = lines.slice(range.startLine - 1, endLine).join("\n");
+		return { kind: "ok", markdown, version: read.source.version };
+	}
+
+	/**
+	 * Replace the lines of one node, found by ID in the file as it is now. The
+	 * version token is checked first, against the file the client actually read
+	 * (not "now"), so an edit made elsewhere between open and save is caught as
+	 * a conflict instead of silently overwritten. The file is validated before
+	 * and after the splice and the save is refused only for errors the splice
+	 * introduced, so a document that already had an error can still be fixed
+	 * one block at a time.
+	 */
+	async saveNode(input: SaveNodeInput): Promise<SaveNodeResult> {
+		const { id, version, markdown } = input;
 		const registry = this.registry;
 
 		const rootInfos = this.roots.list();
@@ -359,34 +404,31 @@ export class DocsService implements MetadataPort {
 		// resolveDocPath already checked the realpath stays inside the root.
 		const abs = await fsp.realpath(resolved.abs);
 
-		return this.withSaveLock(abs, async () => {
+		return this.withSaveLock(abs, async (): Promise<SaveNodeResult> => {
 			const stat = await fsp.stat(abs);
-			// One read serves both the conflict check and the splice, so there is
-			// no window between "the bytes I checked" and "the bytes I edited".
+			// One read serves the conflict check, the id lookup and the splice, so
+			// there is no window between "the bytes I checked" and "the bytes I edited".
 			const source = await fsp.readFile(abs, "utf8");
 			const current = versionOf(source);
 			if (current !== version) return { kind: "stale", version: current };
 
-			const spliced = spliceLines(source, startLine, endLine, markdown);
-			if (!spliced.ok) {
-				// The file changed shape (fewer lines than the editor expects) even
-				// though the version matched at the check above — treat it the same
-				// as a stale-version conflict rather than writing garbage.
-				return { kind: "invalid-range", message: spliced.error };
-			}
+			const { ranges } = new DocumentService(registry, rootFileUrl).parse(source, abs);
+			const range = ranges.get(id);
+			if (!range) return { kind: "not-found", message: `No editable node with id "${id}"` };
 
-			const validation = await new ValidationService(rootInfos, registry, this).validateText({
-				source: spliced.text,
-				absPath: abs,
-			});
-			if (!validation.ok) {
-				const firstError = validation.diagnostics.find(
-					(diagnostic) => diagnostic.severity === "error",
-				);
+			const endLine = editableEndLine(source.split(/\r?\n/), range);
+			const spliced = spliceLines(source, range.startLine, endLine, markdown);
+			if (!spliced.ok) return { kind: "invalid-range", message: spliced.error };
+
+			const validator = new ValidationService(rootInfos, registry, this);
+			const before = await validator.validateText({ source, absPath: abs });
+			const after = await validator.validateText({ source: spliced.text, absPath: abs });
+			const introduced = introducedErrors(before.diagnostics, after.diagnostics);
+			if (introduced.length > 0) {
 				return {
 					kind: "invalid-doc",
-					message: firstError?.message ?? "Validation failed",
-					diagnostics: validation.diagnostics,
+					message: introduced[0]?.message ?? "Validation failed",
+					diagnostics: after.diagnostics,
 				};
 			}
 
@@ -394,10 +436,9 @@ export class DocsService implements MetadataPort {
 			if (written.kind === "stale") return written;
 
 			// No websocket push: every root is already on vite.watcher, so the
-			// rename above fires chokidar's own "change" event, which drives
-			// Vite's HMR and re-renders the doc with fresh MdSection line numbers.
+			// rename above fires chokidar's own "change" event.
 			//
-			// The new version is the digest of exactly what was written — no
+			// The new version is the digest of exactly what was written: no
 			// re-read needed, and no chance of picking up someone else's write.
 			return { kind: "ok", version: versionOf(spliced.text) };
 		});

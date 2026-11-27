@@ -1,17 +1,4 @@
-import { DiagramEditContext } from "./diagrams/edit-context";
-import {
-	Children,
-	createContext,
-	isValidElement,
-	useContext,
-	useEffect,
-	useId,
-	useRef,
-	useState,
-	type ComponentPropsWithoutRef,
-	type ReactElement,
-	type ReactNode,
-} from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MermaidDiagram } from "./Mermaid";
 import {
@@ -25,39 +12,26 @@ import Dropdown from "./ui/Dropdown";
 import { TRANSITIONS } from "./motion";
 import { CrossFade } from "./CrossFade";
 import { Icon } from "./ui/Icon";
+import { cachedHighlight, highlight, type HighlightedLine } from "./highlight";
 
 /**
- * Code block chrome for MDX-compiled output, styled from the design tokens
- * (bg-code-bg / border-code-border / text-code-fg — see client/design/tokens/colors.css).
+ * A fenced code block from the document tree, styled from the design tokens
+ * (bg-code-bg / border-code-border / text-code-fg — see
+ * client/design/tokens/colors.css). The code arrives as plain text and is
+ * highlighted here with shiki, loaded as a lazy chunk on the first block; the
+ * plain lines show until it lands. The markup is the one rehype-pretty-code
+ * used to emit, so client/app.css styles it unchanged:
  *
- * rehype-pretty-code (node_modules/rehype-pretty-code/dist/index.js) wraps every fenced
- * code block as:
+ *   <pre data-language data-theme>
+ *     <code data-language data-theme style="display:grid"
+ *           data-line-numbers? data-line-numbers-max-digits?>
+ *       <span data-line data-highlighted-line?>…</span>
+ *     </code>
+ *   </pre>
  *
- *   <figure data-rehype-pretty-code-figure>                                  // index.js:459
- *     <figcaption data-rehype-pretty-code-title                              // index.js:506-510
- *                  data-language data-theme>title</figcaption>               // only when `title="…"` meta is set
- *     <pre data-language data-theme>                                        // index.js:478-479
- *       <code data-language data-theme style="display:grid"                 // index.js:483-484, 495-498
- *             data-line-numbers?                                            // index.js:748, set on <code> when `showLineNumbers` meta present
- *             data-line-numbers-max-digits?>                                // index.js:499-500
- *         <span data-line data-highlighted-line?>…</span>                   // index.js:459(line loop)/766, "line" class -> data-line, {n,m-n} meta -> data-highlighted-line
- *       </code>
- *     </pre>
- *   </figure>
- *
- * We intercept both `figure` and `pre` in the MDXProvider components map (see
- * client/entry.tsx). `Figure` renders the framed card (header bar + copy button)
- * for processed code figures, pulling the title out of the figcaption and the
- * language off the `pre`; `Pre` then renders as a bare, styled `<pre>` inside
- * that card. A `<pre>` that is *not* inside one of our `Figure`s (e.g.
- * hand-written JSX in an .mdx file, which bypasses rehype-pretty-code entirely)
- * falls back to rendering the same card itself, so plain `<pre>` still looks right.
- * `CodeFrame` is the single source of truth for that card, used by both paths;
- * `CodeFrameHeader` is its header bar, exported on its own so other framed
- * code-like surfaces (e.g. the Diff builtin) can reuse the same chrome.
+ * `CodeFrameHeader` is the frame's header bar, exported on its own so other
+ * framed code-like surfaces (e.g. the Diff builtin) can reuse the same chrome.
  */
-
-const InsideCodeFrame = createContext(false);
 
 /**
  * The 34px header bar shared by every code-shaped frame: a mono filename/
@@ -224,27 +198,156 @@ function ViewToggle({
 	);
 }
 
+const PRE_CLASS =
+	"font-mono font-normal leading-[1.62] text-[length:var(--size-sm)] text-code-fg overflow-x-auto";
+
+const THEME_NAME = "mdxserve-tokens";
+
+const FONT_STYLE_ITALIC = 1;
+const FONT_STYLE_BOLD = 2;
+const FONT_STYLE_UNDERLINE = 4;
+
+/** Plain lines, before (or without) highlighting. */
+function plainLines(code: string): HighlightedLine[] {
+	return code.split("\n").map((line) => [{ content: line }]);
+}
+
+function useHighlightedLines(lang: string | null, code: string): HighlightedLine[] {
+	const [state, setState] = useState(() => ({
+		lang,
+		code,
+		lines: cachedHighlight(lang, code) ?? plainLines(code),
+	}));
+	const current =
+		state.lang === lang && state.code === code
+			? state.lines
+			: (cachedHighlight(lang, code) ?? plainLines(code));
+	useEffect(() => {
+		let cancelled = false;
+		void highlight(lang, code)
+			.then((lines) => {
+				if (!cancelled && lines) setState({ lang, code, lines });
+			})
+			.catch(() => {
+				// No grammar, or the chunk failed to load: the plain lines stay.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [lang, code]);
+	return current;
+}
+
+/** The `<pre>` of a code block, with one `<span data-line>` per line. */
+function CodeLines({
+	lang,
+	value,
+	showLineNumbers,
+	highlightLines,
+}: {
+	lang: string | null;
+	value: string;
+	showLineNumbers: boolean;
+	highlightLines: readonly number[];
+}) {
+	const lines = useHighlightedLines(lang, value);
+	const highlighted = new Set(highlightLines);
+	const language = lang ?? "plaintext";
+	return (
+		<pre
+			data-language={language}
+			data-theme={THEME_NAME}
+			data-code-source
+			tabIndex={0}
+			className={PRE_CLASS}
+		>
+			<code
+				data-language={language}
+				data-theme={THEME_NAME}
+				data-line-numbers={showLineNumbers ? "" : undefined}
+				data-line-numbers-max-digits={showLineNumbers ? String(lines.length).length : undefined}
+				style={{ display: "grid" }}
+			>
+				{lines.map((tokens, index) => (
+					<LineSpan
+						key={index}
+						tokens={tokens}
+						highlighted={highlighted.has(index + 1)}
+						last={index === lines.length - 1}
+					/>
+				))}
+			</code>
+		</pre>
+	);
+}
+
+function LineSpan({
+	tokens,
+	highlighted,
+	last,
+}: {
+	tokens: HighlightedLine;
+	highlighted: boolean;
+	last: boolean;
+}) {
+	const empty = tokens.every((token) => token.content === "");
+	return (
+		<>
+			<span data-line="" data-highlighted-line={highlighted ? "" : undefined}>
+				{empty
+					? // An empty line keeps its height in the grid.
+						" "
+					: tokens.map((token, index) =>
+							token.color === undefined && !token.fontStyle ? (
+								token.content
+							) : (
+								<span
+									key={index}
+									style={{
+										color: token.color,
+										fontStyle:
+											token.fontStyle && token.fontStyle & FONT_STYLE_ITALIC ? "italic" : undefined,
+										fontWeight:
+											token.fontStyle && token.fontStyle & FONT_STYLE_BOLD ? "bold" : undefined,
+										textDecoration:
+											token.fontStyle && token.fontStyle & FONT_STYLE_UNDERLINE
+												? "underline"
+												: undefined,
+									}}
+								>
+									{token.content}
+								</span>
+							),
+						)}
+			</span>
+			{last ? null : "\n"}
+		</>
+	);
+}
+
 /**
- * Shared card: header bar (label + actions) wrapping whatever `<pre>` is
- * passed as children. Copies via a ref instead of prop-drilling so it works
- * whether the `<pre>` came from `Figure` or was rendered directly by `Pre`.
+ * Shared card: header bar (label + actions) over the code, or for a mermaid
+ * block a diagram/code toggle over the rendered diagram and its source.
  * Content rises with the rest of the prose column, so the frame itself has no
  * entrance animation of its own.
  */
 function CodeFrame({
 	title,
 	language,
+	source,
+	onEditDiagram,
 	children,
 }: {
 	title?: string;
 	language?: string;
+	/** The block's text, for the copy button and the diagram. */
+	source: string;
+	/** Opens the diagram editor; absent where the reader may not edit. */
+	onEditDiagram?: () => void;
 	children: ReactNode;
 }) {
-	const containerRef = useRef<HTMLDivElement>(null);
 	const isMermaid = language === "mermaid";
-	const editDiagram = useContext(DiagramEditContext);
 	const [view, setView] = useState<"diagram" | "code">("diagram");
-	const [source, setSource] = useState<string | null>(null);
 	const label = title ?? language;
 	const showDiagram = isMermaid && view === "diagram";
 	const toggleId = useId();
@@ -254,17 +357,16 @@ function CodeFrame({
 	// was chosen for means a re-render with new content (the file was saved with
 	// a different header) falls back to the default automatically.
 	const wideScreen = useMediaQuery(DESKTOP_MEDIA, true);
-	const authored = source === null ? null : readFlowchartDirection(source);
+	const authored = isMermaid ? readFlowchartDirection(source) : null;
 	// A left-to-right chart is wider than a phone column, so narrow screens start
 	// it top-down; vertical charts already fit and keep the author's direction.
 	const preferred =
 		authored !== null && !wideScreen && (authored === "LR" || authored === "RL") ? "TB" : authored;
 	const [chosen, setChosen] = useState<{ source: string; direction: FlowDirection } | null>(null);
 	const direction = chosen !== null && chosen.source === source ? chosen.direction : preferred;
-	const diagramSource =
-		source !== null && direction !== null ? setFlowchartDirection(source, direction) : source;
+	const diagramSource = direction !== null ? setFlowchartDirection(source, direction) : source;
 	const directionMenu =
-		source !== null && authored !== null && direction !== null ? (
+		authored !== null && direction !== null ? (
 			<DirectionMenu
 				value={direction}
 				authored={authored}
@@ -272,30 +374,8 @@ function CodeFrame({
 			/>
 		) : null;
 
-	// Pull the raw diagram text out of the (always-mounted) <pre> so the diagram
-	// view and the copy button share one source of truth. Select the code
-	// block's own <pre> (tagged by `Pre` below), not the first <pre> in the
-	// card: when a diagram fails, MermaidDiagram's error card puts the message
-	// in a <pre> that sits *before* the code pane, and a bare "pre" lookup
-	// would feed that message back into mermaid on the next re-render — each
-	// pass wrapping the last error, never recovering until a reload.
-	function codePre() {
-		return containerRef.current?.querySelector("pre[data-code-source]") ?? null;
-	}
-
-	useEffect(() => {
-		if (!isMermaid) return;
-		setSource(codePre()?.textContent ?? "");
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isMermaid, children]);
-
-	function getCopyText() {
-		return codePre()?.textContent ?? "";
-	}
-
 	return (
 		<div
-			ref={containerRef}
 			data-mermaid-editable={isMermaid ? "" : undefined}
 			className="overflow-hidden rounded-lg border border-code-border bg-code-bg"
 		>
@@ -305,28 +385,20 @@ function CodeFrame({
 					<>
 						{isMermaid ? <ViewToggle view={view} onChange={setView} toggleId={toggleId} /> : null}
 						{showDiagram ? directionMenu : null}
-						{isMermaid && editDiagram && (
+						{isMermaid && onEditDiagram && (
 							<button
 								type="button"
 								aria-label="Edit diagram"
 								data-print-hide
 								className="inline-flex items-center gap-1.5 text-[length:var(--size-xs)] text-text-subtle hover:text-text-heading"
-								onClick={() => {
-									const frame = containerRef.current;
-									const section = frame?.closest("[data-md-section]");
-									if (!frame || !section) return;
-									const index = [...section.querySelectorAll("[data-mermaid-editable]")].indexOf(
-										frame,
-									);
-									if (index >= 0) editDiagram({ index, source: getCopyText() });
-								}}
+								onClick={onEditDiagram}
 							>
 								<Icon name="pencil" size={12} />
 								Edit
 							</button>
 						)}
 
-						<CopyButton getText={getCopyText} />
+						<CopyButton getText={() => source} />
 					</>
 				}
 			/>
@@ -336,84 +408,51 @@ function CodeFrame({
 					panes={[
 						{
 							key: "diagram",
-							node:
-								diagramSource !== null ? (
-									<MermaidDiagram source={diagramSource} toolbar={directionMenu} />
-								) : null,
+							node: <MermaidDiagram source={diagramSource} toolbar={directionMenu} />,
 						},
-						{
-							key: "code",
-							node: <InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>,
-						},
+						{ key: "code", node: children },
 					]}
 				/>
 			) : (
-				<InsideCodeFrame.Provider value={true}>{children}</InsideCodeFrame.Provider>
+				children
 			)}
 		</div>
 	);
 }
 
-const PRE_CLASS =
-	"font-mono font-normal leading-[1.62] text-[length:var(--size-sm)] text-code-fg overflow-x-auto";
-
-type PreProps = ComponentPropsWithoutRef<"pre"> & { "data-language"?: string };
-
-/**
- * MDXProvider `pre` override. Inside a `Figure`-rendered card it's just the bare
- * styled `<pre>` (the card supplies the header/copy button); on its own, it wraps
- * itself in `CodeFrame` so it still gets the full treatment.
- */
-export function Pre(props: PreProps) {
-	const insideFrame = useContext(InsideCodeFrame);
-	// `data-code-source` is what CodeFrame's source/copy lookups select on; both
-	// the in-figure and the bare <pre> carry it.
-	if (insideFrame) {
-		return <pre {...props} data-code-source className={PRE_CLASS} />;
-	}
-	const { "data-language": language, ...rest } = props;
-	return (
-		<CodeFrame language={language}>
-			<pre {...rest} data-language={language} data-code-source className={PRE_CLASS} />
-		</CodeFrame>
-	);
+export interface CodeBlockProps {
+	lang: string | null;
+	title: string | null;
+	showLineNumbers: boolean;
+	/** 1-based lines to highlight. */
+	highlightLines: readonly number[];
+	value: string;
+	/** Mermaid only: opens the diagram editor. */
+	onEditDiagram?: () => void;
 }
 
-type FigureProps = ComponentPropsWithoutRef<"figure"> & {
-	"data-rehype-pretty-code-figure"?: string;
-};
-
-function textContentOf(node: ReactNode): string {
-	if (typeof node === "string") return node;
-	if (typeof node === "number") return String(node);
-	if (Array.isArray(node)) return node.map(textContentOf).join("");
-	if (isValidElement(node)) return textContentOf((node.props as { children?: ReactNode }).children);
-	return "";
-}
-
-/**
- * MDXProvider `figure` override. Only rehype-pretty-code's code figures (tagged
- * with `data-rehype-pretty-code-figure`) get the framed treatment; any
- * other `<figure>` (e.g. wrapping an image) renders unchanged.
- */
-export function Figure({ children, ...props }: FigureProps) {
-	if (!("data-rehype-pretty-code-figure" in props)) {
-		return <figure {...props}>{children}</figure>;
-	}
-
-	const nodes = Children.toArray(children).filter(isValidElement) as ReactElement<
-		Record<string, unknown>
-	>[];
-	const titleNode = nodes.find((node) => "data-rehype-pretty-code-title" in node.props);
-	// The figure only ever contains the optional title and the <pre>; avoid comparing
-	// component identity (it changes under Fast Refresh) and take the non-title child.
-	const preNode = nodes.find((node) => node !== titleNode);
-	const title = titleNode ? textContentOf(titleNode) : undefined;
-	const language = preNode ? (preNode.props["data-language"] as string | undefined) : undefined;
-
+/** A code node of the document tree: the framed, highlighted block, or a mermaid diagram. */
+export function CodeBlock({
+	lang,
+	title,
+	showLineNumbers,
+	highlightLines,
+	value,
+	onEditDiagram,
+}: CodeBlockProps) {
 	return (
-		<CodeFrame title={title} language={language}>
-			{preNode}
+		<CodeFrame
+			title={title ?? undefined}
+			language={lang ?? undefined}
+			source={value}
+			onEditDiagram={onEditDiagram}
+		>
+			<CodeLines
+				lang={lang}
+				value={value}
+				showLineNumbers={showLineNumbers}
+				highlightLines={highlightLines}
+			/>
 		</CodeFrame>
 	);
 }

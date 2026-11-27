@@ -20,12 +20,9 @@ interface MdxserveApiWindow extends Window {
 	__mdxserveHmrBound?: boolean;
 }
 
-// This module is also evaluated by the SSR render worker (client/ssr-entry.tsx
-// → mdx-components.ts → MdSection.tsx imports `trpcClient` for the section
-// editor), where there is no `window`. Nothing here is *called* during SSR —
-// MdSection only reaches the client from a click handler — so in that case
-// plain per-evaluation instances are fine; only the browser needs the
-// HMR-surviving singletons.
+// Tests can evaluate this module without a `window`; plain per-evaluation
+// instances are fine there, and only the browser needs the HMR-surviving
+// singletons.
 const windowWithApi = typeof window === "undefined" ? undefined : (window as MdxserveApiWindow);
 
 function makeQueryClient(): QueryClient {

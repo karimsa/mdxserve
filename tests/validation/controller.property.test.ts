@@ -1,11 +1,10 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
-import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext } from "../helpers/context.js";
 
@@ -16,29 +15,22 @@ async function rmTree(dirAbs: string): Promise<void> {
 	await fs.rm(dirAbs, { recursive: true, force: true });
 }
 
-// --- validateDoc render gating --------------------------------------------
+// --- validateDoc ----------------------------------------------------------
 
-const renderOutcomeArb: fc.Arbitrary<RenderOutcome> = fc.oneof(
-	fc.constant<RenderOutcome>({ ok: true }),
-	fc.string({ minLength: 1, maxLength: 20 }).map((message) => ({ ok: false as const, message })),
-);
-
-describe("validateDoc render gating", () => {
+describe("validateDoc", () => {
 	it(
-		"rendered is exactly ctx.isLoopback, and the render stub only runs when isLoopback",
+		"returns the same result for loopback and remote callers",
 		async () => {
 			await fc.assert(
-				fc.asyncProperty(fc.boolean(), renderOutcomeArb, async (isLoopback, outcome) => {
-					const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-prop-render-"));
+				fc.asyncProperty(fc.boolean(), async (isLoopback) => {
+					const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdxserve-prop-validate-"));
 					try {
 						const docPath = path.join(root, "doc.md");
 						await fs.writeFile(docPath, "# Doc\n\nplain content.\n", "utf8");
-						const render = vi.fn(async (): Promise<RenderOutcome> => outcome);
-						const caller = createCaller(makeContext(root, registry, { isLoopback, render }));
-
+						const caller = createCaller(makeContext(root, registry, { isLoopback }));
 						const result = await caller.validateDoc({ path: docPath });
-						expect(result.rendered).toBe(isLoopback);
-						expect(render).toHaveBeenCalledTimes(isLoopback ? 1 : 0);
+						expect(result).toMatchObject({ ok: true, diagnostics: [] });
+						expect(result).not.toHaveProperty("rendered");
 					} finally {
 						await rmTree(root);
 					}

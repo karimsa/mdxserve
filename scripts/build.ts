@@ -19,11 +19,6 @@ await esbuild.build({
 });
 await esbuild.build({
 	...buildOptions,
-	entryPoints: ["src/rendering/render-worker.ts"],
-	outfile: "dist/render-worker.js",
-});
-await esbuild.build({
-	...buildOptions,
 	entryPoints: ["src/diagrams/adapters/validate-worker.ts"],
 	outfile: "dist/diagram-worker.js",
 });

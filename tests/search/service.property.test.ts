@@ -6,6 +6,9 @@ import fc from "fast-check";
 import { SearchService, type SearchResult } from "../../src/search/service.js";
 import { DocCache } from "../../src/docs/doc-cache.js";
 import { readTree, type TreeNode } from "../../src/listing/tree.js";
+import { DocumentService } from "../../src/document/service.js";
+import { rootFileUrl } from "../../src/docs/asset-url.js";
+import { fixtureRegistry as registry } from "../fixtures/registry.js";
 
 const PROPERTY_TIMEOUT_MS = 30000;
 
@@ -244,6 +247,84 @@ describe("SearchService.search — renaming a root re-labels every hit", () => {
 					},
 				),
 				{ numRuns: 15 },
+			);
+		},
+		PROPERTY_TIMEOUT_MS,
+	);
+});
+
+// --- targetId ---------------------------------------------------------------
+
+const headingWordArb = fc.constantFrom("zeta", "eta", "theta", "iota", "kappa");
+const targetBlockArb = fc.oneof(
+	headingWordArb.map((word) => `## Part ${word}`),
+	headingWordArb.map((word) => `### Sub ${word}`),
+	fc.array(wordArb, { minLength: 1, maxLength: 4 }).map((words) => words.join(" ")),
+	headingWordArb.map(
+		(word) => `<Tabs id="t-${word}">\n<Tab label="A">\n\nbody ${word}\n\n</Tab>\n</Tabs>`,
+	),
+);
+const targetDocArb = fc
+	.tuple(
+		fc.boolean(),
+		fc.array(wordArb, { minLength: 0, maxLength: 2 }),
+		fc.array(targetBlockArb, { minLength: 1, maxLength: 6 }),
+	)
+	.map(([frontmatter, preamble, blocks]) =>
+		[
+			frontmatter ? "---\ntitle: T\n---\n" : "",
+			preamble.length > 0 ? `${preamble.join(" ")}\n\n` : "",
+			"# Title\n\n",
+			blocks.join("\n\n"),
+			"\n",
+		].join(""),
+	);
+
+/** Every `id` in a document tree: sections, tabs, blocks. */
+function collectIds(node: unknown, ids: Set<string>): void {
+	if (Array.isArray(node)) {
+		for (const child of node) collectIds(child, ids);
+	} else if (typeof node === "object" && node !== null) {
+		const record = node as Record<string, unknown>;
+		if (typeof record.id === "string") ids.add(record.id);
+		for (const value of Object.values(record)) collectIds(value, ids);
+	}
+}
+
+describe("SearchService.search — targetId", () => {
+	it(
+		"is null or the id of a node in the doc's parsed tree, and always null without a DocumentService or for an empty query",
+		async () => {
+			await fc.assert(
+				fc.asyncProperty(targetDocArb, wordArb, async (doc, query) => {
+					const root = await mkTmpRoot("target-");
+					try {
+						const abs = path.join(root, "doc.md");
+						await fs.writeFile(abs, doc, "utf8");
+						const documents = new DocumentService(registry, rootFileUrl);
+						const withDocuments = new SearchService(new DocCache(), documents);
+						const { tree } = documents.parse(doc, abs);
+						const ids = new Set<string>();
+						collectIds(tree.children, ids);
+
+						for (const term of [query, "zeta", "eta", "Part", "body"]) {
+							const results = withDocuments.search([{ name: "r", dir: root }], term).results;
+							for (const result of results) {
+								if (result.targetId !== null) expect(ids.has(result.targetId)).toBe(true);
+							}
+							const bare = new SearchService(new DocCache()).search(
+								[{ name: "r", dir: root }],
+								term,
+							);
+							for (const result of bare.results) expect(result.targetId).toBeNull();
+						}
+						const empty = withDocuments.search([{ name: "r", dir: root }], "").results;
+						for (const result of empty) expect(result.targetId).toBeNull();
+					} finally {
+						await rmTree(root);
+					}
+				}),
+				{ numRuns: 20 },
 			);
 		},
 		PROPERTY_TIMEOUT_MS,

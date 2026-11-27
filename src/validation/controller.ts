@@ -29,7 +29,6 @@ export const diagnosticSchema = z.object({
 		"duplicate-heading",
 		"duplicate-tab-value",
 		"invalid-tab-default",
-		"render-error",
 		"mermaid-chart",
 		"frontmatter-metadata",
 		"frontmatter-comments",
@@ -49,26 +48,18 @@ export const validationResultSchema = z.object({
 	ok: z.boolean(),
 	path: z.string(),
 	diagnostics: z.array(diagnosticSchema),
-	/** Whether the render step actually ran (a `render` was given and no static error existed). */
-	rendered: z.boolean(),
 	/** Advisory guidance for the agent — not errors, never affects `ok`. */
 	hints: z.array(z.string()),
 });
 
 const validateDoc = procedure(
-	"Validates one .md/.mdx file with the same parse that builds the document tree: syntax errors per section, the document language rules, builtin component names, prop names and prop values against each builtin's schema, the `id` rules for stateful builtins and headings, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead), and — for same-machine callers only — a server-side render to catch render-time throws. Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by `mdxserve validate`.",
+	"Validates one .md/.mdx file with the same parse that builds the document tree: syntax errors per section, the document language rules, builtin component names, prop names and prop values against each builtin's schema, the `id` rules for stateful builtins and headings, mermaid fences that draw charts (pie, xychart-beta, quadrantChart, sankey-beta — use <Chart> instead). Also returns `hints`: advisory guidance that never affects `ok`, e.g. a Markdown image that looks like a screenshot and would read better as the <Screenshot> builtin. Used by `mdxserve validate`.",
 )
 	.input(validateDocInput)
 	.output(validationResultSchema)
 	.mutation(async ({ ctx, input }) => {
-		const outcome = await new ValidationService(
-			ctx.rootInfos,
-			ctx.registry,
-			ctx.docs,
-			ctx.render,
-		).validateDoc({
+		const outcome = await new ValidationService(ctx.rootInfos, ctx.registry, ctx.docs).validateDoc({
 			path: input.path,
-			allowRender: ctx.isLoopback && ctx.permissions !== "restricted",
 		});
 		switch (outcome.kind) {
 			case "not-found":

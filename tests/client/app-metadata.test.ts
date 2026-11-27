@@ -3,7 +3,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../client/App";
-import { docModuleCache } from "../../client/doc-module-cache";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, trpc } from "../../client/api";
 import type { Route } from "../../client/router";
 
 vi.mock("../../client/router", () => ({
@@ -37,21 +38,34 @@ beforeEach(() => {
 	host = document.createElement("div");
 	document.body.append(host);
 	root = createRoot(host);
-	docModuleCache.clear();
+	queryClient.clear();
 });
 
 afterEach(async () => {
 	await act(async () => root.unmount());
 	host.remove();
-	docModuleCache.clear();
+	queryClient.clear();
 	vi.unstubAllGlobals();
 });
 
-describe("App metadata after module loading", () => {
-	it("preserves all server metadata when the initial document module fails", async () => {
-		await act(async () => root.render(createElement(App, { initialRoute: route })));
-		docModuleCache.set(route.path, { status: "error", message: "Document failed to compile" });
-		await act(async () => root.render(createElement(App, { initialRoute: { ...route } })));
+function app(initialRoute: Route) {
+	return createElement(
+		QueryClientProvider,
+		{ client: queryClient },
+		createElement(App, { initialRoute }),
+	);
+}
+
+function seedDocument(path: string, metadata: { title?: string; openGraph: [] }) {
+	queryClient.setQueryData(trpc.getDocument.queryKey({ path }), {
+		document: { schemaVersion: 1, metadata, toc: [], children: [] },
+		version: "version",
+	});
+}
+
+describe("App metadata from the document tree", () => {
+	it("preserves all server metadata while the document has not loaded", async () => {
+		await act(async () => root.render(app(route)));
 
 		expect(document.title).toBe("Server title");
 		expect(document.querySelector("meta[name=description]")?.getAttribute("content")).toBe(
@@ -68,23 +82,17 @@ describe("App metadata after module loading", () => {
 		).toEqual(route.metadata!.openGraph);
 	});
 
-	it("uses a successfully loaded module even when it removes server metadata", async () => {
-		await act(async () => root.render(createElement(App, { initialRoute: route })));
-		docModuleCache.set(route.path, {
-			status: "ok",
-			Component: () => null,
-			metadata: { openGraph: [] },
-		});
-		await act(async () => root.render(createElement(App, { initialRoute: { ...route } })));
+	it("uses the loaded document's metadata even when it removes server metadata", async () => {
+		seedDocument(route.path, { openGraph: [] });
+		await act(async () => root.render(app(route)));
 		expect(document.title).toBe("document.md");
 		expect(document.querySelectorAll("[data-mdxserve-metadata]")).toHaveLength(0);
 	});
 
-	it("clears previous metadata for a failed navigation without server metadata", async () => {
-		await act(async () => root.render(createElement(App, { initialRoute: route })));
+	it("clears previous metadata for a navigation without server metadata", async () => {
+		await act(async () => root.render(app(route)));
 		const nextRoute = { ...route, path: "/docs/broken.md", metadata: undefined };
-		docModuleCache.set(nextRoute.path, { status: "error", message: "Document failed to compile" });
-		await act(async () => root.render(createElement(App, { initialRoute: nextRoute })));
+		await act(async () => root.render(app(nextRoute)));
 		expect(document.title).toBe("document.md");
 		expect(document.querySelectorAll("[data-mdxserve-metadata]")).toHaveLength(0);
 	});

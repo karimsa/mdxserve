@@ -13,14 +13,14 @@ import {
 	type CSSProperties,
 } from "react";
 import { trpc } from "../api";
-import { DocView } from "../DocView";
+import { DocumentView } from "../document/DocumentView";
+import { revealNode } from "../document/reveal";
 import { HomeView } from "../HomeView";
 import { useDebounced, useFullWidth, useMediaQuery } from "../hooks";
 import { ListingView } from "../ListingView";
 import { fadeRise, TRANSITIONS } from "../motion";
 import { useTheme } from "../theme";
 import {
-	docModuleCache,
 	docMtime,
 	shellInfo,
 	useFolderListing,
@@ -207,21 +207,11 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	);
 	const results = searchIsError ? [] : (searchData?.results ?? []);
 
-	// Doc content can render asynchronously after this component's own commit
-	// (see DocView's onRendered / client/router.ts's initial-route bootstrap
-	// effect); TocRail keys its heading scan on this so it re-scans once the
-	// article is actually on the page, not just when `route.path` changes.
+	// Bumped by DocumentView after each commit of new document content, so the
+	// table of contents re-attaches its scroll tracking and comment anchors
+	// re-resolve against the page.
 	const [tocVersion, setTocVersion] = useState(0);
-	const bumpTocVersion = useCallback(() => {
-		setTocVersion((previous) => previous + 1);
-		// The doc module arrives after the browser's own hash jump, so honour a
-		// `#heading` in the URL once the headings exist.
-		const hash = window.location.hash.slice(1);
-		if (hash) {
-			const target = document.getElementById(decodeURIComponent(hash));
-			target?.scrollIntoView({ block: "start", behavior: "instant" });
-		}
-	}, []);
+	const bumpTocVersion = useCallback(() => setTocVersion((previous) => previous + 1), []);
 
 	const comments = useCommentsModel(route.kind === "doc" ? route.path : null, tocVersion);
 	const commentsPanel = useCommentsPanel();
@@ -284,9 +274,17 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 	const handleSelectResult = useCallback(
 		(result: SearchResult) => {
 			setSearchOpen(false);
-			if (result.path) navigate(result.path);
+			if (!result.path) return;
+			const target = result.targetId ?? null;
+			// Already open: select the tabs on the way and scroll, no navigation.
+			if (target !== null && route.kind === "doc" && route.path === result.path) {
+				history.replaceState(null, "", `#${encodeURIComponent(target)}`);
+				revealNode(target);
+				return;
+			}
+			navigate(target === null ? result.path : `${result.path}#${encodeURIComponent(target)}`);
 		},
-		[navigate],
+		[navigate, route],
 	);
 
 	// The sidebar footer counts every doc across all mounted roots.
@@ -409,11 +407,7 @@ export function AppShell({ route, navigate }: { route: Route; navigate: (path: s
 											/>
 										)
 									) : route.kind === "doc" ? (
-										<DocView
-											path={route.path}
-											module={docModuleCache.get(route.path)}
-											onRendered={bumpTocVersion}
-										/>
+										<DocumentView path={route.path} onRendered={bumpTocVersion} />
 									) : route.kind === "home" ? (
 										<HomeView route={route} />
 									) : (

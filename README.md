@@ -143,7 +143,7 @@ A ` ```mermaid ` fence renders as a pan-and-zoom diagram with a Diagram / Code t
 ```mermaid
 flowchart LR
   Browser -->|GET /notes/intro.md| Server
-  Server -->|compile via Vite| Page[Rendered page]
+  Server -->|document tree as JSON| Page[Rendered page]
 ```
 ````
 
@@ -246,11 +246,15 @@ reports each of these as an error with the change that fixes it.
 
 Every heading, tab and stateful component has an id in the document tree that
 `mdxserve document <file>` prints. A heading whose text is unique in the document has its slug
-as its id (`## Install it` is `install-it`), the same anchor the page gives it. When the same
+as its id (`## Install it` is `install-it`), and that id is its URL anchor. When the same
 heading text appears more than once, each of those headings is identified by its path from
 the top heading instead, joined with `>` (`guide>install>examples`), and a tab by its `Tabs`
-id and its value (`install-tabs>macos`). The page itself still anchors repeated headings the
-way earlier releases did.
+id and its value (`install-tabs>macos`). A tab has an anchor too: opening
+`page.md#install-tabs>macos` selects that tab. A link to a short anchor such as `#examples`
+still lands after a second "Examples" heading turned both ids into paths: a fragment that
+matches no id goes to the first heading or tab whose id ends in `>examples`. The numbered
+anchors earlier releases gave repeats, `#examples-1` and `#examples-2`, still reach the second
+and third "Examples" heading.
 
 ### The example folder
 
@@ -268,14 +272,22 @@ table of contents that follows you as you scroll. The sidebar and the content co
 resizable. Pages link to their previous and next neighbour and show which file they came from
 and when it was last edited.
 
-- `⌘K` / `Ctrl K` searches every served folder by title, heading, and body.
+- `⌘K` / `Ctrl K` searches every served folder by title, heading, and body. A result opens
+  the page at the section or tab the match is in, selecting that tab.
 - The top bar toggles light and dark (it remembers your choice) and prints.
 - Double-click a section, or use its pencil, to edit it in place; `⌘S` saves,
-  `Esc` cancels. The edit is written back to the file on disk.
+  `Esc` cancels. The edit is written back to the file on disk. A builtin such as a `Callout`
+  has a pencil of its own, and a diagram an Edit button. A paragraph holding an inline
+  component, and a code fence with a title or highlighted lines, stay as raw source in the
+  editor so a save cannot lose them. A save is refused only when it would add a validation
+  error the file did not already have.
+- Selecting an entry in the table of contents, a `#` link, a search result or a comment that
+  points into an unselected tab selects that tab.
 - Select text and press the comment button to start a thread on it. Agents reply by editing the
   file, since threads live in the doc's frontmatter. See
   [comments](docs/advanced.md#comments).
-- Saving a file from your editor re-renders the open page, and a toast names what changed.
+- Saving a file from your editor updates the open page in place, and a toast names what
+  changed. Tab selections, table sorts and open `details` stay as they were.
 - In a folder listing, select files to move them to the OS Trash (never deleted outright).
 - Diagrams and charts open full-screen; a flowchart's direction can be flipped without
   touching the source.

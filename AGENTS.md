@@ -46,12 +46,11 @@ service it needs, inline, with the values it already has; a stateless service ma
 constructed per request, and two adapters constructing the same service is fine. Only
 genuinely per-process state is created once — in `startServer` (`src/http/start.ts`) or the
 a CLI command — and carried through the request context: `DocCache`, `SearchService`,
-`DocsService` (it owns the per-file save lock), `RenderService` (it owns the render worker),
-`RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
+`DocsService` (it owns the per-file save lock), `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
 `DiagramsService` (it owns conversion scheduling, sessions and temporary uploads),
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
-is on loopback, and so whether the render step may run (`allowRender`) or a root mutation may
-run (`allowMutation`) — is a method argument, not a constructor argument.
+is on loopback, and so whether a root mutation may run (`allowMutation`) — is a method
+argument, not a constructor argument.
 
 ### Adapters
 
@@ -62,13 +61,14 @@ Adapters contain no business logic:
 | `src/api/`       | tRPC init, `ApiContext`, the `procedure()` factory, and the aggregate router (`router({ ...listingController, … })`)                                               |
 | `src/cli/`       | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                 |
 | `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
-| `src/rendering/` | Vite dev server, the SSR render worker, and the MDX compile pipeline                                                                                               |
+| `src/rendering/` | the Vite dev server that serves `client/` (documents never go through it: they reach the browser as the JSON tree from `getDocument`)                              |
 | `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
 | `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
 | `src/index.ts`   | the commander CLI                                                                                                                                                  |
 
 `client/` may only `import type` from `src/` (nothing under `src/` is served to the browser);
-today that is a single `import type { AppRouter } from "../src/api/router"`.
+for example `AppRouter` from `src/api/router` and the document tree types from
+`src/document/schema` (re-exported for the renderer by `client/document/tree-types.ts`).
 
 `shared/` holds code both sides run, today each builtin's zod prop schema
 (`shared/builtins/<name>.ts`). `client/` and `src/` may import values from it. It imports no
@@ -97,7 +97,7 @@ React value (type-only imports are fine) and nothing from `client/` or `src/`, a
 - Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`, `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`, `tests/http/`, `tests/servers/`, `tests/rendering/`
 - Every service should have a set of property tests that validate the guarantees provided by the interface
 - Every service should have tests that validate its core functionality
-- A service that owns an external process (`RenderService`) may lean on functional tests plus one cheap property; a full property run against a live Vite server is not worth the wall clock
+- The client renders documents from the JSON tree (`client/document/`): one memoized renderer per node type, keyed by node id or index. Heading and tab anchors are tree ids; navigate to a node with `revealNode(id)`, which selects the tabs on the way
 
 ## Creating PRs
 

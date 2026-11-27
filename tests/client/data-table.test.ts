@@ -3,9 +3,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
-import { mdxCompileOptions } from "../../src/rendering/mdx/mdx-options";
-import { builtinNames } from "../helpers/components.js";
-import { createMetadataPort } from "../helpers/metadata.js";
+import { DocumentService } from "../../src/document/service";
+import { builtinRegistry } from "../helpers/components.js";
+import { NodeList } from "../../client/document/nodes";
 import { Table } from "../../client/Table";
 import { MarkdownTable } from "../../client/MarkdownTable";
 import DataTable from "../../client/builtins/DataTable";
@@ -131,19 +131,13 @@ describe("typed table values", () => {
 		expect(() => render({ id: "table", columns: [number, number], data: [] })).toThrow();
 	});
 });
+/** Render a document the way the viewer does: parsed to the tree, then through the node renderers. */
 async function renderMarkdown(source: string, extension = "md") {
-	const { providerImportSource: _, ...options } = mdxCompileOptions(createMetadataPort(), {
-		components: builtinNames,
-	});
-	const result = await evaluate(
-		{ value: source, path: `table.${extension}` },
-		{ ...options, ...runtime },
+	const { tree } = new DocumentService(builtinRegistry, (relative) => relative).parse(
+		source,
+		`/docs/table.${extension}`,
 	);
-	return renderToStaticMarkup(
-		createElement(result.default, {
-			components: { table: MarkdownTable, Table: MarkdownTable, DataTable },
-		}),
-	);
+	return renderToStaticMarkup(createElement(NodeList, { nodes: tree.children }));
 }
 /**
  * Render raw JSX through MDX with no document rules applied. Documents can no

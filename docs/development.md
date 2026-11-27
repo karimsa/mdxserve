@@ -27,16 +27,16 @@ For a git worktree, `./worktree-setup.sh` runs `yarn` so the tree is ready to bu
 
 ## Day to day
 
-| Command          | What it does                                                                                                           |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `yarn dev`       | Rebuilds the component registry and serves `example/` from source with `tsx` (no build needed)                         |
-| `yarn build`     | Generates `dist/registry.json`, then bundles the CLI to `dist/cli.js` and the render worker to `dist/render-worker.js` |
-| `yarn registry`  | Only the registry step                                                                                                 |
-| `yarn typecheck` | `tsc --noEmit`                                                                                                         |
-| `yarn lint`      | `oxlint` — includes the no-single-letter-names rule                                                                    |
-| `yarn format`    | `prettier --write .` (`format:check` is what CI runs)                                                                  |
-| `yarn test`      | `vitest run`                                                                                                           |
-| `yarn smoke`     | Packs the tarball, installs it into a throwaway global prefix, and runs the CLI from there (what users get)            |
+| Command          | What it does                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `yarn dev`       | Rebuilds the component registry and serves `example/` from source with `tsx` (no build needed)                           |
+| `yarn build`     | Generates `dist/registry.json`, then bundles the CLI to `dist/cli.js` and the diagram worker to `dist/diagram-worker.js` |
+| `yarn registry`  | Only the registry step                                                                                                   |
+| `yarn typecheck` | `tsc --noEmit`                                                                                                           |
+| `yarn lint`      | `oxlint` — includes the no-single-letter-names rule                                                                      |
+| `yarn format`    | `prettier --write .` (`format:check` is what CI runs)                                                                    |
+| `yarn test`      | `vitest run`                                                                                                             |
+| `yarn smoke`     | Packs the tarball, installs it into a throwaway global prefix, and runs the CLI from there (what users get)              |
 
 CI (`.github/workflows/verify-pr.yml`) runs, in order: `yarn constraints`, `format:check`,
 `lint`, `typecheck`, `test`, `build`, `smoke`. Run the same set before opening a PR.
@@ -50,7 +50,7 @@ The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` 
 | Path               | Contents                                                                                                                                                                                                        |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`) and adapters (`api/`, `cli/`, `http/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
-| `client/`          | The browser app: the shell, the doc view, the section editor, mermaid, and `builtins/`                                                                                                                          |
+| `client/`          | The browser app: the shell, the document renderer (`document/`, which draws the JSON tree from `getDocument`), the editors, mermaid, and `builtins/`                                                            |
 | `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                           |
 | `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                           |
 | `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                     |
@@ -62,7 +62,7 @@ The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` 
 The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
 the service it needs inline with concrete values, calls one method, and maps the result union
 to its transport's error. There is no container, factory, or dependency bag; per-process state
-(the doc cache, the search index, the render worker, the roots set, the server lock) is created
+(the doc cache, the search index, the per-file save lock, the roots set, the server lock) is created
 once in `startServer` or a CLI command and carried in the request context. `AGENTS.md`
 has the full rules.
 
@@ -110,9 +110,9 @@ are listed under the stable release that follows.
 Tests mirror the modules: `tests/<module>/service.test.ts`, `service.property.test.ts`,
 `controller.test.ts`, `controller.property.test.ts`; adapters get `tests/api/`, `tests/cli/`,
 `tests/http/`, `tests/servers/`, `tests/rendering/`. Every service has functional tests for its
-behaviour and property tests for the guarantees its interface makes. The one exception is a
-service that owns an external process (`RenderService`): functional tests plus a single cheap
-property, since a full property run against a live Vite server is not worth the wall clock.
+behaviour and property tests for the guarantees its interface makes. The client's document
+renderer has its own tests under `tests/client/` (`document-view.test.ts`: every node type,
+tab reveal, anchors, and that a refetch of identical JSON renders nothing).
 
 Anything that starts a server in a test must point `MDXSERVE_HOME` (and
 `MDXSERVE_CACHE_HOME`) at a scratch directory. Only one server runs per user, so a test that

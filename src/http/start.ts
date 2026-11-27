@@ -25,10 +25,11 @@ import {
 } from "../servers/bind-host.js";
 import { serverBaseUrl } from "../servers/remote.js";
 import { ServerLock } from "../servers/server-lock.js";
-import { RenderService } from "../rendering/render.js";
 import { DocCache } from "../docs/doc-cache.js";
 import { SearchService } from "../search/service.js";
 import { DocsService } from "../docs/service.js";
+import { DocumentService } from "../document/service.js";
+import { rootFileUrl } from "../docs/asset-url.js";
 import { handleRequest } from "./server.js";
 
 export interface StartServerOptions {
@@ -201,8 +202,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	const docs = new DocsService(rootsService, registry);
 	const httpServer = http.createServer();
 	const vite = await createDevServer({
-		metadata: docs,
-		components: registry.components.map((component) => component.name),
 		roots: rootsService.list().map((info) => info.dir),
 		viteRoot: cssDir,
 		cacheDir: getViteCacheDir(),
@@ -215,10 +214,8 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 	// Chokidar applies the configured `ignored` globs to added paths too.
 	for (const rootInfo of rootsService.list()) vite.watcher.add(rootInfo.dir);
 
-	const renderer = restricted ? undefined : new RenderService(vite);
-
 	const docCache = new DocCache();
-	const search = new SearchService(docCache);
+	const search = new SearchService(docCache, new DocumentService(registry, rootFileUrl));
 	const diagrams = restricted
 		? undefined
 		: new DiagramsService(
@@ -241,7 +238,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			pkgRoot,
 			vite,
 			cssFile,
-			render: renderer ? (absPath) => renderer.render(absPath) : undefined,
 			docCache,
 			search,
 			docs,

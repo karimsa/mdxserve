@@ -56,7 +56,6 @@ const canned: ValidationResult = {
 	ok: true,
 	path: "/somewhere/else.md",
 	diagnostics: [],
-	rendered: true,
 	hints: [],
 };
 
@@ -65,7 +64,6 @@ describe("runValidate static path", () => {
 		const outcome = await runValidate([path.join(fixtureDir, "good.md")], {}, deps());
 		expect(outcome.exitCode).toBe(0);
 		expect(outcome.stdout.join("\n")).toContain(`OK: ${path.join(fixtureDir, "good.md")}`);
-		expect(outcome.stdout.join("\n")).toContain("Not rendered (");
 	});
 
 	it("exits 0 for warnings only and lists them", async () => {
@@ -116,21 +114,21 @@ describe("runValidate static path", () => {
 		expect(tilde.stdout.join("\n")).toContain(`OK: ${path.join(fixtureDir, "good.md")}`);
 	});
 
-	it("never renders on the static path", async () => {
+	it("prints no render status on the static path", async () => {
 		const outcome = await runValidate([path.join(fixtureDir, "good.md")], { json: true }, deps());
 		const entries = JSON.parse(outcome.stdout[0]) as ValidationResult[];
-		expect(entries[0].rendered).toBe(false);
+		expect(entries[0]).not.toHaveProperty("rendered");
 	});
 });
 
 describe("runValidate with a server", () => {
-	it("prints a remote ok result verbatim, with Rendered OK", async () => {
+	it("prints a remote ok result verbatim", async () => {
 		const server = fakeLiveServer({
 			remote: { validateDoc: async () => ({ kind: "ok", value: canned }) },
 		});
 		const outcome = await runValidate([path.join(fixtureDir, "good.md")], {}, deps({ server }));
 		expect(outcome.exitCode).toBe(0);
-		expect(outcome.stdout.join("\n")).toBe("OK: /somewhere/else.md\nRendered OK");
+		expect(outcome.stdout.join("\n")).toBe("OK: /somewhere/else.md");
 	});
 
 	it("reports a remote error as Not validated, exit 1", async () => {

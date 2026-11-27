@@ -14,6 +14,12 @@ export const searchResultSchema = z.object({
 	/** Query terms MiniSearch matched for this hit, for client-side highlighting. */
 	terms: z.array(z.string()),
 	score: z.number(),
+	/**
+	 * The ID (in the `getDocument` tree) of the innermost section or tab that
+	 * contains the line the excerpt came from; null when there is no such line,
+	 * it is in no section or tab, or the server cannot parse documents.
+	 */
+	targetId: z.string().nullable(),
 });
 
 export const searchDocsResultSchema = z.object({ results: z.array(searchResultSchema) });

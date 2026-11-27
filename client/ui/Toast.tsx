@@ -10,7 +10,7 @@ import {
 } from "react-hot-toast";
 import { Icon } from "./Icon";
 import { nextCount } from "./toast-count";
-import { docModuleCache } from "../doc-module-cache";
+import { hasDocument } from "../document/query";
 import { isSelfWrite } from "../comments/self-writes";
 
 export type ToastTone = "info" | "ok" | "warn" | "danger";
@@ -134,15 +134,11 @@ const TOAST_STYLE: CSSProperties = {
 /** Fixed bottom-right stack. Mount once near the app root. */
 export function ToastStack() {
 	// The server names the doc that was edited (`mdxserve:doc-changed`, sent
-	// from its file watcher). Vite's own `vite:afterUpdate` can't be used for
-	// this: a doc module has no HMR boundary, so the update is attributed to
-	// the importer that accepted it (App.tsx), and the Tailwind rebuild the
-	// edit triggers shows up as a second update for app.css.
+	// from its file watcher).
 	useEffect(() => {
 		if (!import.meta.hot) return;
 		// The event covers every doc under every mounted root, so keep only the
-		// docs this tab has actually loaded (the old vite:afterUpdate toast was
-		// scoped to loaded modules the same way) — an agent editing forty
+		// docs this tab has actually loaded — an agent editing forty
 		// unrelated files shouldn't rain toasts on a reader. Keyed by path so a
 		// burst of saves to one doc refreshes a single card (counter + bounce,
 		// timer restarted) instead of stacking copies.
@@ -151,7 +147,7 @@ export function ToastStack() {
 		}) => {
 			// A comment this tab just wrote is not an outside change to announce.
 			const files = (data?.files ?? []).filter(
-				(file) => docModuleCache.has(file.path) && !isSelfWrite(file.path),
+				(file) => hasDocument(file.path) && !isSelfWrite(file.path),
 			);
 			const [first] = files;
 			if (!first) return;

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { locateDiagram } from "../../client/diagrams/source";
+import { locateDiagram, locateDiagramInBlock } from "../../client/diagrams/source";
 
 it("replaces only the selected diagram and preserves surrounding Markdown exactly", () => {
 	const source = "flowchart LR\n A --> B";
@@ -45,4 +45,14 @@ it("closes an EOF fence while preserving nested indentation and trailing newline
 it("can populate an empty EOF fence", () => {
 	const diagram = locateDiagram("```mermaid", { index: 0, source: "" })!;
 	expect(diagram.replace("flowchart LR\n A --> B")).toBe("```mermaid\nflowchart LR\n A --> B\n```");
+});
+
+it("finds a fence cut out of a deeply indented list item and keeps its indentation", () => {
+	const block = "      ```mermaid\n      flowchart LR\n        A --> B\n      ```";
+	expect(locateDiagram(block, { index: 0, source: "flowchart LR\n  A --> B" })).toBeNull();
+	const diagram = locateDiagramInBlock(block, { index: 0, source: "flowchart LR\n  A --> B" })!;
+	expect(diagram.source).toBe("flowchart LR\n  A --> B");
+	expect(diagram.replace("flowchart LR\n  A --> C")).toBe(
+		"      ```mermaid\n      flowchart LR\n        A --> C\n      ```",
+	);
 });

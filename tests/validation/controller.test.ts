@@ -1,11 +1,10 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createCallerFactory } from "../../src/api/trpc.js";
 import { appRouter } from "../../src/api/router.js";
 import type { ApiContext } from "../../src/api/trpc.js";
-import type { RenderOutcome } from "../../src/rendering/protocol.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
 import { makeContext as buildContext } from "../helpers/context.js";
 
@@ -39,21 +38,12 @@ function makeContext(overrides: Partial<ApiContext> = {}): ApiContext {
 
 const createCaller = createCallerFactory(appRouter);
 
-describe("validateDoc render gating", () => {
-	it("isLoopback: false never runs the render stub (rendered: false)", async () => {
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-		const caller = createCaller(makeContext({ isLoopback: false, render }));
+describe("validateDoc", () => {
+	it("validates a doc for any caller, with no render step", async () => {
+		const caller = createCaller(makeContext({ isLoopback: false }));
 		const result = await caller.validateDoc({ path: path.join(fixtureDir, "good.md") });
-		expect(result.rendered).toBe(false);
-		expect(render).not.toHaveBeenCalled();
-	});
-
-	it("isLoopback: true runs the render stub (rendered: true)", async () => {
-		const render = vi.fn(async (): Promise<RenderOutcome> => ({ ok: true }));
-		const caller = createCaller(makeContext({ isLoopback: true, render }));
-		const result = await caller.validateDoc({ path: path.join(fixtureDir, "good.md") });
-		expect(result.rendered).toBe(true);
-		expect(render).toHaveBeenCalledOnce();
+		expect(result.ok).toBe(true);
+		expect(result).not.toHaveProperty("rendered");
 	});
 
 	it("throws NOT_FOUND for a path outside every root", async () => {

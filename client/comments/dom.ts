@@ -20,7 +20,11 @@ const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
  * Heading.tsx appends to a heading: it is chrome, not rendered text.
  */
 const EXCLUDED_SELECTOR = "[data-editing], svg, button, .mdx-anchor";
-/** Content of an inactive tab: still mounted, but hidden from the page. */
+/**
+ * Content a view toggle keeps mounted but out of the page, such as a
+ * diagram's code pane. An unselected tab is not this: its panel carries
+ * `hidden`, and its text stays anchorable so a comment can point into it.
+ */
 const HIDDEN_SELECTOR = '[inert], [aria-hidden="true"]';
 
 export interface DomBlock {
