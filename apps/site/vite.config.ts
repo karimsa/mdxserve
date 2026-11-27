@@ -6,6 +6,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
 	appType: "spa",
 	plugins: [react()],
+	// One React for every workspace (yarn.config.cjs): never bundle a second copy.
+	resolve: { dedupe: ["react", "react-dom"] },
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,

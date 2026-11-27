@@ -19,6 +19,8 @@ export default defineConfig(({ command }) => ({
 	base: command === "build" ? "/__mdxserve/" : "/",
 	appType: "custom",
 	plugins: [react(), tailwindcss(), devShell()],
+	// One React for every workspace (yarn.config.cjs): never bundle a second copy.
+	resolve: { dedupe: ["react", "react-dom"] },
 	build: {
 		outDir: fileURLToPath(new URL("../../packages/server/dist/client", import.meta.url)),
 		emptyOutDir: true,

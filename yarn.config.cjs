@@ -42,9 +42,55 @@ function enforceExactDependencies({ Yarn }) {
 	}
 }
 
+// React and the renderer that must match it exactly. Their types follow React's minor version.
+const REACT_PACKAGES = ["react", "react-dom"];
+const REACT_TYPES = ["@types/react", "@types/react-dom"];
+
+function minorVersion(range) {
+	return exactRange(range).split(".").slice(0, 2).join(".");
+}
+
+/**
+ * Every workspace runs one React: the version the Expo SDK pins, since Expo does not support
+ * two copies of React in one monorepo. Unlike the rule above, this one counts peer
+ * dependencies too, and it never picks a winner: a disagreement fails `yarn constraints`, so
+ * a React upgrade is made in every workspace at once.
+ */
+function enforceOneReactVersion({ Yarn }) {
+	const reactDependencies = Yarn.dependencies().filter((dependency) =>
+		REACT_PACKAGES.includes(dependency.ident),
+	);
+	const versions = new Set(reactDependencies.map((dependency) => exactRange(dependency.range)));
+	if (versions.size > 1) {
+		const listed = [...versions].sort().join(", ");
+		for (const dependency of reactDependencies) {
+			dependency.error(
+				`${dependency.ident} must be one version in every workspace, with react and react-dom equal; found ${listed}`,
+			);
+		}
+		return;
+	}
+
+	const [reactVersion] = versions;
+	if (reactVersion === undefined) {
+		return;
+	}
+	for (const dependency of Yarn.dependencies()) {
+		if (
+			REACT_TYPES.includes(dependency.ident) &&
+			minorVersion(dependency.range) !== minorVersion(reactVersion)
+		) {
+			dependency.error(
+				`${dependency.ident} must be a ${minorVersion(reactVersion)}.x release, to match react ${reactVersion}`,
+			);
+		}
+	}
+}
+
 module.exports = defineConfig({
 	constraints: async (ctx) => {
 		enforceConsistentDependenciesAcrossTheProject(ctx);
 		enforceExactDependencies(ctx);
+		enforceOneReactVersion(ctx);
 	},
 });
