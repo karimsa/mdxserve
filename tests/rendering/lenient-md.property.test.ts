@@ -303,7 +303,7 @@ describe("escapeBareLt scanner states", () => {
 					path: `doc.${extension}`,
 					registry: fixtureRegistry,
 				});
-				expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mdx-compile")).toBe(
+				expect(result.diagnostics.some((diagnostic) => diagnostic.code === "mdx-syntax")).toBe(
 					false,
 				);
 			}

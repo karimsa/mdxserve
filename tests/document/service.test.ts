@@ -253,6 +253,24 @@ describe("DocumentService.parse — fallback parse", () => {
 		]);
 	});
 
+	it.each([
+		["a stray {", "text {"],
+		["an unclosed <Callout", "<Callout"],
+		["an unclosed inline code run", "text `` open {"],
+	])("keeps %s in its own section, so later sections still escape a bare <", (_, broken) => {
+		const source = `## A\n\n${broken}\n\n## B\n\nx < 5\n\n## C\n\nfine\n`;
+		const { tree, diagnostics } = parse(source);
+		expect(tree.children.map((node) => [node.type, (node as { id: string }).id])).toEqual([
+			["error", "a"],
+			["section", "b"],
+			["section", "c"],
+		]);
+		expect(JSON.stringify(tree.children[1])).toContain('"value":"x < 5"');
+		expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["mdx-syntax"]);
+		expect(diagnostics[0].line).toBeGreaterThanOrEqual(1);
+		expect(diagnostics[0].line).toBeLessThanOrEqual(4);
+	});
+
 	it("makes a document with no h1 or h2 one failed chunk", () => {
 		const { tree, diagnostics } = parse("Text {1 +}\n\n### Deep\n");
 		expect(tree.children).toMatchObject([{ type: "error", id: "~error-1" }]);

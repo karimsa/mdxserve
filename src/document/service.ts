@@ -102,7 +102,10 @@ export class DocumentService {
 	/**
 	 * Parse the whole source. When that fails, parse each h1/h2 chunk on its
 	 * own: the chunks that parse are joined in order, and each one that does
-	 * not becomes a failed chunk with an `mdx-syntax` diagnostic.
+	 * not becomes a failed chunk with an `mdx-syntax` diagnostic. Each chunk is
+	 * cut from the original source and escaped on its own, so the bare-`<`
+	 * scanner's state (an open `{`, tag or code run) never crosses into the
+	 * next section.
 	 */
 	private parseWithFallback(
 		source: string,
@@ -120,20 +123,32 @@ export class DocumentService {
 		const frontmatterEnd = leadingFrontmatter(source)?.endLine ?? 0;
 		const children: (RootContent | FailedChunk)[] = [];
 		let failed = 0;
-		for (const chunk of splitAtTopHeadings(escaped, frontmatterEnd)) {
+		for (const chunk of splitAtTopHeadings(source, frontmatterEnd)) {
+			// Only the first chunk can start with frontmatter.
+			const chunkEscaped = escapeBareLt(
+				chunk.text,
+				chunk.startLine === 1 ? { leadingFrontmatter } : { leadingFrontmatter: () => undefined },
+			);
 			// Blank lines in front keep every position in the chunk a file position.
-			const padded = "\n".repeat(chunk.startLine - 1) + chunk.text;
+			const padded = "\n".repeat(chunk.startLine - 1) + chunkEscaped;
 			try {
 				children.push(...this.processor.parse(padded).children);
 			} catch (error) {
 				failed += 1;
-				const place = syntaxErrorPlace(error);
-				const { reason, ...at } = place;
+				const { reason, ...at } = syntaxErrorPlace(error);
+				// An error at the end of the chunk (an unclosed tag) points one
+				// line past it; keep the place inside the section that failed.
+				const clamp = (line: number | undefined) =>
+					line === undefined ? undefined : Math.min(Math.max(line, chunk.startLine), chunk.endLine);
+				const line = clamp(at.line) ?? chunk.startLine;
 				report({
 					severity: "error",
 					code: "mdx-syntax",
-					message: `${sentence(reason)} The section starting on line ${chunk.startLine} is shown as source until this is fixed. Fix the syntax at line ${at.line ?? chunk.startLine}.`,
+					message: `${sentence(reason)} The section starting on line ${chunk.startLine} is shown as source until this is fixed. Fix the syntax at line ${line}.`,
 					...at,
+					line,
+					endLine: clamp(at.endLine),
+					...(line !== at.line ? { column: undefined, endColumn: undefined } : {}),
 				});
 				children.push({
 					type: "mdxserveFailedChunk",
