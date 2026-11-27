@@ -3,6 +3,9 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
+import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
+import FileTree from "@mdxserve/ui/builtins/FileTree";
+import Kbd from "@mdxserve/ui/builtins/Kbd";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
 import { Code, Heading, Text } from "@mdxserve/ui/primitives/Text";
@@ -74,6 +77,40 @@ export default function Home() {
 						...entry,
 						content: <Text paragraph={true}>{`The ${entry.label} panel.`}</Text>,
 					}))}
+				/>
+				<Text>
+					Press <Kbd>⌘</Kbd>
+					<Kbd>K</Kbd> to search.
+				</Text>
+				<CardGrid columns="2">
+					<Card
+						icon="rocket"
+						title="Getting started"
+						description="Point mdxserve at a folder and it starts serving."
+						href="https://github.com/karimsa/mdxserve"
+						meta="2 min read"
+						interactive={false}
+					/>
+					<Card
+						icon="git-branch"
+						title="Diagrams"
+						description="Mermaid flowcharts render inline."
+						interactive={true}
+					/>
+				</CardGrid>
+				<FileTree
+					id="sample-tree"
+					activePath="deploy"
+					nodes={[
+						{
+							name: "docs",
+							children: [
+								{ name: "install.mdx", path: "install" },
+								{ name: "deploy.mdx", path: "deploy" },
+							],
+						},
+						{ name: "package.json" },
+					]}
 				/>
 			</View>
 		</ScrollView>

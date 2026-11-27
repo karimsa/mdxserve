@@ -3,6 +3,8 @@ import { View } from "react-native";
 
 export interface InlineProps {
 	className: string;
+	/** The phrasing element it is on the web: a `<span>` unless it says `kbd`. */
+	element?: "span" | "kbd";
 	children?: ReactNode;
 	"aria-hidden"?: boolean;
 }
