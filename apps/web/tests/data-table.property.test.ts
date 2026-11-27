@@ -7,7 +7,7 @@ import {
 	parseBound,
 	type Column,
 } from "@mdxserve/ui/data-table/model";
-import { columnWidths } from "@mdxserve/ui/data-table/layout";
+import { columnWidths, fitColumnWidths } from "@mdxserve/ui/data-table/layout";
 
 it("numeric sorting preserves all values and produces monotonic order", () => {
 	assert(
@@ -59,9 +59,28 @@ it("the app's grid sizes every column within bounds, never narrower for longer t
 			const data = values.map((name) => ({ name }));
 			const [width] = columnWidths([column], data, {});
 			expect(width).toBeGreaterThanOrEqual(72);
-			expect(width).toBeLessThanOrEqual(240);
+			expect(width).toBeLessThanOrEqual(320);
 			const [wider] = columnWidths([column], [...data, { name: `${extra}${values.join("")}` }], {});
 			expect(wider).toBeGreaterThanOrEqual(width);
 		}),
+	);
+});
+
+it("the app's grid fills a wider screen exactly and keeps the natural widths on a narrower one", () => {
+	assert(
+		property(
+			array(integer({ min: 72, max: 320 }), { minLength: 1 }),
+			integer({ min: 0, max: 4000 }),
+			(widths, available) => {
+				const fitted = fitColumnWidths(widths, available);
+				const total = widths.reduce((sum, width) => sum + width, 0);
+				expect(fitted).toHaveLength(widths.length);
+				if (available <= total) expect(fitted).toEqual(widths);
+				else {
+					expect(fitted.reduce((sum, width) => sum + width, 0)).toBe(available);
+					fitted.forEach((width, index) => expect(width).toBeGreaterThanOrEqual(widths[index]));
+				}
+			},
+		),
 	);
 });

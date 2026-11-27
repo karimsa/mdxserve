@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { ScrollView, Text as NativeText, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { ScrollView, Text as NativeText, useWindowDimensions, View } from "react-native";
 import { useDocumentBlockScope } from "../block-state/useBlockState";
 import { blockStateKey, type BlockStateScope } from "../block-state/storage";
-import { columnWidths } from "../data-table/layout";
+import { CELL_PADDING, columnWidths, fitColumnWidths } from "../data-table/layout";
 import { formatValue, type Column } from "../data-table/model";
 import { validateTableProps, type DataTableViewProps } from "../data-table/props";
 import {
@@ -17,6 +17,7 @@ import { Pressable } from "../primitives/Pressable";
 import { Text, type TextProps } from "../primitives/Text";
 
 const ALIGN = { left: "text-left", center: "text-center", right: "text-right" } as const;
+/** A header's label, unit and sort indicator sit in a row, placed as the column's text is. */
 const JUSTIFY = { left: "justify-start", center: "justify-center", right: "justify-end" } as const;
 
 function alignment(column: Column) {
@@ -26,12 +27,25 @@ function alignment(column: Column) {
 /** Digits line up down a column, as `font-variant-numeric: tabular-nums` does on the web. */
 const TABULAR = { fontVariant: ["tabular-nums" as const] };
 
-/** A string from a renderer is text; anything else is drawn as it is. */
-function content(node: ReactNode, fallback: string, look: Omit<TextProps, "children" | "style">) {
+/**
+ * A cell's text, aligned as its column is. A renderer's own nodes (a Markdown cell's inline
+ * runs) sit inside a paragraph that carries the alignment: nested text takes its paragraph's
+ * alignment, so the inline runs, chips and links wrap together within the column.
+ */
+function content(
+	node: ReactNode,
+	fallback: string,
+	look: Omit<TextProps, "children" | "style" | "className">,
+	align: keyof typeof ALIGN,
+) {
 	if (node !== undefined && node !== null && typeof node !== "string" && typeof node !== "number")
-		return node;
+		return (
+			<NativeText className={`shrink ${ALIGN[align]}`} style={TABULAR}>
+				{node}
+			</NativeText>
+		);
 	return (
-		<Text {...look} style={TABULAR}>
+		<Text {...look} className={`shrink ${ALIGN[align]}`} style={TABULAR}>
 			{node ?? fallback}
 		</Text>
 	);
@@ -73,10 +87,20 @@ function TableGrid({
 }: DataTableViewProps & { scope: BlockStateScope }) {
 	const [state, setState] = useTableState(scope, columns, persistState);
 	const { units, errors, rows, bounds, groups } = deriveTableView(columns, data, state);
-	const widths = columnWidths(columns, data, units);
+	const natural = columnWidths(columns, data, units);
+	const naturalTotal = natural.reduce((sum, width) => sum + width, 0);
+	// The width the grid is shown in, once laid out. A table that may be narrower than that is
+	// hidden until then, so its columns never visibly grow; a wider one never changes.
+	const [viewport, setViewport] = useState<number | null>(null);
+	const { width: windowWidth } = useWindowDimensions();
+	const widths = fitColumnWidths(natural, viewport ?? 0);
+	const total = widths.reduce((sum, width) => sum + width, 0);
+	const measuring = viewport === null && naturalTotal < windowWidth;
+	const scrolls = total > (viewport ?? windowWidth);
 	const filteredColumns = columns.filter((column) => hasFilter(state.filters[column.key]));
 	const sortedColumn = columns.find((column) => column.key === state.sort?.key);
-	const cellBox = (index: number) => ({ flexBasis: widths[index], flexGrow: 1, flexShrink: 0 });
+	/** Every cell of a column, header included, has the column's width exactly. */
+	const cellBox = (index: number) => ({ width: widths[index] });
 
 	return (
 		<View
@@ -119,12 +143,26 @@ function TableGrid({
 				</View>
 			)}
 
+			{/* One sideways scroller for the header and every row. It opens at the first column and
+			    keeps out of the way of safe-area insets, so nothing shifts it on a folded display;
+			    a table that fits does not scroll at all, so it never takes a horizontal swipe. */}
 			<ScrollView
 				horizontal={true}
 				testID={`data-table-${id}-scroll`}
-				contentContainerStyle={{ flexGrow: 1 }}
+				scrollEnabled={scrolls}
+				showsHorizontalScrollIndicator={scrolls}
+				directionalLockEnabled={true}
+				automaticallyAdjustContentInsets={false}
+				contentInsetAdjustmentBehavior="never"
+				contentOffset={{ x: 0, y: 0 }}
+				onLayout={(event) => setViewport(Math.round(event.nativeEvent.layout.width))}
+				style={measuring ? { opacity: 0 } : undefined}
 			>
-				<View nativeID={tableProps?.id} aria-label={caption ?? "Data table"} className="grow">
+				<View
+					nativeID={tableProps?.id}
+					aria-label={caption ?? "Data table"}
+					style={{ width: total }}
+				>
 					{columns.some((column) => column.group) && (
 						<View className="flex-row border-b border-border-subtle">
 							{groups.map((group) => {
@@ -133,11 +171,7 @@ function TableGrid({
 									<View
 										key={group.columns[0].key}
 										className="min-h-6 justify-center px-4"
-										style={{
-											flexBasis: indexes.reduce((sum, index) => sum + widths[index], 0),
-											flexGrow: indexes.length,
-											flexShrink: 0,
-										}}
+										style={{ width: indexes.reduce((sum, index) => sum + widths[index], 0) }}
 									>
 										<Text size="xs" tone="muted" className="text-center">
 											{group.label}
@@ -155,12 +189,18 @@ function TableGrid({
 							return (
 								<Pressable
 									key={column.key}
+									testID={`data-table-${id}-header-${index}`}
 									aria-label={`${column.label} column header${sorted ? `, sorted ${direction}` : ""}`}
 									onPress={() => setState((previous) => cycleSort(previous, column.key))}
-									className={`min-h-11 flex-row items-center gap-1 px-4 py-2 ${JUSTIFY[alignment(column)]}`}
+									className={`min-h-11 flex-row items-end gap-1 px-4 py-2 ${JUSTIFY[alignment(column)]}`}
 									style={cellBox(index)}
 								>
-									{content(renderHeader?.(column.key), column.label, { size: "xs", tone: "muted" })}
+									{content(
+										renderHeader?.(column.key),
+										column.label,
+										{ size: "xs", tone: "muted" },
+										alignment(column),
+									)}
 									{units[column.key] ? (
 										<Text size="xs" tone="subtle">
 											· {units[column.key]}
@@ -185,10 +225,11 @@ function TableGrid({
 								const value = row[column.key] ?? null;
 								const limits = bounds[column.key];
 								const span = limits ? limits[1] - limits[0] : 0;
-								const inner = widths[columnIndex] - 32;
+								const inner = widths[columnIndex] - CELL_PADDING;
 								return (
 									<View
 										key={column.key}
+										testID={`data-table-${id}-cell-${rowIndex}-${columnIndex}`}
 										className={`min-h-[49px] justify-center px-4 ${limits ? "pt-2.5 pb-3.5" : "py-2.5"}`}
 										style={cellBox(columnIndex)}
 									>
@@ -206,7 +247,8 @@ function TableGrid({
 										{content(
 											renderCell?.(index, column.key),
 											formatValue(value, column, units[column.key]),
-											{ size: "sm", className: ALIGN[alignment(column)] },
+											{ size: "sm" },
+											alignment(column),
 										)}
 									</View>
 								);
