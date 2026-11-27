@@ -376,7 +376,9 @@ export function useRouter(initialRoute: Route) {
 				return;
 
 			event.preventDefault();
-			navigate(pathname);
+			// Keep the fragment: DocumentView reveals it (selecting the tabs on the
+			// way) once the other document is on the page.
+			navigate(pathname + url.hash);
 		}
 
 		document.addEventListener("click", onClick);

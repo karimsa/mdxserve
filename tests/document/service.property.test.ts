@@ -229,6 +229,56 @@ describe("DocumentService.parse properties", () => {
 		);
 	});
 
+	it("loses no text inside Tabs, and reports content that is not in a labelled Tab", () => {
+		// Each part carries a marker that must reach the tree, wherever it sits.
+		const part = fc.constantFrom(
+			"tab",
+			"unlabelled-tab",
+			"stray-paragraph",
+			"stray-callout",
+			"stray-unknown",
+			"nested-tab",
+		);
+		const render = (kind: string, marker: string): string => {
+			switch (kind) {
+				case "tab":
+					return `<Tab label="${marker}">\n\n${marker} body\n\n</Tab>`;
+				case "unlabelled-tab":
+					return `<Tab>\n\n${marker} body\n\n</Tab>`;
+				case "stray-paragraph":
+					return `${marker} body`;
+				case "stray-callout":
+					return `<Callout title="t">${marker} body</Callout>`;
+				case "stray-unknown":
+					return `<Widget>${marker} body</Widget>`;
+				default:
+					return `> <Tab label="${marker}">${marker} body</Tab>`;
+			}
+		};
+		fc.assert(
+			fc.property(
+				fc.array(part, { minLength: 1, maxLength: 6 }),
+				fc.constantFrom("/root/doc.md", "/root/doc.mdx"),
+				(kinds, docPath) => {
+					const markers = kinds.map((_, position) => `marker${position}`);
+					const source = `<Tabs id="pick">\n\n${kinds
+						.map((kind, position) => render(kind, markers[position]))
+						.join("\n\n")}\n\n</Tabs>\n`;
+					const { tree, diagnostics } = parse(source, docPath);
+					const text = JSON.stringify(tree);
+					for (const marker of markers) expect(text).toContain(`${marker} body`);
+					const tabs = idNodes(tree).find((node) => "type" in node && node.type === "tabs");
+					const tabCount = kinds.filter((kind) => kind === "tab" || kind === "unlabelled-tab");
+					expect(tabs && "tabs" in tabs ? tabs.tabs.length : -1).toBe(tabCount.length);
+					const stray = kinds.some((kind) => kind.startsWith("stray") || kind === "nested-tab");
+					expect(
+						diagnostics.some((diagnostic) => diagnostic.code === "invalid-tabs-structure"),
+					).toBe(stray);
+				},
+			),
+		);
+	});
+
 	it("never serializes a position, line, className or style key", () => {
 		const forbidden = new Set(["position", "line", "className", "style"]);
 		const check = (value: unknown, key?: string) => {

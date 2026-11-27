@@ -29,6 +29,7 @@ export const diagnosticSchema = z.object({
 		"duplicate-heading",
 		"duplicate-tab-value",
 		"invalid-tab-default",
+		"invalid-tabs-structure",
 		"mermaid-chart",
 		"frontmatter-metadata",
 		"frontmatter-comments",

@@ -272,6 +272,39 @@ describe("restrictTree (properties)", () => {
 		);
 	});
 
+	it("reports every className, style, on*, spread and non-literal attribute, on a tag it keeps or unwraps", () => {
+		fc.assert(
+			fc.property(treeArb, (tree) => {
+				let expected = 0;
+				const count = (node: Root | RootContent) => {
+					if (node.type === "mdxJsxFlowElement" || node.type === "mdxJsxTextElement") {
+						// script and style go with their content and attributes, reported once.
+						if (node.name === "script" || node.name === "style") return;
+						for (const attribute of node.attributes) {
+							if (attribute.type !== "mdxJsxAttribute") expected += 1;
+							else if (/^(className|class|style)$|^on/i.test(attribute.name)) expected += 1;
+							else if (
+								attribute.value &&
+								typeof attribute.value === "object" &&
+								foldProgram(attribute.value.data?.estree).kind !== "literal"
+							)
+								expected += 1;
+						}
+					}
+					if ("children" in node) for (const child of node.children) count(child);
+				};
+				count(tree);
+				const attributeDiagnostics = run(tree).filter(
+					(diagnostic) =>
+						diagnostic.code === "unsupported-attribute" ||
+						(diagnostic.code === "non-literal-expression" &&
+							/attribute|The value of/.test(diagnostic.message)),
+				);
+				expect(attributeDiagnostics.length).toBeGreaterThanOrEqual(expected);
+			}),
+		);
+	});
+
 	it("reports an error for every ESM node and every non-literal it removes", () => {
 		fc.assert(
 			fc.property(treeArb, (tree) => {

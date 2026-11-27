@@ -309,7 +309,7 @@ A heading inside a tab is pathed from its tab (`os>macos>install`), so the same 
 two tabs is not a repeat. These ids are what the JSON document tree (`getDocument`,
 `mdxserve document`) carries, and they are the page's URL anchors: a heading, and a tab
 (`#os>macos` selects that tab and scrolls to it). A fragment that matches no id goes to the
-first table of contents entry whose id ends with `>` and the fragment, so `#examples` still
+first heading whose id ends with `>` and the fragment, so `#examples` still
 reaches an "Examples" heading after a second one turned both ids into paths. Repeated headings
 no longer get the `-1`, `-2` anchors of earlier releases, but those still resolve: when no id
 and no `>` suffix matches, `#examples-1` goes to the second heading whose own slug is
@@ -318,15 +318,16 @@ ends in a number, such as `## Step 1` (`step-1`), matches exactly first.
 
 Each break of these rules is an `error` that names the fix, and the document still renders:
 
-| Code                        | Raised for                                            | What renders                          |
-| --------------------------- | ----------------------------------------------------- | ------------------------------------- |
-| `missing-id`                | A stateful component or `details` with no `id`        | The component, with a generated ID    |
-| `invalid-id`                | An `id` that does not match the pattern               | The component, with a generated ID    |
-| `duplicate-id`              | An `id` used earlier in the document                  | The later one, with a generated ID    |
-| `id-conflicts-with-heading` | An `id` equal to a heading's anchor                   | The heading keeps the anchor          |
-| `duplicate-heading`         | Two headings with the same text under the same parent | The later one, with a suffixed ID     |
-| `duplicate-tab-value`       | Two tabs with the same `value` in one `Tabs`          | The later tab, with a generated value |
-| `invalid-tab-default`       | A `defaultValue` that matches no tab                  | The first tab selected                |
+| Code                        | Raised for                                                                                                  | What renders                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `missing-id`                | A stateful component or `details` with no `id`                                                              | The component, with a generated ID                     |
+| `invalid-id`                | An `id` that does not match the pattern                                                                     | The component, with a generated ID                     |
+| `duplicate-id`              | An `id` used earlier in the document                                                                        | The later one, with a generated ID                     |
+| `id-conflicts-with-heading` | An `id` equal to the slug of any heading, repeated or not                                                   | The heading keeps the anchor                           |
+| `duplicate-heading`         | Two headings with the same text under the same parent                                                       | The later one, with a suffixed ID                      |
+| `duplicate-tab-value`       | Two tabs with the same `value` in one `Tabs`                                                                | The later tab, with a generated value                  |
+| `invalid-tab-default`       | A `defaultValue` that matches no tab                                                                        | The first tab selected                                 |
+| `invalid-tabs-structure`    | Content directly inside `Tabs` that is not a `Tab`, a `Tab` outside `Tabs`, or `Tabs` inside a line of text | The content: before the tabs, or in place without tabs |
 
 The result also carries `hints`: an array of advisory strings that never affect `ok`. Today
 there is one — a Markdown image whose alt text or path mentions "screen" is probably a

@@ -155,9 +155,10 @@ function ownSlug(id: string): string {
 /**
  * The id a URL fragment points at, or null when nothing matches:
  * 1. an exact id;
- * 2. the first table of contents entry whose id ends with `>` plus the
- *    fragment, so `#examples` still lands after a second "Examples" heading
- *    turned both ids into paths;
+ * 2. the first section in the table of contents whose id ends with `>` plus
+ *    the fragment, so `#examples` still lands on the first "Examples" heading
+ *    after a second one turned both ids into paths, and not on a tab whose
+ *    value happens to be `examples`;
  * 3. `<slug>-<n>`, the anchor earlier releases gave the repeats of a heading
  *    (`examples`, `examples-1`, `examples-2`): the `n`th section, in document
  *    order and counting from 0, whose own slug is `<slug>`.
@@ -170,7 +171,9 @@ export function resolveFragment(
 	if (fragment === "") return null;
 	if (index.anchors.has(fragment)) return fragment;
 	const suffix = `>${fragment}`;
-	const bySuffix = flattenToc(toc).find(({ entry }) => entry.id.endsWith(suffix))?.entry.id;
+	const bySuffix = flattenToc(toc).find(
+		({ entry }) => entry.id.endsWith(suffix) && index.sectionLevels.has(entry.id),
+	)?.entry.id;
 	if (bySuffix) return bySuffix;
 	const numbered = /^(.+)-(\d+)$/.exec(fragment);
 	if (!numbered) return null;

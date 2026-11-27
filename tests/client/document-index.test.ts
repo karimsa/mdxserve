@@ -28,6 +28,16 @@ describe("resolveFragment", () => {
 		expect(resolveFragment("examples", index, tree.toc)).toBe("guide>examples");
 	});
 
+	it("falls back to a heading, not to a tab whose value ends the same way", () => {
+		const tree = parse(
+			'# Guide\n\n## Code\n\n<Tabs id="lang">\n<Tab label="Examples">\n\nTab.\n\n</Tab>\n</Tabs>\n\n## Examples\n\nOne.\n\n## More\n\n### Examples\n\nTwo.\n\n<Diff id="examples" before="a" after="b" />\n',
+		);
+		const index = indexDocument(tree);
+		expect(index.anchors.has("lang>examples")).toBe(true);
+		expect(index.anchors.has("examples")).toBe(false);
+		expect(resolveFragment("examples", index, tree.toc)).toBe("guide>examples");
+	});
+
 	it("resolves the numbered anchors earlier releases gave repeated headings", () => {
 		const tree = parse(
 			"# Guide\n\n## One\n\n### Examples\n\nA.\n\n## Two\n\n### Examples\n\nB.\n\n## Three\n\n### Examples\n\nC.\n",
