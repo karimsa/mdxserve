@@ -411,6 +411,51 @@ describe.each(["light", "dark"] as const)("a document (%s)", (theme) => {
 		alert.mockRestore();
 	});
 
+	it("settles a saved tick when the document cannot be reloaded, and says so", async () => {
+		const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+		let reachable = true;
+		mockDocuments.set(DOC, () => {
+			if (!reachable) throw new Error("Network request failed");
+			return { document: guide(), version: "v1" };
+		});
+		mockSaveDocNode.mockImplementationOnce(async () => {
+			reachable = false;
+			return { version: "v2" };
+		});
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		await screen.findByRole("heading", { name: "Guide" });
+		await fireEvent.press(screen.getAllByRole("checkbox")[1]);
+		await waitFor(() =>
+			expect(alert).toHaveBeenCalledWith(
+				"The checkbox was saved",
+				"The document could not be reloaded to show it. Pull down to try again.",
+			),
+		);
+		// No tick is left waiting: the boxes can be pressed again.
+		for (const box of screen.getAllByRole("checkbox")) expect(box).not.toBeDisabled();
+		alert.mockRestore();
+	});
+
+	it("says a document that was deleted while open is not on the server any more", async () => {
+		let deleted = false;
+		mockDocuments.set(DOC, () => {
+			if (deleted) throw Object.assign(new Error("Not found"), { data: { code: "NOT_FOUND" } });
+			return { document: guide(), version: "v1" };
+		});
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		await screen.findByRole("heading", { name: "Guide" });
+		deleted = true;
+		const socket = mockSockets.get(STUDIO_URL);
+		await act(async () => {
+			for (const listener of socket?.docListeners ?? []) listener(DOC, "changed");
+		});
+		expect(
+			await screen.findByText(
+				"This document is not on the server, or the server will not show it.",
+			),
+		).toBeOnTheScreen();
+	});
+
 	it("refetches the document when the server says it changed (R4)", async () => {
 		let extra = "";
 		mockDocuments.set(DOC, () => ({ document: guide({ extra }), version: `v-${extra}` }));

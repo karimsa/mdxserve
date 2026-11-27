@@ -81,6 +81,7 @@ export function useTaskToggles({
 			const checked = item.checked !== true;
 			setPending({ item, checked });
 			const documentKey = [server.id, "getDocument", { path }];
+			let saved = false;
 			try {
 				const client = await clientOf(server);
 				const source = await client.getNodeSource.query({ path, id: place.ownerId });
@@ -97,11 +98,20 @@ export function useTaskToggles({
 					version,
 					markdown: edit.markdown,
 				});
-				await queryClient.invalidateQueries({ queryKey: documentKey });
+				saved = true;
+				// The new document clears the tick being saved; a reload that fails must clear it too.
+				await queryClient.invalidateQueries({ queryKey: documentKey }, { throwOnError: true });
 			} catch (error) {
 				setPending(null);
-				Alert.alert("The checkbox was not changed", messageOf(error));
-				void queryClient.invalidateQueries({ queryKey: documentKey });
+				if (saved) {
+					Alert.alert(
+						"The checkbox was saved",
+						"The document could not be reloaded to show it. Pull down to try again.",
+					);
+				} else {
+					Alert.alert("The checkbox was not changed", messageOf(error));
+					void queryClient.invalidateQueries({ queryKey: documentKey });
+				}
 			} finally {
 				busy.current = false;
 			}

@@ -78,6 +78,9 @@ function fileUrl(origin: string, path: string): string {
 	return `${origin}/__mdxserve/getAsset?path=${encodeURIComponent(path)}`;
 }
 
+/** The `getDocument` errors that no retry will change while the file stays as it is. */
+const TERMINAL_CODES = new Set(["NOT_FOUND", "PAYLOAD_TOO_LARGE"]);
+
 function codeOf(error: unknown): string | undefined {
 	const data = (error as { data?: { code?: unknown } } | null)?.data;
 	return typeof data?.code === "string" ? data.code : undefined;
@@ -435,8 +438,11 @@ function DocumentReader({
 		);
 	}
 
-	if (!data) {
-		if (query.isPending) {
+	// A document the server will not give any more (deleted, renamed, grown too large) says so,
+	// even when an earlier read of it is still in the cache; any other failure keeps that read.
+	const terminal = TERMINAL_CODES.has(codeOf(query.error) ?? "");
+	if (!data || terminal) {
+		if (!data && query.isPending) {
 			return (
 				<StateView title={title} server={server}>
 					<View className="py-6" accessibilityLabel="Loading the document">
