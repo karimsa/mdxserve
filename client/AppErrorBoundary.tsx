@@ -25,20 +25,23 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
 			.filter(Boolean)
 			.join("\n\n");
 		return (
-			<div role="alert" className="mx-auto max-w-3xl p-6 text-text-body">
-				<h1 className="mb-2 text-lg font-semibold text-text-heading">Something went wrong</h1>
-				<p className="mb-4 text-sm">
+			<div
+				role="alert"
+				className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-6 text-text-body"
+			>
+				<h1 className="m-0 text-lg font-semibold text-text-heading">Something went wrong</h1>
+				<p className="m-0 text-sm">
 					mdxserve hit an error it could not recover from. Your files are unchanged. Reload the page
 					to continue.
 				</p>
 				<button
 					type="button"
 					onClick={() => location.reload()}
-					className="mb-4 h-9 cursor-pointer rounded border-0 bg-surface-accent px-4 text-sm font-semibold text-text-inverse"
+					className="h-9 cursor-pointer rounded border-0 bg-surface-accent px-4 text-sm font-semibold text-text-inverse"
 				>
 					Reload
 				</button>
-				<pre className="overflow-x-auto whitespace-pre-wrap break-words rounded border border-border-default bg-surface-sunken p-3 font-mono text-xs select-text">
+				<pre className="m-0 w-full overflow-x-auto whitespace-pre-wrap break-words rounded border border-border-default bg-surface-sunken p-3 font-mono text-xs select-text">
 					{details}
 				</pre>
 			</div>
