@@ -7,7 +7,7 @@ import { markSelfWrite } from "./self-writes";
 
 const NO_THREADS: CommentThread[] = [];
 
-/** The doc's threads, from the same query the `mdxserve:doc-changed` handler invalidates. */
+/** The doc's threads, from the same query the router's `doc-changed` handler invalidates. */
 export function useDocThreads(path: string | null): { threads: CommentThread[]; loaded: boolean } {
 	const { data } = useQuery(
 		trpc.getDocComments.queryOptions({ path: path ?? "" }, { enabled: path !== null }),

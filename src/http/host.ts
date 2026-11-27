@@ -1,3 +1,6 @@
+import type http from "node:http";
+import type { PermissionMode } from "../servers/bind-host.js";
+
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
 /** The hostname part of a `Host` header: port stripped, IPv6 brackets removed, lower-cased. */
@@ -35,4 +38,46 @@ export function isTrustedHost(
 	if (localAddress === undefined) return false;
 	const local = localAddress.toLowerCase();
 	return hostname === local || (local.startsWith("::ffff:") && hostname === local.slice(7));
+}
+
+/**
+ * A same-origin request either omits `Origin` (a plain navigation, or a
+ * fetch without CORS) or sends one whose host matches the `Host` header it
+ * arrived on. Anything else, including an unparsable or `null` origin, is
+ * cross-origin.
+ */
+export function isSameOrigin(origin: string | undefined, hostHeader: string | undefined): boolean {
+	if (origin === undefined) return true;
+	let originHost: string;
+	try {
+		originHost = new URL(origin).host;
+	} catch {
+		return false;
+	}
+	return originHost === hostHeader;
+}
+
+/**
+ * Whether a live update socket may connect.
+ *
+ * Every mode requires an `Origin`, when sent, that names the `Host` the
+ * request arrived on, so another site's page cannot listen.
+ *
+ * A full server also requires a `Host` that names this machine
+ * (`isTrustedHost`, the check that guards same-machine privileges over
+ * HTTP). That is the DNS-rebinding defence for a server bound to loopback,
+ * whose rooms may cover any document in its roots.
+ *
+ * A restricted server skips the `Host` check: it is meant to be reached by
+ * name (`mybox.local`, a domain behind a reverse proxy), its rooms only
+ * cover public documents, and its signals carry nothing, so the check would
+ * only refuse legitimate readers.
+ */
+export function acceptsRealtimePeer(
+	req: http.IncomingMessage,
+	permissions: PermissionMode,
+): boolean {
+	if (!isSameOrigin(req.headers.origin, req.headers.host)) return false;
+	if (permissions === "restricted") return true;
+	return isTrustedHost(req.headers.host, req.socket.localAddress);
 }

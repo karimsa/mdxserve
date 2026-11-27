@@ -3,6 +3,7 @@ import { isCancelledError, useQuery } from "@tanstack/react-query";
 import { isTRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 import { queryClient, trpc } from "./api";
+import { realtime } from "./realtime";
 // Type-only: see the comment in client/api.ts — src/ is not served by Vite.
 import type { AppRouter } from "../src/api/router";
 import type { DocumentMetadata } from "../src/docs/metadata";
@@ -322,23 +323,28 @@ export function useRouter(initialRoute: Route) {
 		return () => window.removeEventListener("popstate", onPopState);
 	}, [loadRoute]);
 
-	// The file watcher names each changed document. Refetch its tree: an
-	// unchanged subtree keeps its object, so only what changed re-renders.
+	// Receive the open doc's change signal over the live update socket.
+	const openDocPath = route.kind === "doc" ? route.path : null;
 	useEffect(() => {
-		if (!import.meta.hot) return;
-		const handleDocChanged = (data: { files?: Array<{ path: string }> }) => {
-			for (const file of data?.files ?? []) {
+		if (openDocPath === null) return;
+		realtime.joinDocument(openDocPath);
+		return () => realtime.leaveDocument(openDocPath);
+	}, [openDocPath]);
+
+	// A changed document refetches its tree: an unchanged subtree keeps its
+	// object, so only what changed re-renders.
+	useEffect(
+		() =>
+			realtime.onDocChanged((path) => {
 				// An agent's reply lives in the frontmatter, so refetch the comments too.
 				void queryClient.invalidateQueries({
-					...trpc.getDocComments.queryFilter({ path: file.path }),
+					...trpc.getDocComments.queryFilter({ path }),
 					refetchType: "all",
 				});
-				void invalidateDocument(file.path);
-			}
-		};
-		import.meta.hot.on("mdxserve:doc-changed", handleDocChanged);
-		return () => import.meta.hot?.off?.("mdxserve:doc-changed", handleDocChanged);
-	}, []);
+				void invalidateDocument(path);
+			}),
+		[],
+	);
 
 	useEffect(() => {
 		function onClick(event: MouseEvent) {
@@ -378,13 +384,13 @@ export function useRouter(initialRoute: Route) {
 	}, [navigate]);
 
 	// Files added/removed under the open folder are handled by api.ts: the
-	// watcher's `mdxserve:listing-changed` event invalidates that folder's
-	// query, and AppShell renders the listing route from the live query, so
-	// there is nothing route-level to do here.
+	// socket's `listing-changed` signal invalidates the listings on screen,
+	// and AppShell renders the listing route from the live query, so there is
+	// nothing route-level to do here.
 
-	// A mounted root can be added or removed at runtime (api.ts re-dispatches
-	// the ws event as a window CustomEvent once it's invalidated the tree/
-	// listing queries). If the *current* route lives under a root that just
+	// A mounted root can be added or removed at runtime (api.ts turns the
+	// socket's `roots-changed` signal into a window CustomEvent once it has
+	// refetched the tree and diffed its roots). If the *current* route lives under a root that just
 	// got removed, its doc module/listing no longer describe anything real —
 	// navigate home rather than leaving a dead page on screen. Adding a root
 	// or removing an unrelated one needs no action here: HomeView re-renders

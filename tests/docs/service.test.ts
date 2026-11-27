@@ -95,6 +95,35 @@ describe("DocsService.readSource", () => {
 	});
 });
 
+describe("DocsService.locateDocument", () => {
+	it("returns the doc's absolute path for an absolute or a root-relative path", async () => {
+		expect(await service.locateDocument(abs)).toEqual({ kind: "ok", abs });
+		expect(await service.locateDocument("doc.md")).toEqual({ kind: "ok", abs });
+	});
+
+	it("refuses what readDocument refuses", async () => {
+		const secret = path.join(outside, "secret.md");
+		await fs.writeFile(secret, "# Secret\n", "utf8");
+		await fs.mkdir(path.join(root, ".hidden"));
+		await fs.writeFile(path.join(root, ".hidden", "doc.md"), "# Hidden\n", "utf8");
+		await fs.symlink(path.join(root, ".hidden", "doc.md"), path.join(root, "alias.md"));
+		const huge = path.join(root, "huge.md");
+		await fs.writeFile(huge, "x".repeat(MAX_SOURCE_BYTES + 1), "utf8");
+
+		expect((await service.locateDocument(secret)).kind).toBe("not-found");
+		expect((await service.locateDocument(path.join(root, "gone.md"))).kind).toBe("not-found");
+		expect((await service.locateDocument(path.join(root, ".hidden", "doc.md"))).kind).toBe(
+			"not-found",
+		);
+		expect((await service.locateDocument(huge)).kind).toBe("too-large");
+		// A public alias of a hidden file is refused only to a public reader.
+		expect((await service.locateDocument(path.join(root, "alias.md"))).kind).toBe("ok");
+		expect((await service.locateDocument(path.join(root, "alias.md"), true)).kind).toBe(
+			"not-found",
+		);
+	});
+});
+
 describe("DocsService.readMetadata", () => {
 	it("reports a file removed after path resolution as not-found", async () => {
 		const actualOpen = fs.open.bind(fs);

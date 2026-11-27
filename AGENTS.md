@@ -62,6 +62,7 @@ Adapters contain no business logic:
 | `src/cli/`       | the commander verbs, one file per verb; they call the same services the tRPC procedures do, so a verb and a procedure cannot drift                                 |
 | `src/http/`      | the node `http` request handler, `startServer`, and the HTML shell                                                                                                 |
 | `src/rendering/` | the Vite dev server that serves `client/` (documents never go through it: they reach the browser as the JSON tree from `getDocument`)                              |
+| `src/realtime/`  | the socket.io live update adapter (`attachRealtime`): handshake check, `join`/`leave` rooms resolved through `DocsService`, and the three no-payload signals       |
 | `src/servers/`   | the pid lockfile that keeps one server per user, the sqlite record of that server (pid, port, roots), and the tRPC client the CLI and stdio bridge use to reach it |
 | `src/infra/`     | package root and cache-dir helpers                                                                                                                                 |
 | `src/index.ts`   | the commander CLI                                                                                                                                                  |
@@ -70,8 +71,9 @@ Adapters contain no business logic:
 for example `AppRouter` from `src/api/router` and the document tree types from
 `src/document/schema` (re-exported for the renderer by `client/document/tree-types.ts`).
 
-`shared/` holds code both sides run, today each builtin's zod prop schema
-(`shared/builtins/<name>.ts`). `client/` and `src/` may import values from it. It imports no
+`shared/` holds code both sides run: each builtin's zod prop schema
+(`shared/builtins/<name>.ts`) and the live update socket's event names and payload schemas
+(`shared/realtime.ts`). `client/` and `src/` may import values from it. It imports no
 React value (type-only imports are fine) and nothing from `client/` or `src/`, and Vite's
 `fs.allow` lists it so the browser can load it.
 

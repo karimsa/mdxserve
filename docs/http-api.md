@@ -64,3 +64,44 @@ restricted servers. `getDocComments` is a query and works in restricted mode. A 
 that cannot be applied returns `NOT_FOUND` (doc, thread or message missing),
 `UNPROCESSABLE_CONTENT` (the frontmatter is not valid YAML), `PAYLOAD_TOO_LARGE` (the frontmatter
 would pass 64 KiB), or `CONFLICT` (the file kept changing during the write).
+
+## Live updates
+
+A browser tab learns that something changed on disk over one [socket.io](https://socket.io)
+connection at the path `/__mdxserve/socket.io` (`REALTIME_PATH` in `shared/realtime.ts`). It
+shares the server's port with the API.
+
+The server sends three signals, none with a payload. Each one means "what you hold may be
+stale", and a client refetches through the API when it gets one:
+
+| Event             | Sent to                                 | When                                                  |
+| ----------------- | --------------------------------------- | ----------------------------------------------------- |
+| `doc-changed`     | Connections that joined that doc's room | A doc's file changed, at most once per doc per 100 ms |
+| `listing-changed` | Every connection                        | A doc or folder was added or removed under a root     |
+| `roots-changed`   | Every connection                        | A root was mounted or unmounted                       |
+
+A client sends `join` and `leave` with `{ path }`, in the form `getDocument` takes, and gets
+an acknowledgement of `{ ok: boolean }`. A join is refused (`ok: false`) when the payload is
+malformed or when `getDocument` would refuse the same path for the same caller, including the
+restricted-mode path rules. Both sides validate what they receive against the zod schemas in
+`shared/realtime.ts`.
+
+Signals are best-effort. A client that reconnects rejoins its document and refetches the
+document, the listings and the roots, which repairs any signal it missed while disconnected.
+
+The handshake check depends on the permission mode:
+
+| Mode         | Handshake accepted when                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| `full`       | `Host` names this machine (loopback, or the address the connection arrived on) and `Origin` matches it |
+| `restricted` | `Origin`, when present, matches `Host`. Any `Host` is accepted                                         |
+
+A refused handshake gets `403`. In full mode the `Host` rule is the check that guards
+same-machine privileges over HTTP, and it keeps a DNS-rebinding page from listening. A
+restricted server is meant to be reached by name (`mybox.local`, or a domain behind a reverse
+proxy). Its rooms only cover public documents and its signals carry nothing, so it checks only
+the origin, which keeps another site's page from listening.
+
+One connection may hold at most 16 joined paths. A further join is refused until it leaves one.
+The browser client retries at socket.io's usual pace while the server is unreachable, and once
+a minute after the server refuses its handshake.
