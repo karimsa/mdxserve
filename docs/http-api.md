@@ -54,6 +54,33 @@ server-side execution privileges.
 
 Paths are absolute, in the same form as the site's URLs (`/Users/you/notes/foo.md`).
 
+## Files: `getAsset`
+
+`getAsset` is not a tRPC method, because its result is a file's bytes. It is a plain HTTP
+endpoint, `GET /__mdxserve/getAsset?path=<absolute path>`, and it is how a page loads an
+image or other non-document file that sits in a mounted root. `path` is required, absolute,
+and at most 4096 characters; other query parameters are ignored. `HEAD` works too, and any
+other method gets `405`. The query is validated by `getAssetInputSchema` in `src/http/asset.ts`.
+
+| Request                                                        | Response                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------- |
+| Missing, empty or relative `path`                              | `400` with the reason                                       |
+| `Origin` that does not match `Host`                            | `403`                                                       |
+| A path outside every root, a missing file, or a non-file       | `404`                                                       |
+| A `.md` or `.mdx` file (read documents with `getDocument`)     | `404`                                                       |
+| Anything under `.git`, `.env` files, `.pem` and `.crt` keys    | `404`                                                       |
+| A symlink that leaves its root                                 | `404`                                                       |
+| `--permissions restricted`: a hidden or `node_modules` segment | `404`                                                       |
+| Anything else                                                  | `200` with the bytes, or `304` when `If-None-Match` matches |
+
+A successful response sets these headers:
+
+- `Content-Type`, from the file's extension.
+- `Cache-Control: no-cache`, so a browser revalidates and gets a `304` when the file did not change.
+- A weak `ETag` and `Last-Modified`.
+- `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin`.
+- `Content-Security-Policy: sandbox`, for types that can run script in a page (SVG, HTML and XML).
+
 ## Who may call what
 
 `addRoots` and `removeRoots` are loopback-only: a caller elsewhere on the LAN gets `FORBIDDEN`.

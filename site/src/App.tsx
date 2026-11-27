@@ -25,7 +25,7 @@ const routes: Record<string, Route> = {
 	},
 	"/tour": {
 		title: "Take the mdxserve tour",
-		description: "Try tabs, charts, diagrams, and React components in a working MDX document.",
+		description: "Try tabs, charts, diagrams, and code diffs in a working MDX document.",
 		Page: Tour,
 	},
 };

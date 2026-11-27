@@ -32,7 +32,7 @@ interface StateSnapshot<State> {
 	loaded: boolean;
 }
 
-/** Falls back to the page path outside a DocContext; SSR never touches browser globals. */
+/** Falls back to the page path outside a DocContext. */
 export function useDocumentBlockScope(
 	block: Omit<BlockStateScope, "documentPath">,
 ): BlockStateScope {
@@ -42,7 +42,7 @@ export function useDocumentBlockScope(
 	return { ...block, documentPath };
 }
 
-/** Persist JSON-compatible block state after hydration, isolated by document and block identity. */
+/** Persist JSON-compatible block state after the first render, isolated by document and block identity. */
 export function useBlockState<State>(
 	scope: BlockStateScope,
 	options: BlockStateOptions<State>,

@@ -69,17 +69,18 @@ The `mdxserve` on your `PATH` is a built `dist/cli.js` (the `@karimsa/mdxserve` 
 
 ## Where things live
 
-| Path               | Contents                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`) and adapters (`api/`, `cli/`, `http/`, `realtime/`, `servers/`, `infra/`); `index.ts` is the CLI |
-| `client/`          | The browser app, built by `vite.config.ts` from `client/index.html`: the shell, the document renderer (`document/`, which draws the JSON tree from `getDocument`), the editors, mermaid, and `builtins/`       |
-| `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                          |
-| `client/builtins/` | One file per builtin component, each exporting the component and its zod props schema                                                                                                                          |
-| `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                    |
-| `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                    |
-| `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                              |
-| `scripts/`         | `build.ts` (the build sequence), `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`), `dev.ts` and `dev-shell.ts` (`yarn dev`), and `smoke-pack.sh` (`yarn smoke`)                          |
-| `docs/`            | These pages and the README screenshots                                                                                                                                                                         |
+| Path               | Contents                                                                                                                                                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/`             | The server: domain modules (`roots/`, `docs/`, `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`, `document/`, `preferences/`, `assets/`, `comments/`) and adapters (`api/`, `cli/`, `http/`, `realtime/`, `rendering/`, `servers/`, `infra/`); `index.ts` is the CLI |
+| `client/`          | The browser app, built by `vite.config.ts` from `client/index.html`: the shell, the document renderer (`document/`, which draws the JSON tree from `getDocument`), the editors, mermaid, and `builtins/`                                                                                                 |
+| `client/design/`   | The design tokens and primitives the UI is built from                                                                                                                                                                                                                                                    |
+| `client/builtins/` | One file per builtin component, exporting the component as default                                                                                                                                                                                                                                       |
+| `shared/builtins/` | One file per builtin's zod props schema, imported by both the client and the server's document parser                                                                                                                                                                                                    |
+| `tests/`           | Mirrors `src/` module by module, plus `client/` and `docs/`                                                                                                                                                                                                                                              |
+| `example/`         | The tour folder `yarn dev` serves; also a fixture for tests                                                                                                                                                                                                                                              |
+| `skills/mdxserve/` | The agent writing skill `mdxserve setup` installs                                                                                                                                                                                                                                                        |
+| `scripts/`         | `build.ts` (the build sequence), `build-registry.ts` (the builtins' zod schemas → `dist/registry.json`), `dev.ts` and `dev-shell.ts` (`yarn dev`), and `smoke-pack.sh` (`yarn smoke`)                                                                                                                    |
+| `docs/`            | These pages and the README screenshots                                                                                                                                                                                                                                                                   |
 
 The shape in one line: an adapter (`src/api/`, `src/cli/`, `src/http/`) constructs
 the service it needs inline with concrete values, calls one method, and maps the result union
@@ -90,17 +91,20 @@ has the full rules.
 
 ## Adding a builtin component
 
-1. Create `client/builtins/<Name>.tsx` exporting the component as default and a zod object
-   `<name>Props` describing its props, with `.describe()` on each so the registry and
-   `mdxserve components show` can explain them.
-2. Register it in `client/builtins/index.ts` with a `description` and a `whenToUse` — the
+1. Create `shared/builtins/<name>.ts` exporting a zod object `<name>Props` describing the
+   props, with `.describe()` on each so the registry and `mdxserve components show` can
+   explain them. Add it to `shared/builtins/index.ts`, which the server's document parser
+   reads to check props.
+2. Create `client/builtins/<Name>.tsx` exporting the component as default, typed with the
+   inferred props from the shared schema.
+3. Register it in `client/builtins/index.ts` with a `description` and a `whenToUse` — the
    latter is what an agent reads to decide whether to reach for it.
-3. `yarn registry` (or `yarn build`) regenerates `dist/registry.json`; `mdxserve validate`'s
+4. `yarn registry` (or `yarn build`) regenerates `dist/registry.json`; `mdxserve validate`'s
    unknown-component and unknown-prop checks and the CLI all read from it.
-4. A new browser dependency goes in `devDependencies`: the client build bundles it, and the
+5. A new browser dependency goes in `devDependencies`: the client build bundles it, and the
    published package installs only what the server imports (`yarn build` fails when the
    server imports a package missing from `dependencies`).
-5. Show it in `example/06-builtins.mdx` (or `07-charts.mdx` for anything that draws data),
+6. Show it in `example/06-builtins.mdx` (or `07-charts.mdx` for anything that draws data),
    and add a test under `tests/components/`.
 
 ## Releasing

@@ -10,7 +10,7 @@ export const diffProps = z.object({
 		.optional()
 		.describe(
 			"Label only, shown in the header when `title` isn't set. Shown as a label; the diff is colored by " +
-				"change, not by syntax — Shiki runs at build time for fenced code blocks, not for runtime strings " +
+				"change, not by syntax — Shiki highlights fenced code blocks in the browser, not the strings " +
 				"passed to this component.",
 		),
 	title: z

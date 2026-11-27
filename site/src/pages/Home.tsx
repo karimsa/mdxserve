@@ -7,6 +7,7 @@ const diagramSource = `flowchart LR
   Page --> Idea[Your next idea]`;
 
 const chartSource = `<Chart
+	id="notes-chart"
 	filename="sample-notes.json"
 	type="bar"
 	data={[
@@ -20,9 +21,10 @@ const chartSource = `<Chart
 	yLabel="Notes read"
 />`;
 
-const componentSource = `import Counter from "./examples/components/Counter";
-
-<Counter />`;
+const tabsSource = `<Tabs id="install-tabs">
+	<Tab label="macOS">\`brew install foo\`</Tab>
+	<Tab label="Linux">\`apt install foo\`</Tab>
+</Tabs>`;
 
 const sampleNotes = [
 	{ label: "Mon", values: { notes: 4 } },
@@ -41,8 +43,8 @@ export function Home() {
 				<p className="hero-lede">A folder of Markdown, ready to read in your browser.</p>
 				<p className="hero-body">
 					mdxserve turns your notes, project plans, and docs into pages you can browse and search.
-					Code gets highlighting, diagrams get room to breathe, and React components work alongside
-					the prose.
+					Code gets highlighting, diagrams get room to breathe, and builtin components such as
+					callouts, tabs, and charts sit alongside the prose.
 				</p>
 				<div className="card-grid">
 					<Link to="/tour" className="card">
@@ -117,15 +119,15 @@ export function Home() {
 							),
 						},
 						{
-							label: "A React component",
+							label: "Tabs",
 							content: (
 								<>
 									<p>
-										A document can import a React component from a neighboring file, such as a small
-										counter. Its state lives in your browser and resets when the component remounts
-										or you reload.
+										The <code>Tabs</code> component shows one variant of the content at a time, such
+										as install steps for each operating system. The selected tab is kept under the
+										component's <code>id</code>, so it stays selected when the document changes.
 									</p>
-									<CodeBlock language="mdx" code={componentSource} />
+									<CodeBlock language="mdx" code={tabsSource} />
 								</>
 							),
 						},

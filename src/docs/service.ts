@@ -26,7 +26,7 @@ import {
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 
 export interface DocSource {
-	/** The raw on-disk text — not the compiled module, which has been through escapeBareLt/remarkSections. */
+	/** The raw on-disk text, exactly as saved. */
 	text: string;
 	/** Opaque token for the bytes `text` was read from; the save's stale-write guard. */
 	version: string;
@@ -198,8 +198,8 @@ export class DocsService implements MetadataPort {
 
 	/**
 	 * Read a doc's raw source for the per-section editor to seed itself from.
-	 * "Raw" matters: startLine/endLine from the compiled MdSection props index
-	 * into the on-disk file, not the transformed one.
+	 * "Raw" matters: the line ranges in the document tree index into the
+	 * on-disk file.
 	 */
 	async readSource(inputPath: string, publicOnly = false): Promise<ReadSourceResult> {
 		const read = await this.readResolved(inputPath, publicOnly);

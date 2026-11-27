@@ -150,7 +150,9 @@ roots
 
 program
 	.command("validate <paths...>")
-	.description("Check .md/.mdx files for compile errors, unknown components and props")
+	.description(
+		"Check .md/.mdx files for syntax errors, document rule violations, unknown components and props",
+	)
 	.option("--json", "print one result per file as JSON")
 	.action(async (paths: string[], opts: { json?: boolean }) => {
 		let registry;
@@ -309,13 +311,13 @@ components
 		console.log(formatComponent(entry));
 	});
 
-const cache = program
-	.command("cache")
-	.description("Manage the dependency cache (~/.cache/mdxserve/)");
+const cache = program.command("cache").description("Manage the cache folder (~/.cache/mdxserve/)");
 
 cache
 	.command("clean")
-	.description("Delete the dependency cache; the next `serve` rebuilds it")
+	.description(
+		"Delete the cache folder that older releases filled; the server no longer writes to it",
+	)
 	.action(() => {
 		const removed = cleanCache();
 		console.log(removed ? `Removed ${getCacheHome()}` : `Nothing to clean at ${getCacheHome()}`);

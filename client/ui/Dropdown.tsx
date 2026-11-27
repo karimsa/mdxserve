@@ -88,8 +88,7 @@ export type OptionProps = z.infer<typeof optionProps>;
 /**
  * Renders nothing on its own — `Dropdown` reads each `Option` child's props
  * to build the menu and panels, matching on `props.label` rather than
- * `type === Option` (component identity changes under Fast Refresh; see
- * client/builtins/Tabs.tsx).
+ * `type === Option` (component identity changes under Fast Refresh).
  */
 export function Option(_props: OptionProps) {
 	return null;

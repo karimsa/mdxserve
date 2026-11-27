@@ -190,7 +190,7 @@ function browserClient(): RealtimeClient {
 	));
 }
 
-/** A client that never connects, for the SSR render worker, which has no `window`. */
+/** A client that never connects, for code that runs where there is no `window`. */
 const offline: RealtimeClient = {
 	joinDocument() {},
 	leaveDocument() {},

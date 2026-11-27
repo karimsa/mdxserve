@@ -33,7 +33,7 @@ The scripts the workflow runs are in `site/deployment/`. Their tests run in the 
 
 ## One-time Vercel setup
 
-1. Connect this Git repository to a Vercel project. Set its Root Directory to `.` and its production branch to `main`. Keep Git deployments enabled. Use Node.js 22.x for builds; the build relies on the Corepack that ships with Node.
+1. Connect this Git repository to a Vercel project. Set its Root Directory to `.` and its production branch to `main`. Keep Git deployments enabled. Use Node.js 24.x for builds; the build relies on the Corepack that ships with Node.
 2. Leave the project's **Ignored Build Step** empty (or set it to the default), so every commit builds.
 3. In the project's Production environment settings, disable **Auto-assign Custom Production Domains**. Vercel can then build each `main` commit without moving the live domain; the release workflow assigns it only after npm publish succeeds.
 4. Add a project-scoped `VERCEL_TOKEN` as a GitHub Actions repository secret with access to the project. Add `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as repository variables, using the IDs from Vercel project settings or `.vercel/project.json`. The workflow uses Vercel's team-scoped REST API to promote the deployment and verify the production alias; the Vercel CLI requires a user lookup that a project-scoped token cannot satisfy. The workflow fails if a value is missing.

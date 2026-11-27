@@ -20,7 +20,7 @@ calling it.
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
 `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
-`document/`, `assets/`, and `preferences/`. `setup/` is
+`document/`, `assets/`, `comments/`, and `preferences/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
 `document/` has no controller either: `DocumentService.parse` turns source text into the JSON
@@ -31,7 +31,7 @@ may be served, and its endpoint, `getAsset`, is a plain HTTP GET in `src/http/as
 because its result is the file's bytes, not JSON. Its query is still a zod schema.
 
 - `service.ts` — a small class whose constructor takes the concrete values it needs (a
-  `RootInfo[]`, a `Registry`, a render function, another service instance). Business rules
+  `RootInfo[]`, a `Registry`, another service instance). Business rules
   live here and nowhere else. Any mutable state (a cache, an index, a lock) is an instance
   field, never module scope, so a test can build a fresh one. Methods return result unions
   (`{ kind: "ok", … } | { kind: "not-found", message } | …`), never transport errors, and the
@@ -53,8 +53,8 @@ because its result is the file's bytes, not JSON. Its query is still a zod schem
 There is no service registry, factory, or dependency-injection bag. An adapter `new`s the
 service it needs, inline, with the values it already has; a stateless service may be
 constructed per request, and two adapters constructing the same service is fine. Only
-genuinely per-process state is created once — in `startServer` (`src/http/start.ts`) or the
-a CLI command — and carried through the request context: `DocCache`, `SearchService`,
+genuinely per-process state is created once — in `startServer` (`src/http/start.ts`) or a
+CLI command — and carried through the request context: `DocCache`, `SearchService`,
 `DocsService` (it owns the per-file save lock), `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
 `DiagramsService` (it owns conversion scheduling, sessions and temporary uploads),
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller

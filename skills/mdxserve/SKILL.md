@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Grep, Glob
 
 mdxserve serves a folder of `.md` / `.mdx` files as a browsable site: a file listing,
 rendered pages with syntax highlighting, mermaid diagrams, and a small library of builtin
-components. `.md` and `.mdx` are treated identically — both go through MDX, so the builtin
+components. `.md` and `.mdx` are treated identically, so the builtin
 components work in either.
 
 Markdown files have many readers besides mdxserve (GitHub, editors, other tools). The goal
@@ -53,8 +53,9 @@ A document is content, not code. mdxserve does not run anything a document write
 
 `mdxserve validate` reports each break as an error, and the page renders without it.
 
-MDX is stricter than Markdown: a bare `{`, `}` or an unclosed `<tag>` in prose is a compile
-error, not literal text. Put such characters in backticks or escape them (`\{`).
+MDX is stricter than Markdown: a bare `{`, `}` or an unclosed `<tag>` in prose is a syntax
+error, not literal text. The error replaces only its own `#` or `##` section, which the reader
+shows as source with the error. Put such characters in backticks or escape them (`\{`).
 
 ## Quick reference
 

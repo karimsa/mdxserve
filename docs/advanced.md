@@ -333,7 +333,7 @@ The result also carries `hints`: an array of advisory strings that never affect 
 there is one — a Markdown image whose alt text or path mentions "screen" is probably a
 screenshot, and the hint points the agent at the builtin `<Screenshot>` component, which frames
 it as a macOS window with an expand view. The text output prints each as a `hint:` line after
-the render status.
+the diagnostics.
 
 ## The agent skill
 

@@ -17,8 +17,7 @@ export function useDebounced<Value>(value: Value, delayMs: number): Value {
 
 /**
  * Whether the viewport matches a CSS media query, kept live as the window is
- * resized. The SSR pass has no viewport, so it reports `serverDefault`; the
- * store swaps in the real answer on hydration without a mismatch.
+ * resized. Where there is no `window`, it reports `serverDefault`.
  */
 export function useMediaQuery(query: string, serverDefault = false): boolean {
 	const subscribe = useCallback(

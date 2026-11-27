@@ -13,7 +13,7 @@ MDX files as a browsable site. Point it at a directory and it will:
 - List subfolders and `.md` / `.mdx` files when you browse a directory
 - Render a file in the browser when you click it, from the JSON document tree the server
   parses it into
-- Apply Tailwind's `prose` typography styles automatically, so you don't write any CSS
+- Style prose with built-in typography, so you don't write any CSS
 - Highlight code blocks with Shiki in the browser, with fence meta on
   the opening ` ```ts ` line for a title (`title="server.ts"`), a line-number gutter
   (`showLineNumbers`), and highlighted lines (`{1,3-4}`) — see `01-markdown.md`
@@ -57,6 +57,8 @@ Browsing to a folder shows:
 | --- | --- |
 | [`01-markdown.md`](./01-markdown.md) | Plain Markdown tour: headings, text formatting, lists, tables, quotes, links, images, code blocks |
 | [`02-mdx-basics.mdx`](./02-mdx-basics.mdx) | What a document can write beyond Markdown: builtins, supported lowercase elements, and literal values in braces |
+| [`08-diagram-authoring.md`](./08-diagram-authoring.md) | Creating a Mermaid diagram from the section editor, with an entity-relationship diagram as the sample |
+| [`12-data-tables.mdx`](./12-data-tables.mdx) | The `DataTable` builtin: typed columns, sorting, filters, grouped headers and bars |
 | [`nested/deep/05-nested-page.md`](./nested/deep/05-nested-page.md) | A page two folders deep, to show breadcrumb/folder navigation |
 | [`06-builtins.mdx`](./06-builtins.mdx) | Tour of builtin components (`Callout`, `Tooltip`, `Tabs`, `Badge`, `Diff`, `Card`, `Kbd`, `FileTree`, `Chart`, `Sparkline`, `Screenshot`) and the `mdxserve components` CLI |
 | [`07-charts.mdx`](./07-charts.mdx) | Data visualization with builtins: `Sparkline` in tables and prose, `Chart` as bar / horizontal bar / grouped bar / line / area / histogram, and one dataset in `Tabs` |

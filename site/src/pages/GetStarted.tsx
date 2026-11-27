@@ -44,9 +44,9 @@ mdxserve serve -w ~/notes`}
 			<p>Add a builtin component when it helps explain something:</p>
 			<CodeBlock title="notes/first-idea.md" language="mdx" code={firstIdea} />
 			<p>
-				<code>.md</code> and <code>.mdx</code> support the same syntax. Both can use JSX,
-				expressions, and imported components. Escape a literal brace as <code>\{"{"}</code>, or put
-				code-like text in backticks.
+				<code>.md</code> and <code>.mdx</code> support the same syntax. Both can use the builtin
+				components. They cannot import code or run expressions, and braces hold literal values only.
+				Escape a literal brace as <code>\{"{"}</code>, or put code-like text in backticks.
 			</p>
 
 			<h2 id="read-edit-repeat">Read, edit, repeat</h2>
@@ -88,8 +88,8 @@ mdxserve components show Callout
 mdxserve validate ./docs/guide.md --json`}
 			/>
 			<p>
-				Validation checks syntax and component usage without a server. With a server running, it can
-				check rendering too.
+				Validation reads the file and checks syntax, the document rules, and component usage. It
+				never renders the document and does not need a server.
 			</p>
 			<p>
 				<Link to="/tour">Take the tour</Link> or{" "}

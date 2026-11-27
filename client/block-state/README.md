@@ -20,7 +20,7 @@ Import the hooks from `./useBlockState` and storage helpers/types from `./storag
 - Provide a schema with `safeParse` (Zod schemas work), a fresh default-state factory, and optional
   pure normalization against current block props. State must be JSON-compatible. Validation
   checks saved data; normalization handles changes to the block's current content or schema.
-- Server rendering and initial hydration use defaults. Storage is restored in an effect before
+- The first render uses defaults. Storage is restored in an effect before
   any state is saved. Changing scope loads that scope's preferences without exposing or saving
   the old scope's state under the new key. The setter supports React-style functional updates.
 - Invalid saved data, blocked storage, and quota errors fall back to usable in-memory state.
