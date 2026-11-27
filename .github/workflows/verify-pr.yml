@@ -149,8 +149,13 @@ jobs:
       - name: Typecheck the app
         run: yarn mobile typecheck
 
+      # EXPO_OFFLINE makes the version check compare against the installed expo package's own
+      # pins (expo/bundledNativeModules.json), not the newest SDK patch on Expo's API. A mismatch
+      # with the SDK we pin still fails; a new Expo patch release alone does not.
       - name: Check the app with Expo Doctor
         run: yarn mobile doctor
+        env:
+          EXPO_OFFLINE: 1
 
       # Proves Metro can resolve and bundle the whole graph from the workspace.
       - name: Bundle the app for iOS

@@ -45,8 +45,10 @@ scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CL
   check the rest. The `Mobile` CI job runs those three and bundles the app for iOS
   (`yarn mobile expo export --platform ios`)
 - Every workspace uses the React version the Expo SDK pins, and `yarn constraints` fails when
-  they disagree. Upgrade React only together with the Expo SDK; `yarn mobile doctor` lists the
-  versions the SDK expects
+  they disagree. Upgrade React only together with the Expo SDK
+- `yarn mobile doctor` compares the app's packages with the newest patch of its Expo SDK, so it
+  reports new Expo releases. CI runs it with `EXPO_OFFLINE=1`, which compares them with the
+  pins of the installed `expo` package instead: a new Expo release alone never fails CI
 - The app uses TypeScript 7 like every other workspace, not the 6.x Expo expects, so
   `typescript` is in `expo.install.exclude` in its `package.json`
 - `app.config.ts` holds the app's identity: bundle identifier, Apple team, Expo account and
