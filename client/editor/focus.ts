@@ -20,3 +20,12 @@ export function focusEditor(editor: Editor, at?: "start"): void {
 	}
 	view.focus();
 }
+
+/**
+ * Focus the editor once a dialog over it has gone. Called from the dialog's own close or
+ * insert handler, the dialog is still open: it is a modal `<dialog>`, which makes the editor
+ * inert, so focusing right away does nothing. One frame later React has removed it.
+ */
+export function focusEditorAfterDialog(editor: Editor): void {
+	requestAnimationFrame(() => focusEditor(editor));
+}

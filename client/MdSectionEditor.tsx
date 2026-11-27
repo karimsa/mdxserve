@@ -6,7 +6,7 @@ import {
 } from "./diagrams/edit-block";
 import type { ExistingDiagram } from "./diagrams/edit-context";
 import { blockSlash } from "./editor/slash";
-import { focusEditor } from "./editor/focus";
+import { focusEditor, focusEditorAfterDialog } from "./editor/focus";
 import { MdxBlock } from "./editor/mdx-block";
 import { ImageDialog } from "./editor/ImageDialog";
 import { LinkDialog } from "./editor/LinkDialog";
@@ -240,7 +240,7 @@ export default function MdSectionEditor({
 	const closeDiagram = useCallback(() => {
 		setDiagramRange(null);
 		setEditTarget(null);
-		if (editor) focusEditor(editor);
+		if (editor) focusEditorAfterDialog(editor);
 	}, [editor]);
 
 	async function save() {
@@ -346,11 +346,11 @@ export default function MdSectionEditor({
 				<LinkDialog
 					onClose={() => {
 						setLinkRange(null);
-						focusEditor(editor);
+						focusEditorAfterDialog(editor);
 					}}
 					onInsert={({ href, text }) => {
 						if (linkRange.to > editor.state.doc.content.size) return;
-						focusEditor(editor);
+						focusEditorAfterDialog(editor);
 						editor
 							.chain()
 							.insertContentAt(linkRange, {
@@ -367,7 +367,7 @@ export default function MdSectionEditor({
 				<ImageDialog
 					onClose={() => {
 						setImageRange(null);
-						focusEditor(editor);
+						focusEditorAfterDialog(editor);
 					}}
 					onInsert={(attrs) => {
 						if (imageRange.to > editor.state.doc.content.size) return;
@@ -378,7 +378,7 @@ export default function MdSectionEditor({
 								editor.state.doc.textBetween(imageRange.from, imageRange.to)
 						)
 							return;
-						focusEditor(editor);
+						focusEditorAfterDialog(editor);
 						editor
 							.chain()
 							.insertContentAt({ from: position.before(), to: position.after() }, [
@@ -424,7 +424,7 @@ export default function MdSectionEditor({
 								});
 								return;
 							}
-							focusEditor(editor);
+							focusEditorAfterDialog(editor);
 							editor
 								.chain()
 								.insertContentAt(
