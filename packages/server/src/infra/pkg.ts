@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 let cachedRoot: string | undefined;
@@ -50,4 +51,12 @@ export function readPackageVersion(): string {
 
 export function missingBuildArtifact(relPath: string): string {
 	return `mdxserve: ${relPath} is missing. Reinstall with "npm i -g @karimsa/mdxserve", or run "yarn build" in a source checkout.`;
+}
+
+/** The version of the mermaid package installed beside mdxserve, which validates diagrams. */
+export function readMermaidVersion(): string {
+	const manifest = JSON.parse(
+		fs.readFileSync(createRequire(import.meta.url).resolve("mermaid/package.json"), "utf8"),
+	) as { version: string };
+	return manifest.version;
 }

@@ -152,6 +152,16 @@ prevents startup.
 Set `MDXSERVE_HOME` to move the lock and database somewhere else — useful for running a
 throwaway instance side by side with your real one, since each home has its own server.
 
+### Server identity
+
+The first time a server starts it writes a random `serverId` (a UUID) to `config.json` and
+keeps it from then on, so a client can tell one server from another however it reaches it:
+through `localhost`, a LAN address or a tailnet name. Its name is the computer's hostname
+without `.local`, or what you pass with `serve --name <name>` (at most 63 bytes). The id, the
+name, the version, the permissions mode and the `tailscale serve` addresses are what
+`getServerInfo` answers; it never names a mounted folder. Removing `serverId` makes the server
+a new one to every client that knew it. Each `MDXSERVE_HOME` has its own id.
+
 ## Roots and URLs
 
 A path given to `-w` or `roots add` is resolved against the current directory (`~` expands),

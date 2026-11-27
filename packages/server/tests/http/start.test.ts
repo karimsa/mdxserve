@@ -175,3 +175,23 @@ it("refuses to reuse an existing server when restricted permissions are requeste
 		lock.release();
 	}
 });
+
+it("rejects an invalid --name before taking the lock", async () => {
+	const outcome = await startServer({ roots: [], port: 0, host: "127.0.0.1", name: " " });
+	expect(outcome).toEqual({ kind: "error", message: "--name must not be empty" });
+	await expect(fs.access(defaultLockPath())).rejects.toThrow();
+});
+
+it("refuses a serverId that is not a UUID, releases the lock and leaves the config alone", async () => {
+	const content = '{"roots":[],"serverId":"box"}';
+	await fs.writeFile(path.join(tmpDir, "config.json"), content);
+	const outcome = await startServer({ roots: [], port: 0, host: "127.0.0.1" });
+	expect(outcome.kind).toBe("error");
+	const lock = new ServerLock(defaultLockPath());
+	try {
+		expect(lock.acquire()).toEqual({ kind: "ok" });
+	} finally {
+		lock.release();
+	}
+	expect(await fs.readFile(path.join(tmpDir, "config.json"), "utf8")).toBe(content);
+});

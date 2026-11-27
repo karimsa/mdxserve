@@ -5,6 +5,7 @@ import { DocCache } from "../../src/docs/doc-cache.js";
 import { SearchService } from "../../src/search/service.js";
 import { DocsService } from "../../src/docs/service.js";
 import { RootsService } from "../../src/roots/service.js";
+import { testServerInfo } from "./server-info.js";
 
 /**
  * Build an `ApiContext` for tests, with a fresh `DocCache`, `SearchService`,
@@ -29,6 +30,7 @@ export function makeContext(
 		docCache,
 		search: new SearchService(docCache),
 		docs: new DocsService(roots, registry),
+		serverInfo: testServerInfo(),
 		...overrides,
 	};
 }

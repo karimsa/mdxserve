@@ -7,7 +7,7 @@ import http from "node:http";
 import path from "node:path";
 import os from "node:os";
 import { watch } from "chokidar";
-import { getPackageRoot } from "../infra/pkg.js";
+import { getPackageRoot, readMermaidVersion, readPackageVersion } from "../infra/pkg.js";
 import { isWatchIgnored, signalFileChanges } from "./watch-signals.js";
 import { handleWatchErrors } from "./watch-errors.js";
 import { loadShellTemplate } from "./shell.js";
@@ -31,6 +31,9 @@ import { DocsService } from "../docs/service.js";
 import { DocumentService } from "../document/service.js";
 import { assetUrl } from "../assets/url.js";
 import { handleRequest } from "./server.js";
+import { defaultServerName, parseServerName } from "../server-info/name.js";
+import { readOrCreateServerId } from "../server-info/server-id.js";
+import { ServerInfoService } from "../server-info/service.js";
 
 export interface StartServerOptions {
 	roots: string[];
@@ -40,6 +43,8 @@ export interface StartServerOptions {
 	permissions?: string;
 	/** False (`--no-tailscale`) skips Tailscale detection, the tailnet hosts and their output. */
 	tailscale?: boolean;
+	/** `--name`: what apps call this server. Defaults to the hostname (`defaultServerName`). */
+	name?: string;
 }
 
 function getLocalIPs(): string[] {
@@ -145,6 +150,11 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			message: "restricted permissions require exactly one explicit -w directory",
 		};
 	}
+	const named =
+		options.name === undefined
+			? { kind: "ok" as const, name: defaultServerName(os.hostname()) }
+			: parseServerName(options.name);
+	if (named.kind !== "ok") return named;
 
 	// One server per user: take the lock before anything expensive (and before
 	// loadRegistry, so this path is testable without a build). A held lock is
@@ -164,6 +174,14 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		return { kind: "already-running", pid: acquired.pid, port: running?.port, host: running?.host };
 	}
 	if (acquired.kind === "error") return { kind: "error", message: acquired.message };
+
+	// Under the lock, so no other server writes the config while the id is created. A
+	// restricted server keeps an id too: apps tell servers apart by it.
+	const serverId = readOrCreateServerId(path.join(mdxserveHome(), "config.json"));
+	if (serverId.kind !== "ok") {
+		lock.release();
+		return serverId;
+	}
 
 	// Per-process state: the one mutable set of directories this server
 	// serves. Restore the configured roots and persist explicit startup additions;
@@ -222,6 +240,26 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 		diagrams?.dispose();
 	});
 
+	// Per-process state: the `Host` values `tailscale serve` publishes this
+	// server under. Detection needs the port, so it waits for the listener.
+	let endpoint: { port: number; boundHost: string } | undefined;
+	const tailnetHosts =
+		options.tailscale === false
+			? undefined
+			: serverTailnetHosts(() => endpoint, process.platform, process.env);
+
+	// Per-process state: what this server is, however it is reached.
+	const serverInfo = new ServerInfoService(
+		{
+			id: serverId.id,
+			name: named.name,
+			version: readPackageVersion(),
+			permissions,
+			mermaidVersion: readMermaidVersion(),
+		},
+		tailnetHosts,
+	);
+
 	httpServer.on("request", (req, res) => {
 		handleRequest(req, res, {
 			roots: rootsService,
@@ -232,6 +270,7 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			docs,
 			diagrams,
 			permissions,
+			serverInfo,
 		}).catch((error) => {
 			console.error(error);
 			if (!res.headersSent) {
@@ -240,14 +279,6 @@ export async function startServer(options: StartServerOptions): Promise<StartOut
 			}
 		});
 	});
-
-	// Per-process state: the `Host` values `tailscale serve` publishes this
-	// server under. Detection needs the port, so it waits for the listener.
-	let endpoint: { port: number; boundHost: string } | undefined;
-	const tailnetHosts =
-		options.tailscale === false
-			? undefined
-			: serverTailnetHosts(() => endpoint, process.platform, process.env);
 
 	// After the request listener: engine.io takes over the listeners already
 	// registered and forwards every request outside its own path to them.

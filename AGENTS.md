@@ -70,7 +70,7 @@ which adapter is calling it. Paths in this section are relative to `packages/ser
 
 Each top-level folder in `src/` with a `service.ts` is a domain module: `roots/`, `docs/`,
 `listing/`, `search/`, `validation/`, `trash/`, `components/`, `setup/`, `diagrams/`,
-`document/`, `assets/`, `comments/`, `preferences/`, and `tailscale/`. `setup/` is
+`document/`, `assets/`, `comments/`, `preferences/`, `server-info/`, and `tailscale/`. `setup/` is
 CLI-only (no `controller.ts`), and its `runner.ts` delegates to `src/infra/process-runner.ts`, the only process-spawning
 adapter. Non-interactive diagram agents use that same bounded, cancellable adapter.
 `tailscale/` has no controller either: `TailscaleService.detect` asks the Tailscale CLI (through
@@ -111,6 +111,8 @@ CLI command — and carried through the request context: `DocCache`, `SearchServ
 `DocsService` (it owns the per-file save lock), `RootsService` (it owns the mutable set of mounted roots and its change hook), `ServerLock`,
 `DiagramsService` (it owns conversion scheduling, sessions and temporary uploads),
 `TailnetHosts` (it owns the trusted tailnet `Host` set and its rate-limited refresh),
+`ServerInfoService` (the server's id, name, version and permissions, and its `TailnetHosts`;
+the id is written once to `MDXSERVE_HOME/config.json` by `server-info/server-id.ts`),
 and `ServerRegistry`. Anything that is per-request rather than per-process — whether the caller
 is on loopback, and so whether a root mutation may run (`allowMutation`) — is a method
 argument, not a constructor argument.

@@ -8,6 +8,7 @@ import type { SearchService } from "../search/service.js";
 import type { DocsService } from "../docs/service.js";
 import type { PermissionMode } from "../servers/bind-host.js";
 import { isSameOrigin } from "../http/host.js";
+import type { ServerInfoService } from "../server-info/service.js";
 
 /**
  * Everything a procedure resolver needs, built fresh per request by
@@ -36,6 +37,8 @@ export interface ApiContext {
 	origin?: string;
 	/** The `Host` header the request arrived on. */
 	host?: string;
+	/** Per-process state, created once in startServer: what this server is (`getServerInfo`). */
+	serverInfo: ServerInfoService;
 }
 
 interface ProcedureMeta {

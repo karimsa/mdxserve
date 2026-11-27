@@ -63,6 +63,7 @@ const procedureKeys: Array<keyof AppRouter["_def"]["procedures"]> = [
 	"appendDiagramImageChunk",
 	"finishDiagramImageUpload",
 	"discardDiagramImage",
+	"getServerInfo",
 ];
 
 describe("procedure descriptions", () => {
