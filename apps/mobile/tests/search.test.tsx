@@ -80,6 +80,7 @@ jest.mock("@mdxserve/client/api", () => ({
 }));
 
 beforeEach(async () => {
+	jest.mocked(AsyncStorage.setItem).mockClear();
 	mockProbeAnswers.clear();
 	mockHits.clear();
 	mockQueries.length = 0;
@@ -103,11 +104,9 @@ function allHosts(tree: unknown, type: string): HostElement[] {
 	return [...(element.type === type ? [element] : []), ...allHosts(element.children ?? [], type)];
 }
 
-/** Type into the native search field, as UIKit reports a change. */
+/** Type into the search field. */
 async function typeQuery(text: string) {
-	const bars = allHosts(screen.toJSON(), "RNSSearchBar");
-	expect(bars).toHaveLength(1);
-	await act(async () => bars[0].props.onChangeText({ nativeEvent: { text } }));
+	await fireEvent.changeText(screen.getByTestId("search-field"), text);
 }
 
 async function seedThree() {
@@ -184,7 +183,10 @@ describe("the search screen's classes", () => {
 		"are all in the compiled stylesheet with usable values (%s)",
 		(theme) => {
 			const { classes } = resolveTheme(sheet, theme);
-			const names = classesInAppSource("src/search/SearchRowView.tsx");
+			const names = [
+				...classesInAppSource("src/search/SearchRowView.tsx"),
+				...classesInAppSource("app/(tabs)/search/index.tsx"),
+			];
 			expect(names.length).toBeGreaterThan(8);
 			expect(names.filter((name) => !(name in classes))).toEqual([]);
 			const problems = names.flatMap((name) =>
@@ -255,5 +257,153 @@ describe("opening a result", () => {
 				),
 			).toBeOnTheScreen(),
 		);
+	});
+});
+
+/** The last value written for `key`, from the storage stand-in's record of writes. */
+function lastWritten(key: string): string | undefined {
+	const calls = jest.mocked(AsyncStorage.setItem).mock.calls.filter(([written]) => written === key);
+	return calls.at(-1)?.[1];
+}
+
+function resultLabels(): string[] {
+	return within(screen.getByTestId("search-content"))
+		.queryAllByLabelText(/, notes\//)
+		.map((row) => row.props.accessibilityLabel);
+}
+
+describe("clearing the search field", () => {
+	it("empties the results at once when the field's clear control empties it, and they do not come back", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await typeQuery("deploy");
+		await screen.findByLabelText("Deploy guide, notes/deploy.md");
+		// The field's clear control reports a text change to "".
+		await fireEvent.changeText(screen.getByTestId("search-field"), "");
+		expect(resultLabels()).toEqual([]);
+		expect(screen.getByText("Search every server")).toBeOnTheScreen();
+		// jest-expo runs on fake timers: move past the typing pause.
+		await act(async () => {
+			jest.advanceTimersByTime(400);
+		});
+		expect(resultLabels()).toEqual([]);
+	});
+
+	it("has no navigation bar search controller, so no Cancel control, and dismisses the keyboard without one", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		const field = await screen.findByTestId("search-field");
+		expect(allHosts(screen.toJSON(), "RNSSearchBar")).toEqual([]);
+		// The field's own clear control while there is text; Return is the keyboard's Search key and
+		// leaves the field.
+		expect(field.props.clearButtonMode).toBe("while-editing");
+		expect(field.props.returnKeyType).toBe("search");
+		expect(field.props.submitBehavior).toBe("blurAndSubmit");
+		// Scrolling the results, or tapping anything that is not a control, puts the keyboard away.
+		const list = screen.getByTestId("search-content");
+		expect(list.props.keyboardDismissMode).toBe("on-drag");
+		expect(list.props.keyboardShouldPersistTaps).toBe("handled");
+	});
+
+	it("searches at once on Return, without waiting for the typing pause", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		const field = screen.getByTestId("search-field");
+		await fireEvent.changeText(field, "deploy");
+		await fireEvent(field, "submitEditing", { nativeEvent: { text: "deploy" } });
+		await waitFor(() => expect(mockQueries.length).toBe(2), { timeout: 200 });
+	});
+});
+
+/** The filter's native menu, as the header hands it to UIKit. */
+function filterMenu() {
+	const header = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
+		(candidate) => candidate.props.title === "Search",
+	)!;
+	const menu = header.props.headerRightBarButtonItems.find(
+		(item: { type: string }) => item.type === "menu",
+	);
+	return { header, menu };
+}
+
+async function toggleServer(name: string) {
+	const { header, menu } = filterMenu();
+	const item = menu.menu.items.find((candidate: { title: string }) => candidate.title === name);
+	await act(async () => {
+		header.props.onPressHeaderBarButtonMenuItem({ nativeEvent: { menuId: item.menuId } });
+	});
+}
+
+describe("choosing the servers to search", () => {
+	it("lists every server with a check, all on by default, as a native bar item", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await screen.findByText("Search every server");
+		const { menu } = filterMenu();
+		expect(menu).toMatchObject({
+			accessibilityLabel: "Servers to search",
+			icon: { type: "sfSymbol", name: "line.3.horizontal.decrease.circle" },
+		});
+		expect(
+			menu.menu.items.map((item: { title: string; state: string }) => [item.title, item.state]),
+		).toEqual([
+			["Studio", "on"],
+			["Attic", "on"],
+			["Laptop", "on"],
+		]);
+	});
+
+	it("leaves a turned-off server out of the search, shows the filter is on, and keeps the choice", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await screen.findByText("Search every server");
+		await toggleServer("Laptop");
+		expect(filterMenu().menu).toMatchObject({
+			accessibilityLabel: "Servers to search, filtered",
+			icon: { name: "line.3.horizontal.decrease.circle.fill" },
+		});
+		await typeQuery("deploy");
+		await screen.findByLabelText("Release plan, notes/release.md");
+		expect(sectionTitles()).toEqual(["Studio", "Attic"]);
+		expect(mockQueries.map((asked) => asked.origin)).toEqual([STUDIO_URL]);
+		await waitFor(() =>
+			expect(JSON.parse(lastWritten("mdxserve.search.excludedServers") ?? "null")).toEqual([
+				LAPTOP,
+			]),
+		);
+	});
+
+	it("reads a stored choice, ignores servers no longer in the list, and searches a new server", async () => {
+		await seedThree();
+		await AsyncStorage.setItem(
+			"mdxserve.search.excludedServers",
+			JSON.stringify([LAPTOP, "7e1c0a9b-3d5f-4b7a-9c1e-2f4a6b8d0c1e"]),
+		);
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await waitFor(() =>
+			expect(filterMenu().menu.menu.items.map((item: { state: string }) => item.state)).toEqual([
+				"on",
+				"on",
+				"off",
+			]),
+		);
+		await toggleServer("Attic");
+		// The removed server's id is gone; the ids follow the server list's order.
+		await waitFor(() =>
+			expect(JSON.parse(lastWritten("mdxserve.search.excludedServers") ?? "null")).toEqual([
+				ATTIC,
+				LAPTOP,
+			]),
+		);
+	});
+
+	it("says no server is selected when every one is turned off", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await screen.findByText("Search every server");
+		for (const name of ["Studio", "Attic", "Laptop"]) await toggleServer(name);
+		await typeQuery("deploy");
+		expect(await screen.findByText("No servers selected")).toBeOnTheScreen();
+		expect(mockQueries).toEqual([]);
 	});
 });

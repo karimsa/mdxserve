@@ -4,7 +4,8 @@ import {
 	LISTING_SORT_STORAGE_KEY,
 	type ListingSortKey,
 } from "@mdxserve/client/listing-sort";
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useMemo, type ReactNode } from "react";
+import { useStoredChoice } from "../preferences/stored-choice";
 import type { KeyValueStorage } from "../servers/storage";
 
 interface ListingSortApi {
@@ -25,11 +26,13 @@ export function useListingSort(): ListingSortApi {
 	return api;
 }
 
+const parseSort = (stored: string) => (isListingSortKey(stored) ? stored : undefined);
+const formatSort = (sort: ListingSortKey) => sort;
+
 /**
  * The order folder listings are shown in, the same choice the web client offers, kept on the
- * device under the key the web client keeps it under in the browser. Writes run one at a time
- * and each writes the latest choice. A failed write puts the order back to the saved one,
- * unless a newer choice is already waiting to be written, and says why.
+ * device under the key the web client keeps it under in the browser (see `useStoredChoice`
+ * for how saving works).
  */
 export function ListingSortProvider({
 	storage,
@@ -38,70 +41,22 @@ export function ListingSortProvider({
 	storage: KeyValueStorage;
 	children: ReactNode;
 }) {
-	const [sort, setSortState] = useState<ListingSortKey>(DEFAULT_LISTING_SORT);
-	const [pendingWrites, setPendingWrites] = useState(0);
-	const [problem, setProblem] = useState<string | undefined>();
-	const saved = useRef<ListingSortKey>(DEFAULT_LISTING_SORT);
-	const latest = useRef<ListingSortKey>(DEFAULT_LISTING_SORT);
-	const changed = useRef(false);
-	/** Counts choices, so a failed write can tell whether a newer one came after it. */
-	const revision = useRef(0);
-	const writing = useRef<Promise<void>>(Promise.resolve());
-
-	useEffect(() => {
-		let cancelled = false;
-		void storage
-			.getItem(LISTING_SORT_STORAGE_KEY)
-			.catch(() => null)
-			.then((stored) => {
-				// A choice made while this was loading wins over the stored one.
-				if (cancelled || changed.current || !isListingSortKey(stored)) return;
-				saved.current = stored;
-				latest.current = stored;
-				setSortState(stored);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [storage]);
-
+	const choice = useStoredChoice({
+		storage,
+		key: LISTING_SORT_STORAGE_KEY,
+		fallback: DEFAULT_LISTING_SORT,
+		parse: parseSort,
+		format: formatSort,
+		describe: "the sort order",
+	});
 	const api = useMemo<ListingSortApi>(
 		() => ({
-			sort,
-			saving: pendingWrites > 0,
-			problem,
-			setSort: (next) => {
-				changed.current = true;
-				revision.current += 1;
-				latest.current = next;
-				setSortState(next);
-				setPendingWrites((count) => count + 1);
-				writing.current = writing.current.then(() => {
-					const value = latest.current;
-					const written = revision.current;
-					return storage
-						.setItem(LISTING_SORT_STORAGE_KEY, value)
-						.then(
-							() => {
-								saved.current = value;
-								setProblem(undefined);
-							},
-							(error: unknown) => {
-								// The same value can be chosen again after this write began; only no newer choice
-								// at all means the order goes back.
-								if (revision.current === written) {
-									latest.current = saved.current;
-									setSortState(saved.current);
-								}
-								setProblem(`The sort order was not saved on this device: ${String(error)}`);
-							},
-						)
-						.finally(() => setPendingWrites((count) => count - 1));
-				});
-			},
+			sort: choice.value,
+			setSort: choice.set,
+			saving: choice.saving,
+			problem: choice.problem,
 		}),
-		[sort, pendingWrites, problem, storage],
+		[choice],
 	);
-
 	return <ListingSortContext value={api}>{children}</ListingSortContext>;
 }
