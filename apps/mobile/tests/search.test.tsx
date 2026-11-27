@@ -70,6 +70,25 @@ jest.mock("../src/servers/probe", () => ({
 jest.mock("@mdxserve/client/api", () => ({
 	createApiClient: (origin: string) => ({
 		listRoots: { query: async () => ({ roots: [] }) },
+		getDocument: {
+			query: async ({ path }: { path: string }) => ({
+				version: "v1",
+				document: {
+					schemaVersion: 1,
+					metadata: { openGraph: [] },
+					toc: [],
+					children: [
+						{
+							type: "section",
+							id: "rollout",
+							level: 1,
+							heading: [{ type: "text", value: `Read from ${path}` }],
+							children: [],
+						},
+					],
+				},
+			}),
+		},
 		searchDocs: {
 			query: async ({ query }: { query: string }) => {
 				mockQueries.push({ origin, query });
@@ -232,7 +251,9 @@ describe("opening a result", () => {
 			path: ["Users", "me", "notes", "release.md"],
 			node: "rollout",
 		});
-		expect(await screen.findByText("/Users/me/notes/release.md")).toBeOnTheScreen();
+		expect(
+			await screen.findByRole("heading", { name: "Read from /Users/me/notes/release.md" }),
+		).toBeOnTheScreen();
 		// It opened in the Search tab, not the Library's.
 		const tabs = allHosts(screen.toJSON(), "RNSTabsScreenIOS");
 		expect(tabs.map((tab) => tab.props.title)).toEqual([
