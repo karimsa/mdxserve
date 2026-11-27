@@ -27,18 +27,19 @@ export function escapeBareLt(
 			continue;
 		}
 		if (fence) continue;
-		const rest = (): string => {
-			const following: string[] = [];
+		// Whether a later line of this paragraph closes a code span opened here.
+		const closesLater = (run: string): boolean => {
+			const closing = closingRun(run);
 			for (
 				let next = index + 2;
 				next < parts.length && parts[next].trim() !== "" && !BLOCK_BOUNDARY.test(parts[next]);
 				next += 2
 			) {
-				following.push(parts[next]);
+				if (closing.test(parts[next])) return true;
 			}
-			return following.join("\n");
+			return false;
 		};
-		parts[index] = escapeLine(line, tag, rest);
+		parts[index] = escapeLine(line, tag, closesLater);
 	}
 	return parts.join("");
 }
@@ -90,7 +91,7 @@ const INLINE_EXPRESSION = /\{[^{}]*\}/y;
  * skipped, but regex literals are not recognised, so a quote character inside
  * one would be read as the start of a string.
  */
-function escapeLine(line: string, tag: TagState, rest: () => string): string {
+function escapeLine(line: string, tag: TagState, closesLater: (run: string) => boolean): string {
 	let output = "";
 	let index = 0;
 	if (tag.comment && !tag.inTag) {
@@ -100,7 +101,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 		index = close + 3;
 		output = line.slice(0, index);
 		tag.comment = false;
-	} else if (!tag.inTag && REFERENCE_DEFINITION.test(line)) {
+	} else if (!tag.inTag && !tag.codeRun && REFERENCE_DEFINITION.test(line)) {
 		// A reference definition: its destination and title are literal.
 		return line;
 	}
@@ -169,7 +170,7 @@ function escapeLine(line: string, tag: TagState, rest: () => string): string {
 			const run = /`+/y;
 			run.lastIndex = index;
 			const opener = run.exec(line)![0];
-			if (closingRun(opener).test(rest())) {
+			if (closesLater(opener)) {
 				tag.codeRun = opener;
 				return output + line.slice(index);
 			}

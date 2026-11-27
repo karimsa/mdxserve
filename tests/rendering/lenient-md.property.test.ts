@@ -222,6 +222,14 @@ describe("escapeBareLt scanner states", () => {
 		expect(escapeBareLt("[note]: x < 5")).toBe("[note]: x \\< 5");
 	});
 
+	it("closes a code span before recognising a definition-like line, and stays linear", () => {
+		expect(escapeBareLt('`start\n[ref]: a "end`\nx < 5')).toBe('`start\n[ref]: a "end`\nx \\< 5');
+		const source = "`some code\nmore code` text\n".repeat(20_000);
+		const started = Date.now();
+		expect(escapeBareLt(source)).toBe(source);
+		expect(Date.now() - started).toBeLessThan(2000);
+	});
+
 	it("only skips a link target that is a valid link", () => {
 		expect(escapeBareLt("](x < 5)")).toBe("](x \\< 5)");
 		expect(escapeBareLt("[label](x < 5)")).toBe("[label](x \\< 5)");
