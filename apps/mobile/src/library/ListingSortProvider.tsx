@@ -44,6 +44,8 @@ export function ListingSortProvider({
 	const saved = useRef<ListingSortKey>(DEFAULT_LISTING_SORT);
 	const latest = useRef<ListingSortKey>(DEFAULT_LISTING_SORT);
 	const changed = useRef(false);
+	/** Counts choices, so a failed write can tell whether a newer one came after it. */
+	const revision = useRef(0);
 	const writing = useRef<Promise<void>>(Promise.resolve());
 
 	useEffect(() => {
@@ -70,11 +72,13 @@ export function ListingSortProvider({
 			problem,
 			setSort: (next) => {
 				changed.current = true;
+				revision.current += 1;
 				latest.current = next;
 				setSortState(next);
 				setPendingWrites((count) => count + 1);
 				writing.current = writing.current.then(() => {
 					const value = latest.current;
+					const written = revision.current;
 					return storage
 						.setItem(LISTING_SORT_STORAGE_KEY, value)
 						.then(
@@ -83,7 +87,9 @@ export function ListingSortProvider({
 								setProblem(undefined);
 							},
 							(error: unknown) => {
-								if (latest.current === value) {
+								// The same value can be chosen again after this write began; only no newer choice
+								// at all means the order goes back.
+								if (revision.current === written) {
 									latest.current = saved.current;
 									setSortState(saved.current);
 								}

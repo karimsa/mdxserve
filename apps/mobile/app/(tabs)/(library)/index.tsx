@@ -6,7 +6,7 @@ import { Text } from "@mdxserve/ui/primitives/Text";
 import { LibraryRowView } from "../../../src/library/LibraryRowView";
 import { pathSegments } from "../../../src/library/paths";
 import { AnimatedList, AnimatedRow } from "../../../src/library/ListMotion";
-import { libraryRows, type Root, type RootsState } from "../../../src/library/rows";
+import { firstAnswersIn, libraryRows, type Root, type RootsState } from "../../../src/library/rows";
 import type { KnownServer } from "../../../src/servers/store";
 import { useServerQueryOptions } from "../../../src/servers/server-query";
 import { useServers } from "../../../src/servers/ServersProvider";
@@ -36,7 +36,7 @@ export default function Library() {
 	const rows = libraryRows(servers, states);
 	// Once every server has answered once, rows animate from then on.
 	const everSettled = useRef(false);
-	if (states.every((state) => state.kind !== "loading")) everSettled.current = true;
+	if (firstAnswersIn(loaded, states)) everSettled.current = true;
 	const settled = everSettled.current;
 	const openRoot = (server: KnownServer, root: Root) =>
 		router.push({
