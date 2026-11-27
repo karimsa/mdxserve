@@ -126,12 +126,16 @@ export interface CodeProps {
 	children?: ReactNode;
 }
 
-/** Inline code (the `--type-code-inline` token): a `<code>` on the web. */
+/**
+ * Inline code (the `--type-code-inline` token): a `<code>` on the web. Its size is 0.88em of the
+ * text around it on the web only: in the app an `em` font size sets Uniwind's `--uniwind-em`
+ * from itself, which never resolves, so the app uses the small size.
+ */
 export function Code({ className = "", children }: CodeProps) {
 	return (
 		<NativeText
 			{...webProps({ role: "code" })}
-			className={`rounded-xs bg-code-bg-inline px-[0.34em] py-[0.12em] font-mono font-medium text-[0.88em] leading-[1.4] text-text-accent ${className}`}
+			className={`rounded-xs bg-code-bg-inline px-[0.34em] py-[0.12em] font-mono font-medium web:text-[0.88em] native:text-[length:var(--size-sm)] leading-[1.4] text-text-accent ${className}`}
 		>
 			{children}
 		</NativeText>
