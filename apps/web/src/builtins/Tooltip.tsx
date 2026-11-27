@@ -3,11 +3,8 @@ import Tippy from "@tippyjs/react";
 import { type TooltipProps } from "@mdxserve/shared/builtins/tooltip";
 
 // tippy.js's base CSS is pulled in via apps/web/src/app.css (`@import
-// "tippy.js/dist/tippy.css"`) instead of a side-effect import here: this
-// module is imported by apps/web/scripts/build-registry.ts under plain Node (via
-// tsx) to read `tooltipProps`, and a top-level `import "*.css"` there would
-// crash with ERR_UNKNOWN_FILE_EXTENSION. Routing all CSS through app.css also
-// matches how the rest of the app's styling is centralized.
+// "tippy.js/dist/tippy.css"`) instead of a side-effect import here, so all of the
+// app's styling goes through that one stylesheet.
 
 export default function Tooltip({
 	content,

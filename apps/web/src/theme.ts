@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Uniwind } from "uniwind";
 
 export type Theme = "light" | "dark";
 
@@ -20,6 +21,9 @@ function storedTheme(): Theme | null {
 
 function applyTheme(theme: Theme): void {
 	document.documentElement.setAttribute("data-theme", theme);
+	// Uniwind keys the `dark:` utilities on its own `dark` or `light` class on <html>, which
+	// otherwise follows the system, not the reader's choice.
+	Uniwind.setTheme(theme);
 }
 
 /**

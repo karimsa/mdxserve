@@ -95,6 +95,7 @@ beforeEach(async () => {
 		"ResizeObserver",
 		class {
 			observe() {}
+			unobserve() {}
 			disconnect() {}
 		},
 	);
@@ -128,6 +129,11 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 });
 
+/** An unselected tab panel stays mounted but is not displayed: it carries Tailwind's `hidden`. */
+function isHidden(panel: Element): boolean {
+	return panel.classList.contains("hidden");
+}
+
 describe("a link to another document with a fragment", () => {
 	it("opens the document at the heading the fragment names, and keeps the fragment in the URL", async () => {
 		await clickLink("to.md#install");
@@ -140,8 +146,8 @@ describe("a link to another document with a fragment", () => {
 		await clickLink("to.md#os>linux");
 		expect(currentRoute).toMatchObject({ kind: "doc", path: TO });
 		expect(location.hash).toBe("#os%3Elinux");
-		expect(host.querySelector<HTMLElement>('[id="os>linux"]')!.hidden).toBe(false);
-		expect(host.querySelector<HTMLElement>('[id="os>mac"]')!.hidden).toBe(true);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>linux"]')!)).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>mac"]')!)).toBe(true);
 		expect(scrolled.at(-1)).toBe("os");
 	});
 
@@ -162,6 +168,6 @@ describe("a link to another document with a fragment", () => {
 		await settle();
 		expect(currentRoute).toMatchObject({ kind: "doc", path: TO });
 		expect(location.hash).toBe("#os%3Elinux");
-		expect(host.querySelector<HTMLElement>('[id="os>linux"]')!.hidden).toBe(false);
+		expect(isHidden(host.querySelector<HTMLElement>('[id="os>linux"]')!)).toBe(false);
 	});
 });

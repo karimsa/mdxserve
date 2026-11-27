@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { useColorScheme } from "react-native";
+import "../src/global.css";
 
 /** The providers every screen runs inside: the query cache and the system light or dark theme. */
 export default function RootLayout() {

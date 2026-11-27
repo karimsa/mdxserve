@@ -6,7 +6,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { Image } from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { builtins } from "../src/builtins";
+import { builtinCatalog } from "../src/builtins/catalog";
 import { MdxBlock } from "../src/editor/mdx-block";
 import { blockContent, insertSlashBlock, matchingBlocks, slashBlocks } from "../src/editor/blocks";
 import { blockSlash } from "../src/editor/slash";
@@ -104,7 +104,7 @@ describe("slash block insertion", () => {
 		const covered = new Set(
 			slashBlocks.filter((block) => block.kind === "component").map((block) => block.label),
 		);
-		for (const builtin of builtins) {
+		for (const builtin of builtinCatalog) {
 			expect(covered.has(builtin.name), builtin.name).toBe(true);
 			const block = slashBlocks.find((item) => item.label === builtin.name)!;
 			expect(block.template).toContain(`<${builtin.name}`);

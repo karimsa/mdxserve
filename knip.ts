@@ -39,6 +39,17 @@ const config: KnipConfig = {
 			includeEntryExports: true,
 			project: ["**/*.ts!"],
 		},
+		"packages/ui": {
+			entry: [
+				// Each subpath in its package.json `exports` is an entry; a bundler picks a component's
+				// `Name.web.tsx` over its `Name.tsx` by extension, which knip does not follow.
+				"src/builtins/*.tsx!",
+				"src/**/*.web.tsx!",
+				// The app's stylesheet imports it by path (apps/mobile/src/global.css).
+				"src/native-theme.css!",
+			],
+			project: ["src/**/*.{ts,tsx,css}!"],
+		},
 		"apps/web": {
 			entry: [
 				// The browser client Vite builds from src/index.html, which loads src/entry.tsx.
@@ -55,6 +66,9 @@ const config: KnipConfig = {
 				"tests/**/*.ts",
 			],
 			ignoreDependencies: [
+				// Uniwind's Vite plugin points `react-native` at react-native-web (vite.config.ts); no
+				// file imports it by name.
+				"react-native-web",
 				// Transitive @tiptap extensions pinned on purpose so their peers match our core and
 				// pm (see yarn.config.cjs); nothing imports them directly.
 				/^@tiptap\/extension-/,

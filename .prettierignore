@@ -6,3 +6,5 @@ yarn.lock
 example
 skills
 .expo
+# Uniwind writes these on every build or Metro start; they stay as it writes them.
+uniwind-types.d.ts
