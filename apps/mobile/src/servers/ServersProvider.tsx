@@ -36,6 +36,8 @@ interface ServersApi {
 	problem: string | undefined;
 	/** True while a change is being written to storage. */
 	saving: boolean;
+	/** How many times a failed write has put the list back; a form starts again when it grows. */
+	revertCount: number;
 	probe: Probe;
 	/** Ask what the typed address is, and add it (C1, C2, C5). */
 	addByAddress(input: string): Promise<AddResult>;
@@ -71,6 +73,7 @@ export function ServersProvider({
 	const [loaded, setLoaded] = useState(false);
 	const [problem, setProblem] = useState<string | undefined>();
 	const [pendingWrites, setPendingWrites] = useState(0);
+	const [revertCount, setRevertCount] = useState(0);
 	const latest = useRef<KnownServer[]>([]);
 	/** The list as storage last accepted it. */
 	const saved = useRef<KnownServer[]>([]);
@@ -117,6 +120,7 @@ export function ServersProvider({
 							if (latest.current === list) {
 								latest.current = saved.current;
 								setServers(saved.current);
+								setRevertCount((count) => count + 1);
 							}
 							setProblem(`The change was not saved on this device: ${String(error)}`);
 						},
@@ -155,6 +159,7 @@ export function ServersProvider({
 			servers,
 			problem,
 			saving: pendingWrites > 0,
+			revertCount,
 			probe,
 			addByAddress,
 			rename: (id, label) => change((current) => renameServer(current, id, label)),
@@ -162,7 +167,7 @@ export function ServersProvider({
 			recordReached: (info, origin) =>
 				change((current) => recordReachedIn(current, info, origin, new Date())),
 		}),
-		[loaded, servers, problem, pendingWrites, probe, addByAddress, change],
+		[loaded, servers, problem, pendingWrites, revertCount, probe, addByAddress, change],
 	);
 
 	return <ServersContext value={api}>{children}</ServersContext>;

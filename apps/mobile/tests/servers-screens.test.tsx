@@ -233,6 +233,19 @@ describe("a known server", () => {
 		expect((await storedServers())[0].label).toBe("Studio");
 	});
 
+	it("starts the name again from the saved one on every failed save, even with the same error", async () => {
+		await seed({ label: "Studio" });
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		for (const attempt of ["Desk", "Den"]) {
+			jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error("disk full"));
+			await fireEvent.changeText(await screen.findByLabelText("Name for this server"), attempt);
+			await waitFor(() =>
+				expect(screen.getByLabelText("Name for this server").props.value).toBe("Studio"),
+			);
+		}
+		expect((await storedServers())[0].label).toBe("Studio");
+	});
+
 	it("keeps a newer rename that is still being written when an earlier write fails", async () => {
 		await seed();
 		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });

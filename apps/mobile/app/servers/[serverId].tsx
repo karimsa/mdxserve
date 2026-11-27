@@ -13,7 +13,7 @@ import { useSideInsets } from "../../src/side-insets";
  */
 export default function ServerDetails() {
 	const { serverId } = useLocalSearchParams<{ serverId: string }>();
-	const { loaded, servers, problem } = useServers();
+	const { loaded, servers, revertCount } = useServers();
 	const server = servers.find((candidate) => candidate.id === serverId);
 	const sideInsets = useSideInsets();
 
@@ -27,7 +27,7 @@ export default function ServerDetails() {
 		);
 	}
 	// A save that failed puts the stored name back; start the field again from it.
-	return <ServerForm key={`${server.id}:${problem ?? ""}`} server={server} />;
+	return <ServerForm key={`${server.id}:${revertCount}`} server={server} />;
 }
 
 function ServerForm({ server }: { server: KnownServer }) {
