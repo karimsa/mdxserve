@@ -16,9 +16,9 @@ const config: KnipConfig = {
 	workspaces: {
 		".": {
 			entry: [
-				// The dev and release scripts package.json runs, and the GitHub Actions gates
-				// with their node:test suites.
-				"scripts/{changelog,dev}.ts",
+				// The dev and release scripts package.json runs, the Ignored Build Step vercel.json
+				// runs, and the GitHub Actions gates with their node:test suites.
+				"scripts/{changelog,dev,vercel-ignore-build}.ts",
 				".github/scripts/*.cjs",
 				"tests/automation/*.test.{ts,cjs}",
 			],

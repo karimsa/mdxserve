@@ -19,10 +19,21 @@ Vercel builds the site from the connected Git repository. The project Root Direc
 - `installCommand` runs `corepack yarn install --immutable` at the repository root, so the Yarn version comes from the root `package.json`'s `packageManager` field.
 - `buildCommand` runs `corepack yarn workspace @mdxserve/site build`.
 - `outputDirectory` is `apps/site/dist`.
+- `ignoreCommand` runs `node scripts/vercel-ignore-build.ts`, which decides whether a commit builds at all (see below).
 - A catch-all rewrite sends every path that is not a built file to `index.html`, and the app routes on the client.
 - Redirects send the old `/srv/docs/*.mdx` addresses to the matching pages.
 
 A push to the production branch (`main`) starts a production deployment, but its custom production domains remain unassigned until the release workflow promotes it.
+
+### Which commits build
+
+Vercel runs the `ignoreCommand` in its shallow clone before installing anything. Exit code 0 skips the build and Vercel marks the deployment `CANCELED`; exit code 1 builds it. The script, `scripts/vercel-ignore-build.ts` (tests in `tests/automation/vercel-ignore-build.test.ts`), works like this:
+
+- Every `main` commit builds. The release workflow promotes the production deployment of the tagged commit, and a release commit changes only the server's version and the changelog.
+- On any other branch, it compares the commit with the branch's last successful deployment (`VERCEL_GIT_PREVIOUS_SHA`). It builds if any of these changed: `apps/site/**`, `vercel.json`, `.vercelignore`, the root `package.json`, `yarn.lock`, `.yarnrc.yml`, `.yarn/**`, or a workspace's `package.json`. The site imports nothing from the other workspaces, but the root install reads all of these. A commit that changes nothing else skips.
+- It builds when that previous commit is unknown: on a branch's first deployment, after a force push removed it, or when it is older than the clone. It also builds a redeploy of the same commit, and it builds if the script itself fails.
+
+A skipped deployment stops before the install and the build, but Vercel still counts it toward the daily deployment limit and its concurrent builds. Only Vercel's automatic skipping of unaffected monorepo projects avoids that, and it needs the project's Root Directory to be the site's workspace, not `.`.
 
 ## Promotion
 
@@ -33,7 +44,7 @@ The scripts the workflow runs are in `apps/site/deployment/`. Their tests run in
 ## One-time Vercel setup
 
 1. Connect this Git repository to a Vercel project. Set its Root Directory to `.` and its production branch to `main`. Keep Git deployments enabled. Use Node.js 24.x for builds; the build relies on the Corepack that ships with Node.
-2. Leave the project's **Ignored Build Step** empty (or set it to the default), so every commit builds.
+2. Leave the project's **Ignored Build Step** on its default (Automatic); the `ignoreCommand` in `vercel.json` overrides it. Keep **Automatically expose System Environment Variables** enabled: without them the script cannot see the previous deployment and builds every commit.
 3. In the project's Production environment settings, disable **Auto-assign Custom Production Domains**. Vercel can then build each `main` commit without moving the live domain; the release workflow assigns it only after npm publish succeeds.
 4. Add a project-scoped `VERCEL_TOKEN` as a GitHub Actions repository secret with access to the project. Add `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as repository variables, using the IDs from Vercel project settings or `.vercel/project.json`. The workflow uses Vercel's team-scoped REST API to promote the deployment and verify the production alias; the Vercel CLI requires a user lookup that a project-scoped token cannot satisfy. The workflow fails if a value is missing.
 5. Configure `mdxserve.karim.build` as the project's production domain. Before the first tagged release, assign the domain to a production deployment whose commit is an ancestor of that release tag; a PR-branch deployment may be unrelated after a squash merge. The freshness check fails closed if the domain has no current deployment or its commit is unrelated. If the domain changes, update it in `apps/site/deployment/check-promotion-freshness.mjs` and in the canonical and Open Graph links in `apps/site/index.html`.
