@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import MdSectionEditor from "../../client/MdSectionEditor";
 vi.mock("../../client/api", () => ({
 	trpcClient: { getDiagramPreferences: { query: async () => ({ agent: "codex" }) } },
@@ -15,6 +15,11 @@ vi.mock("../../client/diagrams/Dialog", () => ({
 			createElement("button", { onClick: onClose }, "Close"),
 		),
 }));
+beforeEach(() => {
+	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+});
+afterEach(() => vi.unstubAllGlobals());
+
 it("opens a Mermaid-only section directly in the dialog and does not reopen after closing", async () => {
 	Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 	Range.prototype.getBoundingClientRect = () => new DOMRect();

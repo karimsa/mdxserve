@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { DocContext } from "../../client/DocContext";
 import { NodeList } from "../../client/document/nodes";
 import { DocumentService } from "../../src/document/service";
@@ -74,6 +74,11 @@ const markdown = [
 	"After",
 ].join("\n");
 
+// Load the lazy edit dialog up front, so its chunk does not finish loading
+// between two act() calls.
+beforeAll(async () => {
+	await import("../../client/diagrams/EditDialog");
+});
 beforeEach(() => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.stubGlobal("matchMedia", () => ({
