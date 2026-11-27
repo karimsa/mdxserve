@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Text } from "@mdxserve/ui/primitives/Text";
-import { useServers } from "../../src/servers/ServersProvider";
-import { displayName, type KnownServer } from "../../src/servers/store";
-import { useSideInsets } from "../../src/side-insets";
+import { ServerName } from "../../../src/servers/ServerName";
+import { useServers } from "../../../src/servers/ServersProvider";
+import { displayName, type KnownServer } from "../../../src/servers/store";
+import { useSideInsets } from "../../../src/side-insets";
 
 /**
  * One server: the reader's name for it, which saves as it is typed, its addresses, and Remove
@@ -47,8 +48,7 @@ function ServerForm({ server }: { server: KnownServer }) {
 					style: "destructive",
 					onPress: () => {
 						remove(server.id);
-						if (router.canGoBack()) router.back();
-						else router.replace("/servers");
+						router.dismissTo("/servers");
 					},
 				},
 			],
@@ -63,6 +63,11 @@ function ServerForm({ server }: { server: KnownServer }) {
 			testID="server-details-content"
 		>
 			<Stack.Screen options={{ title: displayName(server) }} />
+			<Stack.Toolbar placement="right">
+				<Stack.Toolbar.View hidesSharedBackground={true}>
+					<ServerName name={displayName(server)} />
+				</Stack.Toolbar.View>
+			</Stack.Toolbar>
 			<Text weight="semibold">Name</Text>
 			<TextInput
 				value={label}

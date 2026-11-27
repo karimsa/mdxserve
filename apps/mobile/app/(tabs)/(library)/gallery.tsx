@@ -17,7 +17,7 @@ import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { List, ListItem } from "@mdxserve/ui/primitives/List";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Heading, Link, Text } from "@mdxserve/ui/primitives/Text";
-import { useSideInsets } from "../src/side-insets";
+import { useSideInsets } from "../../../src/side-insets";
 
 /*
  * Every component the app shares with the web client (@mdxserve/ui), with the fixtures of the

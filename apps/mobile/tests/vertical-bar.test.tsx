@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { act, renderRouter } from "expo-router/testing-library";
-import RootLayout from "../app/_layout";
-import Home from "../app/index";
+import { APP_ROUTES } from "./app-routes";
 
 jest.mock("expo-constants", () => ({
 	__esModule: true,
@@ -62,13 +61,13 @@ describe("the vertical bar on a folding display", () => {
 
 	it("leaves the vertical bar to iOS in a narrow window", async () => {
 		resize(FOLDED);
-		await renderRouter({ _layout: RootLayout, index: Home });
+		await renderRouter(APP_ROUTES);
 		expect(setVerticalBarBehavior).not.toHaveBeenCalled();
 	});
 
 	it("keeps the bars at the top in a wide window, and hands them back when it narrows", async () => {
 		resize(UNFOLDED);
-		await renderRouter({ _layout: RootLayout, index: Home });
+		await renderRouter(APP_ROUTES);
 		expect(setVerticalBarBehavior).toHaveBeenLastCalledWith("disabled");
 
 		await act(async () => resize(FOLDED));
@@ -78,7 +77,7 @@ describe("the vertical bar on a folding display", () => {
 	it("does nothing when the native module cannot set the behavior", async () => {
 		mockStatusBar.current = {};
 		resize(UNFOLDED);
-		await renderRouter({ _layout: RootLayout, index: Home });
+		await renderRouter(APP_ROUTES);
 		expect(setVerticalBarBehavior).not.toHaveBeenCalled();
 	});
 });
