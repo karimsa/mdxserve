@@ -195,8 +195,9 @@ export function Picture({ src, alt, title }: { src: string; alt: string; title: 
 	);
 }
 
+/** A line break, as a run of text, so it is safe in a view too (a `<br>` on its own line). */
 export function LineBreak() {
-	return "\n";
+	return <Text>{"\n"}</Text>;
 }
 
 export function SectionHeading({
@@ -259,12 +260,15 @@ export function RawElement({
 	onPress?: () => void;
 	children?: ReactNode;
 }) {
-	if (tag === "br") return "\n";
-	if (tag === "a" && typeof props.href === "string")
-		return (
+	if (tag === "br") return <LineBreak />;
+	if (tag === "a")
+		return typeof props.href === "string" ? (
 			<Anchor href={props.href} title={null} onPress={onPress}>
 				{children}
 			</Anchor>
+		) : (
+			// An anchor with nowhere to go is its text, and does nothing when pressed.
+			<Text>{children}</Text>
 		);
 	if (tag === "img")
 		return <Picture src={String(props.src ?? "")} alt={String(props.alt ?? "")} title={null} />;
@@ -280,8 +284,14 @@ export function RawElement({
 	if (tag === "tr") return <View className="flex-row gap-4">{children}</View>;
 	if (tag === "td" || tag === "th")
 		return <Text className={`${PROSE} ${tag === "th" ? "font-semibold" : ""}`}>{children}</Text>;
-	return <View className="my-1">{children}</View>;
+	// Only the elements whose children are blocks (`nodes.tsx` gives them a line of text for any
+	// bare run) are views; anything else is text, so a string never lands in a view.
+	if (BLOCK_TAGS.has(tag)) return <View className="my-1">{children}</View>;
+	return <Text>{children}</Text>;
 }
+
+/** The elements drawn as a view of blocks, besides `table` and `tr`. */
+const BLOCK_TAGS = new Set(["details", "thead", "tbody"]);
 
 export function FailedSection({ node }: { node: ErrorNode }) {
 	return (

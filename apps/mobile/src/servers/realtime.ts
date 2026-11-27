@@ -13,7 +13,7 @@ const live = new Map<string, LiveServer>();
 /**
  * The live update socket of the server `serverId`, reached at `origin`. It opens the first time
  * the server is used, and again when the server is reached at another address (the old socket
- * closes). Its listing and roots signals refresh that server's folder listings and roots; the
+ * closes, and the server's documents and listings refetch). Its listing and roots signals refresh that server's folder listings and roots; the
  * document screen listens for its own document's signal.
  */
 export function realtimeFor(
@@ -26,6 +26,11 @@ export function realtimeFor(
 	if (current) {
 		current.unsubscribe();
 		current.client.close();
+		// The new socket starts with no record of what the old one missed while the address was
+		// failing, so whatever this server's documents and listings show may be stale.
+		void queryClient.invalidateQueries({ queryKey: [serverId, "getDocument"] });
+		void queryClient.invalidateQueries({ queryKey: [serverId, "getFolderListing"] });
+		void queryClient.invalidateQueries({ queryKey: [serverId, "listRoots"] });
 	}
 	const client = createRealtime(origin);
 	const offListing = client.onListingChanged(() => {
