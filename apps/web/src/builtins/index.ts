@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
-import Tooltip from "./Tooltip";
+import Tooltip from "@mdxserve/ui/builtins/Tooltip";
 import Tabs, { Tab } from "./Tabs";
 import Diff from "./Diff";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";

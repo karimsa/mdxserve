@@ -7,6 +7,8 @@ import Callout from "@mdxserve/ui/builtins/Callout";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
 import FileTree from "@mdxserve/ui/builtins/FileTree";
 import Kbd from "@mdxserve/ui/builtins/Kbd";
+import Screenshot from "@mdxserve/ui/builtins/Screenshot";
+import Tooltip from "@mdxserve/ui/builtins/Tooltip";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 
 // The shared builtins (@mdxserve/ui) as the browser gets them: React Native components
@@ -192,5 +194,49 @@ describe("FileTree", () => {
 		expect(folder.getAttribute("aria-expanded")).toBe("false");
 		expect(host.textContent).not.toContain("deploy.mdx");
 		expect(host.querySelectorAll("button")).toHaveLength(1);
+	});
+});
+
+describe("Tooltip", () => {
+	it("is the web's tippy target: a focusable dotted span in the line", () => {
+		draw(
+			<p>
+				Hover{" "}
+				<Tooltip content="Explained." placement="top" delay={100}>
+					this
+				</Tooltip>
+				.
+			</p>,
+		);
+		const target = host.querySelector<HTMLSpanElement>("p > span.cursor-help")!;
+		expect(target.textContent).toBe("this");
+		expect(target.tabIndex).toBe(0);
+		expect(target.className).toContain("decoration-dotted");
+	});
+});
+
+describe("Screenshot", () => {
+	it("is a figure with the image, a caption and an expand button that opens the caller's view", () => {
+		const renderExpanded = vi.fn(() => null);
+		draw(
+			<Screenshot
+				id="shot"
+				src="./assets/reader.png"
+				alt="The reader"
+				title="mdxserve"
+				caption="The reader view."
+				renderExpanded={renderExpanded}
+			/>,
+		);
+		const figure = host.querySelector("figure")!;
+		expect(figure.querySelector("img")!.getAttribute("src")).toBe("./assets/reader.png");
+		expect(figure.querySelector("img")!.getAttribute("alt")).toBe("The reader");
+		expect(figure.querySelector("figcaption")!.textContent).toBe("The reader view.");
+		const expand = figure.querySelector<HTMLButtonElement>('button[title="Expand screenshot"]')!;
+		expect(renderExpanded).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }));
+		act(() => expand.click());
+		expect(renderExpanded).toHaveBeenLastCalledWith(
+			expect.objectContaining({ open: true, src: "./assets/reader.png", title: "mdxserve" }),
+		);
 	});
 });

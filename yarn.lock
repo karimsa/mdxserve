@@ -2878,6 +2878,7 @@ __metadata:
   dependencies:
     "@floating-ui/dom": "npm:1.8.0"
     "@mdxserve/shared": "workspace:*"
+    "@tippyjs/react": "npm:4.2.6"
     "@types/bytes": "npm:3.1.6"
     "@types/ms": "npm:2.1.0"
     "@types/react": "npm:19.3.3"
@@ -2913,7 +2914,6 @@ __metadata:
     "@mdxserve/ui": "workspace:*"
     "@tailwindcss/vite": "npm:4.3.3"
     "@tanstack/react-query": "npm:5.101.4"
-    "@tippyjs/react": "npm:4.2.6"
     "@tiptap/core": "npm:3.29.2"
     "@tiptap/extension-blockquote": "npm:3.29.2"
     "@tiptap/extension-bold": "npm:3.29.2"

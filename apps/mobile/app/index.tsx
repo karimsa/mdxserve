@@ -9,6 +9,8 @@ import Kbd from "@mdxserve/ui/builtins/Kbd";
 import DataTable from "@mdxserve/ui/builtins/DataTable";
 import Chart from "@mdxserve/ui/builtins/Chart";
 import Sparkline from "@mdxserve/ui/builtins/Sparkline";
+import Screenshot from "@mdxserve/ui/builtins/Screenshot";
+import Tooltip from "@mdxserve/ui/builtins/Tooltip";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import { Wordmark } from "@mdxserve/ui/brand/Wordmark";
 import { Code, Heading, Text } from "@mdxserve/ui/primitives/Text";
@@ -112,7 +114,11 @@ export default function Home() {
 				/>
 				<Text>
 					Press <Kbd>⌘</Kbd>
-					<Kbd>K</Kbd> to search.
+					<Kbd>K</Kbd> to search. Press and hold{" "}
+					<Tooltip content="A tooltip from @mdxserve/ui." placement="top" delay={100}>
+						this word
+					</Tooltip>
+					.
 				</Text>
 				<CardGrid columns="2">
 					<Card
@@ -167,6 +173,13 @@ export default function Home() {
 						fill
 					/>
 				</Text>
+				<Screenshot
+					id="sample-screenshot"
+					src="https://raw.githubusercontent.com/karimsa/mdxserve/main/example/assets/reader-light.jpg"
+					alt="mdxserve rendering a Markdown document"
+					title="mdxserve — 01-markdown.md"
+					caption="Tap the expand control for a zoomable view."
+				/>
 			</View>
 		</ScrollView>
 	);

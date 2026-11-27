@@ -2,9 +2,9 @@ import { useRef, type RefObject } from "react";
 import Tippy from "@tippyjs/react";
 import { type TooltipProps } from "@mdxserve/shared/builtins/tooltip";
 
-// tippy.js's base CSS is pulled in via apps/web/src/app.css (`@import
-// "tippy.js/dist/tippy.css"`) instead of a side-effect import here, so all of the
-// app's styling goes through that one stylesheet.
+// tippy.js's base CSS and the `mdxserve` theme are in the web client's stylesheet
+// (apps/web/src/app.css), so all of its styling goes through that one file. The app's
+// tooltip is Tooltip.tsx.
 
 export default function Tooltip({
 	content,
