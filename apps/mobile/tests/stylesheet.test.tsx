@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { renderRouter, screen } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
 import RootLayout from "../app/_layout";
+import Gallery from "../app/gallery";
 import Home from "../app/index";
 import Settings from "../app/settings";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
@@ -52,9 +53,12 @@ describe("the app's compiled stylesheet", () => {
 });
 
 describe("screens with the compiled stylesheet", () => {
-	it("render the home screen with the tokens' colours", async () => {
-		await renderRouter({ _layout: RootLayout, index: Home, settings: Settings });
-		const title = screen.getByText("From @mdxserve/ui");
+	it("render the gallery with the tokens' colours", async () => {
+		await renderRouter(
+			{ _layout: RootLayout, index: Home, settings: Settings, gallery: Gallery },
+			{ initialUrl: "/gallery" },
+		);
+		const title = screen.getByText("Tip");
 		const { variables } = resolveTheme(sheet, "light");
 		expect(StyleSheet.flatten(title.props.style).color).toBe(variables["--text-accent"]);
 		expect(screen.getByRole("tab", { name: "Overview", selected: true })).toBeOnTheScreen();
