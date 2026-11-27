@@ -14,25 +14,28 @@ export interface FileWatcher {
 	): unknown;
 }
 
-/** The atomic-write temp file `DocsService` stages a save in: never a real edit. */
-const SAVE_TEMP_FILE = /^\..*\.mdxserve-tmp$/;
-
 /**
- * Whether the watcher skips `changedPath`: a directory the tree also leaves out
- * (`.git`, `node_modules`, build output, virtualenvs) anywhere below the root
- * that holds it, or a save's temp file. Only the part below the root counts, so
- * a root that itself sits under a `build/` folder is still watched.
+ * Whether the watcher skips `changedPath`: anything below a hidden or
+ * `node_modules` segment (which the listings, the doc routes and the doc-change
+ * signal all refuse, `isServable`), or below a directory the tree also leaves
+ * out (build output, virtualenvs; `isIgnoredDir`). A save's temp file is a
+ * dotfile, so it is skipped too. Only the part below a root counts, so a root
+ * that itself sits under a `build/` or hidden folder is still watched. The
+ * mounted set never nests roots, but should two contain the path, it is skipped
+ * only when every one of them would skip it, so the answer does not depend on
+ * root order. Every skipped path would otherwise hold an open file handle while
+ * producing no signal anyone sees.
  */
 export function isWatchIgnored(roots: RootInfo[], changedPath: string): boolean {
-	const hit = resolveRoot(
-		roots.map((info) => info.dir),
-		changedPath,
+	const containing = roots.flatMap((info) => resolveRoot([info.dir], changedPath) ?? []);
+	if (containing.length === 0) return false;
+	return containing.every((hit) =>
+		path
+			.relative(hit.root, hit.abs)
+			.split(path.sep)
+			.filter(Boolean)
+			.some((segment) => !isServable(segment) || isIgnoredDir(segment)),
 	);
-	if (!hit) return false;
-	const segments = path.relative(hit.root, hit.abs).split(path.sep).filter(Boolean);
-	if (segments.length === 0) return false;
-	if (SAVE_TEMP_FILE.test(segments[segments.length - 1])) return true;
-	return segments.some(isIgnoredDir);
 }
 
 /**
