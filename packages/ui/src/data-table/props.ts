@@ -9,6 +9,12 @@ export type DataTableViewProps = DataTableProps & {
 	/** The table's own id, which links and comment anchors reach a Markdown table by. */
 	tableProps?: { id?: string };
 	persistState?: boolean;
+	/**
+	 * Web only: where a column menu is mounted. The web client portals it to the page body
+	 * (apps/web/src/builtins/DataTable.tsx), since this package imports no react-dom; without it
+	 * a menu renders beside its header.
+	 */
+	portal?: (menu: ReactNode) => ReactNode;
 };
 
 /** The props as the builtin's schema reads them, after the checks the schema cannot make. */

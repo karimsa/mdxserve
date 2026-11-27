@@ -33,6 +33,7 @@ export default function DataTable(props: DataTableViewProps) {
 			renderHeader={props.renderHeader}
 			tableProps={props.tableProps}
 			persistState={props.persistState}
+			portal={props.portal}
 			scope={scope}
 		/>
 	);
@@ -47,6 +48,7 @@ function TableView({
 	renderHeader,
 	tableProps,
 	persistState = true,
+	portal,
 	scope,
 }: DataTableViewProps & { scope: BlockStateScope }) {
 	const [state, setState] = useTableState(scope, columns, persistState);
@@ -77,6 +79,7 @@ function TableView({
 		openColumn,
 		setOpenColumn,
 		tableRef,
+		portal,
 	};
 
 	return (

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { z } from "zod";
-import DataTable from "@mdxserve/ui/builtins/DataTable";
+import DataTable from "../src/builtins/DataTable";
 import { DocContext } from "@mdxserve/ui/document/DocContext";
 import {
 	BlockStateStorageContext,

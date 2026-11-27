@@ -1,6 +1,5 @@
 import { useId, useRef, type ReactNode, type KeyboardEvent, type FocusEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
-import { createPortal } from "react-dom";
 import { useColumnMenu } from "./useColumnMenu.web";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
 
@@ -57,7 +56,10 @@ function handleMenuBlur(
 	onOpenChange(false);
 }
 
-/** Portaled to escape the table scroller, positioned against the triggering header. */
+/**
+ * Mounted where `portal` puts it (the web client: the page body, to escape the table scroller),
+ * positioned against the triggering header.
+ */
 export function ColumnMenu({
 	label,
 	headerContent,
@@ -69,6 +71,7 @@ export function ColumnMenu({
 	onSort,
 	onNavigate,
 	tabIndex,
+	portal = (menu) => menu,
 	children,
 }: {
 	label: string;
@@ -81,6 +84,7 @@ export function ColumnMenu({
 	onSort: () => void;
 	onNavigate: (event: KeyboardEvent<HTMLDivElement>) => void;
 	tabIndex: number;
+	portal?: (menu: ReactNode) => ReactNode;
 	children: (close: () => void) => ReactNode;
 }) {
 	const trigger = useRef<HTMLDivElement>(null);
@@ -131,42 +135,40 @@ export function ColumnMenu({
 					<ChevronDown size={12} aria-hidden="true" />
 				</button>
 			</div>
-			{typeof document !== "undefined" &&
-				createPortal(
-					<AnimatePresence>
-						{open && (
-							<motion.div
-								key="menu"
-								initial={{ opacity: 0, y: reducedMotion ? 0 : -4, scale: reducedMotion ? 1 : 0.98 }}
-								animate={
-									positioned
-										? { opacity: 1, y: 0, scale: 1 }
-										: { opacity: 0, y: reducedMotion ? 0 : -4, scale: reducedMotion ? 1 : 0.98 }
-								}
-								exit={{
-									opacity: 0,
-									y: reducedMotion ? 0 : -3,
-									scale: reducedMotion ? 1 : 0.98,
-									transition: reducedMotion ? { duration: 0 } : exitTransition,
-								}}
-								transition={reducedMotion ? { duration: 0 } : enterTransition}
-								id={menuId}
-								ref={menu}
-								className="data-table-menu"
-								role="dialog"
-								aria-label={`${label} column options`}
-								style={{ transformOrigin: "top left" }}
-								onDoubleClick={(event) => event.stopPropagation()}
-								onKeyDown={(event) => handleMenuKey(event, close)}
-								onBlur={(event) => handleMenuBlur(event, trigger.current, onOpenChange)}
-							>
-								<div className="data-table-menu-title">{label}</div>
-								{children(close)}
-							</motion.div>
-						)}
-					</AnimatePresence>,
-					document.body,
-				)}
+			{portal(
+				<AnimatePresence>
+					{open && (
+						<motion.div
+							key="menu"
+							initial={{ opacity: 0, y: reducedMotion ? 0 : -4, scale: reducedMotion ? 1 : 0.98 }}
+							animate={
+								positioned
+									? { opacity: 1, y: 0, scale: 1 }
+									: { opacity: 0, y: reducedMotion ? 0 : -4, scale: reducedMotion ? 1 : 0.98 }
+							}
+							exit={{
+								opacity: 0,
+								y: reducedMotion ? 0 : -3,
+								scale: reducedMotion ? 1 : 0.98,
+								transition: reducedMotion ? { duration: 0 } : exitTransition,
+							}}
+							transition={reducedMotion ? { duration: 0 } : enterTransition}
+							id={menuId}
+							ref={menu}
+							className="data-table-menu"
+							role="dialog"
+							aria-label={`${label} column options`}
+							style={{ transformOrigin: "top left" }}
+							onDoubleClick={(event) => event.stopPropagation()}
+							onKeyDown={(event) => handleMenuKey(event, close)}
+							onBlur={(event) => handleMenuBlur(event, trigger.current, onOpenChange)}
+						>
+							<div className="data-table-menu-title">{label}</div>
+							{children(close)}
+						</motion.div>
+					)}
+				</AnimatePresence>,
+			)}
 		</>
 	);
 }

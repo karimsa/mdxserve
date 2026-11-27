@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import DataTable from "@mdxserve/ui/builtins/DataTable";
+import DataTable from "../builtins/DataTable";
 import { inferColumn, parseBound, type Column, type Row } from "@mdxserve/ui/data-table/model";
 import { plainText } from "./plain-text";
 import type { InlineNode, TableNode } from "./tree-types";

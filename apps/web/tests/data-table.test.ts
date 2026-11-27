@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DocumentService } from "@karimsa/mdxserve/src/document/service";
 import { builtinRegistry } from "@karimsa/mdxserve/tests/helpers/components";
 import { NodeList } from "../src/document/nodes";
-import DataTable from "@mdxserve/ui/builtins/DataTable";
+import DataTable from "../src/builtins/DataTable";
 import {
 	autoUnit,
 	inferColumn,
