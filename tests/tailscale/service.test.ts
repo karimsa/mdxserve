@@ -33,7 +33,10 @@ describe("TailscaleService.detect", () => {
 		expect(await new TailscaleService(run, "darwin", {}).detect(server)).toEqual({
 			kind: "not-found",
 		});
-		expect(calls).toEqual(["tailscale status --json", `${APP} status --json`]);
+		expect(calls).toEqual([
+			"tailscale status --json --peers=false",
+			`${APP} status --json --peers=false`,
+		]);
 	});
 
 	it("falls through to the app bundle when tailscale is not on PATH", async () => {
@@ -54,7 +57,7 @@ describe("TailscaleService.detect", () => {
 		expect(await new TailscaleService(run, "darwin", env).detect(server)).toEqual({
 			kind: "not-found",
 		});
-		expect(calls).toEqual(["/opt/fake status --json"]);
+		expect(calls).toEqual(["/opt/fake status --json --peers=false"]);
 	});
 
 	it("is not-running when the backend is stopped or logged out", async () => {
@@ -134,6 +137,6 @@ describe("TailscaleService.detect", () => {
 			[APP]: { status: RUNNING, serve: "{}" },
 		});
 		expect((await new TailscaleService(run, "darwin", {}).detect(server)).kind).toBe("failed");
-		expect(calls).toEqual(["tailscale status --json"]);
+		expect(calls).toEqual(["tailscale status --json --peers=false"]);
 	});
 });

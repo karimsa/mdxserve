@@ -94,7 +94,9 @@ export class TailscaleService {
 
 	private async detectOnce(server: ServerEndpoint): Promise<TailscaleDetection> {
 		for (const cli of tailscaleCandidates(this.platform, this.env)) {
-			const status = await this.call(cli, ["status", "--json"]);
+			// Only this node's state and name are read; leaving peers out keeps a
+			// large tailnet's status under the runner's output bound.
+			const status = await this.call(cli, ["status", "--json", "--peers=false"]);
 			if (status.kind === "missing") continue;
 			if (status.kind === "error") return { kind: "failed", message: status.message };
 			const self = parseStatus(status.json);
