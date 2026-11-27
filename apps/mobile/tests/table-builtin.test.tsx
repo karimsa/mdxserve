@@ -112,5 +112,6 @@ describe.each(["light", "dark"] as const)("the app's DataTable (%s)", (theme) =>
 		await fireEvent.press(screen.getByRole("button", { name: "Clear sorting" }));
 		expect(firstColumn()).toEqual(["Beta", "Alpha", "Gamma"]);
 		expect(screen.getByText("3 of 3 rows")).toBeOnTheScreen();
-	});
+		// The first render loads React Native and Uniwind's runtime, which takes CI several seconds.
+	}, 30_000);
 });
