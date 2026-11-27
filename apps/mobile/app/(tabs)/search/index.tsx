@@ -115,22 +115,36 @@ export default function Search() {
 					// controller: that one always shows a Cancel control (a large round X on iOS 26 and
 					// later) that react-native-screens cannot hide. Its own clear control empties the
 					// query; the keyboard's Search key, a tap outside it and a scroll dismiss the keyboard.
-					<TextInput
-						value={typed}
-						onChangeText={changeText}
-						onSubmitEditing={(event) => setQuery(event.nativeEvent.text.trim())}
-						placeholder="Search every server"
-						accessibilityLabel="Search every server"
-						autoCapitalize="none"
-						autoCorrect={false}
-						clearButtonMode="while-editing"
-						enterKeyHint="search"
-						returnKeyType="search"
-						submitBehavior="blurAndSubmit"
-						inputMode="search"
-						testID="search-field"
-						className="rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body"
-					/>
+					<View style={styles.field}>
+						<TextInput
+							value={typed}
+							onChangeText={changeText}
+							onSubmitEditing={(event) => setQuery(event.nativeEvent.text.trim())}
+							placeholder="Search every server"
+							accessibilityLabel="Search every server"
+							autoCapitalize="none"
+							autoCorrect={false}
+							clearButtonMode="while-editing"
+							enterKeyHint="search"
+							returnKeyType="search"
+							submitBehavior="blurAndSubmit"
+							inputMode="search"
+							testID="search-field"
+							className="rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body"
+						/>
+						{/* How saving the server filter went, shown whatever the results are. */}
+						{filter.problem === undefined ? (
+							filter.saving ? (
+								<Text size="sm" tone="muted">
+									Saving the server filter…
+								</Text>
+							) : null
+						) : (
+							<Text size="sm" accessibilityRole="alert">
+								{filter.problem}
+							</Text>
+						)}
+					</View>
 				}
 				renderSectionHeader={({ section }) => (
 					<View style={styles.sectionHeader}>
@@ -142,11 +156,6 @@ export default function Search() {
 				)}
 				ListEmptyComponent={
 					<View style={styles.empty}>
-						{filter.problem === undefined ? null : (
-							<Text size="sm" accessibilityRole="alert">
-								{filter.problem}
-							</Text>
-						)}
 						{loaded && servers.length === 0 ? (
 							<>
 								<Text weight="semibold">No servers yet</Text>
@@ -178,6 +187,7 @@ export default function Search() {
 
 const styles = StyleSheet.create({
 	screen: { paddingVertical: 8 },
+	field: { gap: 4 },
 	sectionHeader: { paddingTop: 16, paddingBottom: 4 },
 	empty: { gap: 4, paddingVertical: 24 },
 });

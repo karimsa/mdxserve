@@ -407,3 +407,31 @@ describe("choosing the servers to search", () => {
 		expect(mockQueries).toEqual([]);
 	});
 });
+
+describe("saving the server filter", () => {
+	it("says the filter was not saved, next to the results, and goes back to the saved choice", async () => {
+		await seedThree();
+		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
+		await typeQuery("deploy");
+		await screen.findByLabelText("Deploy guide, notes/deploy.md");
+		const setItem = jest.mocked(AsyncStorage.setItem);
+		const original = setItem.getMockImplementation()!;
+		setItem.mockImplementation((key: string, value: string) =>
+			key === "mdxserve.search.excludedServers"
+				? Promise.reject(new Error("disk full"))
+				: original(key, value),
+		);
+		await toggleServer("Laptop");
+		expect(
+			await screen.findByText("The server filter was not saved on this device: Error: disk full"),
+		).toBeOnTheScreen();
+		setItem.mockImplementation(original);
+		// The results are still on screen, with Laptop back in them.
+		await waitFor(() => expect(sectionTitles()).toEqual(["Studio", "Attic", "Laptop"]));
+		expect(filterMenu().menu.menu.items.map((item: { state: string }) => item.state)).toEqual([
+			"on",
+			"on",
+			"on",
+		]);
+	});
+});
