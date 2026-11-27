@@ -115,3 +115,51 @@ jobs:
 
       - name: Typecheck and build the site
         run: yarn workspace @mdxserve/site build
+
+  mobile:
+    name: Mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set Node version
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore Yarn cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .yarn/cache
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          yarn config set enableGlobalCache false
+          yarn --immutable
+
+      - name: Typecheck the app
+        run: yarn mobile typecheck
+
+      # EXPO_OFFLINE makes the version check compare against the installed expo package's own
+      # pins (expo/bundledNativeModules.json), not the newest SDK patch on Expo's API. A mismatch
+      # with the SDK we pin still fails; a new Expo patch release alone does not.
+      - name: Check the app with Expo Doctor
+        run: yarn mobile doctor
+        env:
+          EXPO_OFFLINE: 1
+
+      # Proves Metro can resolve and bundle the whole graph from the workspace.
+      - name: Bundle the app for iOS
+        run: yarn mobile expo export --platform ios --output-dir "$RUNNER_TEMP/mobile-export"
+
+      - name: Test the app
+        run: yarn mobile test

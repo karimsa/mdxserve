@@ -61,6 +61,16 @@ const config: KnipConfig = {
 				"@tiptap/extensions",
 			],
 		},
+		"apps/mobile": {
+			// knip's Expo plugin finds the routes in app/ and reads app.config.ts and metro.config.js;
+			// its Jest plugin finds the tests.
+			project: ["app/**/*.tsx!", "src/**/*.ts!", "tests/**/*.tsx"],
+			ignoreDependencies: [
+				// knip expects expo-updates unless app.config.ts turns updates off; the app has no
+				// over-the-air updates, so it has no expo-updates yet.
+				"expo-updates",
+			],
+		},
 		"apps/site": {
 			entry: ["src/main.tsx!", "deployment/*.mjs"],
 			project: ["src/**/*.{ts,tsx,css}!", "deployment/*.mjs"],
