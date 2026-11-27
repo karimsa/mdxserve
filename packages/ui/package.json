@@ -24,6 +24,13 @@
 		"./primitives/*": "./src/primitives/*.tsx",
 		"./block-state/*": "./src/block-state/*.ts",
 		"./data-table/*": "./src/data-table/*.ts",
+		"./document/elements": {
+			"types": "./src/document/elements.tsx",
+			"react-native": "./src/document/elements.tsx",
+			"default": "./src/document/elements.web.tsx"
+		},
+		"./document/environment": "./src/document/environment.tsx",
+		"./document/nodes": "./src/document/nodes.tsx",
 		"./document/*": "./src/document/*.ts",
 		"./tokens/springs": "./src/tokens/springs.ts"
 	},
@@ -32,6 +39,7 @@
 	},
 	"dependencies": {
 		"@floating-ui/dom": "1.8.0",
+		"@mdxserve/client": "workspace:*",
 		"@mdxserve/shared": "workspace:*",
 		"@tippyjs/react": "4.2.6",
 		"bytes": "3.1.2",
