@@ -304,10 +304,15 @@ function SectionView({ node }: { node: SectionNode }) {
 }
 
 function ListView({ node }: { node: Extract<BlockNode, { type: "list" }> }) {
+	const { renderTaskBox } = useDocumentEnvironment();
 	return (
 		<List ordered={node.ordered} start={node.start}>
 			{node.items.map((item, index) => (
-				<ListItem key={index} checked={item.checked}>
+				<ListItem
+					key={index}
+					checked={item.checked}
+					box={item.checked !== null && renderTaskBox ? renderTaskBox(item) : undefined}
+				>
 					<Nested>
 						<ListItemContent nodes={item.children} />
 					</Nested>

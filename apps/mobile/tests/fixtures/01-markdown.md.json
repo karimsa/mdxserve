@@ -1,0 +1,902 @@
+{
+	"document": {
+		"schemaVersion": 1,
+		"metadata": {
+			"openGraph": []
+		},
+		"toc": [
+			{
+				"id": "headings-go-up-to-h3-on-this-page",
+				"label": "Headings go up to h3 on this page",
+				"kind": "heading",
+				"children": [
+					{
+						"id": "this-is-an-h3",
+						"label": "This is an h3",
+						"kind": "heading",
+						"children": []
+					}
+				]
+			},
+			{
+				"id": "lists",
+				"label": "Lists",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "a-table",
+				"label": "A table",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "blockquote",
+				"label": "Blockquote",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "links-and-images",
+				"label": "Links and images",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "inline-code",
+				"label": "Inline code",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "fenced-code-blocks",
+				"label": "Fenced code blocks",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "mermaid-diagrams",
+				"label": "Mermaid diagrams",
+				"kind": "heading",
+				"children": []
+			}
+		],
+		"children": [
+			{
+				"type": "section",
+				"id": "markdown-tour",
+				"level": 1,
+				"heading": [
+					{
+						"type": "text",
+						"value": "Markdown tour"
+					}
+				],
+				"children": [
+					{
+						"type": "paragraph",
+						"children": [
+							{
+								"type": "text",
+								"value": "This page is a plain "
+							},
+							{
+								"type": "inlineCode",
+								"value": ".md"
+							},
+							{
+								"type": "text",
+								"value": " file. It uses only standard Markdown plus the GitHub Flavored\nMarkdown (GFM) extensions that "
+							},
+							{
+								"type": "inlineCode",
+								"value": "remark-gfm"
+							},
+							{
+								"type": "text",
+								"value": " adds: tables, task lists, and strikethrough. No\nJSX is allowed here — that's what "
+							},
+							{
+								"type": "inlineCode",
+								"value": ".mdx"
+							},
+							{
+								"type": "text",
+								"value": " files are for (see "
+							},
+							{
+								"type": "link",
+								"href": "./02-mdx-basics.mdx",
+								"title": null,
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "02-mdx-basics.mdx"
+									}
+								]
+							},
+							{
+								"type": "text",
+								"value": ")."
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "headings-go-up-to-h3-on-this-page",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Headings go up to h3 on this page"
+							}
+						],
+						"children": [
+							{
+								"type": "section",
+								"id": "this-is-an-h3",
+								"level": 3,
+								"heading": [
+									{
+										"type": "text",
+										"value": "This is an h3"
+									}
+								],
+								"children": [
+									{
+										"type": "paragraph",
+										"children": [
+											{
+												"type": "text",
+												"value": "Regular paragraph text sits between headings. Here's a paragraph with "
+											},
+											{
+												"type": "strong",
+												"children": [
+													{
+														"type": "text",
+														"value": "bold text"
+													}
+												]
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "emphasis",
+												"children": [
+													{
+														"type": "text",
+														"value": "italic\ntext"
+													}
+												]
+											},
+											{
+												"type": "text",
+												"value": ", and "
+											},
+											{
+												"type": "delete",
+												"children": [
+													{
+														"type": "text",
+														"value": "strikethrough text"
+													}
+												]
+											},
+											{
+												"type": "text",
+												"value": ". You can also mix "
+											},
+											{
+												"type": "emphasis",
+												"children": [
+													{
+														"type": "strong",
+														"children": [
+															{
+																"type": "text",
+																"value": "bold and italic"
+															}
+														]
+													}
+												]
+											},
+											{
+												"type": "text",
+												"value": " together."
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "lists",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Lists"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "An unordered list:"
+									}
+								]
+							},
+							{
+								"type": "list",
+								"ordered": false,
+								"start": null,
+								"items": [
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "First item"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Second item"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Third item with a nested list:"
+													}
+												]
+											},
+											{
+												"type": "list",
+												"ordered": false,
+												"start": null,
+												"items": [
+													{
+														"checked": null,
+														"children": [
+															{
+																"type": "paragraph",
+																"children": [
+																	{
+																		"type": "text",
+																		"value": "Nested one"
+																	}
+																]
+															}
+														]
+													},
+													{
+														"checked": null,
+														"children": [
+															{
+																"type": "paragraph",
+																"children": [
+																	{
+																		"type": "text",
+																		"value": "Nested two"
+																	}
+																]
+															}
+														]
+													}
+												]
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "An ordered list:"
+									}
+								]
+							},
+							{
+								"type": "list",
+								"ordered": true,
+								"start": 1,
+								"items": [
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Set up the project"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Write some docs"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": null,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Run "
+													},
+													{
+														"type": "inlineCode",
+														"value": "mdxserve"
+													}
+												]
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "A task list (GFM):"
+									}
+								]
+							},
+							{
+								"type": "list",
+								"ordered": false,
+								"start": null,
+								"items": [
+									{
+										"checked": true,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Install Node"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": true,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Write example docs"
+													}
+												]
+											}
+										]
+									},
+									{
+										"checked": false,
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "text",
+														"value": "Ship it"
+													}
+												]
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "a-table",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "A table"
+							}
+						],
+						"children": [
+							{
+								"type": "table",
+								"id": "markdown-table-v2-twwvqk",
+								"persist": true,
+								"align": [null, null, null],
+								"head": [
+									[
+										{
+											"type": "text",
+											"value": "Feature"
+										}
+									],
+									[
+										{
+											"type": "text",
+											"value": "Supported"
+										}
+									],
+									[
+										{
+											"type": "text",
+											"value": "Notes"
+										}
+									]
+								],
+								"rows": [
+									[
+										[
+											{
+												"type": "text",
+												"value": "Tables"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Yes"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "via "
+											},
+											{
+												"type": "inlineCode",
+												"value": "remark-gfm"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "text",
+												"value": "Task lists"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Yes"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "via "
+											},
+											{
+												"type": "inlineCode",
+												"value": "remark-gfm"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "text",
+												"value": "Syntax highlighting"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Yes"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "via Shiki, in the browser"
+											}
+										]
+									],
+									[
+										[
+											{
+												"type": "text",
+												"value": "Dark mode"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "Yes"
+											}
+										],
+										[
+											{
+												"type": "text",
+												"value": "follows OS setting"
+											}
+										]
+									]
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "blockquote",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Blockquote"
+							}
+						],
+						"children": [
+							{
+								"type": "blockquote",
+								"children": [
+									{
+										"type": "paragraph",
+										"children": [
+											{
+												"type": "text",
+												"value": "Markdown files are rendered as-is with "
+											},
+											{
+												"type": "inlineCode",
+												"value": "prose"
+											},
+											{
+												"type": "text",
+												"value": " typography applied automatically — no CSS\nclasses needed in the file itself."
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "links-and-images",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Links and images"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Here's a "
+									},
+									{
+										"type": "link",
+										"href": "./README.md",
+										"title": null,
+										"children": [
+											{
+												"type": "text",
+												"value": "link back to the README"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": ", and here's an image:"
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "image",
+										"src": "/__mdxserve/getAsset?path=%2Fsrv%2Fexample%2Fassets%2Flogo.png",
+										"alt": "Logo",
+										"title": null
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "inline-code",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Inline code"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Use "
+									},
+									{
+										"type": "inlineCode",
+										"value": "npx mdxserve serve -w ."
+									},
+									{
+										"type": "text",
+										"value": " to start the server, or pass "
+									},
+									{
+										"type": "inlineCode",
+										"value": "-p <port>"
+									},
+									{
+										"type": "text",
+										"value": " to pick a port. See\n"
+									},
+									{
+										"type": "link",
+										"href": "./README.md",
+										"title": null,
+										"children": [
+											{
+												"type": "inlineCode",
+												"value": "renderListing()"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " for how directory listings are built."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "fenced-code-blocks",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Fenced code blocks"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Plain text:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "text",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "This is plain text without syntax highlighting.\nUse it to judge the default code block foreground and contrast."
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "TypeScript:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "ts",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "interface ServeOptions {\n  dir: string;\n  port: number;\n}\n\nfunction resolvePort(preferred: number): number {\n  // Falls back to a free port if `preferred` is already taken.\n  return isPortFree(preferred) ? preferred : findFreePort();\n}"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "TypeScript again, longer, with a title, line numbers, and a couple of highlighted\nlines (fence meta: "
+									},
+									{
+										"type": "inlineCode",
+										"value": "ts title=\"server.ts\" showLineNumbers {3-4}"
+									},
+									{
+										"type": "text",
+										"value": "):"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "ts",
+								"title": "server.ts",
+								"showLineNumbers": true,
+								"highlightLines": [3, 4],
+								"value": "import { createServer } from \"node:http\";\nimport { createReadStream } from \"node:fs\";\nimport { extname, join } from \"node:path\";\nimport { stat } from \"node:fs/promises\";\n\nconst MIME_TYPES: Record<string, string> = {\n  \".html\": \"text/html\",\n  \".css\": \"text/css\",\n  \".js\": \"application/javascript\",\n  \".json\": \"application/json\",\n  \".png\": \"image/png\",\n  \".svg\": \"image/svg+xml\",\n};\n\ninterface StaticServerOptions {\n  root: string;\n  port: number;\n}\n\nasync function serveFile(root: string, requestPath: string) {\n  const filePath = join(root, requestPath);\n  const info = await stat(filePath);\n  if (info.isDirectory()) {\n    return serveFile(root, join(requestPath, \"index.html\"));\n  }\n  const type = MIME_TYPES[extname(filePath)] ?? \"application/octet-stream\";\n  return { stream: createReadStream(filePath), type };\n}\n\nexport function createStaticServer({ root, port }: StaticServerOptions) {\n  const server = createServer(async (req, res) => {\n    try {\n      const { stream, type } = await serveFile(root, req.url ?? \"/\");\n      res.setHeader(\"content-type\", type);\n      stream.pipe(res);\n    } catch {\n      res.statusCode = 404;\n      res.end(\"Not found\");\n    }\n  });\n  server.listen(port);\n  return server;\n}"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Python:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "python",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "import http.server\nimport socketserver\n\nPORT = 4040\n\nwith socketserver.TCPServer((\"\", PORT), http.server.SimpleHTTPRequestHandler) as httpd:\n    print(f\"Serving at http://localhost:{PORT}\")\n    httpd.serve_forever()"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "JSON:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "json",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "{\n  \"name\": \"my-docs\",\n  \"port\": 4040,\n  \"files\": [\"01-markdown.md\", \"02-mdx-basics.mdx\"]\n}"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Bash, with one very long line to exercise horizontal scrolling inside the block\ninstead of the page:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "bash",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "# Install and run without a local install\nnpx mdxserve serve -w docs/ -p 5000\n\n# Or install it once and reuse it\nnpm install -g mdxserve\nmdxserve serve -w docs/\n\n# A single very long command, to check the code block scrolls horizontally on its own rather than widening the page\nmdxserve serve -w docs/ -w ~/notes -w ~/work/design-docs -w ~/work/runbooks -w ~/work/postmortems -p 5000 --host 0.0.0.0"
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "mermaid-diagrams",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Mermaid diagrams"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "A fenced block with the "
+									},
+									{
+										"type": "inlineCode",
+										"value": "mermaid"
+									},
+									{
+										"type": "text",
+										"value": " language renders as a diagram. Use the\n"
+									},
+									{
+										"type": "strong",
+										"children": [
+											{
+												"type": "text",
+												"value": "Diagram / Code"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " toggle in the block header to switch between the rendered\ndiagram and the raw source."
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": "mermaid-diagrams>~mermaid-1",
+								"lang": "mermaid",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "flowchart LR\n  Browser -->|GET /docs/intro.mdx| Server\n  Server -->|page shell| Browser\n  Browser -->|getDocument /docs/intro.mdx| Server\n  Server -->|JSON tree| Browser\n  Browser --> Render[Rendered page]"
+							},
+							{
+								"type": "code",
+								"id": "mermaid-diagrams>~mermaid-2",
+								"lang": "mermaid",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "sequenceDiagram\n  participant U as User\n  participant M as mdxserve\n  U->>M: open folder\n  M-->>U: directory listing\n  U->>M: click file.mdx\n  M-->>U: document as a JSON tree\n  M--)U: doc-changed when the file is saved"
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"version": "762ee37b1c398a37d1ee60ca6d00092cdd1d48cdc9ba450219bc164f0b0ec0b9"
+}

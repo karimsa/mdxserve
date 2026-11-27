@@ -20,6 +20,7 @@ const offline: RealtimeClient = {
 	onDocChanged: () => () => {},
 	onListingChanged: () => () => {},
 	onRootsChanged: () => () => {},
+	close() {},
 };
 
 export const realtime: RealtimeClient = typeof window === "undefined" ? offline : browserClient();

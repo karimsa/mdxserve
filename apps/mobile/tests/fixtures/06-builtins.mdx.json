@@ -1,0 +1,1459 @@
+{
+	"document": {
+		"schemaVersion": 1,
+		"metadata": {
+			"openGraph": []
+		},
+		"toc": [
+			{
+				"id": "callout",
+				"label": "Callout",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "tooltip",
+				"label": "Tooltip",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "tabs",
+				"label": "Tabs",
+				"kind": "heading",
+				"children": [
+					{
+						"id": "builtin-tabs>overview",
+						"label": "Overview",
+						"kind": "tab",
+						"children": []
+					},
+					{
+						"id": "builtin-tabs>example-list",
+						"label": "Example list",
+						"kind": "tab",
+						"children": []
+					},
+					{
+						"id": "builtin-tabs>code",
+						"label": "Code",
+						"kind": "tab",
+						"children": []
+					}
+				]
+			},
+			{
+				"id": "badge",
+				"label": "Badge",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "diff",
+				"label": "Diff",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "card",
+				"label": "Card",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "kbd",
+				"label": "Kbd",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "filetree",
+				"label": "FileTree",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "chart",
+				"label": "Chart",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "sparkline",
+				"label": "Sparkline",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "screenshot",
+				"label": "Screenshot",
+				"kind": "heading",
+				"children": []
+			},
+			{
+				"id": "discovering-builtins-from-the-cli",
+				"label": "Discovering builtins from the CLI",
+				"kind": "heading",
+				"children": []
+			}
+		],
+		"children": [
+			{
+				"type": "section",
+				"id": "builtin-components",
+				"level": 1,
+				"heading": [
+					{
+						"type": "text",
+						"value": "Builtin components"
+					}
+				],
+				"children": [
+					{
+						"type": "paragraph",
+						"children": [
+							{
+								"type": "inlineCode",
+								"value": "mdxserve"
+							},
+							{
+								"type": "text",
+								"value": " ships a small library of components that are available in every "
+							},
+							{
+								"type": "inlineCode",
+								"value": ".md"
+							},
+							{
+								"type": "text",
+								"value": " and "
+							},
+							{
+								"type": "inlineCode",
+								"value": ".mdx"
+							},
+							{
+								"type": "text",
+								"value": "\nfile with no "
+							},
+							{
+								"type": "inlineCode",
+								"value": "import"
+							},
+							{
+								"type": "text",
+								"value": ". They are the only components a document can use: a document cannot\nimport or define its own, and props take literal values only (arrays, objects, strings,\nnumbers, booleans and null)."
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "callout",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Callout"
+							}
+						],
+						"children": [
+							{
+								"type": "component",
+								"id": "callout>~callout-1",
+								"name": "Callout",
+								"props": {},
+								"children": [
+									{
+										"type": "paragraph",
+										"children": [
+											{
+												"type": "text",
+												"value": "This is the default "
+											},
+											{
+												"type": "inlineCode",
+												"value": "note"
+											},
+											{
+												"type": "text",
+												"value": " tone. No import was needed to use "
+											},
+											{
+												"type": "inlineCode",
+												"value": "<Callout>"
+											},
+											{
+												"type": "text",
+												"value": " on this page."
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "component",
+								"id": "callout>~callout-2",
+								"name": "Callout",
+								"props": {
+									"tone": "tip"
+								},
+								"children": [
+									{
+										"type": "paragraph",
+										"children": [
+											{
+												"type": "inlineCode",
+												"value": "tone=\"tip\""
+											},
+											{
+												"type": "text",
+												"value": " is for a helpful aside — a shortcut, a default worth knowing about."
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "component",
+								"id": "callout>~callout-3",
+								"name": "Callout",
+								"props": {
+									"tone": "warn",
+									"title": "Before you continue"
+								},
+								"children": [
+									{
+										"type": "paragraph",
+										"children": [
+											{
+												"type": "inlineCode",
+												"value": "tone=\"warn\""
+											},
+											{
+												"type": "text",
+												"value": " switches the palette, and "
+											},
+											{
+												"type": "inlineCode",
+												"value": "title"
+											},
+											{
+												"type": "text",
+												"value": " renders as a bold heading above the body.\nTones: "
+											},
+											{
+												"type": "inlineCode",
+												"value": "note"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "tip"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "ok"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "warn"
+											},
+											{
+												"type": "text",
+												"value": ", "
+											},
+											{
+												"type": "inlineCode",
+												"value": "danger"
+											},
+											{
+												"type": "text",
+												"value": ". ("
+											},
+											{
+												"type": "inlineCode",
+												"value": "type=\"warn\""
+											},
+											{
+												"type": "text",
+												"value": "/"
+											},
+											{
+												"type": "inlineCode",
+												"value": "type=\"info\""
+											},
+											{
+												"type": "text",
+												"value": " still work as a\ndeprecated alias for "
+											},
+											{
+												"type": "inlineCode",
+												"value": "tone"
+											},
+											{
+												"type": "text",
+												"value": ".)"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "tooltip",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Tooltip"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Hover over "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Tooltip",
+										"props": {
+											"content": "A tooltip on plain inline text."
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "this dotted word"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " to\nsee a tippy.js tooltip themed to match mdxserve. Tooltips also work on other inline builtins,\nlike this "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Tooltip",
+										"props": {
+											"content": "Tooltips can wrap a Badge too.",
+											"placement": "right"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "\n"
+											},
+											{
+												"type": "component",
+												"id": null,
+												"name": "Badge",
+												"props": {
+													"tone": "info"
+												},
+												"children": [
+													{
+														"type": "text",
+														"value": "hover me"
+													}
+												]
+											},
+											{
+												"type": "text",
+												"value": "\n"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": "."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "tabs",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Tabs"
+							}
+						],
+						"children": [
+							{
+								"type": "tabs",
+								"id": "builtin-tabs",
+								"defaultValue": "overview",
+								"tabs": [
+									{
+										"id": "builtin-tabs>overview",
+										"value": "overview",
+										"label": "Overview",
+										"children": [
+											{
+												"type": "paragraph",
+												"children": [
+													{
+														"type": "inlineCode",
+														"value": "Tabs"
+													},
+													{
+														"type": "text",
+														"value": " reads its "
+													},
+													{
+														"type": "inlineCode",
+														"value": "Tab"
+													},
+													{
+														"type": "text",
+														"value": " children to build a tab list and cross-fades between panels.\nPanel content is regular prose — lists, code fences, anything MDX supports."
+													}
+												]
+											}
+										]
+									},
+									{
+										"id": "builtin-tabs>example-list",
+										"value": "example-list",
+										"label": "Example list",
+										"children": [
+											{
+												"type": "list",
+												"ordered": false,
+												"start": null,
+												"items": [
+													{
+														"checked": null,
+														"children": [
+															{
+																"type": "paragraph",
+																"children": [
+																	{
+																		"type": "text",
+																		"value": "Tabs remember which panel was active"
+																	}
+																]
+															}
+														]
+													},
+													{
+														"checked": null,
+														"children": [
+															{
+																"type": "paragraph",
+																"children": [
+																	{
+																		"type": "text",
+																		"value": "Switching animates an underline between tab labels"
+																	}
+																]
+															}
+														]
+													},
+													{
+														"checked": null,
+														"children": [
+															{
+																"type": "paragraph",
+																"children": [
+																	{
+																		"type": "text",
+																		"value": "Arrow keys move focus between tabs"
+																	}
+																]
+															}
+														]
+													}
+												]
+											}
+										]
+									},
+									{
+										"id": "builtin-tabs>code",
+										"value": "code",
+										"label": "Code",
+										"children": [
+											{
+												"type": "code",
+												"id": null,
+												"lang": "tsx",
+												"title": null,
+												"showLineNumbers": false,
+												"highlightLines": [],
+												"value": "<Tabs id=\"nested-tabs\" defaultValue=\"b\">\n  <Tab label=\"A\" value=\"a\">First panel</Tab>\n  <Tab label=\"B\" value=\"b\">Second panel</Tab>\n</Tabs>"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "badge",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Badge"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Tones: "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "neutral"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "neutral"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "teal"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "teal"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": "\n"
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "info"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "info"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "ok"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "ok"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "warn"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "warn"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": "\n"
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "danger"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "danger"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "note"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "note"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Variants: "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"variant": "soft"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "soft"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"variant": "solid"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "solid"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": "\n"
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"variant": "outline"
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "outline"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Status dots: "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "ok",
+											"dot": true
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "Online"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "danger",
+											"dot": true
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "Offline"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": "\n"
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Badge",
+										"props": {
+											"tone": "warn",
+											"dot": true
+										},
+										"children": [
+											{
+												"type": "text",
+												"value": "Degraded"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "color=\"gray\"|\"sky\"|\"green\"|\"amber\"|\"red\"|\"violet\""
+									},
+									{
+										"type": "text",
+										"value": " still works as a deprecated alias for "
+									},
+									{
+										"type": "inlineCode",
+										"value": "tone"
+									},
+									{
+										"type": "text",
+										"value": "."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "diff",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Diff"
+							}
+						],
+						"children": [
+							{
+								"type": "component",
+								"id": "config-diff",
+								"name": "Diff",
+								"props": {
+									"title": "server.ts",
+									"language": "ts",
+									"before": "const server = http.createServer(handler);\nserver.listen(3000);\nconsole.log(\"listening\");",
+									"after": "const server = http.createServer(handler);\nconst port = Number(process.env.PORT ?? 4040);\nserver.listen(port);\nconsole.log(`listening on ${port}`);"
+								},
+								"children": []
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "Diff"
+									},
+									{
+										"type": "text",
+										"value": " renders a GitHub-style diff between "
+									},
+									{
+										"type": "inlineCode",
+										"value": "before"
+									},
+									{
+										"type": "text",
+										"value": " and "
+									},
+									{
+										"type": "inlineCode",
+										"value": "after"
+									},
+									{
+										"type": "text",
+										"value": ", with a pill to switch between\nthe unified view above and a side-by-side split view, and a copy button that copies "
+									},
+									{
+										"type": "inlineCode",
+										"value": "after"
+									},
+									{
+										"type": "text",
+										"value": ".\nSame-length removed/added blocks get intra-line highlights when the changed portion of the\nline is small enough to be worth marking."
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "With a longer snippet, unchanged runs longer than "
+									},
+									{
+										"type": "inlineCode",
+										"value": "2 * context"
+									},
+									{
+										"type": "text",
+										"value": " (or just "
+									},
+									{
+										"type": "inlineCode",
+										"value": "context"
+									},
+									{
+										"type": "text",
+										"value": " at the very\nstart/end) collapse into a clickable separator — set "
+									},
+									{
+										"type": "inlineCode",
+										"value": "context={1}"
+									},
+									{
+										"type": "text",
+										"value": " here to make that show up\nwith only two small, far-apart changes:"
+									}
+								]
+							},
+							{
+								"type": "component",
+								"id": "server-diff",
+								"name": "Diff",
+								"props": {
+									"title": "config.yaml",
+									"context": 1,
+									"before": "service:\nname: sample-service\nreplicas: 2\nimage: ghcr.io/example/sample-service:1.4.0\nport: 8080\nenv: production\nregion: us-east1\nresources:\n  requests:\n    cpu: 500m\n    memory: 512Mi\n  limits:\n    cpu: \"1\"\n    memory: 1Gi\nhealthCheck:\n  path: /healthz\n  interval: 30s\nlogging:\n  level: info\n  format: json",
+									"after": "service:\nname: sample-service\nreplicas: 4\nimage: ghcr.io/example/sample-service:1.4.0\nport: 8080\nenv: production\nregion: us-east1\nresources:\n  requests:\n    cpu: 500m\n    memory: 512Mi\n  limits:\n    cpu: \"1\"\n    memory: 1Gi\nhealthCheck:\n  path: /healthz\n  interval: 30s\nlogging:\n  level: debug\n  format: json"
+								},
+								"children": []
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "mdx",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "<Diff id=\"server-diff\"\n  title=\"server.ts\"\n  language=\"ts\"\n  before={`const server = http.createServer(handler);\\nserver.listen(3000);\\nconsole.log(\"listening\");`}\n  after={`const server = http.createServer(handler);\\nconst port = Number(process.env.PORT ?? 4040);\\nserver.listen(port);\\nconsole.log(\\`listening on \\${port}\\`);`}\n/>"
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "card",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Card"
+							}
+						],
+						"children": [
+							{
+								"type": "component",
+								"id": "card>~cardgrid-1",
+								"name": "CardGrid",
+								"props": {},
+								"children": [
+									{
+										"type": "component",
+										"id": "card>~card-1",
+										"name": "Card",
+										"props": {
+											"icon": "rocket",
+											"title": "Getting started",
+											"description": "Point mdxserve at a folder and it starts serving.",
+											"href": "/01-markdown.md",
+											"meta": "2 min read"
+										},
+										"children": []
+									},
+									{
+										"type": "component",
+										"id": "card>~card-2",
+										"name": "Card",
+										"props": {
+											"icon": "terminal",
+											"title": "CLI reference",
+											"description": "Every flag, its default, and what it changes.",
+											"href": "/01-markdown.md",
+											"meta": "Reference"
+										},
+										"children": []
+									},
+									{
+										"type": "component",
+										"id": "card>~card-3",
+										"name": "Card",
+										"props": {
+											"icon": "git-branch",
+											"title": "Diagrams",
+											"description": "Mermaid flowcharts and sequence diagrams render inline.",
+											"interactive": true
+										},
+										"children": []
+									}
+								]
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "CardGrid"
+									},
+									{
+										"type": "text",
+										"value": " lays its "
+									},
+									{
+										"type": "inlineCode",
+										"value": "Card"
+									},
+									{
+										"type": "text",
+										"value": " children out in a responsive grid; "
+									},
+									{
+										"type": "inlineCode",
+										"value": "href"
+									},
+									{
+										"type": "text",
+										"value": " (or "
+									},
+									{
+										"type": "inlineCode",
+										"value": "interactive"
+									},
+									{
+										"type": "text",
+										"value": ") turns\non the hover lift and trailing arrow."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "kbd",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Kbd"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Press "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Kbd",
+										"props": {},
+										"children": [
+											{
+												"type": "text",
+												"value": "⌘"
+											}
+										]
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Kbd",
+										"props": {},
+										"children": [
+											{
+												"type": "text",
+												"value": "K"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " to open search, or "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Kbd",
+										"props": {},
+										"children": [
+											{
+												"type": "text",
+												"value": "esc"
+											}
+										]
+									},
+									{
+										"type": "text",
+										"value": " to close it."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "filetree",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "FileTree"
+							}
+						],
+						"children": [
+							{
+								"type": "component",
+								"id": "project-tree",
+								"name": "FileTree",
+								"props": {
+									"nodes": [
+										{
+											"name": "docs",
+											"children": [
+												{
+													"name": "guides",
+													"children": [
+														{
+															"name": "install.mdx",
+															"path": "install"
+														},
+														{
+															"name": "deploy.mdx",
+															"path": "deploy"
+														}
+													]
+												},
+												{
+													"name": "readme.md",
+													"path": "readme"
+												}
+											]
+										},
+										{
+											"name": "package.json"
+										}
+									],
+									"activePath": "deploy"
+								},
+								"children": []
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "nodes"
+									},
+									{
+										"type": "text",
+										"value": " is a plain JSON array of "
+									},
+									{
+										"type": "inlineCode",
+										"value": "{ name, path?, children?, open? }"
+									},
+									{
+										"type": "text",
+										"value": " — pass it inline, since\nit has to be JSON-serializable. "
+									},
+									{
+										"type": "inlineCode",
+										"value": "activePath"
+									},
+									{
+										"type": "text",
+										"value": " highlights the matching row."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "chart",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Chart"
+							}
+						],
+						"children": [
+							{
+								"type": "component",
+								"id": "latency-chart",
+								"name": "Chart",
+								"props": {
+									"filename": "requests.json",
+									"type": "bar",
+									"unit": "ms",
+									"data": [
+										{
+											"label": "Mon",
+											"p50": 42,
+											"p99": 180
+										},
+										{
+											"label": "Tue",
+											"p50": 38,
+											"p99": 165
+										},
+										{
+											"label": "Wed",
+											"p50": 51,
+											"p99": 210
+										},
+										{
+											"label": "Thu",
+											"p50": 44,
+											"p99": 190
+										},
+										{
+											"label": "Fri",
+											"p50": 36,
+											"p99": 150
+										}
+									],
+									"series": ["p50", "p99"],
+									"yLabel": "Latency",
+									"xLabel": "This week"
+								},
+								"children": []
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "type"
+									},
+									{
+										"type": "text",
+										"value": " is "
+									},
+									{
+										"type": "inlineCode",
+										"value": "bar"
+									},
+									{
+										"type": "text",
+										"value": ", "
+									},
+									{
+										"type": "inlineCode",
+										"value": "line"
+									},
+									{
+										"type": "text",
+										"value": ", "
+									},
+									{
+										"type": "inlineCode",
+										"value": "area"
+									},
+									{
+										"type": "text",
+										"value": ", or "
+									},
+									{
+										"type": "inlineCode",
+										"value": "histogram"
+									},
+									{
+										"type": "text",
+										"value": "; "
+									},
+									{
+										"type": "inlineCode",
+										"value": "series"
+									},
+									{
+										"type": "text",
+										"value": " picks which keys of each "
+									},
+									{
+										"type": "inlineCode",
+										"value": "data"
+									},
+									{
+										"type": "text",
+										"value": "\nentry to plot (up to four before a table reads better). "
+									},
+									{
+										"type": "inlineCode",
+										"value": "unit"
+									},
+									{
+										"type": "text",
+										"value": " suffixes the axis and\ntooltip values. Bar charts also take "
+									},
+									{
+										"type": "inlineCode",
+										"value": "orientation=\"horizontal\""
+									},
+									{
+										"type": "text",
+										"value": " for long labels; see\n"
+									},
+									{
+										"type": "inlineCode",
+										"value": "07-charts.mdx"
+									},
+									{
+										"type": "text",
+										"value": " for both, plus a histogram over raw "
+									},
+									{
+										"type": "inlineCode",
+										"value": "values"
+									},
+									{
+										"type": "text",
+										"value": "."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "sparkline",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Sparkline"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Requests over the last hour: "
+									},
+									{
+										"type": "component",
+										"id": null,
+										"name": "Sparkline",
+										"props": {
+											"values": [12, 18, 15, 22, 19, 27, 24, 31, 28, 35]
+										},
+										"children": []
+									},
+									{
+										"type": "text",
+										"value": ",\ntrending up."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "screenshot",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Screenshot"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "inlineCode",
+										"value": "Screenshot"
+									},
+									{
+										"type": "text",
+										"value": " frames an image as a macOS window, so a picture of an app or web page reads as a\nwindow rather than a bare bitmap. "
+									},
+									{
+										"type": "inlineCode",
+										"value": "src"
+									},
+									{
+										"type": "text",
+										"value": " resolves relative to the document like a Markdown\nimage; "
+									},
+									{
+										"type": "inlineCode",
+										"value": "title"
+									},
+									{
+										"type": "text",
+										"value": " names the window and "
+									},
+									{
+										"type": "inlineCode",
+										"value": "caption"
+									},
+									{
+										"type": "text",
+										"value": " adds a note underneath. The expand control in the\ntitle bar opens the image full-screen, where you can drag to pan and scroll to zoom."
+									}
+								]
+							},
+							{
+								"type": "component",
+								"id": "app-screenshot",
+								"name": "Screenshot",
+								"props": {
+									"src": "/__mdxserve/getAsset?path=%2Fsrv%2Fexample%2Fassets%2Freader-light.jpg",
+									"alt": "mdxserve rendering a Markdown document in the light theme",
+									"title": "mdxserve — 01-markdown.md",
+									"caption": "The reader view, with the table of contents pinned to the right."
+								},
+								"children": []
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "Keep plain "
+									},
+									{
+										"type": "inlineCode",
+										"value": "![alt](src)"
+									},
+									{
+										"type": "text",
+										"value": " for diagrams, logos, and photos — the window chrome only makes sense\naround something that was on a screen."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "section",
+						"id": "discovering-builtins-from-the-cli",
+						"level": 2,
+						"heading": [
+							{
+								"type": "text",
+								"value": "Discovering builtins from the CLI"
+							}
+						],
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "The same metadata that describes each builtin — its props, defaults, and when to use it — is\npublished as a JSON registry at build time, and can be queried from the command line:"
+									}
+								]
+							},
+							{
+								"type": "code",
+								"id": null,
+								"lang": "bash",
+								"title": null,
+								"showLineNumbers": false,
+								"highlightLines": [],
+								"value": "# List every builtin component\nmdxserve components search\n\n# Search by name, description, or prop\nmdxserve components search callout\n\n# Show full details for one component, including a props table\nmdxserve components show Callout\n\n# Get the raw registry entry as JSON (handy for tools/AI agents)\nmdxserve components show Callout --json"
+							},
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"type": "text",
+										"value": "This is the same registry an AI coding agent can query to find out what components are\navailable before writing docs for you."
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"version": "ca9109898dfa807880d95f92fa65e46dc555d46cc73871d8f943f7d8ccdcb3ab"
+}

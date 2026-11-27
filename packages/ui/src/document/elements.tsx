@@ -1,9 +1,10 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import type { ErrorNode } from "@mdxserve/client/document/tree-types";
 import Kbd from "../builtins/Kbd";
 import { Icon } from "../primitives/Icon";
 import { Code, Heading, Link } from "../primitives/Text";
+import { useDocumentEnvironment } from "./environment";
 
 /*
  * The app's document elements: React Native views and text in the prose's type scale. A block
@@ -55,7 +56,11 @@ export function List({
  * own, beside the item's content, whose blocks (paragraphs, a nested list) stack one under
  * another.
  */
-export function ListItem({ checked, children }: Children & { checked: boolean | null }) {
+export function ListItem({
+	checked,
+	box,
+	children,
+}: Children & { checked: boolean | null; box?: ReactNode }) {
 	const list = useContext(ListContext);
 	const index = useContext(ItemIndexContext);
 	const marker = list?.ordered ? `${list.start + index}.` : "•";
@@ -64,25 +69,58 @@ export function ListItem({ checked, children }: Children & { checked: boolean | 
 			{checked === null ? (
 				<Text className={`min-w-4 text-right ${PROSE} text-text-muted`}>{marker}</Text>
 			) : (
-				<TaskBox checked={checked} />
+				(box ?? <TaskBox checked={checked} />)
 			)}
 			<View className="min-w-0 flex-1">{children}</View>
 		</View>
 	);
 }
 
-/** A task list item's box, checked or not; it shows what the file says and does not toggle. */
-function TaskBox({ checked }: { checked: boolean }) {
+/**
+ * A task list item's box, checked or not. With `onToggle` the reader can tick it; without, it
+ * shows what the file says. `disabled` greys it while another tick is being saved.
+ */
+export function TaskBox({
+	checked,
+	onToggle,
+	disabled = false,
+}: {
+	checked: boolean;
+	onToggle?: () => void;
+	disabled?: boolean;
+}) {
+	const icon = (
+		<Icon
+			name={checked ? "square-check" : "square"}
+			size="md"
+			className={disabled ? "text-text-subtle" : "text-text-accent"}
+		/>
+	);
+	if (!onToggle) {
+		return (
+			<View
+				accessible={true}
+				role="checkbox"
+				aria-checked={checked}
+				aria-disabled={true}
+				className="mt-1"
+			>
+				{icon}
+			</View>
+		);
+	}
 	return (
-		<View
-			accessible={true}
+		<Pressable
 			role="checkbox"
 			aria-checked={checked}
-			aria-disabled={true}
+			aria-disabled={disabled}
+			disabled={disabled}
+			onPress={onToggle}
+			hitSlop={8}
 			className="mt-1"
 		>
-			<Icon name={checked ? "square-check" : "square"} size="md" className="text-text-accent" />
-		</View>
+			{icon}
+		</Pressable>
 	);
 }
 
@@ -139,8 +177,13 @@ export function Anchor({
 	);
 }
 
-/** An image at the width of the text, as tall as its aspect ratio makes it once it loads. */
-export function Picture({ src, alt }: { src: string; alt: string; title: string | null }) {
+/**
+ * An image at the width of the text, as tall as its aspect ratio makes it once it loads; the
+ * environment's `renderImage` when it has one (the app's expo-image).
+ */
+export function Picture({ src, alt, title }: { src: string; alt: string; title: string | null }) {
+	const { renderImage } = useDocumentEnvironment();
+	if (renderImage) return renderImage({ src, alt, title });
 	return (
 		<Image
 			source={{ uri: src }}
@@ -202,7 +245,7 @@ const PHRASING: Record<string, string> = {
 /**
  * One of the lowercase elements a document may write, drawn with what React Native has: text
  * styles for the phrasing ones, a key cap for `kbd`, views for `details` and the table parts
- * (a table is laid out one row under another). An image is drawn like a Markdown image.
+ * (a table is laid out one row under another, and scrolls sideways when wider than the screen). An image is drawn like a Markdown image.
  */
 export function RawElement({
 	tag,
@@ -227,6 +270,13 @@ export function RawElement({
 		return <Picture src={String(props.src ?? "")} alt={String(props.alt ?? "")} title={null} />;
 	if (tag === "kbd") return <Kbd>{children}</Kbd>;
 	if (tag in PHRASING) return <Text className={PHRASING[tag]}>{children}</Text>;
+	// A table scrolls sideways in its own box, so a wide one never widens a narrow screen.
+	if (tag === "table")
+		return (
+			<ScrollView horizontal={true} className="my-2">
+				<View>{children}</View>
+			</ScrollView>
+		);
 	if (tag === "tr") return <View className="flex-row gap-4">{children}</View>;
 	if (tag === "td" || tag === "th")
 		return <Text className={`${PROSE} ${tag === "th" ? "font-semibold" : ""}`}>{children}</Text>;

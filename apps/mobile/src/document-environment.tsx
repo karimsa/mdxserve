@@ -1,4 +1,4 @@
-import { Component, useState, type ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
 import Badge from "@mdxserve/ui/builtins/Badge";
 import Callout from "@mdxserve/ui/builtins/Callout";
@@ -13,12 +13,18 @@ import Sparkline from "@mdxserve/ui/builtins/Sparkline";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import Tooltip from "@mdxserve/ui/builtins/Tooltip";
 import type { DocumentEnvironment, TabsView } from "@mdxserve/ui/document/environment";
+import { DocumentImage } from "./document/DocumentImage";
+import { useSelectedTab } from "./document/tab-selection";
 
-/** A `Tabs` node, its selection kept while the document is on screen. */
+/**
+ * A `Tabs` node. Its selection lives in the document screen's `TabSelection`, so a link or the
+ * table of contents can open the tab a heading sits in.
+ */
 function DocumentTabs({ id, defaultValue, tabs }: TabsView) {
-	const [selected, setSelected] = useState(
-		tabs.some((tab) => tab.value === defaultValue) ? defaultValue : (tabs[0]?.value ?? ""),
-	);
+	const initial = tabs.some((tab) => tab.value === defaultValue)
+		? defaultValue
+		: (tabs[0]?.value ?? "");
+	const [selected, setSelected] = useSelectedTab(id, initial);
 	return <Tabs id={id} tabs={tabs} selected={selected} onSelect={setSelected} />;
 }
 
@@ -58,8 +64,9 @@ class BuiltinErrorBoundary extends Component<
 /**
  * The app's side of the shared node renderers (@mdxserve/ui/document/nodes): the shared
  * builtins, code as a plain monospace frame until the app highlights code (U6) and draws Mermaid
- * in a WebView (phase 4), and web links opened in the browser. Images load from their `src`
- * until the document screen (phase 4) supplies the server's asset URL.
+ * in a WebView (4.7), images through expo-image, and web links opened in the browser. The
+ * document screen extends it with the server's asset URLs, its own links and task boxes the
+ * reader can tick (`DocumentScreen`).
  */
 export const appDocumentEnvironment: DocumentEnvironment = {
 	components: {
@@ -93,6 +100,7 @@ export const appDocumentEnvironment: DocumentEnvironment = {
 			</ScrollView>
 		</View>
 	),
+	renderImage: (image) => <DocumentImage {...image} />,
 	assetUrl: (src) => src,
 	openLink: (href) => {
 		if (/^(https?|mailto):/i.test(href)) void Linking.openURL(href);
