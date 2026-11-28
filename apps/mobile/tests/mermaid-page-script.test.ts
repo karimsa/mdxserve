@@ -6,7 +6,12 @@ import { diagramMessageSchema } from "../src/diagram/messages";
 interface PageRun {
 	posted: unknown[];
 	initialized: unknown[];
-	svg: { width: string | null; hasStyle: boolean } | null;
+	svg: {
+		width: string | null;
+		height: string | null;
+		fit: string | null;
+		hasStyle: boolean;
+	} | null;
 	leftover: boolean;
 	viewBoxes: string[];
 }
@@ -34,7 +39,13 @@ describe("the page script", () => {
 				securityLevel: "strict",
 			},
 		]);
-		expect(run.svg).toEqual({ width: "100%", hasStyle: false });
+		// The drawing fills the view and fits whole inside it, however tall.
+		expect(run.svg).toEqual({
+			width: "100%",
+			height: "100%",
+			fit: "xMidYMid meet",
+			hasStyle: false,
+		});
 		expect(run.posted).toEqual([
 			{ kind: "ready" },
 			{

@@ -82,7 +82,12 @@ async function run(scenario) {
 	return {
 		posted,
 		initialized,
-		svg: svg && { width: svg.getAttribute("width"), hasStyle: svg.hasAttribute("style") },
+		svg: svg && {
+			width: svg.getAttribute("width"),
+			height: svg.getAttribute("height"),
+			fit: svg.getAttribute("preserveAspectRatio"),
+			hasStyle: svg.hasAttribute("style"),
+		},
 		leftover: window.document.getElementById("ddiagram-1") !== null,
 		viewBoxes,
 	};

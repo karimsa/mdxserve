@@ -154,6 +154,8 @@
 			svg.removeAttribute("style");
 			svg.setAttribute("width", "100%");
 			svg.setAttribute("height", "100%");
+			// The whole drawing fits the view, however tall, centred: never cropped to fill it.
+			svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 			drawing = svg;
 			base =
 				width > 0 && height > 0
