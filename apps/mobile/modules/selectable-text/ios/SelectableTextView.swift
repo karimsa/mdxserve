@@ -66,15 +66,6 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   let onComment = EventDispatcher()
   let onPressRun = EventDispatcher()
   let onTextHeight = EventDispatcher()
-  // TEMPORARY K-gate diagnostics: what the view received and drew, for the gallery's check.
-  let onDiagnostics = EventDispatcher()
-  // TEMPORARY K-gate diagnostics: each stage of a Comment press.
-  let onCommentTrace = EventDispatcher()
-
-  private func trace(_ stage: String, _ detail: String) {
-    onCommentTrace(["stage": stage, "detail": detail])
-  }
-  private var reportedDiagnostics = ""
 
   private(set) var runs: [TextRun] = []
   /// Why the last `runs` could not be read, if they could not.
@@ -290,50 +281,6 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
       reportedHeight = height
       onTextHeight(["height": height])
     }
-    reportDiagnostics()
-  }
-
-  // MARK: - TEMPORARY K-gate diagnostics
-
-  private func reportDiagnostics() {
-    let shown = textView.attributedText ?? NSAttributedString()
-    var color = "none"
-    var font = "none"
-    if shown.length > 0 {
-      if let first = shown.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor {
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        first.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        color = String(format: "rgba(%.0f,%.0f,%.0f,%.2f)", red * 255, green * 255, blue * 255, alpha)
-      }
-      if let first = shown.attribute(.font, at: 0, effectiveRange: nil) as? UIFont {
-        font = "\(first.fontName) \(first.pointSize)"
-      }
-    }
-    let manager = textView.layoutManager
-    let used = manager.usedRect(for: textView.textContainer)
-    let summary: [String: Any] = [
-      "runs": runs.count,
-      "runsError": runsError ?? "",
-      "firstRunColor": runs.first.map { String(format: "%.0f", $0.color) } ?? "",
-      "storageLength": storage.length,
-      "shownLength": shown.length,
-      "glyphs": manager.numberOfGlyphs,
-      "color": color,
-      "font": font,
-      "frame": NSCoder.string(for: bounds),
-      "textFrame": NSCoder.string(for: textView.frame),
-      "contentSize": NSCoder.string(for: textView.contentSize),
-      "usedRect": NSCoder.string(for: used),
-      "container": NSCoder.string(for: textView.textContainer.size),
-      "hidden": "\(isHidden)/\(textView.isHidden) alpha \(alpha)/\(textView.alpha)",
-      "window": window != nil,
-      "sameStorage": textView.textStorage === storage,
-    ]
-    let key = summary.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";")
-    if key != reportedDiagnostics {
-      reportedDiagnostics = key
-      onDiagnostics(summary)
-    }
   }
 
   // MARK: - Selection
@@ -358,15 +305,10 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     editMenuForTextIn range: NSRange,
     suggestedActions: [UIMenuElement]
   ) -> UIMenu? {
-    trace(
-      "native menu",
-      "range \(range.location)+\(range.length), selected \(textView.selectedRange.location)+\(textView.selectedRange.length), title \(commentTitle ?? "none")"
-    )
     guard let title = commentTitle, range.length > 0 else {
       return UIMenu(children: suggestedActions)
     }
     let comment = UIAction(title: title, image: UIImage(systemName: "text.bubble")) { [weak self] _ in
-      self?.trace("native action", "fired")
       self?.comment(range)
     }
     // First, so it is on the menu's first page beside Copy.
@@ -377,14 +319,9 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     let current = textView.selectedRange
     let range = current.length > 0 ? current : menuRange
     guard range.length > 0, NSMaxRange(range) <= storage.length else {
-      trace(
-        "native dropped",
-        "selected \(current.location)+\(current.length), menu \(menuRange.location)+\(menuRange.length), length \(storage.length)"
-      )
       return
     }
     let text = (storage.string as NSString).substring(with: range)
-    trace("native sent", "\(range.location)..\(NSMaxRange(range)) \"\(text)\"")
     onComment([
       "start": range.location,
       "end": NSMaxRange(range),

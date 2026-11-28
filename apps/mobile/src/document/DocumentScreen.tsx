@@ -570,13 +570,7 @@ function DocumentReader({
 	const { blocks: treeBlocks, startDraft } = model;
 	const restricted = server.permissions === "restricted";
 	const selection = useMemo<DocumentSelection>(
-		() => ({
-			blocks: treeBlocks,
-			startThread: restricted ? null : startDraft,
-			// TEMPORARY K-gate diagnostics: a Comment press's stages, in Metro's log.
-			onCommentTrace: (stage: string, detail: string) =>
-				console.warn(`[selection] ${stage}: ${detail}`),
-		}),
+		() => ({ blocks: treeBlocks, startThread: restricted ? null : startDraft }),
 		[treeBlocks, restricted, startDraft],
 	);
 
