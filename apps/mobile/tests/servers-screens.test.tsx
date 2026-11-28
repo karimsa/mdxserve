@@ -136,7 +136,7 @@ describe.each(["light", "dark"] as const)("the server screens (%s)", (theme) => 
 		const [server] = await storedServers();
 		expect(server.addresses).toEqual([
 			expect.objectContaining({ url: "http://192.168.1.10:4040", source: "manual" }),
-			expect.objectContaining({ url: TAILNET, source: "manual" }),
+			expect.objectContaining({ url: TAILNET, source: "reported" }),
 		]);
 		expect(await serverList().findByText("Reachable at box.tail1.ts.net:4040")).toBeOnTheScreen();
 	});
@@ -264,6 +264,21 @@ describe("a known server", () => {
 		await act(() => router.push("/servers/add"));
 		await addAddress("http://192.168.1.10:4040");
 		expect(await serverList().findByText("Reachable at 192.168.1.10:4040")).toBeOnTheScreen();
+	});
+
+	it("says where each of its addresses came from", async () => {
+		await seed({
+			addresses: [
+				{ url: TAILNET, source: "reported" },
+				{ url: "http://192.168.1.10:4040", source: "qr" },
+				{ url: "http://10.0.0.5:4040", source: "manual" },
+			],
+		});
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		const details = within(await screen.findByTestId("server-details-content"));
+		expect(details.getByText("Reported by the server")).toBeOnTheScreen();
+		expect(details.getByText("Scanned")).toBeOnTheScreen();
+		expect(details.getByText("Typed")).toBeOnTheScreen();
 	});
 
 	it("is removed after the reader confirms (C4)", async () => {

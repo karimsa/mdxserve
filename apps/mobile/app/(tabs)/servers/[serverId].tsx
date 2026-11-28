@@ -5,7 +5,7 @@ import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Text } from "@mdxserve/ui/primitives/Text";
 import { ServerName } from "../../../src/servers/ServerName";
 import { useServers } from "../../../src/servers/ServersProvider";
-import { displayName, type KnownServer } from "../../../src/servers/store";
+import { displayName, type AddressSource, type KnownServer } from "../../../src/servers/store";
 import { useSideInsets } from "../../../src/side-insets";
 
 /**
@@ -98,9 +98,14 @@ function ServerForm({ server }: { server: KnownServer }) {
 				Addresses
 			</Text>
 			{server.addresses.map((address) => (
-				<Text key={address.url}>
-					<Code>{address.url}</Code>
-				</Text>
+				<View key={address.url}>
+					<Text>
+						<Code>{address.url}</Code>
+					</Text>
+					<Text size="sm" tone="muted">
+						{SOURCE_WORDS[address.source]}
+					</Text>
+				</View>
 			))}
 			<Text size="sm" tone="muted" paragraph={true}>
 				{`mdxserve ${server.version}, ${server.permissions} permissions`}
@@ -117,6 +122,16 @@ function ServerForm({ server }: { server: KnownServer }) {
 		</ScrollView>
 	);
 }
+
+/** Where an address came from, in words. */
+const SOURCE_WORDS: Record<AddressSource, string> = {
+	manual: "Typed",
+	qr: "Scanned",
+	"tailnet-peer": "Found on your tailnet",
+	reported: "Reported by the server",
+	"bonjour-lan": "Found on the network",
+	"bonjour-tailnet": "Found on the network",
+};
 
 const styles = StyleSheet.create({
 	screen: { gap: 8, paddingVertical: 16 },
