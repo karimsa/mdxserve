@@ -81,4 +81,11 @@ image="$(node -e '
 ' "$tmp/document.json")"
 curl -sf -o "$tmp/logo.png" "$base$image"
 cmp -s "$tmp/logo.png" "$examples/assets/logo.png"
+# The smoke server listens on loopback with no tailscale serve address, so no other device can
+# open it: `mdxserve qr` must say so and exit 1.
+if MDXSERVE_HOME="$tmp/home" "$bin" qr >"$tmp/qr.out" 2>"$tmp/qr.err"; then
+  echo "mdxserve qr succeeded against a loopback-only server" >&2
+  exit 1
+fi
+grep -q 'no other device can open it' "$tmp/qr.err"
 echo "smoke ok"
