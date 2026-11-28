@@ -62,7 +62,9 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   let onPressRun = EventDispatcher()
   let onTextHeight = EventDispatcher()
 
-  var runs: [TextRun] = []
+  private(set) var runs: [TextRun] = []
+  /// Why the last `runs` could not be read, if they could not.
+  private(set) var runsError: String?
   var lineHeight: Double = 0
   var fontScale: Double = 1
   var commentTitle: String?
@@ -119,6 +121,17 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
 
   // MARK: - Content
 
+  func setRuns(json: String) {
+    switch decodeProp([TextRun].self, from: json) {
+    case .success(let decoded):
+      runs = decoded
+      runsError = nil
+    case .failure(let error):
+      runs = []
+      runsError = String(describing: error)
+    }
+  }
+
   /// Builds the attributed text from the runs, as React Native builds a `Text`'s.
   func rebuild() {
     let scale = CGFloat(fontScale > 0 ? fontScale : 1)
@@ -163,7 +176,9 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
         range: NSRange(location: 0, length: text.length)
       )
     }
-    storage.setAttributedString(text)
+    // Through the text view's own setter, so it lays out and redraws as for any text it is given.
+    textView.attributedText = text
+    textView.setNeedsDisplay()
     textView.accessibilityTraits = heading ? [.staticText, .header] : .staticText
     textView.accessibilityCustomActions = actions.map { action in
       let index = action.index

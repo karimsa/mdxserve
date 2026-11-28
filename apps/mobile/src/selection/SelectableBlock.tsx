@@ -94,8 +94,10 @@ function colorOf(value: unknown): number | null {
 	return typeof processed === "number" ? processed : null;
 }
 
+/** A number from the stylesheet, which may give a weight as a string ("600"). */
 function numberOf(value: unknown, fallback: number): number {
-	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+	const number = typeof value === "string" ? Number(value) : value;
+	return typeof number === "number" && Number.isFinite(number) ? number : fallback;
 }
 
 /** The look of every kind of run in a block whose text is drawn in `text`'s classes, or null until the stylesheet answers. */

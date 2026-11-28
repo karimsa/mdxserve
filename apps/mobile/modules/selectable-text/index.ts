@@ -1,5 +1,5 @@
 import { requireNativeView, requireOptionalNativeModule } from "expo";
-import type { ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
 import { Platform, type NativeSyntheticEvent, type ViewProps } from "react-native";
 
 /** One run of a block's text in one style, as the native view draws it (ios/SelectableTextModule.swift). */
@@ -38,6 +38,23 @@ export interface SelectableTextProps extends ViewProps {
 	onTextHeight?: (event: NativeSyntheticEvent<{ height: number }>) => void;
 }
 
+/** What the native view takes: the runs and actions as JSON, which Swift decodes with its own types. */
+type NativeProps = Omit<SelectableTextProps, "runs" | "actions"> & {
+	runs: string;
+	actions: string;
+};
+
+function nativeView(): ComponentType<SelectableTextProps> {
+	const Native = requireNativeView<NativeProps>("SelectableText");
+	return function SelectableText({ runs, actions, ...props }: SelectableTextProps) {
+		return createElement(Native, {
+			...props,
+			runs: JSON.stringify(runs),
+			actions: JSON.stringify(actions),
+		});
+	};
+}
+
 /**
  * The selectable text view, or null where its native code is absent: Expo Go, Android and the
  * tests. Only the development build has it. The module is looked up before the view, so an app
@@ -45,5 +62,5 @@ export interface SelectableTextProps extends ViewProps {
  */
 export const SelectableTextView: ComponentType<SelectableTextProps> | null =
 	Platform.OS === "ios" && requireOptionalNativeModule("SelectableText") !== null
-		? requireNativeView<SelectableTextProps>("SelectableText")
+		? nativeView()
 		: null;
