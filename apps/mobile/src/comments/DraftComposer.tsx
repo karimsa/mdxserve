@@ -27,15 +27,15 @@ export function DraftComposer({
 	const [error, setError] = useState<string | null>(null);
 
 	async function send() {
-		const { anchor, body } = draft;
-		const result = await model.send(DRAFT_KEY, () => actions.addThread(anchor, body));
+		const sent = draft;
+		const result = await model.send(DRAFT_KEY, () => actions.addThread(sent.anchor, sent.body));
 		if (!result) return;
 		if (result.kind === "failed") {
 			setError(result.message);
 			return;
 		}
 		setError(null);
-		model.finishDraft(result.threadId);
+		model.finishDraft(result.threadId, sent);
 	}
 
 	return (

@@ -165,8 +165,11 @@ export interface CommentsModel {
 	startDraft(anchor: AnchorFields): void;
 	setDraftBody(body: string): void;
 	cancelDraft(): void;
-	/** The draft was saved as thread `threadId`: it closes, and that thread becomes the active one. */
-	finishDraft(threadId: string): void;
+	/**
+	 * Draft `sent` was saved as thread `threadId`, which becomes the active one. The draft closes
+	 * unless the reader changed it (typed more, selected other text) while it was on its way.
+	 */
+	finishDraft(threadId: string, sent: Draft): void;
 }
 
 /**
@@ -246,8 +249,10 @@ export function useCommentsModel({
 		[],
 	);
 	const cancelDraft = useCallback(() => setDraft(null), []);
-	const finishDraft = useCallback((threadId: string) => {
-		setDraft(null);
+	const finishDraft = useCallback((threadId: string, sent: Draft) => {
+		setDraft((previous) =>
+			previous && previous.body === sent.body && previous.anchor === sent.anchor ? null : previous,
+		);
 		setActiveId(threadId);
 		setFocusRequest((previous) => ({ id: threadId, count: (previous?.count ?? 0) + 1 }));
 	}, []);

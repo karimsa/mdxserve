@@ -231,6 +231,14 @@ function allHosts(tree: unknown, type: string): HostElement[] {
 	return [...(element.type === type ? [element] : []), ...allHosts(element.children ?? [], type)];
 }
 
+function deferred<Value>() {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((settle) => {
+		resolve = settle;
+	});
+	return { promise, resolve };
+}
+
 /** The selectable text views on screen, by the text they show. */
 function selectable(): Map<string, HostElement> {
 	const views = new Map<string, HostElement>();
@@ -333,6 +341,27 @@ describe("commenting on selected text (KB1)", () => {
 		await fireEvent.press(within(draft).getByRole("button", { name: "Cancel" }));
 		expect(screen.queryByTestId("comment-draft")).toBeNull();
 		expect(mockAddThread).not.toHaveBeenCalled();
+	});
+
+	it("keeps text typed, and a new selection made, while the comment was sending", async () => {
+		const created = thread("made", {
+			heading: "Guide",
+			block: "Alpha beta gamma delta",
+			quote: "Alpha",
+		});
+		const answer = deferred<{ threads: CommentThread[]; threadId: string }>();
+		mockAddThread.mockImplementation(() => answer.promise);
+		await openDocument();
+		await comment("Alpha beta gamma delta", "Alpha");
+		await fireEvent.changeText(draftField(), "First");
+		await fireEvent.press(screen.getByRole("button", { name: "Send comment" }));
+		await fireEvent.changeText(draftField(), "First, and more");
+		await comment("Second paragraph here", "Second");
+		await act(async () => answer.resolve({ threads: [created], threadId: "made" }));
+		const draft = await screen.findByTestId("comment-draft");
+		expect(within(draft).getByText("Second")).toBeOnTheScreen();
+		expect(draftField().props.value).toBe("First, and more");
+		expect(mockAddThread).toHaveBeenCalledTimes(1);
 	});
 
 	it("offers Copy only on a restricted server, which takes no writes (KA14)", async () => {
