@@ -51,6 +51,17 @@ export default function RootLayout() {
 									{/* Full screen, so nothing is drawn under a folded display's vertical bar
 									    and a swipe down never fights a pan; its items are native bar items. */}
 									<Stack.Screen name="diagram" options={{ presentation: "fullScreenModal" }} />
+									{/* The system's own bar, sized by iOS, and none of the tabs' wordmark header.
+									    Opaque, as iOS 27 can minimise a translucent bar and draw its items over the
+									    content instead of in a folded display's vertical bar. */}
+									<Stack.Screen
+										name="contents"
+										options={{
+											presentation: "pageSheet",
+											title: "Contents",
+											headerTransparent: false,
+										}}
+									/>
 								</Stack>
 								<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
 							</ThemeProvider>

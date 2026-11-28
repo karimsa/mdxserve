@@ -9,7 +9,7 @@ import { DocumentEnvironmentProvider } from "@mdxserve/ui/document/environment";
 import { NodeList } from "@mdxserve/ui/document/nodes";
 import { appDocumentEnvironment } from "../src/document-environment";
 import { documentRows, rowType } from "../src/document/rows";
-import { tocLines } from "../src/document/TocSheet";
+import { tocLines } from "../src/document/contents";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
 import { classesInAppSource, classesInSource } from "./stylesheet/source-classes.js";
 import markdownTour from "./fixtures/01-markdown.md.json";
@@ -54,7 +54,7 @@ describe.each(Object.entries(FIXTURES))("the rows of %s", (_, { document }) => {
 	});
 
 	it("place every heading and tab of the table of contents in a row", () => {
-		const lines = tocLines(document.toc);
+		const lines = tocLines(document.toc, indexDocument(document).sectionLevels);
 		expect(lines.length).toBeGreaterThan(0);
 		for (const line of lines) expect(rowOf.get(line.id)).toBeLessThan(rows.length);
 	});
@@ -98,7 +98,7 @@ describe("the reading screen's classes", () => {
 			const { classes } = resolveTheme(sheet, theme);
 			const used = [
 				...classesInAppSource("src/document/DocumentScreen.tsx"),
-				...classesInAppSource("src/document/TocSheet.tsx"),
+				...classesInAppSource("src/document/ContentsScreen.tsx"),
 				...classesInAppSource("src/document/DocumentImage.tsx"),
 				// `"th"` is a tag name a class template compares with, not a class.
 				...classesInSource("document/elements.tsx").filter((name) => name !== "th"),
