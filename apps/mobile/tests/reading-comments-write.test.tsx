@@ -147,6 +147,12 @@ const mockProbe = jest.fn(
 	async (origin: string): Promise<ProbeResult> =>
 		mockProbeAnswers.get(origin) ?? { kind: "failed", cause: "could not connect" },
 );
+/** Like the server: a write that lands is what the next read of the threads returns. */
+async function mockWrite(answer: Promise<{ threads: CommentThread[] }>) {
+	const result = await answer;
+	mockThreads = result.threads;
+	return result;
+}
 const mockAddReply = jest.fn(async (_: unknown) => ({ threads: mockThreads }));
 const mockEdit = jest.fn(async (_: unknown) => ({ threads: mockThreads }));
 const mockSetResolved = jest.fn(async (_: unknown) => ({ threads: mockThreads }));
@@ -159,9 +165,9 @@ jest.mock("@mdxserve/client/api", () => ({
 	createApiClient: () => ({
 		getDocument: { query: mockGetDocument },
 		getDocComments: { query: mockGetDocComments },
-		addCommentReply: { mutate: mockAddReply },
-		editComment: { mutate: mockEdit },
-		setCommentThreadResolved: { mutate: mockSetResolved },
+		addCommentReply: { mutate: (input: unknown) => mockWrite(mockAddReply(input)) },
+		editComment: { mutate: (input: unknown) => mockWrite(mockEdit(input)) },
+		setCommentThreadResolved: { mutate: (input: unknown) => mockWrite(mockSetResolved(input)) },
 	}),
 }));
 
@@ -424,6 +430,30 @@ describe("writing comments on a document", () => {
 		await openDocument();
 		await openPanel();
 		expect(screen.getByTestId("comments-list").props.keyboardShouldPersistTaps).toBe("handled");
+	});
+
+	it("shows a change made elsewhere while a write was on its way", async () => {
+		mockThreads = [BETA];
+		const replying = deferred<{ threads: CommentThread[] }>();
+		mockAddReply.mockImplementation(() => replying.promise);
+		await openDocument();
+		await openPanel();
+		await selectThread("beta gamma");
+		await typeReply("Mine");
+		await fireEvent.press(sendButton());
+		// Someone else replies too; the server now holds both, but the write answers with an
+		// older list that has only this reply.
+		const both = thread("beta", BETA.anchor, { replies: ["Mine", "From the web"] });
+		const read = mockGetDocComments.getMockImplementation()!;
+		mockGetDocComments.mockImplementation(async () => ({ threads: [both], diagnostics: [] }));
+		try {
+			await act(async () =>
+				replying.resolve({ threads: [thread("beta", BETA.anchor, { replies: ["Mine"] })] }),
+			);
+			expect(await screen.findByText("From the web")).toBeOnTheScreen();
+		} finally {
+			mockGetDocComments.mockImplementation(read);
+		}
 	});
 
 	it("keeps the typed reply and shows the failure until a send works (KA13)", async () => {

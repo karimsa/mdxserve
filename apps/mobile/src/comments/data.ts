@@ -77,6 +77,9 @@ export function useCommentActions(server: KnownServer, path: string): CommentAct
 						diagnostics: cached?.diagnostics ?? [],
 						threads,
 					}));
+					// The answer shows at once, but a read that finished while the write was on its way
+					// may hold someone else's newer change: read the threads again, so the newest wins.
+					void queryClient.invalidateQueries({ queryKey: key });
 					return { kind: "ok", threads };
 				} catch (error) {
 					const code = codeOf(error);
