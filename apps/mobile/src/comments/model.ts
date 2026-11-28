@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	resolutionPosition,
 	resolveAnchor,
+	type AnchorFields,
 	type Resolution,
 } from "@mdxserve/client/comments/anchor";
 import { replyDraftOf, withReplyDraft, type ReplyDrafts } from "@mdxserve/client/comments/drafts";
@@ -111,8 +112,16 @@ interface FocusRequest {
 	count: number;
 }
 
+/** A thread being started on text the reader selected: its anchor, and the comment typed so far. */
+export interface Draft {
+	anchor: AnchorFields;
+	body: string;
+}
+
 export interface CommentsModel {
 	threads: readonly CommentThread[];
+	/** The document's blocks in the web's block model, which anchors are made from and found in. */
+	blocks: TreeBlocks | null;
 	grouped: GroupedThreads;
 	/** Where each open thread's anchor was found. */
 	resolutions: ReadonlyMap<string, Resolution>;
@@ -147,6 +156,17 @@ export interface CommentsModel {
 	 * second press while it runs sends nothing (it resolves to null).
 	 */
 	send<Result>(key: string, task: () => Promise<Result>): Promise<Result | null>;
+	/** The new thread being written, shown at the top of the Open threads. */
+	draft: Draft | null;
+	/**
+	 * Opens the comments on a new thread for `anchor`, the text the reader selected. A draft
+	 * already open takes the new anchor and keeps its typed text.
+	 */
+	startDraft(anchor: AnchorFields): void;
+	setDraftBody(body: string): void;
+	cancelDraft(): void;
+	/** The draft was saved as thread `threadId`: it closes, and that thread becomes the active one. */
+	finishDraft(threadId: string): void;
 }
 
 /**
@@ -213,6 +233,23 @@ export function useCommentsModel({
 			running.current.delete(key);
 			setPending(new Set(running.current));
 		}
+	}, []);
+	const [draft, setDraft] = useState<Draft | null>(null);
+	const startDraft = useCallback((anchor: AnchorFields) => {
+		setDraft((previous) => ({ anchor, body: previous?.body ?? "" }));
+		setActiveId(null);
+		setTab("open");
+		setOpen(true);
+	}, []);
+	const setDraftBody = useCallback(
+		(body: string) => setDraft((previous) => (previous ? { ...previous, body } : previous)),
+		[],
+	);
+	const cancelDraft = useCallback(() => setDraft(null), []);
+	const finishDraft = useCallback((threadId: string) => {
+		setDraft(null);
+		setActiveId(threadId);
+		setFocusRequest((previous) => ({ id: threadId, count: (previous?.count ?? 0) + 1 }));
 	}, []);
 	const setPanelOpen = useCallback((next: boolean) => {
 		setOpen(next);
@@ -299,6 +336,7 @@ export function useCommentsModel({
 
 	return {
 		threads,
+		blocks,
 		grouped,
 		resolutions,
 		store,
@@ -317,6 +355,11 @@ export function useCommentsModel({
 		closeEdit,
 		pending,
 		send,
+		draft,
+		startDraft,
+		setDraftBody,
+		cancelDraft,
+		finishDraft,
 	};
 }
 

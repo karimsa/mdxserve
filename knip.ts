@@ -86,7 +86,13 @@ const config: KnipConfig = {
 		"apps/mobile": {
 			// knip's Expo plugin finds the routes in app/ and reads app.config.ts and metro.config.js;
 			// its Jest plugin finds the tests.
-			project: ["app/**/*.tsx!", "src/**/*.{ts,tsx}!", "tests/**/*.{ts,tsx}"],
+			project: [
+				"app/**/*.tsx!",
+				"src/**/*.{ts,tsx}!",
+				// The app's own Expo modules' TypeScript (modules/*/index.ts).
+				"modules/**/*.ts!",
+				"tests/**/*.{ts,tsx}",
+			],
 			// The diagram page tests run it with node (jsdom cannot load under jest).
 			entry: ["tests/setup/page-dom.js"],
 			// jest.config.js maps stylesheets to the one tests/stylesheet/global-setup.js compiles

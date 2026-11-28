@@ -23,6 +23,7 @@ import type { CodeNode } from "@mdxserve/client/document/tree-types";
 import { DiagramBlock } from "../../../src/diagram/DiagramBlock";
 import { appDocumentEnvironment } from "../../../src/document-environment";
 import { SAMPLE_DOCUMENT } from "../../../src/sample-document";
+import { SelectionCheck } from "../../../src/selection/SelectionCheck";
 import { useSideInsets } from "../../../src/side-insets";
 
 /*
@@ -144,6 +145,10 @@ export default function Gallery() {
 			testID="gallery-content"
 		>
 			<Stack.Screen options={{ title: "Gallery" }} />
+
+			<Section title="Selection check">
+				<SelectionCheck />
+			</Section>
 
 			<Section title="Diagrams">
 				{DIAGRAM_NODES.map((node) => (

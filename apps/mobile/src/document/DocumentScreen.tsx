@@ -51,6 +51,7 @@ import {
 	NodeList,
 	type FootnoteInfo,
 } from "@mdxserve/ui/document/nodes";
+import { SelectableBlockContext } from "@mdxserve/ui/document/text-runs";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { SPRINGS } from "@mdxserve/ui/tokens/springs";
@@ -70,6 +71,11 @@ import { displayName, type KnownServer } from "../servers/store";
 import { TREE_SCHEMA_VERSION } from "../servers/tree-schema";
 import { useConnection } from "../servers/use-connection";
 import { usePullToRefresh } from "../pull-to-refresh";
+import {
+	DocumentSelectionContext,
+	selectableBlock,
+	type DocumentSelection,
+} from "../selection/SelectableBlock";
 import { useSideInsets } from "../side-insets";
 import { resolveLink } from "./links";
 import { documentRows, rowType, type DocumentRow } from "./rows";
@@ -212,12 +218,16 @@ function StateView({
 	);
 }
 
-/** A card whose link goes where a Markdown link goes: through the screen's link handler. */
+/**
+ * A card whose link goes where a Markdown link goes: through the screen's link handler. A linked
+ * card is pressed as a whole, so its text is not selectable text, which would take the press.
+ */
 function DocumentCard({ href, ...props }: ComponentProps<typeof Card>) {
 	const { openLink } = useDocumentEnvironment();
-	return (
+	const card = (
 		<Card {...props} href={href} onPress={href && openLink ? () => openLink(href) : undefined} />
 	);
+	return href ? <SelectableBlockContext value={null}>{card}</SelectableBlockContext> : card;
 }
 
 /** A screenshot whose file loads from the server, as a Markdown image does. */
@@ -450,7 +460,8 @@ function DocumentReader({
 			setSheetKey(null);
 			setCommentsOpen(false);
 		},
-		empty: threads.length === 0,
+		// A new thread being written opens the sheet at half height, room for its field.
+		empty: threads.length === 0 && model.draft === null,
 	};
 	const latestSheetView = useRef(sheetView);
 	latestSheetView.current = sheetView;
@@ -555,6 +566,13 @@ function DocumentReader({
 		};
 	}, [origin, path, router, documentRoute, server.id]);
 	const docContext = useMemo(() => ({ path }), [path]);
+	// Selected text starts a thread, except on a restricted server, which takes no writes (KA14).
+	const { blocks: treeBlocks, startDraft } = model;
+	const restricted = server.permissions === "restricted";
+	const selection = useMemo<DocumentSelection>(
+		() => ({ blocks: treeBlocks, startThread: restricted ? null : startDraft }),
+		[treeBlocks, restricted, startDraft],
+	);
 
 	const { refetch } = query;
 	const refetchComments = comments.refetch;
@@ -674,72 +692,84 @@ function DocumentReader({
 					<TabSelectionContext value={tabSelection}>
 						<TaskTogglesProvider value={toggles}>
 							<CommentMarksContext value={model.store}>
-								<Header
-									title={title}
-									server={server}
-									onContents={lines.length > 0 ? openContents : undefined}
-									comments={
-										commentsAvailable
-											? {
-													open: model.grouped.open.length + model.grouped.detached.length,
-													// Opens the comments, or closes them: the column from here, and the
-													// sheet (the top route while it is up) by going back from it.
-													onPress: () => {
-														if (sheetKey !== null) router.back();
-														else model.setOpen(!model.open);
-													},
-												}
-											: undefined
-									}
-								/>
-								<KeyboardAvoidingView behavior="padding" style={{ flex: 1, flexDirection: "row" }}>
-									<View style={{ flex: 1 }} testID="document-pane">
-										<FlashList
-											ref={listRef}
-											data={items}
-											keyExtractor={(item) => (item.kind === "row" ? item.row.key : "~footnotes")}
-											getItemType={(item) =>
-												item.kind === "row" ? rowType(item.row) : "footnotes"
+								<DocumentSelectionContext value={selection}>
+									<SelectableBlockContext value={selectableBlock}>
+										<Header
+											title={title}
+											server={server}
+											onContents={lines.length > 0 ? openContents : undefined}
+											comments={
+												commentsAvailable
+													? {
+															open: model.grouped.open.length + model.grouped.detached.length,
+															// Opens the comments, or closes them: the column from here, and the
+															// sheet (the top route while it is up) by going back from it.
+															onPress: () => {
+																if (sheetKey !== null) router.back();
+																else model.setOpen(!model.open);
+															},
+														}
+													: undefined
 											}
-											renderItem={({ item, index: position }) =>
-												item.kind === "row" ? (
-													<RowView nodes={item.row.nodes} row={position} store={model.store} />
-												) : index ? (
-													<Footnotes index={index} />
-												) : null
-											}
-											ListHeaderComponent={header}
-											contentInsetAdjustmentBehavior="automatic"
-											contentContainerStyle={{
-												...sideInsets,
-												// Beside the panel the document keeps a gutter from it, not from the window.
-												...(column ? { paddingRight: 16 } : {}),
-												paddingTop: 8,
-												paddingBottom: 32,
-											}}
-											refreshControl={
-												<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
-											}
-											testID="document-content"
 										/>
-									</View>
-									{column ? (
-										<Animated.View
-											entering={entering}
-											exiting={exiting}
-											style={{ width: PANEL_WIDTH }}
-											testID="comments-dock"
+										<KeyboardAvoidingView
+											behavior="padding"
+											style={{ flex: 1, flexDirection: "row" }}
 										>
-											<CommentsColumn
-												model={model}
-												loading={sheetView.loading}
-												failure={sheetView.failure}
-												onRetry={sheetView.onRetry}
-												actions={sheetView.actions}
-											/>
-										</Animated.View>
-									) : null}
-								</KeyboardAvoidingView>
+											<View style={{ flex: 1 }} testID="document-pane">
+												<FlashList
+													ref={listRef}
+													data={items}
+													keyExtractor={(item) =>
+														item.kind === "row" ? item.row.key : "~footnotes"
+													}
+													getItemType={(item) =>
+														item.kind === "row" ? rowType(item.row) : "footnotes"
+													}
+													renderItem={({ item, index: position }) =>
+														item.kind === "row" ? (
+															<RowView nodes={item.row.nodes} row={position} store={model.store} />
+														) : index ? (
+															<Footnotes index={index} />
+														) : null
+													}
+													ListHeaderComponent={header}
+													contentInsetAdjustmentBehavior="automatic"
+													contentContainerStyle={{
+														...sideInsets,
+														// Beside the panel the document keeps a gutter from it, not from the window.
+														...(column ? { paddingRight: 16 } : {}),
+														paddingTop: 8,
+														paddingBottom: 32,
+													}}
+													refreshControl={
+														<RefreshControl
+															refreshing={pull.refreshing}
+															onRefresh={pull.onRefresh}
+														/>
+													}
+													testID="document-content"
+												/>
+											</View>
+											{column ? (
+												<Animated.View
+													entering={entering}
+													exiting={exiting}
+													style={{ width: PANEL_WIDTH }}
+													testID="comments-dock"
+												>
+													<CommentsColumn
+														model={model}
+														loading={sheetView.loading}
+														failure={sheetView.failure}
+														onRetry={sheetView.onRetry}
+														actions={sheetView.actions}
+													/>
+												</Animated.View>
+											) : null}
+										</KeyboardAvoidingView>
+									</SelectableBlockContext>
+								</DocumentSelectionContext>
 							</CommentMarksContext>
 						</TaskTogglesProvider>
 					</TabSelectionContext>

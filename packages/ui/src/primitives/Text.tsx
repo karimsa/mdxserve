@@ -80,6 +80,11 @@ export interface HeadingProps {
 	children?: ReactNode;
 }
 
+/** A heading level's face, size, weight, line height and colour. */
+export function headingClasses(level: keyof typeof LEVELS): string {
+	return `font-sans text-text-heading ${LEVELS[level]}`;
+}
+
 /** A heading: `<h1>`…`<h6>` on the web, a header for VoiceOver in the app. */
 export function Heading({ level, nativeID, className = "", children }: HeadingProps) {
 	return (
@@ -87,7 +92,7 @@ export function Heading({ level, nativeID, className = "", children }: HeadingPr
 			role="heading"
 			nativeID={nativeID}
 			{...webProps({ "aria-level": level })}
-			className={`font-sans text-text-heading ${LEVELS[level]} ${className}`}
+			className={`${headingClasses(level)} ${className}`}
 		>
 			{children}
 		</NativeText>

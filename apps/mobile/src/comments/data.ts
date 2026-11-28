@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import type { AnchorFields } from "@mdxserve/client/comments/anchor";
 import type { CommentThread } from "@mdxserve/client/comments/threads";
 import { createWriteQueue } from "@mdxserve/client/comments/write-queue";
 import { useServerClient, useServerQueryOptions } from "../servers/server-query";
@@ -38,6 +39,13 @@ export function useDocThreads(server: KnownServer, path: string) {
 type WriteResult = { kind: "ok"; threads: CommentThread[] } | { kind: "failed"; message: string };
 
 export interface CommentActions {
+	/** Starts a thread on `anchor` (KB1); `threadId` is the one the server made. */
+	addThread(
+		anchor: AnchorFields,
+		body: string,
+	): Promise<
+		{ kind: "ok"; threads: CommentThread[]; threadId: string } | { kind: "failed"; message: string }
+	>;
 	reply(threadId: string, body: string): Promise<WriteResult>;
 	edit(threadId: string, messageId: string, body: string): Promise<WriteResult>;
 	setResolved(threadId: string, resolved: boolean): Promise<WriteResult>;
@@ -55,7 +63,7 @@ function codeOf(error: unknown): string | undefined {
 }
 
 /**
- * The comment writes on one document (KA5 to KA8). A write's answer replaces the cached thread
+ * The comment writes on one document (KA5 to KA8, KB1). A write's answer replaces the cached thread
  * list at once; a failure resolves to the server's message, never throws, so the caller keeps
  * the reader's text (KA13). A write that got no answer checks the server's addresses again, as a
  * failed query does. A `FORBIDDEN` means the server is restricted now: its connection is
@@ -99,6 +107,17 @@ export function useCommentActions(server: KnownServer, path: string): CommentAct
 			});
 		}
 		return {
+			addThread: async (anchor, body) => {
+				// The server names the thread it made; the list it returns may also hold threads
+				// someone else added since this document last read them.
+				let threadId = "";
+				const result = await write(async (client) => {
+					const answer = await client.addCommentThread.mutate({ path, anchor, body });
+					threadId = answer.threadId;
+					return answer;
+				});
+				return result.kind === "ok" ? { ...result, threadId } : result;
+			},
 			reply: (threadId, body) =>
 				write((client) => client.addCommentReply.mutate({ path, threadId, body })),
 			edit: (threadId, messageId, body) =>

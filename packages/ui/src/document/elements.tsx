@@ -12,10 +12,24 @@ import { useResolveClassNames } from "uniwind";
 import { splitByMarks, type TextMark } from "@mdxserve/client/comments/marks";
 import type { ErrorNode } from "@mdxserve/client/document/tree-types";
 import Kbd from "../builtins/Kbd";
-import { Heading, Link } from "../primitives/Text";
+import { Heading, headingClasses, Link } from "../primitives/Text";
 import { SPRINGS } from "../tokens/springs";
 import { CommentMarksContext, type CommentMarks } from "./comment-marks";
 import { useDocumentEnvironment } from "./environment";
+import {
+	CODE_BACKGROUND,
+	CODE_SIZE,
+	CODE_TEXT,
+	FOOTNOTE,
+	isChip,
+	MARK,
+	MARK_ACTIVE,
+	PROSE,
+	SelectableBlockContext,
+	STRONG,
+	textOf,
+	type BlockLook,
+} from "./text-runs";
 
 /*
  * The app's document elements: React Native views and text in the prose's type scale. A block
@@ -32,11 +46,32 @@ interface Block {
 	block?: object;
 }
 
-const PROSE =
-	"font-sans text-[length:var(--size-prose)] leading-[var(--leading-prose)] text-text-body";
+/**
+ * A block's text: the app's selectable text when the development build has it (Copy and Comment
+ * in the selection menu), else `fallback`, the block drawn with `Text`.
+ */
+function SelectableOr({
+	block,
+	look,
+	fallback,
+}: {
+	block: object | undefined;
+	look: BlockLook;
+	fallback: ReactNode;
+}) {
+	const Selectable = useContext(SelectableBlockContext);
+	if (!Selectable || !block) return fallback;
+	return <Selectable block={block} look={look} fallback={fallback} />;
+}
 
-export function Paragraph({ children }: Children & Block) {
-	return <Text className={`my-2 ${PROSE}`}>{children}</Text>;
+export function Paragraph({ block, children }: Children & Block) {
+	return (
+		<SelectableOr
+			block={block}
+			look={{ text: PROSE, spacing: "my-2" }}
+			fallback={<Text className={`my-2 ${PROSE}`}>{children}</Text>}
+		/>
+	);
 }
 
 export function Blockquote({ children }: Children) {
@@ -187,8 +222,14 @@ export function TaskBox({
 }
 
 /** A tight list item's text: one line of runs. */
-export function TightText({ children }: Children & Block) {
-	return <Text className={PROSE}>{children}</Text>;
+export function TightText({ block, children }: Children & Block) {
+	return (
+		<SelectableOr
+			block={block}
+			look={{ text: PROSE, spacing: "" }}
+			fallback={<Text className={PROSE}>{children}</Text>}
+		/>
+	);
 }
 
 /** A Markdown table cell's content, in the table's type: small, the header muted. */
@@ -216,26 +257,12 @@ export function Emphasis({ children }: Children) {
 }
 
 export function Strong({ children }: Children) {
-	return <Text className="font-semibold text-text-heading">{children}</Text>;
+	return <Text className={STRONG}>{children}</Text>;
 }
 
 export function Delete({ children }: Children) {
 	return <Text className="line-through">{children}</Text>;
 }
-
-/**
- * A text node's characters as HTML shows them: a `Text` keeps every newline and run of spaces,
- * so a Markdown soft line break (a newline inside a paragraph) would break the line. Each run of
- * spaces, tabs and newlines becomes one space; a no-break space is kept. A hard line break is a
- * `break` node, drawn by `LineBreak`, and code keeps its own whitespace.
- */
-function textOf(value: string): string {
-	return value.replace(/[ \t\n\r\f]+/g, " ");
-}
-
-/** A comment highlight's background, and the active thread's (the `--comment-mark` tokens). */
-const MARK = "bg-comment-mark";
-const MARK_ACTIVE = "bg-comment-mark-active";
 
 /** Inside a link a highlight does not take the press: the link keeps it. */
 const InsideLinkContext = createContext(false);
@@ -312,8 +339,6 @@ export function MarkedText({
 
 /** JetBrains Mono's descender, as a share of its size (hhea: −300 of 1000 units). */
 const MONO_DESCENT = 0.3;
-/** Code no longer than this, with no space in it, is drawn as a chip. */
-const CHIP_LIMIT = 24;
 
 /**
  * Inline code, sized to sit with the prose (`--size-sm`, JetBrains Mono) and never changing the
@@ -331,7 +356,7 @@ export function InlineCode({ value, source }: { value: string; source?: object }
 	const { fontSize } = useResolveClassNames(CODE_SIZE);
 	const size = typeof fontSize === "number" ? fontSize : FALLBACK_CODE_SIZE;
 	const { marks, active, press } = useMarks(source);
-	if (value.length > CHIP_LIMIT || /\s/.test(value)) {
+	if (!isChip(value)) {
 		return (
 			<Text className={`${CODE_TEXT} ${CODE_SIZE}`}>
 				{source ? <MarkedText source={source} value={value} code={true} /> : value}
@@ -349,7 +374,7 @@ export function InlineCode({ value, source }: { value: string; source?: object }
 	return (
 		<View
 			style={{ transform: [{ translateY: Math.round(size * MONO_DESCENT * 2) / 2 }] }}
-			className={`rounded-xs px-1 ${markClass ?? "bg-code-bg-inline"}`}
+			className={`rounded-xs px-1 ${markClass ?? CODE_BACKGROUND}`}
 		>
 			<Text
 				className={`${CODE_TEXT} ${CODE_SIZE}`}
@@ -361,8 +386,6 @@ export function InlineCode({ value, source }: { value: string; source?: object }
 	);
 }
 
-const CODE_TEXT = "font-mono font-medium text-text-accent";
-const CODE_SIZE = "text-[length:var(--size-sm)]";
 /** `--size-sm`, until the stylesheet answers. */
 const FALLBACK_CODE_SIZE = 13;
 
@@ -405,12 +428,24 @@ export function SectionHeading({
 	level,
 	id,
 	className = "",
+	block,
 	children,
 }: Children & Block & { level: 1 | 2 | 3 | 4 | 5 | 6; id: string; className?: string }) {
 	return (
-		<Heading level={level} nativeID={id} className={`mt-6 mb-2 ${className}`}>
-			{children}
-		</Heading>
+		<SelectableOr
+			block={block}
+			look={{
+				text: headingClasses(level),
+				spacing: `mt-6 mb-2 ${className}`,
+				heading: level,
+				nativeID: id,
+			}}
+			fallback={
+				<Heading level={level} nativeID={id} className={`mt-6 mb-2 ${className}`}>
+					{children}
+				</Heading>
+			}
+		/>
 	);
 }
 
@@ -422,9 +457,7 @@ export function FootnoteRef({
 	describedBy: string;
 	number: number | undefined;
 }) {
-	return (
-		<Text className="text-[length:var(--size-xs)] text-text-link">{`[${number ?? "?"}]`}</Text>
-	);
+	return <Text className={FOOTNOTE}>{`[${number ?? "?"}]`}</Text>;
 }
 
 /** Phrasing elements a document may write, by how the app draws their text. */

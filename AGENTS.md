@@ -40,9 +40,19 @@ scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CL
   from the EAS `development` profile (`developmentClient: true`, internal distribution). Some
   behaviour only exists there: Expo Go 58.0.5 has no `ExpoStatusBar` native module, so
   `verticalBarBehaviorIOS` (iPhone Duo's top bar when unfolded) does nothing in Expo Go
-- Keep the app runnable in Expo Go until phase 4: use only modules Expo Go ships (Expo SDK 58's
-  `bundledNativeModules.json`) and no config plugin that needs a native build. Once phase 4
-  adds native modules of its own (Bonjour, the selection menu), Expo Go stops working
+- Keep the app runnable in Expo Go: of the packages, use only modules Expo Go ships (Expo SDK
+  58's `bundledNativeModules.json`) and no config plugin that needs a native build
+- The app's own native code is local Expo modules in `apps/mobile/modules/<name>/`
+  (`expo-module.config.json`, `ios/*.podspec` and Swift, an `index.ts`), which autolinking
+  builds into the development build only. Each `index.ts` looks its module up with
+  `requireOptionalNativeModule` before asking for its view, and exports null when it is absent,
+  so the same bundle runs in Expo Go and the tests with the behaviour from before the module.
+  Never let a missing module throw at import
+- `modules/selectable-text` is the document's selectable text: in the development build a
+  paragraph, heading, tight list item or quoted paragraph is a `UITextView` the reader selects
+  in, whose menu has Copy and Comment (`src/selection/`). In Expo Go those blocks are `Text`, no
+  text can be selected, and no thread can be started. Its Swift cannot be built or run without
+  the development build: check it in the gallery's "Selection check" on a device
 - `yarn mobile ios` (`expo run:ios`) builds the app and opens it in the iOS simulator, which
   needs Xcode and an iOS simulator runtime
 - Test anything that touches the local network on a device: the iOS simulator does not enforce
