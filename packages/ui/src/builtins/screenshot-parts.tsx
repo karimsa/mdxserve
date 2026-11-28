@@ -5,23 +5,36 @@ import { Pressable } from "../primitives/Pressable";
 
 /**
  * The screenshot at the frame's full width, as tall as its aspect ratio makes it: React Native
- * sizes an image only once it knows its dimensions, which arrive when it loads.
+ * sizes an image only once it knows its dimensions, which arrive when it loads. The whole image
+ * is a button that opens the full-screen view; VoiceOver reads it as `name`.
  */
-export function ScreenshotImage({ src, alt }: { src: string; alt: string }) {
+export function ScreenshotImage({
+	src,
+	alt,
+	name,
+	onPress,
+}: {
+	src: string;
+	alt: string;
+	name: string;
+	onPress(): void;
+}) {
 	const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
 	return (
-		<Image
-			source={{ uri: src }}
-			alt={alt}
-			accessibilityLabel={alt}
-			resizeMode="contain"
-			onLoad={(event) => {
-				const { width, height } = event.nativeEvent.source;
-				if (width > 0 && height > 0) setAspectRatio(width / height);
-			}}
-			className="w-full"
-			style={{ aspectRatio: aspectRatio ?? 16 / 10 }}
-		/>
+		<Pressable accessibilityLabel={`${name}. Opens full screen`} onPress={onPress}>
+			<Image
+				source={{ uri: src }}
+				alt={alt}
+				accessibilityLabel={alt}
+				resizeMode="contain"
+				onLoad={(event) => {
+					const { width, height } = event.nativeEvent.source;
+					if (width > 0 && height > 0) setAspectRatio(width / height);
+				}}
+				className="w-full"
+				style={{ aspectRatio: aspectRatio ?? 16 / 10 }}
+			/>
+		</Pressable>
 	);
 }
 

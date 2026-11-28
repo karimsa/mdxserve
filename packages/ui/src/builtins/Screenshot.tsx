@@ -14,6 +14,7 @@ export interface ExpandedScreenshot {
 	src: string;
 	alt: string;
 	title?: string;
+	caption?: string;
 }
 
 interface Props extends ScreenshotProps {
@@ -34,7 +35,8 @@ function maxWidthOf(width: ScreenshotProps["width"]) {
 
 /**
  * An image in a macOS window frame: traffic lights, the window's title, an expand control,
- * then the image and an optional caption. A `<figure>` on the web.
+ * then the image and an optional caption. A `<figure>` on the web. In the app a press on the
+ * image opens the full-screen view too.
  */
 export default function Screenshot({
 	src,
@@ -51,6 +53,7 @@ export default function Screenshot({
 		src,
 		alt,
 		title,
+		caption,
 	};
 
 	return (
@@ -79,7 +82,12 @@ export default function Screenshot({
 				) : null}
 				<ExpandButton onPress={() => setExpanded(true)} />
 			</View>
-			<ScreenshotImage src={src} alt={alt} />
+			<ScreenshotImage
+				src={src}
+				alt={alt}
+				name={alt || caption || title || "Screenshot"}
+				onPress={() => setExpanded(true)}
+			/>
 			{caption ? <ScreenshotCaption>{caption}</ScreenshotCaption> : null}
 			{renderExpanded ? renderExpanded(view) : <ScreenshotViewer {...view} />}
 		</View>

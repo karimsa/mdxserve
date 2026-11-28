@@ -1,36 +1,46 @@
 import { useState } from "react";
 import { Image, Modal, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pressable } from "../primitives/Pressable";
 import type { ExpandedScreenshot } from "./Screenshot";
 
+/** The space the caption keeps from the sheet's edges, inside the safe area. */
+const GUTTER = 16;
+
 /**
  * The app's full-screen screenshot: a page sheet with the image fitted to it, pinch to zoom
- * (up to 8×) and drag to pan, and Done (or a swipe down) to close. The image is sized from the
- * area the sheet gives it, which on iPad is narrower than the window.
+ * (up to 8×) and drag to pan, and the caption (or the window's title) on a band at the bottom.
+ * The image is sized from the area the sheet gives it, which on iPad is narrower than the
+ * window.
+ *
+ * There is no Done button. A swipe down closes the sheet: on the grabber strip and the caption
+ * band at any zoom, since neither is inside the zoomable area, and on the image once it is
+ * at its top edge. The grabber is also a button, and VoiceOver's escape gesture closes it.
  */
-export function ScreenshotViewer({ open, onClose, src, alt, title }: ExpandedScreenshot) {
+export function ScreenshotViewer({ open, onClose, src, alt, title, caption }: ExpandedScreenshot) {
 	const [area, setArea] = useState<{ width: number; height: number } | null>(null);
+	const insets = useSafeAreaInsets();
+	const label = caption || title;
 	return (
 		<Modal
 			visible={open}
 			presentationStyle="pageSheet"
 			animationType="slide"
+			allowSwipeDismissal={true}
 			onRequestClose={onClose}
 		>
-			<View className="flex-1 bg-surface-sunken">
-				<View className="h-12 flex-row items-center border-b border-border-subtle bg-surface-raised px-4">
-					<Text
-						numberOfLines={1}
-						className="flex-1 font-sans font-semibold leading-normal text-[length:var(--size-sm)] text-text-heading"
-					>
-						{title || alt || "Screenshot"}
-					</Text>
-					<Pressable onPress={onClose} className="h-8 justify-center px-2">
-						<Text className="font-sans font-semibold leading-normal text-[length:var(--size-md)] text-text-accent">
-							Done
-						</Text>
-					</Pressable>
-				</View>
+			<View
+				className="flex-1 bg-surface-sunken"
+				accessibilityViewIsModal={true}
+				onAccessibilityEscape={onClose}
+			>
+				<Pressable
+					accessibilityLabel="Close full screen"
+					onPress={onClose}
+					className="h-6 items-center justify-center"
+				>
+					<View className="h-[5px] w-9 rounded-full bg-border-strong" />
+				</Pressable>
 				<ScrollView
 					testID="screenshot-viewer-area"
 					onLayout={(event) => {
@@ -53,6 +63,21 @@ export function ScreenshotViewer({ open, onClose, src, alt, title }: ExpandedScr
 						/>
 					) : null}
 				</ScrollView>
+				{label ? (
+					<View
+						testID="screenshot-viewer-caption"
+						className="border-t border-border-subtle bg-surface-raised pt-3"
+						style={{
+							paddingLeft: GUTTER + insets.left,
+							paddingRight: GUTTER + insets.right,
+							paddingBottom: 12 + insets.bottom,
+						}}
+					>
+						<Text className="font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-body">
+							{label}
+						</Text>
+					</View>
+				) : null}
 			</View>
 		</Modal>
 	);
