@@ -1,6 +1,12 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Pressable as NativePressable, Text, useWindowDimensions, View } from "react-native";
+import {
+	Pressable as NativePressable,
+	StyleSheet,
+	Text,
+	useWindowDimensions,
+	View,
+} from "react-native";
 import type { CodeNode } from "@mdxserve/client/document/tree-types";
 import { chartDiagramKeyword, chartDiagramMessage } from "@mdxserve/shared/mermaid-chart";
 import {
@@ -13,17 +19,9 @@ import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { CodeFrame, CodeText } from "../document/CodeFrame";
 import { WIDE_WINDOW } from "../vertical-bar";
 import { DirectionButton, ViewToggle, type FrameView } from "./DiagramActions";
-import { CONTROLS_HEIGHT, DiagramControls } from "./DiagramControls";
 import { DiagramNotice } from "./DiagramNotice";
 import { useDiagramViews, type DiagramView } from "./diagram-views";
-import {
-	DiagramWebView,
-	FITTED,
-	type DiagramRequest,
-	type DiagramWebViewHandle,
-	type DiagramZoom,
-} from "./DiagramWebView";
-import { ZOOM_STEP } from "./render-call";
+import { DiagramWebView, type DiagramRequest } from "./DiagramWebView";
 import { inlineDiagramSize, UNMEASURED_HEIGHT } from "./size";
 import { useDiagramSizes } from "./sizes";
 import {
@@ -37,11 +35,17 @@ import { useDiagramTheme } from "./theme";
 /** The share of the window's height an inline diagram may take at most (M8). */
 const MAX_HEIGHT_SHARE = 0.7;
 
+/** The room between the frame and the drawing, on every side. */
+export const DIAGRAM_PADDING = 16;
+
+/** The least height of a drawing, however flat. */
+const MIN_DRAWING_HEIGHT = 48;
+
 /**
  * A fenced `mermaid` block, framed as on the web: a header with the Diagram/Code switch and the
  * flowchart layout control; the diagram drawn by mermaid.js in a WebView
- * (DiagramWebView), scaled to fit the frame, with the web's control stack (full screen, zoom
- * in, reset, zoom out) at its bottom right. A chart diagram is refused with the web client's
+ * (DiagramWebView), scaled to fit inside the frame's padding, a still picture that a tap opens
+ * full screen (DiagramScreen), where it pans and zooms. A chart diagram is refused with the web client's
  * message; a source Mermaid cannot parse shows Mermaid's error; a diagram not drawn within 8
  * seconds shows its source and Try again.
  */
@@ -141,8 +145,6 @@ function DiagramBody({
 	const [state, dispatch] = useReducer(diagramReducer, initialDiagramState(nodeId, requestKey));
 	const [attempt, setAttempt] = useState(0);
 	const [width, setWidth] = useState(0);
-	const [zoom, setZoom] = useState<DiagramZoom>(FITTED);
-	const webviewRef = useRef<DiagramWebViewHandle>(null);
 	const sizes = useDiagramSizes();
 
 	useEffect(() => {
@@ -157,14 +159,15 @@ function DiagramBody({
 	// A reused row may still hold another block's state for one render; it is not this one's.
 	const current = state.nodeId === nodeId ? state : initialDiagramState(nodeId, requestKey);
 	const natural = current.kind === "drawn" ? current.size : sizes.get(source);
+	// The drawing is fitted inside the frame's padding; the box is the drawing and the padding.
 	const height = natural
 		? inlineDiagramSize({
 				natural,
-				available: width,
-				maxHeight: screen.height * MAX_HEIGHT_SHARE,
-				// Room for the control stack beside the drawing.
-				minHeight: CONTROLS_HEIGHT,
-			}).height
+				available: width - 2 * DIAGRAM_PADDING,
+				maxHeight: screen.height * MAX_HEIGHT_SHARE - 2 * DIAGRAM_PADDING,
+				minHeight: MIN_DRAWING_HEIGHT,
+			}).height +
+			2 * DIAGRAM_PADDING
 		: UNMEASURED_HEIGHT;
 	const title =
 		(current.kind === "drawn" ? current.title : null) ?? node.title ?? "Mermaid diagram";
@@ -172,16 +175,11 @@ function DiagramBody({
 	const drawn = current.kind === "drawn";
 	// The drawing's area; kept mounted, hidden, behind a notice, the source or the Code tab.
 	const bodyShown = view === "diagram" && (current.kind === "loading" || drawn);
-	// Zoomed or moved in place, a drag pans the drawing, as on the web; fitted, it scrolls the
-	// document and a tap opens the full view.
-	const zoomed = drawn && !zoom.fitted;
 
 	const webview = (
 		<DiagramWebView
 			key={attempt}
-			ref={webviewRef}
 			request={request}
-			onZoom={setZoom}
 			onRendered={(key, drawing) => {
 				sizes.set(source, drawing.size);
 				dispatch({ kind: "rendered", requestKey: key, ...drawing });
@@ -223,42 +221,32 @@ function DiagramBody({
 				testID="diagram-body"
 				onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
 				className={bodyShown ? "relative" : "hidden"}
-				style={{ height }}
+				style={{ height, padding: DIAGRAM_PADDING }}
 			>
 				{drawn ? null : (
 					<Text className="absolute inset-x-0 top-0 px-4 py-8 text-center font-sans text-[length:var(--size-sm)] text-text-subtle">
 						Rendering diagram…
 					</Text>
 				)}
-				{/* The one accessible element of the diagram (M16); `Pressable` from the UI package
+				{/* The one accessible element of the diagram (M16), and the way into the full view:
+				    the whole area, padding included, takes the tap. `Pressable` from the UI package
 				    would make it a plain button. */}
 				<NativePressable
+					testID="diagram-open"
 					accessibilityRole="imagebutton"
 					accessibilityLabel={`Diagram: ${title}${description ? `. ${description}` : ""}`}
-					accessibilityHint="Opens the full view"
-					disabled={zoomed}
+					accessibilityHint="Opens full screen"
 					onPress={onOpen}
-					className="flex-1"
+					style={StyleSheet.absoluteFill}
+				/>
+				{/* A drawing, not a control: it takes no touches, so a drag scrolls the document. */}
+				<View
+					testID="diagram-surface"
+					pointerEvents="none"
+					className={drawn ? "flex-1" : "flex-1 opacity-0"}
 				>
-					<View
-						testID="diagram-surface"
-						pointerEvents={zoomed ? "auto" : "none"}
-						className={drawn ? "flex-1" : "flex-1 opacity-0"}
-					>
-						{webview}
-					</View>
-				</NativePressable>
-				{drawn ? (
-					<View className="absolute right-3 bottom-3">
-						<DiagramControls
-							zoom={zoom}
-							onExpand={onOpen}
-							onZoomIn={() => webviewRef.current?.zoom({ kind: "zoom", factor: ZOOM_STEP })}
-							onReset={() => webviewRef.current?.zoom({ kind: "reset" })}
-							onZoomOut={() => webviewRef.current?.zoom({ kind: "zoom", factor: 1 / ZOOM_STEP })}
-						/>
-					</View>
-				) : null}
+					{webview}
+				</View>
 			</View>
 		</View>
 	);

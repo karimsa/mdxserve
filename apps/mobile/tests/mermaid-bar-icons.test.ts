@@ -14,7 +14,6 @@ const NAMES = [
 	"arrow-up",
 	"arrow-left",
 	"arrow-right",
-	"code",
 	"x",
 ];
 

@@ -119,7 +119,7 @@ async function openFullView(insets: EdgeInsets, width = 466) {
 	await renderRouter(APP_ROUTES, { initialUrl: "/gallery" });
 	await setInsets(insets);
 	await draw(0);
-	await fireEvent.press(screen.getAllByLabelText("Expand diagram")[0]!);
+	await fireEvent.press(screen.getAllByTestId("diagram-open")[0]!);
 	expect(screen).toHavePathname("/diagram");
 	await setInsets(insets);
 	const viewer = webviews().length - 1;
@@ -148,16 +148,12 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 			["Reset view", "maximize"],
 			["Zoom out", "minus"],
 			["Layout: Top to bottom", "arrow-down"],
-			["Source", "code"],
 			["Done", "x"],
 		]);
 		for (const entry of items()) expect(entry.icon.type).toBe("templateSource");
-		// No floating stack or title bar of its own: the diagram has the whole area, clear of
-		// the vertical bar.
-		// The one stack is the gallery's, under the full view, on the diagram drawn there.
-		expect(
-			screen.queryAllByTestId("diagram-controls", { includeHiddenElements: true }),
-		).toHaveLength(1);
+		// No source view any more, and no floating controls.
+		expect(screen.queryByText(/Phone --> Tailnet --> Server/)).toBeNull();
+		expect(screen.queryByLabelText("Zoom in")).toBeNull();
 		// No title and no bar across the top: the diagram starts at the top, left of the bar.
 		expect(header().props.translucent).toBe(true);
 		expect(screen.queryByText("Left to right (top-down when folded)")).toBeNull();
@@ -225,43 +221,22 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 		expect(item("Layout: Left to right")).toBeTruthy();
 	});
 
-	it("shows the source and back from the Source item", async () => {
-		await openFullView(FOLDED);
-		expect(item("Source").selected).toBeFalsy();
-		await act(async () => item("Source").onPress());
-		expect(item("Source").selected).toBe(true);
-		expect(screen.getAllByText(/Phone --> Tailnet --> Server/).length).toBeGreaterThan(0);
-		expect(item("Zoom in").disabled).toBe(true);
-		await act(async () => item("Source").onPress());
-		expect(item("Source").selected).toBeFalsy();
-	});
-
 	it("goes back to the page on Done", async () => {
 		await openFullView(FOLDED);
 		await act(async () => item("Done").onPress());
 		expect(screen).toHavePathname("/gallery");
 	});
 
-	it("groups the layout and Source in a More menu on an iPhone in portrait", async () => {
+	it("shows the same items across the top on an iPhone in portrait, the diagram below them", async () => {
 		await openFullView(IPHONE, 393);
-		// The items are across the top here, so the diagram starts below the bar.
 		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
 		expect(StyleSheet.flatten(body.props.style as never).paddingTop).toBeGreaterThan(0);
 		expect(items().map((entry) => entry.accessibilityLabel)).toEqual([
 			"Zoom in",
 			"Reset view",
 			"Zoom out",
-			"More",
+			"Layout: Top to bottom",
 			"Done",
-		]);
-		const more = item("More");
-		const titles = (entries: Array<{ title: string; items?: unknown[] }>): unknown[] =>
-			entries.map((entry) =>
-				entry.items ? [entry.title, titles(entry.items as never)] : entry.title,
-			);
-		expect(titles(more.menu.items)).toEqual([
-			["Layout", ["Top to bottom", "Bottom to top", "Left to right (as written)", "Right to left"]],
-			"Source",
 		]);
 	});
 });
@@ -273,12 +248,12 @@ describe("a diagram's full screen view of another kind of diagram", () => {
 		await renderRouter(APP_ROUTES, { initialUrl: "/gallery" });
 		await setInsets(FOLDED);
 		await draw(1);
-		await fireEvent.press(screen.getAllByLabelText("Expand diagram")[0]!);
+		await fireEvent.press(screen.getAllByTestId("diagram-open")[1]!);
 		const labels = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig")
 			.find((candidate) => candidate.props.title === "Diagram")!
 			.props.headerRightBarButtonItems.map(
 				(entry: { accessibilityLabel: string }) => entry.accessibilityLabel,
 			);
-		expect([...labels].reverse()).toEqual(["Zoom in", "Reset view", "Zoom out", "Source", "Done"]);
+		expect([...labels].reverse()).toEqual(["Zoom in", "Reset view", "Zoom out", "Done"]);
 	});
 });

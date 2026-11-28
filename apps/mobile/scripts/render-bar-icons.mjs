@@ -1,7 +1,7 @@
 // Renders the icons of a diagram's full screen view (src/diagram/bar-icons.ts) from the same
 // lucide glyphs the app's Icon draws (stroke 1.75), as PNGs at 1×, 2× and 3×. The native bar
 // shows them as template images, tinted like any bar item, so on a folded iPhone Duo the
-// vertical bar's items match the inline diagram's controls and one another in size.
+// vertical bar's items match the app's other icons and one another in size.
 // Run `yarn mobile bar-icons` after changing the list, and commit the PNGs it writes.
 import { mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,7 +21,6 @@ const NAMES = [
 	"arrow-up",
 	"arrow-left",
 	"arrow-right",
-	"code",
 	"x",
 ];
 

@@ -1,14 +1,12 @@
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ActionSheetIOS, Dimensions, StyleSheet } from "react-native";
 import { Uniwind } from "uniwind";
 import "../src/global.css";
 import type { CodeNode } from "@mdxserve/client/document/tree-types";
 import { chartDiagramMessage } from "@mdxserve/shared/mermaid-chart";
-import { DiagramBlock } from "../src/diagram/DiagramBlock";
-import { CONTROLS_HEIGHT } from "../src/diagram/DiagramControls";
-import { ZOOM_STEP } from "../src/diagram/render-call";
+import { DIAGRAM_PADDING, DiagramBlock } from "../src/diagram/DiagramBlock";
 import { DiagramSizes, DiagramSizesContext } from "../src/diagram/sizes";
 import { DiagramViews, DiagramViewsContext } from "../src/diagram/diagram-views";
 import { router } from "expo-router";
@@ -68,18 +66,6 @@ function webviews() {
 
 async function post(message: unknown, webview = webviews()[0]!) {
 	await fireEvent(webview, "message", { nativeEvent: { data: JSON.stringify(message) } });
-}
-
-/** The zoom calls injected into a WebView, as the page receives them. */
-function zoomsIn(calls: WebViewCalls): unknown[] {
-	const actions: unknown[] = [];
-	for (const code of calls.injected)
-		if (code.includes(".zoom("))
-			// eslint-disable-next-line no-new-func -- running the injected call is the point
-			new Function("window", code)({
-				mdxserveDiagram: { zoom: (action: unknown) => actions.push(action) },
-			});
-	return actions;
 }
 
 /** The page draws the block's current request at 400 × 120. */
@@ -196,12 +182,28 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(request.themeVariables.fontFamily).toContain("Manrope");
 	});
 
-	it("takes no touches inline, so a drag scrolls the document (M2)", async () => {
+	it("is a still picture: a drag scrolls the document, a tap anywhere opens it (M2)", async () => {
 		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		await draw();
 		expect(surface().props.pointerEvents).toBe("none");
+		// No zoom controls in the page: the full view has them.
+		expect(screen.queryByLabelText("Zoom in")).toBeNull();
+		expect(screen.queryByLabelText("Expand diagram")).toBeNull();
+		// The tap target covers the whole frame body, padding included.
+		const target = screen.getByTestId("diagram-open");
+		expect(target.parent?.parent?.props.testID ?? target.parent?.props.testID).toBe("diagram-body");
+		expect(StyleSheet.flatten(target.props.style as never)).toMatchObject({
+			position: "absolute",
+			top: 0,
+			right: 0,
+			bottom: 0,
+			left: 0,
+		});
+		await fireEvent.press(target);
+		expect(push).toHaveBeenCalledWith({ pathname: "/diagram", params: { view: "1" } });
 	});
 
-	it("sizes the frame to the drawing once it is drawn", async () => {
+	it("sizes the frame to the drawing, inside its padding, once it is drawn", async () => {
 		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
 		await layOut(430);
 		expect(bodyHeight()).toBe(200);
@@ -215,14 +217,20 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			title: null,
 			description: null,
 		});
+		// The drawing fits the width left inside 16 pt of padding, and the padding is added back.
+		expect(DIAGRAM_PADDING).toBe(16);
 		expect(bodyHeight()).toBe(
 			inlineDiagramSize({
 				natural: { width: 1200, height: 300 },
-				available: 430,
-				maxHeight: 630,
-				minHeight: CONTROLS_HEIGHT,
-			}).height,
+				available: 430 - 32,
+				maxHeight: 630 - 32,
+				minHeight: 48,
+			}).height + 32,
 		);
+		expect(bodyHeight()).toBe(Math.ceil(300 * (398 / 1200)) + 32);
+		expect(
+			StyleSheet.flatten(screen.getByTestId("diagram-body").props.style as never),
+		).toMatchObject({ padding: 16 });
 		expect(screen.queryByText("Rendering diagram…")).toBeNull();
 	});
 
@@ -275,14 +283,14 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		await post({
 			kind: "rendered",
 			token: lastRequest().token,
-			width: 400,
+			width: 300,
 			height: 320,
 			title: null,
 			description: null,
 		});
 		await view.rerender(<DiagramBlock node={mermaid("flowchart TB\n  A --> C")} />);
 		expect(lastRequest().source).toBe("flowchart TB\n  A --> C");
-		expect(bodyHeight()).toBe(320);
+		expect(bodyHeight()).toBe(320 + 2 * DIAGRAM_PADDING);
 		expect(surface().props.className ?? "").not.toContain("opacity-0");
 		expect(StyleSheet.flatten(surface().props.style as never)?.opacity).not.toBe(0);
 	});
@@ -352,6 +360,7 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		});
 		const image = screen.getByLabelText("Diagram: Login. The app asks the server");
 		expect(image.props.accessibilityRole).toBe("imagebutton");
+		expect(image.props.accessibilityHint).toBe("Opens full screen");
 	});
 
 	it("opens the full screen view on a tap, with what the block shows (M3a)", async () => {
@@ -369,75 +378,6 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(views.get("1")).toMatchObject({ source: FLOW_LR, direction: "LR" });
 		await post({ kind: "ready" });
 		expect(lastRequest().source).toBe(FLOW_LR);
-	});
-
-	it("stacks the web's controls on a drawn diagram: full screen, zoom in, reset, zoom out", async () => {
-		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
-		expect(screen.queryByLabelText("Zoom in")).toBeNull();
-		await draw();
-		const labels = within(screen.getByTestId("diagram-controls"))
-			.getAllByRole("button")
-			.map((button) => button.props.accessibilityLabel);
-		expect(labels).toEqual(["Expand diagram", "Zoom in", "Reset view", "Zoom out"]);
-		// Compact like the web's stack, each still 44 pt wide to a finger and 44 pt tall at the
-		// ends; between two buttons neither reaches into the other.
-		const buttons = within(screen.getByTestId("diagram-controls")).getAllByRole("button");
-		const slops = buttons.map(
-			(button) =>
-				button.props.hitSlop as { top: number; bottom: number; left: number; right: number },
-		);
-		for (const [position, button] of buttons.entries()) {
-			const box = StyleSheet.flatten(button.props.style as never) as {
-				width: number;
-				height: number;
-			};
-			expect(box).toMatchObject({ width: 32, height: 32 });
-			const slop = slops[position]!;
-			expect(box.width + slop.left + slop.right).toBe(44);
-			expect(slop.top).toBe(position === 0 ? 6 : 0);
-			expect(slop.bottom).toBe(position === buttons.length - 1 ? 6 : 0);
-		}
-		// Fitted: nothing to reset; zooming out below fitted is allowed, as on the web.
-		expect(screen.getByLabelText("Reset view")).toBeDisabled();
-		expect(screen.getByLabelText("Zoom out")).toBeEnabled();
-		await fireEvent.press(screen.getByLabelText("Expand diagram"));
-		expect(push).toHaveBeenCalledWith({ pathname: "/diagram", params: { view: "1" } });
-	});
-
-	it("zooms in place from the controls, and pans only while zoomed or moved", async () => {
-		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
-		await draw();
-		const calls = webviewCalls[0]!;
-		await fireEvent.press(screen.getByLabelText("Zoom in"));
-		expect(zoomsIn(calls)).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
-		expect(surface().props.pointerEvents).toBe("none");
-
-		await post({ kind: "zoom", scale: ZOOM_STEP, fitted: false });
-		// Zoomed: a drag pans the drawing, and a tap no longer opens the full view.
-		expect(surface().props.pointerEvents).toBe("auto");
-		expect(screen.getByLabelText("Diagram: Mermaid diagram")).toBeDisabled();
-		expect(screen.getByLabelText("Reset view")).toBeEnabled();
-
-		await fireEvent.press(screen.getByLabelText("Zoom out"));
-		await fireEvent.press(screen.getByLabelText("Reset view"));
-		expect(zoomsIn(calls).slice(1)).toEqual([
-			{ kind: "zoom", factor: 1 / ZOOM_STEP },
-			{ kind: "reset" },
-		]);
-		await post({ kind: "zoom", scale: 1, fitted: true });
-		expect(surface().props.pointerEvents).toBe("none");
-		expect(screen.getByLabelText("Reset view")).toBeDisabled();
-
-		// Moved at 1×: still not the fitted view, so it pans and can be reset.
-		await post({ kind: "zoom", scale: 1, fitted: false });
-		expect(surface().props.pointerEvents).toBe("auto");
-		expect(screen.getByLabelText("Reset view")).toBeEnabled();
-
-		await post({ kind: "zoom", scale: 10, fitted: false });
-		expect(screen.getByLabelText("Zoom in")).toBeDisabled();
-		await post({ kind: "zoom", scale: 0.2, fitted: false });
-		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
-		expect(screen.getByLabelText("Zoom in")).toBeEnabled();
 	});
 
 	it.each([

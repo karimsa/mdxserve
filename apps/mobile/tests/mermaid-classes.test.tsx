@@ -42,7 +42,6 @@ describe("the diagram's classes", () => {
 			...classesIn("src/diagram/DiagramBlock.tsx"),
 			...classesIn("src/diagram/DiagramScreen.tsx"),
 			...classesIn("src/diagram/DiagramNotice.tsx"),
-			...classesIn("src/diagram/DiagramControls.tsx"),
 			...classesIn("src/diagram/DiagramActions.tsx"),
 			...classesIn("src/document/CodeFrame.tsx"),
 			...THEME_CLASSES,
