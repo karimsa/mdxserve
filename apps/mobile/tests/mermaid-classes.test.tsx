@@ -69,7 +69,7 @@ describe.each(["light", "dark"] as const)("Mermaid's theme in the %s theme", (th
 		const expected = mermaidThemeVariables((token) =>
 			token === "--font-core"
 				? "Manrope, -apple-system, sans-serif"
-				: (variables[token] ?? MERMAID_TOKEN_FALLBACKS[token]),
+				: String(variables[token] ?? MERMAID_TOKEN_FALLBACKS[token]),
 		);
 		expect(result.current).toEqual(expected);
 		for (const token of Object.keys(MERMAID_TOKEN_FALLBACKS))
