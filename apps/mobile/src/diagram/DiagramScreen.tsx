@@ -1,9 +1,9 @@
 import { router, Stack } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
-import { Text, useWindowDimensions, View } from "react-native";
+import { useResolveClassNames } from "uniwind";
+import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WIDE_WINDOW } from "../vertical-bar";
 import { DIRECTION_LABEL, DIRECTIONS } from "./DiagramActions";
 import { DiagramNotice } from "./DiagramNotice";
 import { useDiagramView, useDiagramViews, type DiagramView } from "./diagram-views";
@@ -24,10 +24,7 @@ function close() {
 	if (router.canGoBack()) router.back();
 }
 
-/**
- * The screen's title for VoiceOver only: a bar title would cover the top of the diagram on a
- * folded display, where the items live in the vertical bar.
- */
+/** The screen's title for VoiceOver only: the bar shows no text, so it stays as short as it can. */
 function SilentTitle({ children }: { children: string }) {
 	return <View accessible={true} accessibilityRole="header" accessibilityLabel={children} />;
 }
@@ -37,9 +34,13 @@ function SilentTitle({ children }: { children: string }) {
  * whole content area, pinch to zoom from a fifth of fitted to 10× and drag to move it past its
  * edges, and every control a native bar item drawn with the app's lucide glyphs: zoom in,
  * reset, zoom out, the flowchart's layout and Done. On a folded iPhone Duo iOS moves
- * those items into its vertical bar beside the content, and the diagram starts at the top of
- * the screen; in a wide window, or on an iPhone, they sit in the top bar and the diagram starts
- * below it. Five items at most, so they fit across an iPhone's top bar too.
+ * those items into its vertical bar beside the content; in a wide window, or on an iPhone,
+ * they sit in the top bar. Five items at most, so they fit across an iPhone's top bar too.
+ *
+ * The bar stays opaque: react-native-screens lets iOS 27 minimise a translucent bar, and a
+ * minimised bar draws its items as buttons over the content instead of in the vertical bar.
+ * It has no title text and the diagram's own background, so it reads as part of the canvas,
+ * and the diagram starts below it.
  */
 export function DiagramScreen({ viewKey }: { viewKey: string }) {
 	const views = useDiagramViews();
@@ -78,11 +79,8 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 	const webviewRef = useRef<DiagramWebViewHandle>(null);
 	const insets = useSafeAreaInsets();
 	const headerHeight = useHeaderHeight();
-	const screen = useWindowDimensions();
 	const drawn = state.kind === "drawn";
-	// A folded display: the items are in the vertical bar, so nothing is drawn across the top.
-	const beside = screen.width < WIDE_WINDOW && insets.right > 0;
-	const top = beside ? insets.top : headerHeight;
+	const barColour = useResolveClassNames("bg-diagram-bg").backgroundColor;
 	const title = view.node.title ?? "Diagram";
 	const { authored, direction } = view;
 	const zoom = (factor: number | null) =>
@@ -109,7 +107,10 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				options={{
 					title,
 					headerTitle: SilentTitle,
-					headerTransparent: true,
+					headerShadowVisible: false,
+					headerStyle: {
+						backgroundColor: typeof barColour === "string" ? barColour : undefined,
+					},
 				}}
 			/>
 			<Stack.Toolbar placement="right">
@@ -158,7 +159,7 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				testID="diagram-screen-body"
 				className="flex-1"
 				style={{
-					paddingTop: top,
+					paddingTop: headerHeight,
 					paddingLeft: insets.left,
 					paddingRight: insets.right,
 					paddingBottom: insets.bottom,

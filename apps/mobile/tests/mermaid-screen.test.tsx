@@ -5,6 +5,14 @@ import type { EdgeInsets } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 import { ZOOM_STEP } from "../src/diagram/render-call";
 import { APP_ROUTES } from "./app-routes";
+import { loadCompiledStylesheet, resolveTheme } from "./stylesheet/analyze.js";
+
+const sheet = loadCompiledStylesheet();
+
+/** The diagram's background in `theme`, as the stylesheet resolves the token. */
+function canvas(theme: "light" | "dark"): unknown {
+	return resolveTheme(sheet, theme).variables["--diagram-bg"];
+}
 
 jest.mock("expo-constants", () => ({
 	__esModule: true,
@@ -154,15 +162,18 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 		// No source view any more, and no floating controls.
 		expect(screen.queryByText(/Phone --> Tailnet --> Server/)).toBeNull();
 		expect(screen.queryByLabelText("Zoom in")).toBeNull();
-		// No title and no bar across the top: the diagram starts at the top, left of the bar.
-		expect(header().props.translucent).toBe(true);
+		// An opaque bar (iOS 27 minimises a translucent one, and a minimised bar draws its items
+		// over the content instead of in the vertical bar), with no title text and the canvas's
+		// colour; the diagram starts below it, left of the vertical bar.
+		expect(header().props.translucent).toBeFalsy();
+		expect(header().props.hideShadow).toBe(true);
+		expect(header().props.backgroundColor).toBe(canvas(theme));
 		expect(screen.queryByText("Left to right (top-down when folded)")).toBeNull();
 		expect(screen.getByLabelText("Left to right (top-down when folded)")).toBeTruthy();
 		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
-		expect(StyleSheet.flatten(body.props.style as never)).toMatchObject({
-			paddingTop: 0,
-			paddingRight: 84,
-		});
+		const padding = StyleSheet.flatten(body.props.style as never) as Record<string, number>;
+		expect(padding.paddingRight).toBe(84);
+		expect(padding.paddingTop).toBeGreaterThan(0);
 		expect(webviews()[viewer]!.props.scrollEnabled).toBe(false);
 	});
 

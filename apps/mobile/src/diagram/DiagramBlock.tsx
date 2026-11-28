@@ -35,7 +35,7 @@ import { useDiagramTheme } from "./theme";
 /** The share of the window's height an inline diagram may take at most (M8). */
 const MAX_HEIGHT_SHARE = 0.7;
 
-/** The room between the frame and the drawing, on every side. */
+/** @internal Exported for its tests. The room between the frame and the drawing, on every side. */
 export const DIAGRAM_PADDING = 16;
 
 /** The least height of a drawing, however flat. */
