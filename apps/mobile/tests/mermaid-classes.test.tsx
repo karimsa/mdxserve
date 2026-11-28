@@ -1,4 +1,9 @@
-import { describe, expect, it } from "@jest/globals";
+import { afterAll, describe, expect, it } from "@jest/globals";
+import { act, renderHook } from "@testing-library/react-native";
+import { Uniwind } from "uniwind";
+import "../src/global.css";
+import { MERMAID_TOKEN_FALLBACKS, mermaidThemeVariables } from "@mdxserve/shared/mermaid-theme";
+import { useDiagramTheme } from "../src/diagram/theme";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
@@ -49,5 +54,25 @@ describe("the diagram's classes", () => {
 			});
 		});
 		expect(problems).toEqual([]);
+	});
+});
+
+afterAll(() => {
+	Uniwind.setTheme("light");
+});
+
+describe.each(["light", "dark"] as const)("Mermaid's theme in the %s theme", (theme) => {
+	it("takes every colour from the design tokens, as the web client does (M5)", async () => {
+		await act(async () => Uniwind.setTheme(theme));
+		const { result } = await renderHook(() => useDiagramTheme());
+		const { variables } = resolveTheme(sheet, theme);
+		const expected = mermaidThemeVariables((token) =>
+			token === "--font-core"
+				? "Manrope, -apple-system, sans-serif"
+				: (variables[token] ?? MERMAID_TOKEN_FALLBACKS[token]),
+		);
+		expect(result.current).toEqual(expected);
+		for (const token of Object.keys(MERMAID_TOKEN_FALLBACKS))
+			if (token !== "--font-core") expect(variables[token]).toMatch(/^#[0-9a-f]{6}$/i);
 	});
 });
