@@ -1,6 +1,6 @@
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import {
 	memo,
 	useCallback,
@@ -24,9 +24,7 @@ import {
 import Animated, {
 	FadeIn,
 	FadeOut,
-	SlideInDown,
 	SlideInRight,
-	SlideOutDown,
 	SlideOutRight,
 	useReducedMotion,
 } from "react-native-reanimated";
@@ -56,11 +54,12 @@ import {
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { SPRINGS } from "@mdxserve/ui/tokens/springs";
-import { CommentsPanel } from "../comments/CommentsPanel";
+import { CommentsColumn } from "../comments/CommentsPanel";
 import { commentsKey, useCommentActions, useDocThreads } from "../comments/data";
 import { useCommentsModel, type CommentsStore } from "../comments/model";
-import { PANEL_MIN_HEIGHT, PANEL_SHARE, PANEL_WIDTH, panelPlacement } from "../comments/placement";
+import { PANEL_WIDTH, panelPlacement } from "../comments/placement";
 import { RowMarker } from "../comments/RowMarker";
+import { useCommentsViews, type CommentsView } from "../comments/sheet";
 import { appDocumentEnvironment } from "../document-environment";
 import { baseName, pathFromSegments, pathSegments } from "../library/paths";
 import { realtimeFor } from "../servers/realtime";
@@ -310,23 +309,27 @@ function DocumentReader({
 		[origin, server.id, queryClient],
 	);
 	// The listener comes first: joining a document this socket joined before signals "stale" at
-	// once, and that signal is what fetches the edits made while the screen was closed.
-	useFocusEffect(
-		useCallback(() => {
-			if (!realtime) return;
-			const unsubscribe = realtime.onDocChanged((changed) => {
-				if (changed !== path) return;
-				void queryClient.invalidateQueries({ queryKey: [server.id, "getDocument", { path }] });
-				// A comment written anywhere is a change to the file (KA12).
-				void queryClient.invalidateQueries({ queryKey: commentsKey(server.id, path) });
-			});
-			realtime.joinDocument(path);
-			return () => {
-				realtime.leaveDocument(path);
-				unsubscribe();
-			};
-		}, [realtime, path, server.id, queryClient]),
-	);
+	// once, and that signal is what fetches the edits made while the screen was closed. The
+	// document stays in its room while its Comments sheet is open, since it is still on screen
+	// (and usable) behind the sheet; the sheet opens before the screen loses focus, so the room
+	// is not left and joined again.
+	const focused = useIsFocused();
+	const [sheetKey, setSheetKey] = useState<string | null>(null);
+	const live = focused || sheetKey !== null;
+	useEffect(() => {
+		if (!realtime || !live) return;
+		const unsubscribe = realtime.onDocChanged((changed) => {
+			if (changed !== path) return;
+			void queryClient.invalidateQueries({ queryKey: [server.id, "getDocument", { path }] });
+			// A comment written anywhere is a change to the file (KA12).
+			void queryClient.invalidateQueries({ queryKey: commentsKey(server.id, path) });
+		});
+		realtime.joinDocument(path);
+		return () => {
+			realtime.leaveDocument(path);
+			unsubscribe();
+		};
+	}, [realtime, live, path, server.id, queryClient]);
 
 	const index = useMemo(() => (tree ? indexDocument(tree) : null), [tree]);
 	const rows = useMemo(() => (tree ? documentRows(tree) : null), [tree]);
@@ -419,6 +422,55 @@ function DocumentReader({
 	const window = useWindowDimensions();
 	const placement = panelPlacement(window.width);
 	const reducedMotion = useReducedMotion();
+
+	const threads = comments.data?.threads ?? NO_THREADS;
+	// A restricted server's reader sees the threads a document has and has no way to add one.
+	const commentsAvailable = server.permissions !== "restricted" || threads.length > 0;
+	const panelOpen = model.open && commentsAvailable;
+	const commentsFailure =
+		comments.isError && !comments.data
+			? comments.error instanceof Error
+				? comments.error.message
+				: "Something went wrong."
+			: null;
+
+	// In a narrow window the comments are a sheet over the document (app/comments.tsx). It reads
+	// the open view, kept current here on every render; when it goes, the panel is closed. A
+	// document with no threads opens it short.
+	const commentsViews = useCommentsViews();
+	const { setOpen: setCommentsOpen } = model;
+	const refetchThreads = comments.refetch;
+	const sheetView: CommentsView = {
+		model,
+		actions: server.permissions === "restricted" ? null : commentActions,
+		loading: comments.isPending,
+		failure: commentsFailure,
+		onRetry: () => void refetchThreads(),
+		onClosed: () => {
+			setSheetKey(null);
+			setCommentsOpen(false);
+		},
+		empty: threads.length === 0,
+	};
+	const latestSheetView = useRef(sheetView);
+	latestSheetView.current = sheetView;
+	useEffect(() => {
+		if (sheetKey !== null) commentsViews.update(sheetKey, latestSheetView.current);
+	});
+	useEffect(() => {
+		// Only the document in front presents its sheet: one left behind in its tab's stack (a link
+		// followed with its column open) must not cover the one being read when the window narrows.
+		if (placement !== "sheet" || !panelOpen || sheetKey !== null || !focused) return;
+		const key = commentsViews.open(latestSheetView.current);
+		setSheetKey(key);
+		router.push({ pathname: "/comments", params: { view: key } });
+	}, [placement, panelOpen, sheetKey, focused, commentsViews, router]);
+	useEffect(
+		() => () => {
+			if (sheetKey !== null) commentsViews.close(sheetKey);
+		},
+		[commentsViews, sheetKey],
+	);
 
 	// The route's `node`, revealed once the document is first on screen.
 	const revealedTarget = useRef(false);
@@ -606,35 +658,14 @@ function DocumentReader({
 		</View>
 	);
 
-	const threads = comments.data?.threads ?? NO_THREADS;
-	// A restricted server's reader sees the threads a document has and has no way to add one.
-	const commentsAvailable = server.permissions !== "restricted" || threads.length > 0;
-	const panelOpen = model.open && commentsAvailable;
-	const beside = placement === "beside";
-	// Under the document, a comment field with focus takes the whole height, so the keyboard
-	// leaves room for the thread it answers.
-	const expanded = !beside && (model.expanded || model.fieldFocused);
-	const documentHidden = panelOpen && expanded;
-	const panelSize = beside
-		? { width: PANEL_WIDTH }
-		: expanded
-			? { flex: 1 }
-			: { height: Math.max(PANEL_MIN_HEIGHT, Math.round(window.height * PANEL_SHARE)) };
-	const commentsFailure =
-		comments.isError && !comments.data
-			? comments.error instanceof Error
-				? comments.error.message
-				: "Something went wrong."
-			: null;
+	// In a wide window the comments are a column beside the document, unless a sheet opened in
+	// a narrow one is still up.
+	const column = panelOpen && placement === "beside" && sheetKey === null;
 	const glide = SPRINGS.glide;
 	const entering = reducedMotion
 		? FadeIn
-		: (beside ? SlideInRight : SlideInDown)
-				.springify()
-				.stiffness(glide.stiffness)
-				.damping(glide.damping)
-				.mass(glide.mass);
-	const exiting = reducedMotion ? FadeOut : beside ? SlideOutRight : SlideOutDown;
+		: SlideInRight.springify().stiffness(glide.stiffness).damping(glide.damping).mass(glide.mass);
+	const exiting = reducedMotion ? FadeOut : SlideOutRight;
 
 	return (
 		<DocumentEnvironmentProvider value={environment}>
@@ -651,19 +682,18 @@ function DocumentReader({
 										commentsAvailable
 											? {
 													open: model.grouped.open.length + model.grouped.detached.length,
-													onPress: () => model.setOpen(!model.open),
+													// Opens the comments, or closes them: the column from here, and the
+													// sheet (the top route while it is up) by going back from it.
+													onPress: () => {
+														if (sheetKey !== null) router.back();
+														else model.setOpen(!model.open);
+													},
 												}
 											: undefined
 									}
 								/>
-								<KeyboardAvoidingView
-									behavior="padding"
-									style={{ flex: 1, flexDirection: beside ? "row" : "column" }}
-								>
-									<View
-										style={{ flex: 1, display: documentHidden ? "none" : "flex" }}
-										testID="document-pane"
-									>
+								<KeyboardAvoidingView behavior="padding" style={{ flex: 1, flexDirection: "row" }}>
+									<View style={{ flex: 1 }} testID="document-pane">
 										<FlashList
 											ref={listRef}
 											data={items}
@@ -683,7 +713,7 @@ function DocumentReader({
 											contentContainerStyle={{
 												...sideInsets,
 												// Beside the panel the document keeps a gutter from it, not from the window.
-												...(panelOpen && beside ? { paddingRight: 16 } : {}),
+												...(column ? { paddingRight: 16 } : {}),
 												paddingTop: 8,
 												paddingBottom: 32,
 											}}
@@ -693,20 +723,19 @@ function DocumentReader({
 											testID="document-content"
 										/>
 									</View>
-									{panelOpen ? (
+									{column ? (
 										<Animated.View
 											entering={entering}
 											exiting={exiting}
-											style={panelSize}
+											style={{ width: PANEL_WIDTH }}
 											testID="comments-dock"
 										>
-											<CommentsPanel
+											<CommentsColumn
 												model={model}
-												placement={placement}
-												loading={comments.isPending}
-												failure={commentsFailure}
-												onRetry={() => void comments.refetch()}
-												actions={server.permissions === "restricted" ? null : commentActions}
+												loading={sheetView.loading}
+												failure={sheetView.failure}
+												onRetry={sheetView.onRetry}
+												actions={sheetView.actions}
 											/>
 										</Animated.View>
 									) : null}

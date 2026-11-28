@@ -124,9 +124,6 @@ export interface CommentsModel {
 	activeId: string | null;
 	/** Makes a thread active and moves the document to its text (KA4). */
 	selectThread(id: string): void;
-	/** Whether the panel takes the whole height under the document (narrow windows only). */
-	expanded: boolean;
-	setExpanded(expanded: boolean): void;
 	/** The thread a highlight or a row marker opened the panel on: the panel scrolls to it and VoiceOver moves to it. */
 	focusRequest: FocusRequest | null;
 	/** Unsent reply text by thread; it lives as long as the document screen. */
@@ -134,6 +131,15 @@ export interface CommentsModel {
 	setReplyDraft(threadId: string, text: string): void;
 	/** Drops a thread's unsent text once it was sent, unless the reader typed more meanwhile. */
 	clearReplyDraft(threadId: string, sent: string): void;
+	/**
+	 * Edits being made, by `edit:<thread>:<message>`: the field's text, kept here so choosing
+	 * another thread (which folds this one away) does not lose it.
+	 */
+	edits: ReadonlyMap<string, string>;
+	/** Opens, changes or (with null) closes an edit. */
+	setEdit(key: string, text: string | null): void;
+	/** Closes an edit once it was saved, unless the reader changed it meanwhile. */
+	closeEdit(key: string, saved: string): void;
 	/** The writes being saved, by key (`reply:<thread>`, `edit:<thread>:<message>`, `resolve:<thread>`). */
 	pending: ReadonlySet<string>;
 	/**
@@ -141,9 +147,6 @@ export interface CommentsModel {
 	 * second press while it runs sends nothing (it resolves to null).
 	 */
 	send<Result>(key: string, task: () => Promise<Result>): Promise<Result | null>;
-	/** A comment field has focus: under the document the panel then takes the whole height. */
-	fieldFocused: boolean;
-	setFieldFocused(focused: boolean): void;
 }
 
 /**
@@ -165,7 +168,6 @@ export function useCommentsModel({
 	const [open, setOpen] = useState(false);
 	const [tab, setTab] = useState<"open" | "resolved">("open");
 	const [activeId, setActiveId] = useState<string | null>(null);
-	const [expanded, setExpanded] = useState(false);
 	const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
 	const [replyDrafts, setReplyDrafts] = useState<ReplyDrafts>({});
 	const setReplyDraft = useCallback(
@@ -173,6 +175,23 @@ export function useCommentsModel({
 			setReplyDrafts((previous) => withReplyDraft(previous, threadId, text)),
 		[],
 	);
+	const [edits, setEdits] = useState<ReadonlyMap<string, string>>(new Map());
+	const setEdit = useCallback((key: string, text: string | null) => {
+		setEdits((previous) => {
+			const next = new Map(previous);
+			if (text === null) next.delete(key);
+			else next.set(key, text);
+			return next;
+		});
+	}, []);
+	const closeEdit = useCallback((key: string, saved: string) => {
+		setEdits((previous) => {
+			if (previous.get(key) !== saved) return previous;
+			const next = new Map(previous);
+			next.delete(key);
+			return next;
+		});
+	}, []);
 	const clearReplyDraft = useCallback(
 		(threadId: string, sent: string) =>
 			setReplyDrafts((previous) =>
@@ -195,13 +214,9 @@ export function useCommentsModel({
 			setPending(new Set(running.current));
 		}
 	}, []);
-	const [fieldFocused, setFieldFocused] = useState(false);
 	const setPanelOpen = useCallback((next: boolean) => {
 		setOpen(next);
-		if (!next) {
-			setFocusRequest(null);
-			setExpanded(false);
-		}
+		if (!next) setFocusRequest(null);
 	}, []);
 
 	const blocks = useMemo(() => (tree ? collectTreeBlocks(tree) : null), [tree]);
@@ -246,7 +261,6 @@ export function useCommentsModel({
 	const selectThread = useCallback(
 		(id: string) => {
 			setActiveId(id);
-			setExpanded(false);
 			const thread = threads.find((candidate) => candidate.id === id);
 			if (!thread || !blocks || !rows) return;
 			// A resolved thread is not resolved against the document until the reader chooses it.
@@ -294,16 +308,15 @@ export function useCommentsModel({
 		setTab,
 		activeId,
 		selectThread,
-		expanded,
-		setExpanded,
 		focusRequest,
 		replyDrafts,
 		setReplyDraft,
 		clearReplyDraft,
+		edits,
+		setEdit,
+		closeEdit,
 		pending,
 		send,
-		fieldFocused,
-		setFieldFocused,
 	};
 }
 

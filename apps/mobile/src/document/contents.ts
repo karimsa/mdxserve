@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 import type { TocEntry } from "@mdxserve/client/document/tree-types";
+import { FULL_DETENT, HALF_DETENT } from "../glass-sheet";
 
 /** One line of the table of contents: a heading or a tab, indented by its depth. */
 export interface TocLine {
@@ -83,8 +84,18 @@ export class ContentsViews {
 	}
 }
 
-/** One set of open views for every screen. */
-const ContentsViewsContext = createContext(new ContentsViews());
+/** One set of open views for every screen; the root layout reads it to pick a sheet's first height. */
+const openViews = new ContentsViews();
+const ContentsViewsContext = createContext(openViews);
+
+/** A list this long or shorter fits the sheet at half height. */
+const SHORT_LIST = 8;
+
+/** The height the Contents sheet opens at: half for a short list, else full. */
+export function contentsInitialDetent(key: string | undefined): number {
+	const lines = key === undefined ? undefined : openViews.get(key)?.lines;
+	return lines !== undefined && lines.length <= SHORT_LIST ? HALF_DETENT : FULL_DETENT;
+}
 
 export function useContentsViews(): ContentsViews {
 	return useContext(ContentsViewsContext);

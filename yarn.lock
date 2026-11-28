@@ -2845,6 +2845,7 @@ __metadata:
     "@mdxserve/shared": "workspace:*"
     "@mdxserve/ui": "workspace:*"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
+    "@react-native-segmented-control/segmented-control": "npm:2.5.7"
     "@react-native/jest-preset": "npm:0.88.1"
     "@shopify/flash-list": "npm:2.3.2"
     "@tanstack/react-query": "npm:5.101.4"
@@ -4033,6 +4034,16 @@ __metadata:
     react: ">=16"
     react-native: ">=0.57"
   checksum: 10c0/4ec84b7af2ded49dc21f17cc723a0ef341076cbe40cf758dd2daff8734bea63ba83e2fee7e63958984385314b8915b6804135997e07697abdd4141217c847fe9
+  languageName: node
+  linkType: hard
+
+"@react-native-segmented-control/segmented-control@npm:2.5.7":
+  version: 2.5.7
+  resolution: "@react-native-segmented-control/segmented-control@npm:2.5.7"
+  peerDependencies:
+    react: ">=16.0"
+    react-native: ">=0.62"
+  checksum: 10c0/4f684cbcac813d53598107a88056ae8c9e7a5e4e0ed94776706f400828f50ff3bf87e1fda3a34b437b9c5776331f8a4fab4b080b3260534db5183dcc3f20a3c7
   languageName: node
   linkType: hard
 

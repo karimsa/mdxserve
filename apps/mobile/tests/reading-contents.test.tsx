@@ -9,6 +9,16 @@ import type { ServerInfo } from "@mdxserve/shared/server-info";
 import type { ProbeResult } from "../src/servers/connection";
 import { SERVERS_KEY, type KnownServer } from "../src/servers/store";
 import { APP_ROUTES } from "./app-routes";
+import { loadCompiledStylesheet, resolveTheme } from "./stylesheet/analyze.js";
+
+const stylesheet = loadCompiledStylesheet();
+
+/** Whether the device draws Liquid Glass (iOS 26 and later); jest has no native module to ask. */
+let mockGlass = false;
+jest.mock("expo-glass-effect", () => ({
+	...jest.requireActual<object>("expo-glass-effect"),
+	isLiquidGlassAvailable: () => mockGlass,
+}));
 
 jest.mock("expo-constants", () => ({
 	__esModule: true,
@@ -48,7 +58,7 @@ const text = (value: string) => ({ type: "text", value });
 const paragraph = (...children: unknown[]) => ({ type: "paragraph", children });
 
 /** A guide with a heading inside its second tab, which is not the one selected at first. */
-function guide({ extra = false } = {}) {
+function guide({ extra = false, many = false } = {}) {
 	const linuxSetup = { id: "os>linux>linux-setup", label: "Linux setup", kind: "heading" };
 	return {
 		schemaVersion: 1,
@@ -69,6 +79,15 @@ function guide({ extra = false } = {}) {
 				],
 			},
 			...(extra ? [{ id: "later", label: "Added later", kind: "heading", children: [] }] : []),
+			// More lines than fit the sheet at half height.
+			...(many
+				? Array.from({ length: 10 }, (_, position) => ({
+						id: `part-${position}`,
+						label: `Part ${position}`,
+						kind: "heading",
+						children: [],
+					}))
+				: []),
 		],
 		children: [
 			{
@@ -235,9 +254,55 @@ afterEach(async () => {
 });
 
 describe.each(["light", "dark"] as const)("a document's Contents sheet (%s)", (theme) => {
+	const { variables } = resolveTheme(stylesheet, theme);
+
 	beforeEach(async () => {
 		await act(() => Uniwind.setTheme(theme));
 		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
+		mockGlass = false;
+	});
+
+	/** The sheet's screen, as the native stack receives its presentation. */
+	function sheetScreen() {
+		const presented = allHosts(screen.toJSON(), "RNSModalScreen").find(
+			(candidate) => candidate.props.stackPresentation === "formSheet",
+		);
+		if (!presented) throw new Error("No sheet");
+		return presented.props;
+	}
+
+	it("is a sheet like the comments one, opening at half height for a short list", async () => {
+		await openContents(LIBRARY_URL);
+		const presented = sheetScreen();
+		expect(presented.sheetAllowedDetents).toEqual([0.3, 0.5, 1]);
+		expect(presented.sheetGrabberVisible).toBe(true);
+		expect(presented.sheetLargestUndimmedDetentIndex).toBe(1);
+		expect(presented.sheetInitialDetentIndex).toBe(1);
+	});
+
+	it("opens at full height for a list longer than half the sheet holds", async () => {
+		mockDocuments.set(DOC, () => ({ document: guide({ many: true }), version: "v1" }));
+		await openContents(LIBRARY_URL);
+		expect(sheetScreen().sheetInitialDetentIndex).toBe(2);
+	});
+
+	it("is in the page colour, bar and list, where iOS has no Liquid Glass", async () => {
+		await openContents(LIBRARY_URL);
+		const list = screen.getByTestId("contents-list");
+		expect(StyleSheet.flatten(list.props.style).backgroundColor).toBe(variables["--surface-page"]);
+		expect(headerTitled("Contents").props.backgroundColor).toBe(variables["--surface-page"]);
+	});
+
+	it("paints nothing over the system's glass, keeping its bar and title", async () => {
+		mockGlass = true;
+		await openContents(LIBRARY_URL);
+		const list = screen.getByTestId("contents-list");
+		expect(StyleSheet.flatten(list.props.style).backgroundColor).toBeUndefined();
+		expect(StyleSheet.flatten(sheetScreen().style)?.backgroundColor).toBe("transparent");
+		const header = headerTitled("Contents");
+		expect(header.props.backgroundColor).toBe("transparent");
+		expect(header.props.translucent).toBe(false);
+		expect(header.props.hidden ?? false).toBe(false);
 	});
 
 	it("opens as a route under the system bar: its title, no bar item and no wordmark", async () => {

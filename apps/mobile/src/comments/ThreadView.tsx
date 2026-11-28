@@ -42,14 +42,17 @@ function Message({
 }: {
 	message: CommentMessage;
 	threadId: string;
+	/** Set on the active thread: a person's message then offers Edit. */
 	writer: Writer | null;
 }) {
 	const agent = message.author === "agent";
 	const age = relativeTime(message.createdAt);
-	const [editing, setEditing] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	// Message ids are unique only within their thread.
 	const key = `edit:${threadId}:${message.id}`;
+	// The text being edited lives in the model, so it outlasts this thread folding away.
+	const editing = writer?.model.edits.get(key) ?? null;
+	const setEditing = (text: string | null) => writer?.model.setEdit(key, text);
 	// Only a person's message can be changed; the server refuses an agent's.
 	const canEdit = writer !== null && !agent;
 
@@ -64,7 +67,7 @@ function Message({
 		else {
 			setError(null);
 			// Text changed while the save was on its way stays open, unsaved.
-			setEditing((current) => (current === submitted ? null : current));
+			writer.model.closeEdit(key, submitted);
 		}
 	}
 
@@ -72,12 +75,12 @@ function Message({
 		<View className="flex-row gap-2.5">
 			<Avatar author={message.author} />
 			<View className="min-w-0 flex-1">
-				<View className="flex-row items-center">
-					<Text size="sm" className="flex-1 pt-[3px]">
+				<View className="min-h-6 flex-row items-center">
+					<Text size="sm" className="flex-1">
 						<Text size="sm" weight="bold" tone={agent ? "accent" : "heading"}>
 							{agent ? "Agent" : "You"}
 						</Text>
-						<Text size="xs" tone="subtle">
+						<Text size="sm" tone="muted">
 							{`${age === "" ? "" : `  ${age}`}${message.editedAt ? " · edited" : ""}`}
 						</Text>
 					</Text>
@@ -90,10 +93,8 @@ function Message({
 								setEditing(message.body);
 							}}
 							hitSlop={HIT_SLOP}
-							className="flex-row items-center gap-1"
 						>
-							<Icon name="pencil" size={11} className="text-text-subtle" />
-							<Text size="xs" weight="semibold" tone="subtle">
+							<Text size="sm" weight="semibold" tone="muted">
 								Edit
 							</Text>
 						</Pressable>
@@ -114,12 +115,11 @@ function Message({
 							}}
 							pending={writer.model.pending.has(key)}
 							error={error}
-							onFocusChange={writer.model.setFieldFocused}
 							autoFocus={true}
 						/>
 					</View>
 				) : (
-					<Text size="sm" className="mt-[3px]">
+					<Text className="mt-0.5 text-[length:var(--size-md)] leading-[1.45] text-text-heading">
 						{message.body}
 					</Text>
 				)}
@@ -147,6 +147,7 @@ export function ThreadView({
 	focus,
 	onSelect,
 	writer,
+	translucent = false,
 }: {
 	thread: CommentThread;
 	resolution: Resolution | undefined;
@@ -154,6 +155,8 @@ export function ThreadView({
 	focus: boolean;
 	onSelect(): void;
 	writer: Writer | null;
+	/** Over the sheet's see-through material, the active thread's surface lets it show through. */
+	translucent?: boolean;
 }) {
 	const [replyError, setReplyError] = useState<string | null>(null);
 	const [resolveError, setResolveError] = useState<string | null>(null);
@@ -188,29 +191,65 @@ export function ThreadView({
 		);
 		if (result) setResolveError(result.kind === "failed" ? result.message : null);
 	}
+	const quote = (
+		<Text size="sm" numberOfLines={1} className="text-text-heading">
+			<Text size="sm" className={active ? "bg-comment-mark-active" : "bg-comment-mark"}>
+				{thread.anchor.quote}
+			</Text>
+		</Text>
+	);
+	const replies = count - 1;
+	const label = `Thread on: ${thread.anchor.quote}, ${count} ${count === 1 ? "message" : "messages"}`;
+
+	// In the list a thread is its quote, its first message and how many replies it has; choosing
+	// it shows every message, the resolve control, Edit and the reply field.
+	if (!active) {
+		const [first] = thread.messages;
+		return (
+			<Pressable
+				ref={ref}
+				role="button"
+				accessibilityLabel={`Show in the document: ${thread.anchor.quote}`}
+				accessibilityHint={label}
+				onPress={onSelect}
+				testID={`thread-${thread.id}`}
+				className="gap-2 px-4 pt-3 pb-3.5"
+			>
+				{quote}
+				{note ? (
+					<Text size="xs" className="text-status-warn-fg">
+						{note}
+					</Text>
+				) : null}
+				{first ? <Message message={first} threadId={thread.id} writer={null} /> : null}
+				{replies > 0 ? (
+					<Text size="sm" weight="semibold" tone="accent" className="pl-[34px]">
+						{replies === 1 ? "1 reply" : `${replies} replies`}
+					</Text>
+				) : null}
+			</Pressable>
+		);
+	}
+
 	return (
 		<View
 			ref={ref}
 			accessible={false}
-			accessibilityLabel={`Thread on: ${thread.anchor.quote}, ${count} ${count === 1 ? "message" : "messages"}`}
+			accessibilityLabel={label}
 			role="group"
 			testID={`thread-${thread.id}`}
-			className={`gap-3 px-4 pt-4 pb-[18px] ${active ? "bg-surface-card" : ""}`}
+			className={`gap-3 px-4 pt-3.5 pb-4 ${translucent ? "bg-surface-card/50" : "bg-surface-card"}`}
 		>
 			<View className="flex-row items-center gap-2">
 				<Pressable
 					role="button"
 					accessibilityLabel={`Show in the document: ${thread.anchor.quote}`}
-					accessibilityState={{ selected: active }}
+					accessibilityState={{ selected: true }}
 					onPress={onSelect}
 					hitSlop={{ top: 8, bottom: 8 }}
 					className="min-w-0 flex-1"
 				>
-					<Text size="sm" numberOfLines={1}>
-						<Text size="sm" className={active ? "bg-comment-mark-active" : "bg-comment-mark"}>
-							{thread.anchor.quote}
-						</Text>
-					</Text>
+					{quote}
 				</Pressable>
 				{writer ? (
 					<Pressable
@@ -219,13 +258,13 @@ export function ThreadView({
 						aria-disabled={writer.model.pending.has(resolveKey)}
 						disabled={writer.model.pending.has(resolveKey)}
 						onPress={() => void toggleResolved()}
-						hitSlop={HIT_SLOP}
-						className="h-7 w-7 items-center justify-center rounded-full"
+						hitSlop={{ top: 6, bottom: 6 }}
+						className="h-8 w-11 items-center justify-center rounded-full bg-surface-accent-soft"
 					>
 						<Icon
 							name={thread.resolved ? "rotate-ccw" : "check"}
-							size="md"
-							className="text-status-ok-fg"
+							size={16}
+							className="text-text-accent"
 						/>
 					</Pressable>
 				) : null}
@@ -242,12 +281,10 @@ export function ThreadView({
 					{note}
 				</Text>
 			) : null}
-			<View className="gap-3">
-				{thread.messages.map((message) => (
-					<Message key={message.id} message={message} threadId={thread.id} writer={writer} />
-				))}
-			</View>
-			{writer && active && !thread.resolved ? (
+			{thread.messages.map((message) => (
+				<Message key={message.id} message={message} threadId={thread.id} writer={writer} />
+			))}
+			{writer && !thread.resolved ? (
 				<CommentField
 					label="Reply"
 					sendLabel="Send reply"
@@ -257,7 +294,6 @@ export function ThreadView({
 					onSubmit={() => void sendReply()}
 					pending={writer.model.pending.has(replyKey)}
 					error={replyError}
-					onFocusChange={writer.model.setFieldFocused}
 				/>
 			) : null}
 		</View>

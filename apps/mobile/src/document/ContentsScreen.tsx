@@ -4,6 +4,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 import { Text } from "@mdxserve/ui/primitives/Text";
+import { useSheetGlass } from "../glass-sheet";
 import { useContentsView, useContentsViews, type TocLine } from "./contents";
 
 /** The space between a row's text and the sheet's edges, inside the safe area. */
@@ -23,8 +24,9 @@ function lineLabel(line: TocLine): string {
 
 /**
  * The open document's headings and tabs (app/contents.tsx), in a sheet under the system's own
- * navigation bar, opaque and in the page colour: its title, "Contents", comes from the route's
- * options. The bar has no item: a swipe down closes the sheet, as does VoiceOver's escape
+ * navigation bar: its title, "Contents", comes from the route's options. With Liquid Glass the
+ * bar and the list paint nothing, so the sheet is the system's see-through material, as the
+ * comments sheet is; without it both are in the page colour. The bar has no item: a swipe down closes the sheet, as does VoiceOver's escape
  * gesture, and choosing a line closes it and reveals the line in the document, selecting the
  * tabs on the way.
  *
@@ -38,15 +40,23 @@ export function ContentsScreen({ viewKey }: { viewKey: string }) {
 	const view = useContentsView(viewKey);
 	useEffect(() => () => views.close(viewKey), [views, viewKey]);
 	const barColour = useResolveClassNames("bg-surface-page").backgroundColor;
+	const glass = useSheetGlass();
 	return (
 		<SafeAreaProvider>
-			{/* The bar in the list's own colour, so the two read as one sheet. */}
+			{/* The bar unpainted over the glass, or in the list's own colour, so the two read as one. */}
 			<Stack.Screen
 				options={{
-					headerStyle: { backgroundColor: typeof barColour === "string" ? barColour : undefined },
+					headerStyle: {
+						backgroundColor: glass
+							? "transparent"
+							: typeof barColour === "string"
+								? barColour
+								: undefined,
+					},
 				}}
 			/>
 			<ContentsList
+				glass={glass}
 				lines={view?.lines ?? null}
 				onChoose={(id) => {
 					close();
@@ -58,16 +68,18 @@ export function ContentsScreen({ viewKey }: { viewKey: string }) {
 }
 
 function ContentsList({
+	glass,
 	lines,
 	onChoose,
 }: {
+	glass: boolean;
 	lines: readonly TocLine[] | null;
 	onChoose(id: string): void;
 }) {
 	const insets = useSafeAreaInsets();
 	return (
 		<ScrollView
-			className="flex-1 bg-surface-page"
+			className={glass ? "flex-1" : "flex-1 bg-surface-page"}
 			contentInsetAdjustmentBehavior="automatic"
 			contentContainerStyle={{
 				paddingLeft: insets.left,

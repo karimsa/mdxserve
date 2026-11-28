@@ -1,88 +1,84 @@
-import { useCallback, useEffect, useRef } from "react";
+import NativeSegmentedControl, {
+	type SegmentedControlProps,
+} from "@react-native-segmented-control/segmented-control";
+import { useCallback, useEffect, useRef, type ComponentType } from "react";
 import { Pressable, ScrollView, View, type ScrollViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CommentThread } from "@mdxserve/client/comments/threads";
-import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Text } from "@mdxserve/ui/primitives/Text";
 import type { CommentActions } from "./data";
 import type { CommentsModel } from "./model";
 import { ThreadView } from "./ThreadView";
 
-/** Enough room around a header control for a 44 pt touch target. */
+/** Enough room around a control for a 44 pt touch target. */
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+const TABS = ["open", "resolved"] as const;
 
-function Tabs({ model }: { model: CommentsModel }) {
+// The package types its component as a class mixed from React Native's own, which React 19's
+// JSX types do not accept; it is the component its props describe.
+const SegmentedControl = NativeSegmentedControl as unknown as ComponentType<SegmentedControlProps>;
+
+/** The segmented control's width, in the sheet and in the column. */
+export const STATUS_WIDTH = 240;
+
+/** Open and Resolved, with their counts, as the system's segmented control. */
+export function StatusControl({ model, width }: { model: CommentsModel; width?: number }) {
 	const { grouped } = model;
-	const entries = [
-		{ value: "open", label: "Open", count: grouped.open.length + grouped.detached.length },
-		{ value: "resolved", label: "Resolved", count: grouped.resolved.length },
-	] as const;
+	const open = grouped.open.length + grouped.detached.length;
 	return (
-		<View role="tablist" accessibilityLabel="Comment status" className="flex-row gap-4">
-			{entries.map((entry) => {
-				const selected = model.tab === entry.value;
-				return (
-					<Pressable
-						key={entry.value}
-						role="tab"
-						aria-selected={selected}
-						accessibilityLabel={`${entry.label} ${entry.count}`}
-						onPress={() => model.setTab(entry.value)}
-						hitSlop={HIT_SLOP}
-						className={`flex-row items-center gap-1.5 border-b-2 py-2 ${selected ? "border-text-heading" : "border-transparent"}`}
-					>
-						<Text size="sm" weight="semibold" tone={selected ? "heading" : "subtle"}>
-							{entry.label}
-						</Text>
-						<Text size="sm" weight="medium" tone="subtle">
-							{String(entry.count)}
-						</Text>
-					</Pressable>
-				);
-			})}
-		</View>
+		<SegmentedControl
+			values={[`Open · ${open}`, `Resolved · ${grouped.resolved.length}`]}
+			selectedIndex={TABS.indexOf(model.tab)}
+			onChange={(event) => {
+				const next = TABS[event.nativeEvent.selectedSegmentIndex];
+				if (next) model.setTab(next);
+			}}
+			accessibilityLabel="Comment status"
+			testID="comments-status"
+			style={width === undefined ? { height: 32 } : { width, height: 32 }}
+		/>
 	);
 }
 
-/**
- * The document's comment threads, docked in the document screen: under the document in a
- * narrow window and beside it in a wide one (`placement`), never over it, so the text a thread
- * is about stays on screen and its highlights stay tappable. Open threads are listed in document
- * order, then the detached ones; resolved threads have their own tab. It reads and moves the
- * document; writing comments comes later.
- */
-export function CommentsPanel({
-	model,
-	placement,
-	loading,
-	failure,
-	onRetry,
-	actions,
-}: {
+/** What the list says when the shown tab has no threads: one quiet line, centred. */
+function emptyLine(model: CommentsModel): string {
+	const { grouped, tab } = model;
+	const none = grouped.open.length + grouped.detached.length + grouped.resolved.length === 0;
+	const kind = tab === "open" ? "open" : "resolved";
+	return none ? `No ${kind} comments on this document.` : `No ${kind} comments.`;
+}
+
+type ListProps = {
 	model: CommentsModel;
-	placement: "below" | "beside";
+	/** The comment writes; null on a restricted server, which offers none (KA14). */
+	actions: CommentActions | null;
 	loading: boolean;
 	/** Why the threads could not be read, when they could not. */
 	failure: string | null;
 	onRetry(): void;
-	/** The comment writes; null on a restricted server, which offers none (KA14). */
-	actions: CommentActions | null;
-}) {
+	/** Drawn over the sheet's see-through material: the active thread's surface is translucent. */
+	translucent?: boolean;
+};
+
+/**
+ * A document's comment threads (in the Comments sheet, or the column beside a wide window's
+ * document): open threads in document order, then the detached ones, or the resolved ones.
+ * A thread opened from the document (a highlight, a row marker) is scrolled into view.
+ */
+export function CommentsList({
+	model,
+	actions,
+	loading,
+	failure,
+	onRetry,
+	translucent = false,
+}: ListProps) {
 	const writer = actions ? { model, actions } : null;
 	const insets = useSafeAreaInsets();
-	const below = placement === "below";
-	// The rows keep 16 pt from the panel's edges; the panel keeps clear of whatever the system
-	// draws at the window's sides (a folded display's vertical bar). Beside the document it is
-	// the trailing column, so only its trailing edge meets the window.
-	const padding = {
-		paddingLeft: below ? insets.left : 0,
-		paddingRight: insets.right,
-	};
 	const { grouped, tab, activeId, focusRequest } = model;
 	const shown = tab === "open" ? grouped.open : grouped.resolved;
 
-	// A thread opened from the document (a highlight, a row marker) is scrolled into view, once
-	// per request, as soon as the panel knows where it is.
+	// Scrolled once per request, as soon as the list knows where the thread is.
 	const listRef = useRef<ScrollViewInstance>(null);
 	const offsets = useRef(new Map<string, number>());
 	const scrolledFor = useRef(0);
@@ -95,14 +91,28 @@ export function CommentsPanel({
 	}, [focusRequest]);
 	useEffect(scrollToRequest, [scrollToRequest]);
 
+	// Choosing a thread folds the one before it away. When that moves the chosen thread above
+	// what the list shows, bring its top back into view, once, as soon as its new place is known.
+	const scrollY = useRef(0);
+	const settle = useRef<string | null>(null);
+	useEffect(() => {
+		settle.current = activeId;
+	}, [activeId]);
+	function keepActiveInView(threadId: string, offset: number) {
+		if (settle.current !== threadId) return;
+		settle.current = null;
+		if (offset < scrollY.current) listRef.current?.scrollTo({ y: offset, animated: true });
+	}
+
 	function renderThread(thread: CommentThread) {
 		return (
 			<View
 				key={thread.id}
-				className="border-b border-border-default"
+				className="border-t border-border-default"
 				onLayout={(event) => {
 					offsets.current.set(thread.id, event.nativeEvent.layout.y);
 					scrollToRequest();
+					keepActiveInView(thread.id, event.nativeEvent.layout.y);
 				}}
 			>
 				<ThreadView
@@ -112,6 +122,7 @@ export function CommentsPanel({
 					focus={thread.id === focusRequest?.id}
 					onSelect={() => model.selectThread(thread.id)}
 					writer={writer}
+					translucent={translucent}
 				/>
 			</View>
 		);
@@ -120,20 +131,18 @@ export function CommentsPanel({
 	let body;
 	if (failure !== null) {
 		body = (
-			<View role="alert" className="gap-2 px-4 py-4">
-				<Text size="sm" weight="semibold">
-					Comments could not be loaded.
-				</Text>
-				<Text size="sm" tone="muted">
+			<View role="alert" className="items-center gap-2 px-6 py-4">
+				<Text weight="semibold">Comments could not be loaded.</Text>
+				<Text size="sm" tone="muted" className="text-center">
 					{failure}
 				</Text>
 				<Pressable
 					role="button"
 					onPress={onRetry}
 					hitSlop={HIT_SLOP}
-					className="self-start rounded-md border border-border-default px-3 py-1.5"
+					className="rounded-full bg-surface-accent-soft px-4 py-1.5"
 				>
-					<Text size="sm" weight="semibold">
+					<Text size="sm" weight="semibold" tone="accent">
 						Retry
 					</Text>
 				</Pressable>
@@ -141,29 +150,31 @@ export function CommentsPanel({
 		);
 	} else if (loading) {
 		body = (
-			<Text size="sm" tone="subtle" className="px-4 py-4">
+			<Text tone="muted" className="px-6 py-4 text-center">
 				Loading comments…
 			</Text>
 		);
 	} else {
+		const empty =
+			tab === "open" ? grouped.open.length + grouped.detached.length === 0 : shown.length === 0;
 		body = (
 			<>
 				{shown.map(renderThread)}
 				{/* Every thread is a child of the list's content, so its layout's y is its offset. */}
 				{tab === "open" && grouped.detached.length > 0 ? (
-					<Text size="xs" weight="semibold" tone="subtle" className="px-4 pt-3.5 uppercase">
+					<Text
+						size="xs"
+						weight="semibold"
+						tone="subtle"
+						className="border-t border-border-default px-4 pt-3.5 pb-1 uppercase"
+					>
 						Detached
 					</Text>
 				) : null}
 				{tab === "open" ? grouped.detached.map(renderThread) : null}
-				{tab === "open" && grouped.open.length === 0 && grouped.detached.length === 0 ? (
-					<Text size="sm" tone="subtle" className="px-4 py-4">
-						No open comments.
-					</Text>
-				) : null}
-				{tab === "resolved" && grouped.resolved.length === 0 ? (
-					<Text size="sm" tone="subtle" className="px-4 py-4">
-						No resolved comments.
+				{empty ? (
+					<Text tone="muted" className="px-6 py-3 text-center">
+						{emptyLine(model)}
 					</Text>
 				) : null}
 			</>
@@ -171,48 +182,39 @@ export function CommentsPanel({
 	}
 
 	return (
+		<ScrollView
+			ref={listRef}
+			// Send, Save and Cancel take the tap while the keyboard is up, instead of only closing it.
+			keyboardShouldPersistTaps="handled"
+			onScroll={(event) => {
+				scrollY.current = event.nativeEvent.contentOffset.y;
+			}}
+			scrollEventThrottle={64}
+			contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+			testID="comments-list"
+		>
+			{body}
+		</ScrollView>
+	);
+}
+
+/**
+ * The comments beside the document in a wide window (600 pt and over): the same control,
+ * centred, and list as the sheet, in a column on the trailing side. The document's Comments
+ * item opens and closes it.
+ */
+export function CommentsColumn(props: ListProps) {
+	const insets = useSafeAreaInsets();
+	return (
 		<View
 			testID="comments-panel"
-			className={`bg-surface-page ${below ? "border-t" : "border-l"} border-border-default`}
-			style={{ flex: 1, paddingLeft: padding.paddingLeft, paddingRight: padding.paddingRight }}
+			className="border-l border-border-default bg-surface-page"
+			style={{ flex: 1, paddingRight: insets.right }}
 		>
-			<View className="flex-row items-center gap-3 border-b border-border-default pl-4">
-				<Tabs model={model} />
-				<View className="flex-1" />
-				{below ? (
-					<Pressable
-						role="button"
-						accessibilityLabel={model.expanded ? "Show the document" : "Expand comments"}
-						onPress={() => model.setExpanded(!model.expanded)}
-						hitSlop={HIT_SLOP}
-						className="h-9 w-9 items-center justify-center"
-					>
-						<Icon
-							name={model.expanded ? "chevron-down" : "chevron-up"}
-							size="md"
-							className="text-text-muted"
-						/>
-					</Pressable>
-				) : null}
-				<Pressable
-					role="button"
-					accessibilityLabel="Close comments"
-					onPress={() => model.setOpen(false)}
-					hitSlop={HIT_SLOP}
-					className="h-9 w-9 items-center justify-center"
-				>
-					<Icon name="x" size="md" className="text-text-muted" />
-				</Pressable>
+			<View className="items-center px-4 py-3">
+				<StatusControl model={props.model} width={STATUS_WIDTH} />
 			</View>
-			<ScrollView
-				ref={listRef}
-				// Send, Save and Cancel take the tap while the keyboard is up, instead of only closing it.
-				keyboardShouldPersistTaps="handled"
-				contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-				testID="comments-list"
-			>
-				{body}
-			</ScrollView>
+			<CommentsList {...props} />
 		</View>
 	);
 }

@@ -1,5 +1,6 @@
 // The app's whole route tree, for renderRouter: every layout and screen under app/, by its path.
 import RootLayout from "../app/_layout";
+import Comments from "../app/comments";
 import Contents from "../app/contents";
 import TabsLayout from "../app/(tabs)/_layout";
 import LibraryStack from "../app/(tabs)/(library)/_layout";
@@ -20,6 +21,7 @@ import Diagram from "../app/diagram";
 
 export const APP_ROUTES = {
 	_layout: RootLayout,
+	comments: Comments,
 	contents: Contents,
 	"(tabs)/_layout": TabsLayout,
 	"(tabs)/(library)/_layout": LibraryStack,
