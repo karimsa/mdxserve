@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, View } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { Pressable, ScrollView, View, type ScrollViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CommentThread } from "@mdxserve/client/comments/threads";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
@@ -72,17 +73,38 @@ export function CommentsPanel({
 		paddingLeft: below ? insets.left : 0,
 		paddingRight: insets.right,
 	};
-	const { grouped, tab, activeId } = model;
+	const { grouped, tab, activeId, focusRequest } = model;
 	const shown = tab === "open" ? grouped.open : grouped.resolved;
+
+	// A thread opened from the document (a highlight, a row marker) is scrolled into view, once
+	// per request, as soon as the panel knows where it is.
+	const listRef = useRef<ScrollViewInstance>(null);
+	const offsets = useRef(new Map<string, number>());
+	const scrolledFor = useRef(0);
+	const scrollToRequest = useCallback(() => {
+		if (!focusRequest || scrolledFor.current === focusRequest.count) return;
+		const offset = offsets.current.get(focusRequest.id);
+		if (offset === undefined) return;
+		scrolledFor.current = focusRequest.count;
+		listRef.current?.scrollTo({ y: offset, animated: true });
+	}, [focusRequest]);
+	useEffect(scrollToRequest, [scrollToRequest]);
 
 	function renderThread(thread: CommentThread) {
 		return (
-			<View key={thread.id} className="border-b border-border-default">
+			<View
+				key={thread.id}
+				className="border-b border-border-default"
+				onLayout={(event) => {
+					offsets.current.set(thread.id, event.nativeEvent.layout.y);
+					scrollToRequest();
+				}}
+			>
 				<ThreadView
 					thread={thread}
 					resolution={model.resolutions.get(thread.id)}
 					active={thread.id === activeId}
-					focus={thread.id === model.focusId}
+					focus={thread.id === focusRequest?.id}
 					onSelect={() => model.selectThread(thread.id)}
 				/>
 			</View>
@@ -121,14 +143,13 @@ export function CommentsPanel({
 		body = (
 			<>
 				{shown.map(renderThread)}
+				{/* Every thread is a child of the list's content, so its layout's y is its offset. */}
 				{tab === "open" && grouped.detached.length > 0 ? (
-					<View>
-						<Text size="xs" weight="semibold" tone="subtle" className="px-4 pt-3.5 uppercase">
-							Detached
-						</Text>
-						{grouped.detached.map(renderThread)}
-					</View>
+					<Text size="xs" weight="semibold" tone="subtle" className="px-4 pt-3.5 uppercase">
+						Detached
+					</Text>
 				) : null}
+				{tab === "open" ? grouped.detached.map(renderThread) : null}
 				{tab === "open" && grouped.open.length === 0 && grouped.detached.length === 0 ? (
 					<Text size="sm" tone="subtle" className="px-4 py-4">
 						No open comments.
@@ -178,6 +199,7 @@ export function CommentsPanel({
 				</Pressable>
 			</View>
 			<ScrollView
+				ref={listRef}
 				contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
 				testID="comments-list"
 			>

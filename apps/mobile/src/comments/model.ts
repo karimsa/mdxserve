@@ -104,6 +104,12 @@ function placeOf(resolution: Resolution, blocks: TreeBlocks, rows: DocumentRows)
 	return row === undefined ? null : { row, tabSteps: block.tabSteps };
 }
 
+/** A thread the panel was opened on from the document; `count` tells one request from the next. */
+interface FocusRequest {
+	id: string;
+	count: number;
+}
+
 export interface CommentsModel {
 	threads: readonly CommentThread[];
 	grouped: GroupedThreads;
@@ -120,8 +126,8 @@ export interface CommentsModel {
 	/** Whether the panel takes the whole height under the document (narrow windows only). */
 	expanded: boolean;
 	setExpanded(expanded: boolean): void;
-	/** The thread VoiceOver moves to: the one a highlight or a row marker opened the panel on. */
-	focusId: string | null;
+	/** The thread a highlight or a row marker opened the panel on: the panel scrolls to it and VoiceOver moves to it. */
+	focusRequest: FocusRequest | null;
 }
 
 /**
@@ -144,11 +150,11 @@ export function useCommentsModel({
 	const [tab, setTab] = useState<"open" | "resolved">("open");
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const [expanded, setExpanded] = useState(false);
-	const [focusId, setFocusId] = useState<string | null>(null);
+	const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
 	const setPanelOpen = useCallback((next: boolean) => {
 		setOpen(next);
 		if (!next) {
-			setFocusId(null);
+			setFocusRequest(null);
 			setExpanded(false);
 		}
 	}, []);
@@ -221,7 +227,7 @@ export function useCommentsModel({
 			const current = store.activeThread();
 			const chosen = current !== null && ids.includes(current) ? current : byPosition[0];
 			setActiveId(chosen);
-			setFocusId(chosen);
+			setFocusRequest((previous) => ({ id: chosen, count: (previous?.count ?? 0) + 1 }));
 			setTab("open");
 			setOpen(true);
 		},
@@ -245,7 +251,7 @@ export function useCommentsModel({
 		selectThread,
 		expanded,
 		setExpanded,
-		focusId,
+		focusRequest,
 	};
 }
 

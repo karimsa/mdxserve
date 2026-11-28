@@ -311,6 +311,23 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 		);
 	});
 
+	it("scrolls the panel to a thread opened from its highlight", async () => {
+		const scrollTo = jest.requireMock<{
+			default: { prototype: { scrollTo: jest.Mock } };
+		}>("react-native/Libraries/Components/ScrollView/ScrollView").default.prototype.scrollTo;
+		scrollTo.mockClear();
+		mockThreads = [BETA, SECOND];
+		await openDocument();
+		await openPanel();
+		// Where the panel's list laid the second thread out, below the first.
+		await fireEvent(screen.getByTestId("thread-second").parent!, "layout", {
+			nativeEvent: { layout: { x: 0, y: 420, width: 300, height: 120 } },
+		});
+		expect(scrollTo).not.toHaveBeenCalledWith(expect.objectContaining({ y: 420 }));
+		await fireEvent.press(inDocument("paragraph"));
+		await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ y: 420 })));
+	});
+
 	it("selects the tab a chosen thread's text is in, and scrolls to its row (KA4)", async () => {
 		mockThreads = [LINUX];
 		await openDocument();
