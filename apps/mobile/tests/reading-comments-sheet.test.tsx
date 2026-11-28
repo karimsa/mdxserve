@@ -255,7 +255,8 @@ describe("where the comments go", () => {
 		const presented = sheetScreen()!.props;
 		expect(presented.stackPresentation).toBe("formSheet");
 		expect(presented.sheetAllowedDetents).toEqual([0.3, 0.5, 1]);
-		expect(presented.sheetLargestUndimmedDetentIndex).toBe(1);
+		// The document behind it is dimmed at every height, so a tap on it closes the sheet.
+		expect(presented.sheetLargestUndimmedDetentIndex).toBe("none");
 		expect(presented.sheetGrabberVisible).toBe(true);
 		// A document with threads opens at half height.
 		expect(presented.sheetInitialDetentIndex).toBe(1);

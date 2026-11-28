@@ -66,15 +66,15 @@ export default function RootLayout() {
 									    and a swipe down never fights a pan; its items are native bar items. */}
 									<Stack.Screen name="diagram" options={{ presentation: "fullScreenModal" }} />
 									{/* The two sheets share their presentation (src/glass-sheet.ts): the grabber,
-									    the same heights, the document usable behind them up to half height, and
-									    the system's glass where iOS has it. Each first height is decided as the
-									    sheet opens. */}
+									    the same heights and the system's glass where iOS has it. Each first height
+									    is decided as the sheet opens. */}
 									{/* Comments: no bar; the Open and Resolved control sits under the grabber.
-									    Short for a document with no threads, else half height. */}
+									    Short for a document with no threads, else half height. The document behind
+									    it is dimmed, and a tap on it closes the sheet. */}
 									<Stack.Screen
 										name="comments"
 										options={({ route }) => ({
-											...glassSheetOptions(initialDetent(viewParam(route.params))),
+											...glassSheetOptions(initialDetent(viewParam(route.params)), "dimmed"),
 											title: "Comments",
 											headerShown: false,
 										})}
@@ -83,11 +83,15 @@ export default function RootLayout() {
 									    the tabs' wordmark header. Not translucent, as iOS 27 can minimise a
 									    translucent bar and draw its items over the content instead of in a folded
 									    display's vertical bar; over the glass it is unpainted
-									    (ContentsScreen.tsx). Half height for a short list, else full. */}
+									    (ContentsScreen.tsx). Half height for a short list, else full; the document
+									    behind it stays usable up to half height. */}
 									<Stack.Screen
 										name="contents"
 										options={({ route }) => ({
-											...glassSheetOptions(contentsInitialDetent(viewParam(route.params))),
+											...glassSheetOptions(
+												contentsInitialDetent(viewParam(route.params)),
+												"usable",
+											),
 											title: "Contents",
 											headerTransparent: false,
 										})}
