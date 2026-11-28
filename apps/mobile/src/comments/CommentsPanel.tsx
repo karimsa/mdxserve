@@ -91,6 +91,19 @@ export function CommentsList({
 	}, [focusRequest]);
 	useEffect(scrollToRequest, [scrollToRequest]);
 
+	// Choosing a thread folds the one before it away. When that moves the chosen thread above
+	// what the list shows, bring its top back into view, once, as soon as its new place is known.
+	const scrollY = useRef(0);
+	const settle = useRef<string | null>(null);
+	useEffect(() => {
+		settle.current = activeId;
+	}, [activeId]);
+	function keepActiveInView(threadId: string, offset: number) {
+		if (settle.current !== threadId) return;
+		settle.current = null;
+		if (offset < scrollY.current) listRef.current?.scrollTo({ y: offset, animated: true });
+	}
+
 	function renderThread(thread: CommentThread) {
 		return (
 			<View
@@ -99,6 +112,7 @@ export function CommentsList({
 				onLayout={(event) => {
 					offsets.current.set(thread.id, event.nativeEvent.layout.y);
 					scrollToRequest();
+					keepActiveInView(thread.id, event.nativeEvent.layout.y);
 				}}
 			>
 				<ThreadView
@@ -172,6 +186,10 @@ export function CommentsList({
 			ref={listRef}
 			// Send, Save and Cancel take the tap while the keyboard is up, instead of only closing it.
 			keyboardShouldPersistTaps="handled"
+			onScroll={(event) => {
+				scrollY.current = event.nativeEvent.contentOffset.y;
+			}}
+			scrollEventThrottle={64}
 			contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
 			testID="comments-list"
 		>

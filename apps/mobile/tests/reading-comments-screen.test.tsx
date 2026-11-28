@@ -338,6 +338,27 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 		await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ y: 420 })));
 	});
 
+	it("keeps a thread chosen in the list in view when the one before it folds away", async () => {
+		const scrollTo = jest.requireMock<{
+			default: { prototype: { scrollTo: jest.Mock } };
+		}>("react-native/Libraries/Components/ScrollView/ScrollView").default.prototype.scrollTo;
+		mockThreads = [BETA, SECOND];
+		await openDocument();
+		await openPanel();
+		await fireEvent.press(screen.getByLabelText("Show in the document: beta gamma"));
+		// The reader scrolls down the long active thread to the next one and chooses it.
+		await fireEvent.scroll(screen.getByTestId("comments-list"), {
+			nativeEvent: { contentOffset: { x: 0, y: 600 } },
+		});
+		scrollTo.mockClear();
+		await fireEvent.press(screen.getByLabelText("Show in the document: paragraph"));
+		// The first thread folded, so the chosen one now starts above what the list shows.
+		await fireEvent(screen.getByTestId("thread-second").parent!, "layout", {
+			nativeEvent: { layout: { x: 0, y: 140, width: 300, height: 220 } },
+		});
+		expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ y: 140 }));
+	});
+
 	it("selects the tab a chosen thread's text is in, and scrolls to its row (KA4)", async () => {
 		mockThreads = [LINUX];
 		await openDocument();
