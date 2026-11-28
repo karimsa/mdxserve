@@ -131,6 +131,15 @@ export interface CommentsModel {
 	setReplyDraft(threadId: string, text: string): void;
 	/** Drops a thread's unsent text once it was sent, unless the reader typed more meanwhile. */
 	clearReplyDraft(threadId: string, sent: string): void;
+	/**
+	 * Edits being made, by `edit:<thread>:<message>`: the field's text, kept here so choosing
+	 * another thread (which folds this one away) does not lose it.
+	 */
+	edits: ReadonlyMap<string, string>;
+	/** Opens, changes or (with null) closes an edit. */
+	setEdit(key: string, text: string | null): void;
+	/** Closes an edit once it was saved, unless the reader changed it meanwhile. */
+	closeEdit(key: string, saved: string): void;
 	/** The writes being saved, by key (`reply:<thread>`, `edit:<thread>:<message>`, `resolve:<thread>`). */
 	pending: ReadonlySet<string>;
 	/**
@@ -166,6 +175,23 @@ export function useCommentsModel({
 			setReplyDrafts((previous) => withReplyDraft(previous, threadId, text)),
 		[],
 	);
+	const [edits, setEdits] = useState<ReadonlyMap<string, string>>(new Map());
+	const setEdit = useCallback((key: string, text: string | null) => {
+		setEdits((previous) => {
+			const next = new Map(previous);
+			if (text === null) next.delete(key);
+			else next.set(key, text);
+			return next;
+		});
+	}, []);
+	const closeEdit = useCallback((key: string, saved: string) => {
+		setEdits((previous) => {
+			if (previous.get(key) !== saved) return previous;
+			const next = new Map(previous);
+			next.delete(key);
+			return next;
+		});
+	}, []);
 	const clearReplyDraft = useCallback(
 		(threadId: string, sent: string) =>
 			setReplyDrafts((previous) =>
@@ -286,6 +312,9 @@ export function useCommentsModel({
 		replyDrafts,
 		setReplyDraft,
 		clearReplyDraft,
+		edits,
+		setEdit,
+		closeEdit,
 		pending,
 		send,
 	};

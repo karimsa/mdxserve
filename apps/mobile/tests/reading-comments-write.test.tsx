@@ -472,6 +472,19 @@ describe("writing comments on a document", () => {
 		}
 	});
 
+	it("keeps an unsaved edit when another thread is chosen and this one again", async () => {
+		mockThreads = [BETA, SECOND];
+		await openDocument();
+		await openPanel();
+		await selectThread("beta gamma");
+		await fireEvent.press(screen.getByRole("button", { name: "Edit comment" }));
+		await fireEvent.changeText(screen.getByLabelText("Edit comment"), "Half typed");
+		await selectThread("paragraph");
+		await selectThread("beta gamma");
+		expect(screen.getByLabelText("Edit comment").props.value).toBe("Half typed");
+		expect(mockEdit).not.toHaveBeenCalled();
+	});
+
 	it("keeps the typed reply and shows the failure until a send works (KA13)", async () => {
 		mockThreads = [BETA];
 		mockAddReply.mockRejectedValueOnce(new Error("Unreachable"));

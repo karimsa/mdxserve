@@ -47,10 +47,12 @@ function Message({
 }) {
 	const agent = message.author === "agent";
 	const age = relativeTime(message.createdAt);
-	const [editing, setEditing] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	// Message ids are unique only within their thread.
 	const key = `edit:${threadId}:${message.id}`;
+	// The text being edited lives in the model, so it outlasts this thread folding away.
+	const editing = writer?.model.edits.get(key) ?? null;
+	const setEditing = (text: string | null) => writer?.model.setEdit(key, text);
 	// Only a person's message can be changed; the server refuses an agent's.
 	const canEdit = writer !== null && !agent;
 
@@ -65,7 +67,7 @@ function Message({
 		else {
 			setError(null);
 			// Text changed while the save was on its way stays open, unsaved.
-			setEditing((current) => (current === submitted ? null : current));
+			writer.model.closeEdit(key, submitted);
 		}
 	}
 
