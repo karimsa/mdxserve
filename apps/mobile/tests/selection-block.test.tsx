@@ -181,7 +181,7 @@ describe.each(["light", "dark"] as const)("selectable text (%s)", (theme) => {
 		});
 		expect(run("bold words")).toMatchObject({ fontWeight: 600, color: color("--text-heading") });
 		expect(run("a link")).toMatchObject({ color: color("--text-link"), pressable: true });
-		expect(run("chip")).toMatchObject({
+		expect(run("chi")).toMatchObject({
 			fontFamily: "JetBrains Mono",
 			fontSize: 13,
 			color: color("--text-accent"),

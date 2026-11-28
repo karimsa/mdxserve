@@ -17,6 +17,10 @@ export interface NativeTextRun {
 	rounded: boolean;
 	strikethrough: boolean;
 	pressable: boolean;
+	/** Space after each character, in points (React Native's `letterSpacing`). */
+	letterSpacing: number;
+	/** The index of the run of the block's text this is drawn from, which presses report. */
+	source: number;
 }
 
 export interface SelectableTextProps extends ViewProps {

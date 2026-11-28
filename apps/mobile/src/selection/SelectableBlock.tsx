@@ -189,7 +189,17 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 		});
 	}, [block, treeBlock, blockMarks]);
 	const runs = useMemo(() => (text && theme ? nativeRuns(text, theme) : null), [text, theme]);
-	const actions = useMemo(() => (text ? runActions(text) : []), [text]);
+	// An action reports the native run drawn from its run.
+	const actions = useMemo(
+		() =>
+			text && runs
+				? runActions(text).map((action) => ({
+						...action,
+						index: runs.findIndex((run) => run.source === action.index),
+					}))
+				: [],
+		[text, runs],
+	);
 	const onHeights = selection?.onHeights;
 	useEffect(() => {
 		onHeights?.(block, { layout: twinHeight, native: nativeHeight });
@@ -230,7 +240,8 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 				onTextHeight={(event) => setNativeHeight(event.nativeEvent.height)}
 				onDiagnostics={(event) => selection?.onDiagnostics?.(block, event.nativeEvent)}
 				onPressRun={(event) => {
-					const press = text.runs[event.nativeEvent.index]?.press;
+					const source = runs[event.nativeEvent.index]?.source;
+					const press = source === undefined ? null : text.runs[source]?.press;
 					if (!press) return;
 					if (press.kind === "mark") marks?.pressMark(press.threadIds);
 					else if (press.href === "") return;

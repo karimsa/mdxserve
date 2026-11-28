@@ -51,30 +51,60 @@ function backgroundOf(style: RunStyle, theme: RunTheme): number | null {
 	}
 }
 
-/** The block's runs as the native view takes them. */
+/**
+ * The room around an inline code chip, each side: the chip view's `px-1` in elements.tsx. The
+ * native text has no view to pad, so the character before the chip and the chip's last character
+ * carry it as letter spacing, which the layout `Text` copies, and the chip's box is drawn into it.
+ *
+ * @internal Exported for its tests.
+ */
+export const CHIP_PADDING = 4;
+
+/**
+ * The block's runs as the native view takes them. Each keeps the index of the run it is drawn
+ * from (`source`); the character before a chip and a chip's last character are runs of their own,
+ * spaced by `CHIP_PADDING`.
+ */
 export function nativeRuns(text: BlockText, theme: RunTheme): NativeTextRun[] {
-	return text.runs.map(({ text: value, style, press }) => ({
-		text: value,
-		fontFamily: style.face === "mono" ? theme.code.fontFamily : theme.base.fontFamily,
-		fontWeight:
-			style.weight === "strong"
-				? theme.strong.fontWeight
-				: style.weight === "code"
-					? theme.code.fontWeight
-					: theme.base.fontWeight,
-		fontSize:
-			style.size === "code"
-				? theme.code.fontSize
-				: style.size === "footnote"
-					? theme.footnoteSize
-					: theme.base.fontSize,
-		italic: style.italic,
-		color: colorOf(style, theme),
-		backgroundColor: backgroundOf(style, theme),
-		rounded: style.rounded && style.background !== "none",
-		strikethrough: style.strike,
-		pressable: press !== null,
-	}));
+	const chip = (index: number) => text.runs[index]?.style.rounded === true;
+	const runs: NativeTextRun[] = [];
+	text.runs.forEach(({ text: value, style, press }, index) => {
+		const run: NativeTextRun = {
+			text: value,
+			fontFamily: style.face === "mono" ? theme.code.fontFamily : theme.base.fontFamily,
+			fontWeight:
+				style.weight === "strong"
+					? theme.strong.fontWeight
+					: style.weight === "code"
+						? theme.code.fontWeight
+						: theme.base.fontWeight,
+			fontSize:
+				style.size === "code"
+					? theme.code.fontSize
+					: style.size === "footnote"
+						? theme.footnoteSize
+						: theme.base.fontSize,
+			italic: style.italic,
+			color: colorOf(style, theme),
+			backgroundColor: backgroundOf(style, theme),
+			rounded: style.rounded && style.background !== "none",
+			strikethrough: style.strike,
+			pressable: press !== null,
+			letterSpacing: 0,
+			source: index,
+		};
+		// Before a chip (its first run), and at a chip's end (its last run).
+		const padded = (chip(index + 1) && !chip(index)) || (chip(index) && !chip(index + 1));
+		if (!padded) {
+			runs.push(run);
+			return;
+		}
+		const characters = Array.from(value);
+		const last = characters.pop() ?? "";
+		if (characters.length > 0) runs.push({ ...run, text: characters.join("") });
+		runs.push({ ...run, text: last, letterSpacing: CHIP_PADDING });
+	});
+	return runs;
 }
 
 /**
@@ -88,5 +118,6 @@ export function layoutStyle(run: NativeTextRun): TextStyle {
 		fontSize: run.fontSize,
 		fontStyle: run.italic ? "italic" : "normal",
 		textDecorationLine: run.strikethrough ? "line-through" : "none",
+		letterSpacing: run.letterSpacing,
 	};
 }

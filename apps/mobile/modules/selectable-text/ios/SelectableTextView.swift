@@ -10,9 +10,14 @@ extension NSAttributedString.Key {
 }
 
 /// Draws every background as TextKit does (over the whole line, as React Native's `Text` draws a
-/// nested run's), except a chip's: a rounded box around the code's own glyphs.
+/// nested run's), except a chip's: a rounded box around the code's own glyphs. The room on each
+/// side of a chip is letter spacing on the character before it and on its last character (JS
+/// `CHIP_PADDING`); the run's rect already holds the trailing one, the box reaches into the leading.
 final class RunLayoutManager: NSLayoutManager {
-  private static let padding = CGSize(width: 2, height: 1.5)
+  /// `CHIP_PADDING` in native-runs.ts.
+  static let chipPadding: CGFloat = 4
+  /// The chip view in `Text` is a little shorter than the code's line: its box, trimmed each side.
+  private static let trim: CGFloat = 0.5
   private static let radius: CGFloat = 3
 
   override func fillBackgroundRectArray(
@@ -42,10 +47,10 @@ final class RunLayoutManager: NSLayoutManager {
       let glyph = min(max(hit, glyphs.location), NSMaxRange(glyphs) - 1)
       let baseline = rect.minY + location(forGlyphAt: glyph).y - shift
       let box = CGRect(
-        x: rect.minX - Self.padding.width,
-        y: baseline - font.ascender - Self.padding.height,
-        width: rect.width + Self.padding.width * 2,
-        height: font.ascender - font.descender + Self.padding.height * 2
+        x: rect.minX - Self.chipPadding,
+        y: baseline - font.ascender + Self.trim,
+        width: rect.width + Self.chipPadding,
+        height: font.ascender - font.descender - Self.trim * 2
       )
       UIBezierPath(roundedRect: box, cornerRadius: Self.radius).fill()
     }
@@ -77,6 +82,8 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   /// The view holding a selection, so that selecting in another block clears it.
   private static weak var selecting: SelectableTextView?
   private static var fonts: [String: UIFont] = [:]
+  /// How far below the prose's baseline a chip's code sits, as the chip view in `Text` puts it.
+  private static let chipDrop: CGFloat = 1.5
   /// A press longer than this is the start of a selection, not a tap.
   private static let tapDuration: TimeInterval = 0.5
 
@@ -169,15 +176,22 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
       if run.strikethrough {
         attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
       }
+      if run.letterSpacing != 0 {
+        attributes[.kern] = run.letterSpacing
+      }
       text.append(NSAttributedString(string: run.text, attributes: attributes))
     }
     // React Native centres the glyphs in a line taller than the font (RCTApplyBaselineOffset).
     if line > 0, line >= tallest, text.length > 0 {
-      text.addAttribute(
-        .baselineOffset,
-        value: (line - tallest) / 2,
-        range: NSRange(location: 0, length: text.length)
-      )
+      let offset = (line - tallest) / 2
+      text.addAttribute(.baselineOffset, value: offset, range: NSRange(location: 0, length: text.length))
+      // A chip's code sits a little lower, as the chip view does; this moves glyphs, not lines.
+      text.enumerateAttribute(.selectableTextRounded, in: NSRange(location: 0, length: text.length)) {
+        value, range, _ in
+        if value as? Bool == true {
+          text.addAttribute(.baselineOffset, value: offset - Self.chipDrop, range: range)
+        }
+      }
     }
     // Through the text view's own setter, so it lays out and redraws as for any text it is given.
     textView.attributedText = text

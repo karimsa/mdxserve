@@ -9,7 +9,7 @@ import {
 	runActions,
 	type BlockText,
 } from "../src/selection/block-runs";
-import { layoutStyle, nativeRuns, type RunTheme } from "../src/selection/native-runs";
+import { CHIP_PADDING, layoutStyle, nativeRuns, type RunTheme } from "../src/selection/native-runs";
 
 const text = (value: string) => ({ type: "text", value });
 const code = (value: string) => ({ type: "inlineCode", value });
@@ -299,14 +299,26 @@ describe("nativeRuns", () => {
 		const run = (value: string) => native.find((candidate) => candidate.text === value)!;
 		expect(run("bold words")).toMatchObject({ fontWeight: 600, color: 2, fontFamily: "Manrope" });
 		expect(run("a link")).toMatchObject({ color: 3, pressable: true });
-		expect(run("chip")).toMatchObject({
-			fontFamily: "JetBrains Mono",
-			fontSize: 13,
-			fontWeight: 500,
-			color: 4,
-			backgroundColor: 5,
-			rounded: true,
-		});
+		const chip = { fontFamily: "JetBrains Mono", fontSize: 13, fontWeight: 500, color: 4 };
+		// The chip's room each side is letter spacing on the character before it and on its last.
+		const at = native.findIndex((entry) => entry.text === "chi");
+		expect(native.slice(at - 2, at + 2)).toMatchObject([
+			{ text: " with", letterSpacing: 0, fontFamily: "Manrope" },
+			{ text: " ", letterSpacing: CHIP_PADDING, fontFamily: "Manrope" },
+			{ text: "chi", letterSpacing: 0, backgroundColor: 5, rounded: true, ...chip },
+			{ text: "p", letterSpacing: CHIP_PADDING, backgroundColor: 5, rounded: true, ...chip },
+		]);
+		expect(native[at].source).toBe(native[at + 1].source);
+		expect(runs.runs[native[at].source].text).toBe("chip");
+		// Every run of the block is drawn, in order, by the native runs that name it.
+		runs.runs.forEach((original, index) =>
+			expect(
+				native
+					.filter((entry) => entry.source === index)
+					.map((entry) => entry.text)
+					.join(""),
+			).toBe(original.text),
+		);
 		expect(run("[1]")).toMatchObject({ fontSize: 12, color: 3, pressable: false });
 		expect(run("gone")).toMatchObject({ italic: true, strikethrough: true });
 		expect(native.map((entry) => entry.text).join("")).toBe(runs.text);
@@ -316,6 +328,7 @@ describe("nativeRuns", () => {
 			fontSize: 16.5,
 			fontStyle: "italic",
 			textDecorationLine: "line-through",
+			letterSpacing: 0,
 		});
 	});
 });

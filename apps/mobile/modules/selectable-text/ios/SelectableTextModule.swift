@@ -18,6 +18,8 @@ struct TextRun: Decodable {
   let strikethrough: Bool
   /// A link's or a highlight's run: a tap on it is reported with `onPressRun`.
   let pressable: Bool
+  /// Space after each character, in points, unscaled (React Native's `letterSpacing`).
+  let letterSpacing: Double
 }
 
 /// A VoiceOver action for a link or a highlight: its label, and the run `onPressRun` reports.
