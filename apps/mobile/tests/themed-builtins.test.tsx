@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Linking, StyleSheet, Text } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 import "../src/global.css";
 import Card, { CardGrid } from "@mdxserve/ui/builtins/Card";
@@ -17,6 +18,11 @@ import { loadCompiledStylesheet, resolveTheme } from "./stylesheet/analyze.js";
 // must be the theme's tokens.
 
 const sheet = loadCompiledStylesheet();
+
+const METRICS = {
+	frame: { x: 0, y: 0, width: 393, height: 852 },
+	insets: { top: 59, right: 0, bottom: 34, left: 0 },
+};
 
 function styleOf(element: { props: { style?: unknown } }): Record<string, unknown> {
 	return StyleSheet.flatten(element.props.style as never) ?? {};
@@ -150,30 +156,33 @@ describe.each(["light", "dark"] as const)("the shared builtins in the %s theme",
 	it("frames a screenshot and opens it full screen", async () => {
 		Uniwind.setTheme(theme);
 		const { toJSON } = await render(
-			<Screenshot
-				id="shot"
-				src="https://example.com/reader.png"
-				alt="The reader"
-				title="mdxserve — 01-markdown.md"
-				caption="The reader view."
-			/>,
+			<SafeAreaProvider initialMetrics={METRICS}>
+				<Screenshot
+					id="shot"
+					src="https://example.com/reader.png"
+					alt="The reader"
+					title="mdxserve — 01-markdown.md"
+					caption="The reader view."
+				/>
+			</SafeAreaProvider>,
 		);
 		expect(styleOf(screen.getByText("mdxserve — 01-markdown.md")).color).toBe(
 			variables["--text-subtle"],
 		);
 		expect(screen.getByText("The reader view.")).toBeOnTheScreen();
 		expect(unresolved(toJSON())).toEqual([]);
-		expect(screen.queryByText("Done")).toBeNull();
+		expect(screen.queryByTestId("screenshot-viewer-area")).toBeNull();
 		await fireEvent.press(screen.getByRole("button", { name: "Expand screenshot" }));
-		expect(screen.getByText("Done")).toBeOnTheScreen();
+		expect(screen.getByTestId("screenshot-viewer-area")).toBeOnTheScreen();
+		expect(unresolved(toJSON())).toEqual([]);
 		// The image fills the area the sheet gives it (on iPad narrower than the window).
 		await fireEvent(screen.getByTestId("screenshot-viewer-area"), "layout", {
 			nativeEvent: { layout: { x: 0, y: 0, width: 540, height: 620 } },
 		});
 		const images = screen.getAllByLabelText("The reader");
 		expect(styleOf(images[images.length - 1])).toMatchObject({ width: 540, height: 620 });
-		await fireEvent.press(screen.getByText("Done"));
-		expect(screen.queryByText("Done")).toBeNull();
+		await fireEvent.press(screen.getByRole("button", { name: "Close full screen" }));
+		expect(screen.queryByTestId("screenshot-viewer-area")).toBeNull();
 	});
 
 	it("draws a diff, switches to the split view, expands unchanged lines and copies `after`", async () => {
