@@ -1,8 +1,8 @@
 import { parseQrPayload } from "@mdxserve/shared/discovery";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Text } from "@mdxserve/ui/primitives/Text";
 import { CandidateCard } from "../../../src/servers/CandidateCard";
@@ -30,7 +30,9 @@ const SCANNING: Stage = { kind: "scanning", notice: undefined };
 export default function ScanServer() {
 	const router = useRouter();
 	const { probe, servers, addConfirmed } = useServers();
-	const [permission, requestPermission] = useCameraPermissions();
+	const [permission, requestPermission, getPermission] = useCameraPermissions();
+	// The camera runs only while this screen is the one on view: another tab keeps it mounted.
+	const focused = useIsFocused();
 	const [stage, setStage] = useState<Stage>(SCANNING);
 	const [cameraError, setCameraError] = useState<string | undefined>();
 	const lastCode = useRef<string | undefined>(undefined);
@@ -41,6 +43,14 @@ export default function ScanServer() {
 	useEffect(() => {
 		if (canAsk) void requestPermission();
 	}, [canAsk, requestPermission]);
+
+	// Back from Settings, where the reader may have allowed the camera: read the permission again.
+	useEffect(() => {
+		const subscription = AppState.addEventListener("change", (status) => {
+			if (status === "active") void getPermission();
+		});
+		return () => subscription.remove();
+	}, [getPermission]);
 
 	useEffect(() => {
 		if (stage.kind !== "scanning" || stage.notice === undefined) return;
@@ -155,17 +165,19 @@ export default function ScanServer() {
 		return (
 			<>
 				<View style={styles.camera} className="rounded-md bg-surface-inverse">
-					<CameraView
-						style={StyleSheet.absoluteFill}
-						facing="back"
-						barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-						// No codes are read while an address is being checked.
-						onBarcodeScanned={
-							stage.kind === "scanning" ? (result) => void scanned(result) : undefined
-						}
-						onMountError={(error) => setCameraError(error.message)}
-						testID="qr-camera"
-					/>
+					{focused ? (
+						<CameraView
+							style={StyleSheet.absoluteFill}
+							facing="back"
+							barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+							// No codes are read while an address is being checked.
+							onBarcodeScanned={
+								stage.kind === "scanning" ? (result) => void scanned(result) : undefined
+							}
+							onMountError={(error) => setCameraError(error.message)}
+							testID="qr-camera"
+						/>
+					) : null}
 				</View>
 				{stage.kind === "checking" ? (
 					<View style={styles.actions}>

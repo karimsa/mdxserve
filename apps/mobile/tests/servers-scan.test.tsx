@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
-import { Linking } from "react-native";
+import { AppState, Linking, type AppStateStatus } from "react-native";
+import { router } from "expo-router";
 import { Uniwind } from "uniwind";
 import { buildQrPayload } from "@mdxserve/shared/discovery";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
@@ -53,8 +54,13 @@ const mockCamera: {
 jest.mock("expo-camera", () => {
 	const { createElement } = jest.requireActual<typeof import("react")>("react");
 	const { View } = jest.requireActual<typeof import("react-native")>("react-native");
+	const { useState } = jest.requireActual<typeof import("react")>("react");
 	return {
-		useCameraPermissions: () => [mockCamera.permission, mockCamera.request],
+		// Like the real hook: the permission it read, until `get` reads it again.
+		useCameraPermissions: () => {
+			const [permission, setPermission] = useState(mockCamera.permission);
+			return [permission, mockCamera.request, async () => setPermission(mockCamera.permission)];
+		},
 		CameraView: (props: {
 			testID?: string;
 			onBarcodeScanned?: (result: { data: string }) => void;
@@ -145,6 +151,31 @@ describe.each(["light", "dark"] as const)("scanning a QR code (%s)", (theme) => 
 		expect(openSettings).toHaveBeenCalled();
 		expect(screen.queryByTestId("qr-camera")).toBeNull();
 		openSettings.mockRestore();
+	});
+
+	it("opens the camera on returning from Settings with it allowed", async () => {
+		mockCamera.permission = { granted: false, canAskAgain: false };
+		const listeners: Array<(status: AppStateStatus) => void> = [];
+		const original = AppState.addEventListener;
+		AppState.addEventListener = ((type: "change", listener: (status: AppStateStatus) => void) => {
+			listeners.push(listener);
+			return original.call(AppState, type, listener as Parameters<typeof original>[1]);
+		}) as typeof AppState.addEventListener;
+		await renderRouter(APP_ROUTES, { initialUrl: "/servers/scan" });
+		expect(await screen.findByRole("button", { name: "Open Settings" })).toBeOnTheScreen();
+		mockCamera.permission = { granted: true, canAskAgain: true };
+		await act(async () => {
+			for (const listener of listeners) listener("active");
+		});
+		expect(await screen.findByTestId("qr-camera")).toBeOnTheScreen();
+		AppState.addEventListener = original;
+	});
+
+	it("turns the camera off when another tab is shown", async () => {
+		await renderRouter(APP_ROUTES, { initialUrl: "/servers/scan" });
+		expect(await screen.findByTestId("qr-camera")).toBeOnTheScreen();
+		await act(() => router.navigate("/settings"));
+		expect(screen.queryByTestId("qr-camera")).toBeNull();
 	});
 
 	it("adds nothing for a code that is not an address, and keeps scanning (S2)", async () => {
