@@ -1,9 +1,9 @@
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Text } from "@mdxserve/ui/primitives/Text";
+import { useSheetGlass } from "../glass-sheet";
 import { CommentsList, STATUS_WIDTH, StatusControl } from "./CommentsPanel";
 import { useCommentsView, useCommentsViews } from "./sheet";
 
@@ -34,7 +34,7 @@ export function CommentsSheet({ viewKey }: { viewKey: string }) {
 		},
 		[views, viewKey],
 	);
-	const glass = isLiquidGlassAvailable();
+	const glass = useSheetGlass();
 	return (
 		<SafeAreaProvider>
 			<View

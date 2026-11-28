@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
+import { HALF_DETENT, SHORT_DETENT } from "../glass-sheet";
 import type { CommentActions } from "./data";
 import type { CommentsModel } from "./model";
 
@@ -76,15 +77,7 @@ export function useCommentsView(key: string): CommentsView | undefined {
 	return useSyncExternalStore(subscribe, () => store.get(key));
 }
 
-/**
- * The sheet's heights, as shares of the window's: short (the control and one line, for a
- * document with no threads), about half, and full. The document behind stays undimmed and
- * usable up to the half height (`UNDIMMED_DETENT`).
- */
-export const SHEET_DETENTS = [0.3, 0.5, 1];
-export const UNDIMMED_DETENT = 1;
-
-/** The detent a sheet opens at: short when its document had no threads, else half height. */
+/** The height a comments sheet opens at: short when its document had no threads, else half. */
 export function initialDetent(key: string | undefined): number {
-	return key !== undefined && views.get(key)?.empty === true ? 0 : 1;
+	return key !== undefined && views.get(key)?.empty === true ? SHORT_DETENT : HALF_DETENT;
 }
