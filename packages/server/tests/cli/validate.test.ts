@@ -211,6 +211,7 @@ describe("runValidate over a real server", () => {
 		const record = { pid: process.pid, host: "127.0.0.1", port, roots: [fixtureDir], startedAt: 0 };
 		const server = {
 			serverRunning: () => true,
+			record: () => record,
 			snapshotRoots: () => [{ name: path.basename(fixtureDir), dir: fixtureDir }],
 			remote: new RemoteClient(() => record),
 		};

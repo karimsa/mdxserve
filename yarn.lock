@@ -2808,6 +2808,7 @@ __metadata:
     typescript: "npm:7.0.2"
     unified: "npm:11.0.5"
     update-notifier: "npm:7.3.1"
+    uqr: "npm:0.1.3"
     vfile-message: "npm:4.0.3"
     vitest: "npm:4.1.10"
     yaml: "npm:2.9.1"
@@ -16326,6 +16327,13 @@ __metadata:
     semver: "npm:^7.6.3"
     xdg-basedir: "npm:^5.1.0"
   checksum: 10c0/678839453840f46bb75e8cfebc0ff522262d2d3ece343fca722dd506039832e2a952d14ae39153f05f684467c8293ebc4c6479c9652c1bf97908fcaf300c2b31
+  languageName: node
+  linkType: hard
+
+"uqr@npm:0.1.3":
+  version: 0.1.3
+  resolution: "uqr@npm:0.1.3"
+  checksum: 10c0/7e0ef173b736fb5c93179659b4fe0720c803d45fa8628aaf2715a399b33a15a3d26d9001e05e026421d544a814e971cf0fa66b481edb649d256e7a17d79777c0
   languageName: node
   linkType: hard
 

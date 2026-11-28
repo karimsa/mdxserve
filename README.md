@@ -100,6 +100,9 @@ Tailscale is running, startup prints the exact command. Run it, restart the serv
 tailnet address and live updates work through it. See
 [Through `tailscale serve`](docs/advanced.md#through-tailscale-serve).
 
+To add the server to the mdxserve app on your phone, run `mdxserve qr` and scan the code it
+prints from Servers, Add server, Scan a QR code.
+
 ## Hosting a public reader
 
 Permission mode defaults to `full` on loopback and `restricted` on other interfaces.

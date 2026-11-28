@@ -1,10 +1,12 @@
 import { computeRootInfos, type RootInfo } from "../roots/root-info.js";
 import { RemoteClient, type Remote } from "./remote.js";
-import type { ServerRegistry } from "./server-registry.js";
+import type { ServerRecord, ServerRegistry } from "./server-registry.js";
 
 /** What a CLI verb needs to know about the one running `mdxserve serve`, read fresh per call. */
 export interface LiveServer {
 	serverRunning: () => boolean;
+	/** The registry row: where the server listens (`host`, `port`). */
+	record: () => ServerRecord | undefined;
 	snapshotRoots: () => RootInfo[];
 	remote: Remote;
 }
@@ -12,6 +14,7 @@ export interface LiveServer {
 export function liveServerFrom(serverRegistry: ServerRegistry): LiveServer {
 	return {
 		serverRunning: () => serverRegistry.current() !== undefined,
+		record: () => serverRegistry.current(),
 		snapshotRoots: () => computeRootInfos(serverRegistry.current()?.roots ?? []),
 		remote: new RemoteClient(() => serverRegistry.current()),
 	};
