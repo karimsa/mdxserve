@@ -49,8 +49,9 @@ function ControlButton({
 }
 
 /**
- * A diagram's controls, as the web client stacks them at the diagram's bottom right: full
- * screen (inline only), zoom in, reset to fit, zoom out.
+ * An inline diagram's controls, as the web client stacks them at the diagram's bottom right:
+ * full screen, zoom in, reset to fit, zoom out. The full screen view has the same controls as
+ * native bar items (DiagramScreen).
  */
 export function DiagramControls({
 	scale,
@@ -62,7 +63,7 @@ export function DiagramControls({
 }: {
 	scale: number;
 	maxScale: number;
-	onExpand?: () => void;
+	onExpand: () => void;
 	onZoomIn: () => void;
 	onReset: () => void;
 	onZoomOut: () => void;
@@ -74,14 +75,11 @@ export function DiagramControls({
 			hitSlop={SLOP}
 			className="overflow-hidden rounded-md border border-border-default bg-surface-card"
 		>
-			{onExpand ? (
-				<ControlButton icon="expand" label="Expand diagram" onPress={onExpand} first={true} />
-			) : null}
-			<View className={onExpand ? "border-t border-border-subtle" : ""}>
+			<ControlButton icon="expand" label="Expand diagram" onPress={onExpand} first={true} />
+			<View className="border-t border-border-subtle">
 				<ControlButton
 					icon="plus"
 					label="Zoom in"
-					first={!onExpand}
 					onPress={onZoomIn}
 					disabled={scale >= maxScale}
 				/>

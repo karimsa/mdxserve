@@ -1,4 +1,5 @@
-import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import { router } from "expo-router";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Pressable as NativePressable, Text, useWindowDimensions, View } from "react-native";
 import type { CodeNode } from "@mdxserve/client/document/tree-types";
 import { chartDiagramKeyword, chartDiagramMessage } from "@mdxserve/shared/mermaid-chart";
@@ -14,7 +15,7 @@ import { WIDE_WINDOW } from "../vertical-bar";
 import { DirectionButton, ViewToggle, type FrameView } from "./DiagramActions";
 import { CONTROLS_HEIGHT, DiagramControls } from "./DiagramControls";
 import { DiagramNotice } from "./DiagramNotice";
-import { DiagramViewer } from "./DiagramViewer";
+import { useDiagramViews, type DiagramView } from "./diagram-views";
 import { DiagramWebView, type DiagramRequest, type DiagramWebViewHandle } from "./DiagramWebView";
 import { MAX_ZOOM, ZOOM_STEP } from "./render-call";
 import { inlineDiagramSize, UNMEASURED_HEIGHT } from "./size";
@@ -54,6 +55,27 @@ export function DiagramBlock({ node }: { node: CodeNode }) {
 	const direction = chosen !== null && chosen.source === node.value ? chosen.direction : preferred;
 	const diagramSource =
 		direction !== null ? setFlowchartDirection(node.value, direction) : node.value;
+	// The full screen view (app/diagram.tsx) shows what this block shows, kept current while it
+	// is open.
+	const views = useDiagramViews();
+	const openKey = useRef<string | null>(null);
+	const fullView = useMemo<DiagramView>(
+		() => ({
+			node,
+			source: diagramSource,
+			authored,
+			direction,
+			chooseDirection: (next) => setChosen({ source: node.value, direction: next }),
+		}),
+		[node, diagramSource, authored, direction],
+	);
+	useEffect(() => {
+		if (openKey.current !== null) views.update(openKey.current, fullView);
+	}, [views, fullView]);
+	const openFullView = () => {
+		openKey.current = views.open(fullView);
+		router.push({ pathname: "/diagram", params: { view: openKey.current } });
+	};
 	const directionButton =
 		authored !== null && direction !== null ? (
 			<DirectionButton
@@ -85,12 +107,7 @@ export function DiagramBlock({ node }: { node: CodeNode }) {
 					</DiagramNotice>
 				)
 			) : (
-				<DiagramBody
-					node={node}
-					view={view}
-					source={diagramSource}
-					directionButton={directionButton}
-				/>
+				<DiagramBody node={node} view={view} source={diagramSource} onOpen={openFullView} />
 			)}
 		</CodeFrame>
 	);
@@ -100,13 +117,14 @@ function DiagramBody({
 	node,
 	view,
 	source,
-	directionButton,
+	onOpen,
 }: {
 	node: CodeNode;
 	view: FrameView;
 	/** The text handed to Mermaid: the block's, in the layout the reader sees. */
 	source: string;
-	directionButton: ReactNode;
+	/** Opens the full screen view. */
+	onOpen: () => void;
 }) {
 	const screen = useWindowDimensions();
 	const themeVariables = useDiagramTheme();
@@ -117,7 +135,6 @@ function DiagramBody({
 	const [state, dispatch] = useReducer(diagramReducer, initialDiagramState(nodeId, requestKey));
 	const [attempt, setAttempt] = useState(0);
 	const [width, setWidth] = useState(0);
-	const [open, setOpen] = useState(false);
 	const [scale, setScale] = useState(1);
 	const webviewRef = useRef<DiagramWebViewHandle>(null);
 	const sizes = useDiagramSizes();
@@ -214,7 +231,7 @@ function DiagramBody({
 					accessibilityLabel={`Diagram: ${title}${description ? `. ${description}` : ""}`}
 					accessibilityHint="Opens the full view"
 					disabled={zoomed}
-					onPress={() => setOpen(true)}
+					onPress={onOpen}
 					className="flex-1"
 				>
 					<View
@@ -230,7 +247,7 @@ function DiagramBody({
 						<DiagramControls
 							scale={scale}
 							maxScale={MAX_ZOOM}
-							onExpand={() => setOpen(true)}
+							onExpand={onOpen}
 							onZoomIn={() => webviewRef.current?.zoom({ kind: "zoom", factor: ZOOM_STEP })}
 							onReset={() => webviewRef.current?.zoom({ kind: "reset" })}
 							onZoomOut={() => webviewRef.current?.zoom({ kind: "zoom", factor: 1 / ZOOM_STEP })}
@@ -238,16 +255,6 @@ function DiagramBody({
 					</View>
 				) : null}
 			</View>
-			{open ? (
-				<DiagramViewer
-					open={open}
-					onClose={() => setOpen(false)}
-					title={node.title ?? "Diagram"}
-					request={request}
-					source={node.value}
-					directionButton={directionButton}
-				/>
-			) : null}
 		</View>
 	);
 }

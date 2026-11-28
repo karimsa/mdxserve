@@ -48,6 +48,9 @@ export default function RootLayout() {
 							<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 								<Stack>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+									{/* Full screen, so nothing is drawn under a folded display's vertical bar
+									    and a swipe down never fights a pan; its items are native bar items. */}
+									<Stack.Screen name="diagram" options={{ presentation: "fullScreenModal" }} />
 								</Stack>
 								<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
 							</ThemeProvider>

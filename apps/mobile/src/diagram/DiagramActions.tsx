@@ -71,7 +71,7 @@ export function ViewToggle({
 	);
 }
 
-const DIRECTIONS: readonly FlowDirection[] = ["TB", "BT", "LR", "RL"];
+export const DIRECTIONS: readonly FlowDirection[] = ["TB", "BT", "LR", "RL"];
 
 const DIRECTION_ICON: Record<FlowDirection, string> = {
 	TB: "arrow-down",
@@ -80,7 +80,7 @@ const DIRECTION_ICON: Record<FlowDirection, string> = {
 	RL: "arrow-left",
 };
 
-const DIRECTION_LABEL: Record<FlowDirection, string> = {
+export const DIRECTION_LABEL: Record<FlowDirection, string> = {
 	TB: "Top to bottom",
 	BT: "Bottom to top",
 	LR: "Left to right",

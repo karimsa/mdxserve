@@ -10,6 +10,8 @@ import { DiagramBlock } from "../src/diagram/DiagramBlock";
 import { CONTROLS_HEIGHT } from "../src/diagram/DiagramControls";
 import { ZOOM_STEP } from "../src/diagram/render-call";
 import { DiagramSizes, DiagramSizesContext } from "../src/diagram/sizes";
+import { DiagramViews, DiagramViewsContext } from "../src/diagram/diagram-views";
+import { router } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { inlineDiagramSize } from "../src/diagram/size";
 import { DIAGRAM_TIMEOUT_MS } from "../src/diagram/state";
@@ -108,15 +110,6 @@ async function layOut(width: number) {
 	});
 }
 
-/** The presentation style of every modal in a rendered tree. */
-function presentationStyles(tree: unknown): unknown[] {
-	if (!tree || typeof tree !== "object") return [];
-	if (Array.isArray(tree)) return tree.flatMap(presentationStyles);
-	const node = tree as { props?: { presentationStyle?: unknown }; children?: unknown };
-	const own = node.props?.presentationStyle === undefined ? [] : [node.props.presentationStyle];
-	return [...own, ...presentationStyles(node.children)];
-}
-
 /** A folded iPhone Duo's safe area: the system's bar on the right. */
 const METRICS = {
 	frame: { x: 0, y: 0, width: 466, height: 900 },
@@ -127,12 +120,14 @@ const METRICS = {
  * Renders `ui` with a size cache of its own, so no test sees another's drawings, in a folded
  * Duo's safe area.
  */
-function show(ui: ReactElement) {
+function show(ui: ReactElement, views = new DiagramViews()) {
 	const sizes = new DiagramSizes();
 	return render(ui, {
 		wrapper: ({ children }) => (
 			<SafeAreaProvider initialMetrics={METRICS}>
-				<DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>
+				<DiagramViewsContext value={views}>
+					<DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>
+				</DiagramViewsContext>
 			</SafeAreaProvider>
 		),
 	});
@@ -142,13 +137,18 @@ function bodyHeight(): unknown {
 	return StyleSheet.flatten(screen.getByTestId("diagram-body").props.style as never)?.height;
 }
 
+/** Where the block sends the reader for its full screen view. */
+let push: ReturnType<typeof jest.spyOn>;
+
 beforeEach(async () => {
+	push = jest.spyOn(router, "push").mockImplementation(() => {});
 	webviewCalls.length = 0;
 	await setWindow(466);
 });
 
 afterEach(() => {
 	jest.useRealTimers();
+	push.mockRestore();
 });
 
 afterAll(() => {
@@ -354,29 +354,21 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(image.props.accessibilityRole).toBe("imagebutton");
 	});
 
-	it("opens a full screen view on a tap, with its own WebView, Source and Done (M3a)", async () => {
-		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+	it("opens the full screen view on a tap, with what the block shows (M3a)", async () => {
+		const views = new DiagramViews();
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />, views);
 		await fireEvent.press(screen.getByLabelText("Diagram: Mermaid diagram"));
-		const mounted = webviews();
-		expect(mounted).toHaveLength(2);
-		expect(presentationStyles(screen.toJSON())).toEqual(["fullScreen"]);
-		await post({ kind: "ready" }, mounted[1]);
-		expect(lastRequest(webviewCalls[1]).source).toBe("flowchart TB\n  A --> B");
-		await post(
-			{
-				kind: "rendered",
-				token: lastRequest(webviewCalls[1]).token,
-				width: 400,
-				height: 120,
-				title: null,
-				description: null,
-			},
-			mounted[1],
-		);
-		await fireEvent.press(screen.getByText("Source"));
-		expect(screen.getAllByText(FLOW_LR).length).toBeGreaterThan(0);
-		await fireEvent.press(screen.getByText("Done"));
-		expect(webviews()).toHaveLength(1);
+		expect(push).toHaveBeenCalledWith({ pathname: "/diagram", params: { view: "1" } });
+		expect(views.get("1")).toMatchObject({
+			source: "flowchart TB\n  A --> B",
+			authored: "LR",
+			direction: "TB",
+		});
+		// A layout chosen in the full view reaches the block, and the view follows it.
+		await act(async () => views.get("1")!.chooseDirection("LR"));
+		expect(views.get("1")).toMatchObject({ source: FLOW_LR, direction: "LR" });
+		await post({ kind: "ready" });
+		expect(lastRequest().source).toBe(FLOW_LR);
 	});
 
 	it("stacks the web's controls on a drawn diagram: full screen, zoom in, reset, zoom out", async () => {
@@ -409,7 +401,7 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(screen.getByLabelText("Reset view")).toBeDisabled();
 		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
 		await fireEvent.press(screen.getByLabelText("Expand diagram"));
-		expect(webviews()).toHaveLength(2);
+		expect(push).toHaveBeenCalledWith({ pathname: "/diagram", params: { view: "1" } });
 	});
 
 	it("zooms in place from the controls, and pans only while zoomed", async () => {
@@ -437,30 +429,6 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 
 		await post({ kind: "zoom", scale: 10 });
 		expect(screen.getByLabelText("Zoom in")).toBeDisabled();
-	});
-
-	it("drives the full view's own zoom from its controls", async () => {
-		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
-		await fireEvent.press(screen.getByLabelText("Diagram: Mermaid diagram"));
-		const viewer = webviews()[1]!;
-		await post({ kind: "ready" }, viewer);
-		await post(
-			{
-				kind: "rendered",
-				token: lastRequest(webviewCalls[1]).token,
-				width: 400,
-				height: 120,
-				title: null,
-				description: null,
-			},
-			viewer,
-		);
-		const controls = screen.getAllByTestId("diagram-controls");
-		expect(controls).toHaveLength(1);
-		expect(within(controls[0]!).queryByLabelText("Expand diagram")).toBeNull();
-		await fireEvent.press(within(controls[0]!).getByLabelText("Zoom in"));
-		expect(zoomsIn(webviewCalls[1]!)).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
-		expect(zoomsIn(webviewCalls[0]!)).toEqual([]);
 	});
 
 	it.each([
