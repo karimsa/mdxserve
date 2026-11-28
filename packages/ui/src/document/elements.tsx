@@ -339,10 +339,13 @@ export function InlineCode({ value, source }: { value: string; source?: object }
 		);
 	}
 	// A mark over the whole chip colours the chip, which a nested run's background cannot round.
-	const whole = (marks ?? []).filter((mark) => mark.start <= 0 && mark.end >= value.length);
-	const threadIds = whole.map((mark) => mark.threadId);
+	// Another thread's mark on part of the chip still draws its own run on top, with its press.
+	const all = marks ?? [];
+	const covers = (mark: TextMark) => mark.start <= 0 && mark.end >= value.length;
+	const threadIds = all.filter(covers).map((mark) => mark.threadId);
 	const markClass =
 		threadIds.length === 0 ? null : threadIds.includes(active ?? "") ? MARK_ACTIVE : MARK;
+	const runs = source !== undefined && (markClass === null || !all.every(covers));
 	return (
 		<View
 			style={{ transform: [{ translateY: Math.round(size * MONO_DESCENT * 2) / 2 }] }}
@@ -350,9 +353,9 @@ export function InlineCode({ value, source }: { value: string; source?: object }
 		>
 			<Text
 				className={`${CODE_TEXT} ${CODE_SIZE}`}
-				onPress={markClass && press ? () => press(threadIds) : undefined}
+				onPress={markClass && !runs && press ? () => press(threadIds) : undefined}
 			>
-				{source && !markClass ? <MarkedText source={source} value={value} code={true} /> : value}
+				{runs ? <MarkedText source={source} value={value} code={true} /> : value}
 			</Text>
 		</View>
 	);

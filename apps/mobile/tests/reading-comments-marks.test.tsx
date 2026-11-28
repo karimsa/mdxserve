@@ -152,6 +152,19 @@ describe.each(["light", "dark"] as const)("comment highlights in the app (%s)", 
 		expect(flat(screen.getByText("a long").parent as never).fontFamily).toBe("JetBrains Mono");
 	});
 
+	it("keeps a thread on part of a chip that another thread covers whole", async () => {
+		Uniwind.setTheme(theme);
+		const tree = document();
+		const pressMark = jest.fn();
+		await draw(tree, marksFor(tree, { whole: "chip", part: "hi" }, "part", pressMark));
+		const part = screen.getByText("hi");
+		expect(flat(part).backgroundColor).toBe(variables["--comment-mark-active"]);
+		await fireEvent.press(part);
+		expect(pressMark).toHaveBeenCalledWith(["whole", "part"]);
+		// The rest of the chip is the whole-chip thread's.
+		expect(flat(screen.getByText("p")).backgroundColor).toBe(variables["--comment-mark"]);
+	});
+
 	it("opens a thread from its highlight, and leaves a link's press to the link", async () => {
 		Uniwind.setTheme(theme);
 		const tree = document();
