@@ -55,6 +55,41 @@ async function setInsets(insets: EdgeInsets) {
 	});
 }
 
+/** Whether `tree` holds the element with `testID`. */
+function holds(tree: unknown, testID: string): boolean {
+	if (tree === null || typeof tree !== "object") return false;
+	if (Array.isArray(tree)) return tree.some((child) => holds(child, testID));
+	const element = tree as HostElement;
+	return element.props?.testID === testID || holds(element.children ?? [], testID);
+}
+
+/**
+ * What UIKit reports as the full view's own safe area: its provider is the one around the
+ * diagram's area, and its insets count the bar only where the bar covers that area.
+ */
+async function setAreaInsets(insets: EdgeInsets) {
+	const provider = allHosts(screen.toJSON(), "RNCSafeAreaProvider")
+		.filter((candidate) => holds(candidate.children, "diagram-screen-body"))
+		.at(-1);
+	if (!provider) throw new Error("no safe area provider around the diagram");
+	await act(async () => {
+		provider.props.onInsetsChange({
+			nativeEvent: { insets, frame: { x: 0, y: 0, width: 951, height: 669 } },
+		});
+	});
+}
+
+function bodyPadding() {
+	const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
+	const style = StyleSheet.flatten(body.props.style as never) as Record<string, number>;
+	return {
+		top: style.paddingTop,
+		right: style.paddingRight,
+		bottom: style.paddingBottom,
+		left: style.paddingLeft,
+	};
+}
+
 /** The full view's header, as the native stack receives it. */
 function header(): HostElement {
 	const found = allHosts(screen.toJSON(), "RNSScreenStackHeaderConfig").find(
@@ -172,10 +207,10 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 		expect(header().props.backgroundColor).toBe(canvas(theme));
 		expect(screen.queryByText("Left to right (top-down when folded)")).toBeNull();
 		expect(screen.getByLabelText("Left to right (top-down when folded)")).toBeTruthy();
-		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
-		const padding = StyleSheet.flatten(body.props.style as never) as Record<string, number>;
-		expect(padding.paddingRight).toBe(84);
-		expect(padding.paddingTop).toBeGreaterThan(0);
+		// The area is padded by what covers it, as UIKit measures it for this view: here the bar's
+		// band at the top and the vertical bar on the right.
+		await setAreaInsets({ top: 60, right: 84, bottom: 21, left: 0 });
+		expect(bodyPadding()).toEqual({ top: 60, right: 84, bottom: 21, left: 0 });
 		expect(webviews()[viewer]!.props.scrollEnabled).toBe(false);
 	});
 
@@ -234,6 +269,20 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 		expect(item("Layout: Left to right")).toBeTruthy();
 	});
 
+	it("keeps a tall diagram clear of the bar on an unfolded display, from the area's own insets", async () => {
+		await openFullView({ top: 0, right: 84, bottom: 21, left: 0 }, 951);
+		// Unfolded the items sit in a top bar that covers the area's top 164 pt: the diagram
+		// starts below it (a header height worked out in JavaScript fell short of it).
+		await setAreaInsets({ top: 164, right: 84, bottom: 21, left: 0 });
+		expect(bodyPadding()).toEqual({ top: 164, right: 84, bottom: 21, left: 0 });
+		// Where something else already keeps the area below the bar, no second gap is added.
+		await setAreaInsets({ top: 0, right: 84, bottom: 21, left: 0 });
+		expect(bodyPadding()).toEqual({ top: 0, right: 84, bottom: 21, left: 0 });
+		// The WebView fills the padded area, where the page fits the whole drawing.
+		const area = screen.getByTestId("diagram-screen-area", { includeHiddenElements: true });
+		expect(StyleSheet.flatten(area.props.style as never)).toMatchObject({ flex: 1 });
+	});
+
 	it("goes back to the page on Done", async () => {
 		await openFullView(FOLDED);
 		await act(async () => item("Done").onPress());
@@ -242,8 +291,8 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 
 	it("shows the same items across the top on an iPhone in portrait, the diagram below them", async () => {
 		await openFullView(IPHONE, 393);
-		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
-		expect(StyleSheet.flatten(body.props.style as never).paddingTop).toBeGreaterThan(0);
+		await setAreaInsets({ top: 103, right: 0, bottom: 34, left: 0 });
+		expect(bodyPadding()).toEqual({ top: 103, right: 0, bottom: 34, left: 0 });
 		expect(items().map((entry) => entry.accessibilityLabel)).toEqual([
 			"Zoom in",
 			"Reset view",

@@ -1,10 +1,9 @@
 import { router, Stack } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useResolveClassNames } from "uniwind";
 import type { FlowDirection } from "@mdxserve/shared/mermaid-direction";
 import { Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DIRECTION_LABEL, DIRECTIONS } from "./DiagramActions";
 import { DiagramNotice } from "./DiagramNotice";
 import { useDiagramView, useDiagramViews, type DiagramView } from "./diagram-views";
@@ -82,8 +81,6 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 	const [state, setState] = useState<ViewerState>({ kind: "loading" });
 	const [zoomState, setZoomState] = useState<DiagramZoom>(FITTED);
 	const webviewRef = useRef<DiagramWebViewHandle>(null);
-	const insets = useSafeAreaInsets();
-	const headerHeight = useHeaderHeight();
 	const drawn = state.kind === "drawn";
 	const barColour = useResolveClassNames("bg-diagram-bg").backgroundColor;
 	const title = view.node.title ?? "Diagram";
@@ -155,45 +152,61 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 					onPress={close}
 				/>
 			</Stack.Toolbar>
-			{/* The drawing keeps clear of the top bar where there is one, the vertical bar and the
-			    home indicator. */}
-			<View
-				testID="diagram-screen-body"
-				className="flex-1"
-				style={{
-					// The bar is opaque, but on iOS 26 and later react-native-screens lays a screen
-					// presented as a native modal out under it with no content offset, so without
-					// this the bar covers the top of the diagram (seen on a folded Duo).
-					paddingTop: headerHeight,
-					paddingLeft: insets.left,
-					paddingRight: insets.right,
-					paddingBottom: insets.bottom,
-				}}
-			>
-				{state.kind === "failed" ? (
-					<DiagramNotice heading="Mermaid could not render this diagram" monospace={true}>
-						{state.message}
-					</DiagramNotice>
-				) : null}
-				{state.kind === "loading" ? (
-					<Text className="px-4 py-8 text-center font-sans text-[length:var(--size-sm)] text-text-subtle">
-						Rendering diagram…
-					</Text>
-				) : null}
-				<View testID="diagram-screen-area" className={drawn ? "flex-1" : "h-0 opacity-0"}>
-					<DiagramWebView
-						ref={webviewRef}
-						request={request}
-						onZoom={setZoomState}
-						onRendered={(key) => {
-							if (key === request.key) setState({ kind: "drawn" });
-						}}
-						onError={(key, message) => {
-							if (key === request.key) setState({ kind: "failed", message });
-						}}
-					/>
-				</View>
-			</View>
+			{/* A safe area provider of the screen's own reports the insets of this very view: the
+			    bar where it overlaps it, the vertical bar and the home indicator. */}
+			<SafeAreaProvider style={{ flex: 1 }}>
+				<DiagramArea>
+					{state.kind === "failed" ? (
+						<DiagramNotice heading="Mermaid could not render this diagram" monospace={true}>
+							{state.message}
+						</DiagramNotice>
+					) : null}
+					{state.kind === "loading" ? (
+						<Text className="px-4 py-8 text-center font-sans text-[length:var(--size-sm)] text-text-subtle">
+							Rendering diagram…
+						</Text>
+					) : null}
+					<View testID="diagram-screen-area" className={drawn ? "flex-1" : "h-0 opacity-0"}>
+						<DiagramWebView
+							ref={webviewRef}
+							request={request}
+							onZoom={setZoomState}
+							onRendered={(key) => {
+								if (key === request.key) setState({ kind: "drawn" });
+							}}
+							onError={(key, message) => {
+								if (key === request.key) setState({ kind: "failed", message });
+							}}
+						/>
+					</View>
+				</DiagramArea>
+			</SafeAreaProvider>
+		</View>
+	);
+}
+
+/**
+ * The diagram's area, padded by what overlaps it, measured rather than assumed. On iOS 26 and
+ * later react-native-screens lays this screen out under its opaque bar, and the bar's height
+ * depends on the window and on where iOS puts the status and navigation items, so a header
+ * height worked out in JavaScript left the bar over the top of the diagram on an unfolded Duo.
+ * The provider around this view reads the view's own safe area from UIKit, which counts the bar
+ * exactly as far as it covers the view, and nothing when something else already insets it.
+ */
+function DiagramArea({ children }: { children: ReactNode }) {
+	const insets = useSafeAreaInsets();
+	return (
+		<View
+			testID="diagram-screen-body"
+			className="flex-1"
+			style={{
+				paddingTop: insets.top,
+				paddingLeft: insets.left,
+				paddingRight: insets.right,
+				paddingBottom: insets.bottom,
+			}}
+		>
+			{children}
 		</View>
 	);
 }
