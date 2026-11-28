@@ -75,12 +75,6 @@ function item(label: string): Record<string, any> {
 	return found;
 }
 
-/** The bar icon an item shows: the file name of its template image. */
-function glyph(entry: Record<string, any>): string | undefined {
-	const uri: string | undefined = entry.icon?.templateSource?.testUri;
-	return uri?.replace(/^.*\/bar-icons\/(.+)\.png$/, "$1");
-}
-
 function webviews() {
 	return screen.getAllByTestId("diagram-webview", { includeHiddenElements: true });
 }
@@ -150,15 +144,15 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 
 	it("puts every control in the bar as a native item with a symbol, beside a folded display", async () => {
 		const viewer = await openFullView(FOLDED);
-		// The inline controls' lucide glyphs, rendered to one size, tinted by the bar.
-		expect(items().map((entry) => [entry.accessibilityLabel, glyph(entry)])).toEqual([
+		// Plain SF Symbols: iOS moves only symbol items into a folded display's vertical bar.
+		expect(items().map((entry) => [entry.accessibilityLabel, entry.icon?.name])).toEqual([
 			["Zoom in", "plus"],
-			["Reset view", "maximize"],
+			["Reset view", "viewfinder"],
 			["Zoom out", "minus"],
-			["Layout: Top to bottom", "arrow-down"],
-			["Done", "x"],
+			["Layout: Top to bottom", "arrow.down"],
+			["Done", "xmark"],
 		]);
-		for (const entry of items()) expect(entry.icon.type).toBe("templateSource");
+
 		// No source view any more, and no floating controls.
 		expect(screen.queryByText(/Phone --> Tailnet --> Server/)).toBeNull();
 		expect(screen.queryByLabelText("Zoom in")).toBeNull();
