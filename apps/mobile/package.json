@@ -15,7 +15,8 @@
 		"typecheck": "tsc --noEmit",
 		"test": "jest",
 		"doctor": "expo-doctor",
-		"icon": "node scripts/render-icon.mjs"
+		"icon": "node scripts/render-icon.mjs",
+		"eas-build-pre-install": "corepack enable"
 	},
 	"dependencies": {
 		"@expo-google-fonts/jetbrains-mono": "0.4.1",

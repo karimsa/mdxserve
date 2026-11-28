@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CommentThread } from "@mdxserve/client/comments/threads";
 import { Text } from "@mdxserve/ui/primitives/Text";
 import type { CommentActions } from "./data";
+import { DraftComposer } from "./DraftComposer";
 import type { CommentsModel } from "./model";
 import { ThreadView } from "./ThreadView";
 
@@ -156,9 +157,15 @@ export function CommentsList({
 		);
 	} else {
 		const empty =
-			tab === "open" ? grouped.open.length + grouped.detached.length === 0 : shown.length === 0;
+			tab === "open"
+				? grouped.open.length + grouped.detached.length === 0 && !(model.draft && actions)
+				: shown.length === 0;
+		const { draft } = model;
 		body = (
 			<>
+				{tab === "open" && draft && actions ? (
+					<DraftComposer draft={draft} model={model} actions={actions} translucent={translucent} />
+				) : null}
 				{shown.map(renderThread)}
 				{/* Every thread is a child of the list's content, so its layout's y is its offset. */}
 				{tab === "open" && grouped.detached.length > 0 ? (

@@ -34,6 +34,13 @@ describe("renderCall", () => {
 		expect(run(renderCall(request))).toEqual([request]);
 	});
 
+	it("keeps a theme variable named __proto__ as a variable", () => {
+		const themeVariables = JSON.parse('{"__proto__":"x"}') as Record<string, string>;
+		const request: RenderRequest = { token: 1, source: "", themeVariables };
+		const [called] = run(renderCall(request)) as RenderRequest[];
+		expect(Object.keys(called.themeVariables)).toEqual(["__proto__"]);
+	});
+
 	it("calls render once with an equal request for any source and theme", () => {
 		const text = fc.oneof(
 			fc.string({ unit: "grapheme" }),
