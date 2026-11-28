@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
 import { MAX_MESSAGE_BODY } from "@mdxserve/client/comments/anchor";
@@ -39,6 +40,16 @@ export function CommentField({
 	autoFocus?: boolean;
 }) {
 	const live = canSend(value, false, pending);
+	// A field removed while it has focus (Cancel, a save, another tab) gets no blur: say so here.
+	const focused = useRef(false);
+	const latestFocusChange = useRef(onFocusChange);
+	latestFocusChange.current = onFocusChange;
+	useEffect(
+		() => () => {
+			if (focused.current) latestFocusChange.current(false);
+		},
+		[],
+	);
 	const { color: placeholderColor } = useResolveClassNames("text-text-subtle");
 	return (
 		<View className="gap-1.5">
@@ -52,8 +63,14 @@ export function CommentField({
 					multiline={true}
 					maxLength={MAX_MESSAGE_BODY}
 					autoFocus={autoFocus}
-					onFocus={() => onFocusChange(true)}
-					onBlur={() => onFocusChange(false)}
+					onFocus={() => {
+						focused.current = true;
+						onFocusChange(true);
+					}}
+					onBlur={() => {
+						focused.current = false;
+						onFocusChange(false);
+					}}
 					className="max-h-32 min-h-7 flex-1 py-1 font-sans text-[length:var(--size-sm)] text-text-body"
 				/>
 				{onCancel ? (

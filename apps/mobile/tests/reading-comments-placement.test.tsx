@@ -205,6 +205,20 @@ describe("where the comments panel goes", () => {
 		expect(styleOf("document-pane").display).toBe("flex");
 	});
 
+	it("gives a focused comment field the whole height, and gives it back when the field goes", async () => {
+		resize({ width: 466, height: 852, scale: 3, fontScale: 1 });
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		await screen.findByRole("heading", { name: "Guide" });
+		await openPanel();
+		await fireEvent.press(screen.getByRole("button", { name: "Edit comment" }));
+		await fireEvent(screen.getByLabelText("Edit comment"), "focus");
+		expect(styleOf("document-pane").display).toBe("none");
+		// Cancel removes the field while it has focus; no blur arrives.
+		await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+		await waitFor(() => expect(styleOf("document-pane").display).toBe("flex"));
+		expect(styleOf("comments-dock").height).toBeGreaterThan(0);
+	});
+
 	it("goes beside the document in a wide window, with no expand control (KA15)", async () => {
 		resize({ width: 951, height: 669, scale: 3, fontScale: 1 });
 		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
