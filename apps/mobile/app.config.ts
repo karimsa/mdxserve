@@ -36,6 +36,16 @@ const config: ExpoConfig = {
 	},
 	plugins: [
 		"expo-router",
+		// The camera prompt's text, for Add server's QR scanner. Expo Go shows its own; a development
+		// or TestFlight build shows this. The scanner records no sound, so no microphone prompt.
+		[
+			"expo-camera",
+			{
+				cameraPermission: "mdxserve uses the camera to scan a server's QR code.",
+				microphonePermission: false,
+				recordAudioAndroid: false,
+			},
+		],
 		[
 			"expo-splash-screen",
 			{ image: "./assets/mark.png", imageWidth: 300, backgroundColor: tileColor },

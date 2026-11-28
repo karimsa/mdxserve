@@ -21,6 +21,7 @@ import { getPackageRoot } from "./infra/pkg.js";
 import { SetupService } from "./setup/service.js";
 import { zxCommandRunner } from "./setup/runner.js";
 import { notifyAboutUpdates } from "./cli/updates.js";
+import { runQr } from "./cli/qr.js";
 
 const program = new Command();
 
@@ -250,6 +251,21 @@ program
 		} else {
 			for (const dir of record.roots) console.log(`  ${dir}`);
 		}
+	});
+
+program
+	.command("qr")
+	.description("Print a QR code of the running server's address, to add it in the mdxserve app")
+	.option("--lan", "use the LAN address even when there is a tailnet one")
+	.option("--json", "print the address and the code's text as JSON instead")
+	.action(async (opts: { lan?: boolean; json?: boolean }) => {
+		printOutcome(
+			await runQr(opts, {
+				server: liveServerFrom(new ServerRegistry()),
+				interfaces: os.networkInterfaces(),
+				color: process.stdout.isTTY === true && !("NO_COLOR" in process.env),
+			}),
+		);
 	});
 
 const components = program

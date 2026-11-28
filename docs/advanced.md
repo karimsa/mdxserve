@@ -244,6 +244,24 @@ such as `http://127.0.0.1:4040/docs` does not work, and startup says so.
 address reaches a server with full permissions. Turn it off with
 `tailscale funnel --https=<port> off`, or run with `--permissions restricted`.
 
+### A QR code for the app
+
+`mdxserve qr` prints a QR code of the running server's address, with the address under it.
+Scan it in the mdxserve app from Servers, Add server, Scan a QR code. The code holds one URL,
+the address followed by the server's id, for example
+`https://my-laptop.tail1234.ts.net:4040/#mdxserve=7f0c2c1e-…`. It holds no secret: the id is
+what `getServerInfo` tells anyone who can reach the server. The app adds the server only when
+that address answers with the same id. Because the code is an ordinary URL, a phone's own
+camera opens the web client from it.
+
+The address is the first `tailscale serve` one, so the phone must be on your tailnet. With
+`--lan`, or when there is none, it is the address the server listens on for the local network
+(`--host`); for a wildcard bind such as `0.0.0.0`, the computer's first network address that
+is not a Tailscale or link-local one. A server that listens only on this computer and has no
+`tailscale serve` address cannot be opened from another device, so `mdxserve qr` says so and
+exits 1. `--json` prints `{ "url", "payload", "via" }` instead of the code, where `payload` is
+the code's text and `via` is `tailnet` or `lan`.
+
 ### On a trusted network
 
 To allow full permissions on a trusted network, specify both options:
@@ -291,6 +309,7 @@ each takes `--json` for scripting. Paths are absolute, in the same form as the s
 | `mdxserve search <query>`              | The `⌘K` search: one `<path> — <title>` line per match, with an excerpt                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `mdxserve docs [dir] [--depth n]`      | The doc tree of every served root, or of one directory                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `mdxserve roots list \| add \| remove` | Every served root; serves or stops serving absolute directories on the running server                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `mdxserve qr [--lan]`                  | Prints a [QR code of the server's address](#a-qr-code-for-the-app) for the mdxserve app to scan                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `mdxserve components search [q]`       | Lists the builtin components, filtered by name, description, or prop name                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `mdxserve components show <name>`      | Props table (types, defaults) and when to use a builtin                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 

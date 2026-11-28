@@ -5,6 +5,7 @@
 	"exports": {
 		"./builtins": "./builtins/index.ts",
 		"./builtins/*": "./builtins/*.ts",
+		"./discovery": "./discovery.ts",
 		"./mermaid-chart": "./mermaid-chart.ts",
 		"./realtime": "./realtime.ts",
 		"./server-info": "./server-info.ts"
