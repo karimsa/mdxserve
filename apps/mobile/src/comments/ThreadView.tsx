@@ -62,7 +62,8 @@ function Message({
 		if (result.kind === "failed") setError(result.message);
 		else {
 			setError(null);
-			setEditing(null);
+			// Text changed while the save was on its way stays open, unsaved.
+			setEditing((current) => (current === submitted ? null : current));
 		}
 	}
 

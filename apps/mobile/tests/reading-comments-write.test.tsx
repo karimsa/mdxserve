@@ -376,6 +376,24 @@ describe("writing comments on a document", () => {
 		});
 	});
 
+	it("keeps an edit typed while the save was on its way", async () => {
+		mockThreads = [BETA];
+		const saving = deferred<{ threads: CommentThread[] }>();
+		mockEdit.mockImplementation(() => saving.promise);
+		await openDocument();
+		await openPanel();
+		await fireEvent.press(screen.getByLabelText("Edit comment"));
+		await fireEvent.changeText(screen.getByLabelText("Edit comment"), "First wording");
+		await fireEvent.press(screen.getByRole("button", { name: "Save comment" }));
+		await fireEvent.changeText(screen.getByLabelText("Edit comment"), "Second wording");
+		await act(async () => saving.resolve({ threads: [BETA] }));
+		// The saved text was the first; the field stays open with the second, unsaved.
+		await waitFor(() =>
+			expect(screen.getByLabelText("Edit comment").props.value).toBe("Second wording"),
+		);
+		expect(mockEdit).toHaveBeenCalledWith(expect.objectContaining({ body: "First wording" }));
+	});
+
 	it("keeps the typed reply and shows the failure until a send works (KA13)", async () => {
 		mockThreads = [BETA];
 		mockAddReply.mockRejectedValueOnce(new Error("Unreachable"));
