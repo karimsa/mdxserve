@@ -68,6 +68,12 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   let onTextHeight = EventDispatcher()
   // TEMPORARY K-gate diagnostics: what the view received and drew, for the gallery's check.
   let onDiagnostics = EventDispatcher()
+  // TEMPORARY K-gate diagnostics: each stage of a Comment press.
+  let onCommentTrace = EventDispatcher()
+
+  private func trace(_ stage: String, _ detail: String) {
+    onCommentTrace(["stage": stage, "detail": detail])
+  }
   private var reportedDiagnostics = ""
 
   private(set) var runs: [TextRun] = []
@@ -352,10 +358,15 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     editMenuForTextIn range: NSRange,
     suggestedActions: [UIMenuElement]
   ) -> UIMenu? {
+    trace(
+      "native menu",
+      "range \(range.location)+\(range.length), selected \(textView.selectedRange.location)+\(textView.selectedRange.length), title \(commentTitle ?? "none")"
+    )
     guard let title = commentTitle, range.length > 0 else {
       return UIMenu(children: suggestedActions)
     }
     let comment = UIAction(title: title, image: UIImage(systemName: "text.bubble")) { [weak self] _ in
+      self?.trace("native action", "fired")
       self?.comment(range)
     }
     // First, so it is on the menu's first page beside Copy.
@@ -366,9 +377,14 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     let current = textView.selectedRange
     let range = current.length > 0 ? current : menuRange
     guard range.length > 0, NSMaxRange(range) <= storage.length else {
+      trace(
+        "native dropped",
+        "selected \(current.location)+\(current.length), menu \(menuRange.location)+\(menuRange.length), length \(storage.length)"
+      )
       return
     }
     let text = (storage.string as NSString).substring(with: range)
+    trace("native sent", "\(range.location)..\(NSMaxRange(range)) \"\(text)\"")
     onComment([
       "start": range.location,
       "end": NSMaxRange(range),

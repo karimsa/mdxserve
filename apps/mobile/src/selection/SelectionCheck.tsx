@@ -111,6 +111,12 @@ export function SelectionCheck() {
 			setReports((previous) => new Map(previous).set(block, report)),
 		[],
 	);
+	const [trace, setTrace] = useState<readonly string[]>([]);
+	const onCommentTrace = useCallback(
+		(stage: string, detail: string) =>
+			setTrace((previous) => [...previous, `${stage}: ${detail}`].slice(-8)),
+		[],
+	);
 	const onHeights = useCallback(
 		(block: object, measured: { layout: number; native: number }) =>
 			setHeights((previous) => new Map(previous).set(block, measured)),
@@ -119,11 +125,15 @@ export function SelectionCheck() {
 	const selection = useMemo<DocumentSelection>(
 		() => ({
 			blocks: collectTreeBlocks(CHECK_DOCUMENT),
-			startThread: setAnchor,
+			startThread: (found: AnchorFields) => {
+				onCommentTrace("check startThread", found.quote);
+				setAnchor(found);
+			},
 			onHeights,
 			onDiagnostics,
+			onCommentTrace,
 		}),
-		[onHeights, onDiagnostics],
+		[onHeights, onDiagnostics, onCommentTrace],
 	);
 	const environment = useMemo(
 		() => ({ ...appDocumentEnvironment, openLink: (href: string) => Alert.alert("Link", href) }),
@@ -143,6 +153,10 @@ export function SelectionCheck() {
 		<DocumentEnvironmentProvider value={environment}>
 			<FootnoteContext value={footnotes}>
 				<DocumentSelectionContext value={selection}>
+					{/* TEMPORARY K-gate diagnostics: the last Comment press, stage by stage. */}
+					<Text size="xs" testID="selection-check-trace">
+						{`Comment trace:\n${trace.length === 0 ? "nothing yet" : trace.join("\n")}`}
+					</Text>
 					{/* TEMPORARY K-gate diagnostics: one line per selectable block, from the native view. */}
 					<Text size="xs" testID="selection-check-diagnostics">
 						{reports.size === 0

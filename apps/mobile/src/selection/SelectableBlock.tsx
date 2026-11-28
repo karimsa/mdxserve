@@ -47,6 +47,8 @@ export interface DocumentSelection {
 	onHeights?: (block: object, heights: { layout: number; native: number }) => void;
 	/** TEMPORARY K-gate diagnostics: the native view's report of what it received and drew. */
 	onDiagnostics?: (block: object, report: Record<string, unknown>) => void;
+	/** TEMPORARY K-gate diagnostics: each stage of a Comment press, native and JS. */
+	onCommentTrace?: (stage: string, detail: string) => void;
 }
 
 export const DocumentSelectionContext = createContext<DocumentSelection | null>(null);
@@ -239,6 +241,9 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 				heading={look.heading !== undefined}
 				onTextHeight={(event) => setNativeHeight(event.nativeEvent.height)}
 				onDiagnostics={(event) => selection?.onDiagnostics?.(block, event.nativeEvent)}
+				onCommentTrace={(event) =>
+					selection?.onCommentTrace?.(event.nativeEvent.stage, event.nativeEvent.detail)
+				}
 				onPressRun={(event) => {
 					const source = runs[event.nativeEvent.index]?.source;
 					const press = source === undefined ? null : text.runs[source]?.press;
@@ -249,12 +254,22 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 					else void Linking.openURL(press.href);
 				}}
 				onComment={(event) => {
-					if (!startThread) return;
+					const trace = selection?.onCommentTrace;
+					const { start, end, text: selected } = event.nativeEvent;
+					trace?.("js received", `${start}..${end} ${JSON.stringify(selected)}`);
+					if (!startThread) {
+						trace?.("js stopped", "no startThread");
+						return;
+					}
 					const result = anchorFromSelection(
 						text,
 						blocks.descriptions,
 						position,
 						event.nativeEvent,
+					);
+					trace?.(
+						"js anchor",
+						result.kind === "ok" ? JSON.stringify(result.anchor) : result.message,
 					);
 					if (result.kind === "ok") startThread(result.anchor);
 					else Alert.alert(result.message);
