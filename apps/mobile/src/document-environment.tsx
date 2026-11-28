@@ -12,6 +12,7 @@ import Screenshot from "@mdxserve/ui/builtins/Screenshot";
 import Sparkline from "@mdxserve/ui/builtins/Sparkline";
 import Tabs from "@mdxserve/ui/builtins/Tabs";
 import Tooltip from "@mdxserve/ui/builtins/Tooltip";
+import { MarkedText } from "@mdxserve/ui/document/elements";
 import type { DocumentEnvironment, TabsView } from "@mdxserve/ui/document/environment";
 import { DocumentImage } from "./document/DocumentImage";
 import { useSelectedTab } from "./document/tab-selection";
@@ -95,7 +96,7 @@ export const appDocumentEnvironment: DocumentEnvironment = {
 			) : null}
 			<ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
 				<Text className="p-4 font-mono text-[length:var(--size-xs)] leading-5 text-code-fg">
-					{node.value}
+					<MarkedText source={node} value={node.value} code={true} />
 				</Text>
 			</ScrollView>
 		</View>

@@ -15,6 +15,11 @@ export interface DocumentRows {
 	rows: readonly DocumentRow[];
 	/** The row each node id is drawn in: a heading's own row, or the block that holds the node. */
 	rowOf: ReadonlyMap<string, number>;
+	/**
+	 * The row of each node a row is made from: a section (its heading's row) or a top-level
+	 * block. It is what `collectTreeBlocks` names as a block's `container`.
+	 */
+	rowOfNode: WeakMap<object, number>;
 }
 
 /** A section with its heading only, for the heading's row; one object per section object. */
@@ -64,6 +69,7 @@ function idsIn(node: unknown, found: string[]): string[] {
 export function documentRows(tree: DocumentTree): DocumentRows {
 	const rows: DocumentRow[] = [];
 	const rowOf = new Map<string, number>();
+	const rowOfNode = new WeakMap<object, number>();
 
 	function add(nodes: readonly BlockNode[], parentKey: string): void {
 		nodes.forEach((node, index) => {
@@ -71,6 +77,7 @@ export function documentRows(tree: DocumentTree): DocumentRows {
 			const key = id === null ? `${parentKey}/${index}` : `#${id}`;
 			if (node.type === "section") {
 				rowOf.set(node.id, rows.length);
+				rowOfNode.set(node, rows.length);
 				for (const inner of idsIn(node.heading, [])) rowOf.set(inner, rows.length);
 				rows.push({ key, nodes: single(headingOf(node)) });
 				add(node.children, key);
@@ -83,10 +90,11 @@ export function documentRows(tree: DocumentTree): DocumentRows {
 			}
 			if (node.type === "footnoteDefinition") return;
 			for (const inner of idsIn(node, [])) if (!rowOf.has(inner)) rowOf.set(inner, rows.length);
+			rowOfNode.set(node, rows.length);
 			rows.push({ key, nodes: single(node) });
 		});
 	}
 
 	add(tree.children, "");
-	return { rows, rowOf };
+	return { rows, rowOf, rowOfNode };
 }

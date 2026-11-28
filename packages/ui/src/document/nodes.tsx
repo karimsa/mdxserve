@@ -29,7 +29,7 @@ import {
 	SectionHeading,
 	Strong,
 	TightText,
-	textOf,
+	renderText,
 } from "./elements";
 import { useDocumentEnvironment } from "./environment";
 import { MarkdownTableView } from "./MarkdownTableView";
@@ -184,7 +184,7 @@ const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 			return <EditableRun id={node.id} nodes={node.children} />;
 		case "paragraph":
 			return (
-				<Paragraph>
+				<Paragraph block={node.children}>
 					<InlineList nodes={node.children} />
 				</Paragraph>
 			);
@@ -216,7 +216,7 @@ const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 		case "error":
 			return <FailedSection node={node} />;
 		case "text":
-			return textOf(node.value);
+			return renderText(node);
 		case "emphasis":
 			return (
 				<Emphasis>
@@ -236,7 +236,7 @@ const NodeView = memo(function NodeView({ node }: { node: TreeNode }) {
 				</Delete>
 			);
 		case "inlineCode":
-			return <InlineCode value={node.value} />;
+			return <InlineCode value={node.value} source={node} />;
 		case "link":
 			return <LinkView node={node} />;
 		case "image":
@@ -289,7 +289,7 @@ function EditableRun({
  */
 function SectionView({ node }: { node: SectionNode }) {
 	const heading = (
-		<SectionHeading level={node.level} id={node.id}>
+		<SectionHeading level={node.level} id={node.id} block={node.heading}>
 			<InlineList nodes={node.heading} />
 		</SectionHeading>
 	);
@@ -334,7 +334,7 @@ function ListItemContent({ nodes }: { nodes: readonly BlockNode[] }) {
 		<>
 			{nodes.map((child, index) =>
 				tight && child.type === "paragraph" ? (
-					<TightText key={keyOf(child, index)}>
+					<TightText key={keyOf(child, index)} block={child.children}>
 						<InlineList nodes={child.children} />
 					</TightText>
 				) : (

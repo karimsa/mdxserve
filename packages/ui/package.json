@@ -24,6 +24,7 @@
 		"./primitives/*": "./src/primitives/*.tsx",
 		"./block-state/*": "./src/block-state/*.ts",
 		"./data-table/*": "./src/data-table/*.ts",
+		"./document/comment-marks": "./src/document/comment-marks.tsx",
 		"./document/elements": {
 			"types": "./src/document/elements.tsx",
 			"react-native": "./src/document/elements.tsx",

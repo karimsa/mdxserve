@@ -12,7 +12,12 @@ interface Children {
 	children?: ReactNode;
 }
 
-export function Paragraph({ children }: Children) {
+/** The block a text element draws, for the app's comment marks; the web ignores it. */
+interface Block {
+	block?: object;
+}
+
+export function Paragraph({ children }: Children & Block) {
 	return <p>{children}</p>;
 }
 
@@ -72,12 +77,12 @@ function TaskBox({ checked }: { checked: boolean }) {
 }
 
 /** A tight list item's text, bare as a tight Markdown list renders it. */
-export function TightText({ children }: Children) {
+export function TightText({ children }: Children & Block) {
 	return <>{children}</>;
 }
 
 /** A Markdown table cell's content: bare inside the table's own cell. */
-export function CellText({ children }: Children & { header: boolean }) {
+export function CellText({ children }: Children & Block & { header: boolean }) {
 	return <>{children}</>;
 }
 
@@ -103,11 +108,11 @@ export function Delete({ children }: Children) {
 }
 
 /** A text node's characters: as written, since HTML collapses its own whitespace. */
-export function textOf(value: string): string {
-	return value;
+export function renderText(node: { value: string }): ReactNode {
+	return node.value;
 }
 
-export function InlineCode({ value }: { value: string }) {
+export function InlineCode({ value }: { value: string; source?: object }) {
 	return <code>{value}</code>;
 }
 
@@ -154,7 +159,7 @@ export function SectionHeading({
 	id,
 	className,
 	children,
-}: Children & { level: 1 | 2 | 3 | 4 | 5 | 6; id: string; className?: string }) {
+}: Children & Block & { level: 1 | 2 | 3 | 4 | 5 | 6; id: string; className?: string }) {
 	const Tag = `h${level}` as const;
 	return (
 		<Tag id={id} className={className}>

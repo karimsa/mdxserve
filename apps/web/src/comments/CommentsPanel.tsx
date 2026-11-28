@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CommentThread } from "@karimsa/mdxserve/src/comments/schema";
+import { groupThreads } from "@mdxserve/client/comments/threads";
 import type { SheetDragHandlers } from "../ui/BottomSheet";
 import { CtlButton } from "./CtlButton";
 import { DraftThread } from "./DraftThread";
@@ -103,22 +104,10 @@ export function CommentsPanel({
 		if (active) setTab(active.resolved ? "resolved" : "open");
 	}, [activeId]);
 
-	const { open, detached, resolved } = useMemo(() => {
-		const unresolved = threads.filter((thread) => !thread.resolved);
-		const placed: Array<{ thread: CommentThread; position: number; order: number }> = [];
-		const lost: CommentThread[] = [];
-		unresolved.forEach((thread, order) => {
-			const view = views.get(thread.id);
-			if (view?.resolution.state === "detached") lost.push(thread);
-			else placed.push({ thread, position: view?.position ?? Number.MAX_SAFE_INTEGER, order });
-		});
-		placed.sort((left, right) => left.position - right.position || left.order - right.order);
-		return {
-			open: placed.map((entry) => entry.thread),
-			detached: lost,
-			resolved: threads.filter((thread) => thread.resolved),
-		};
-	}, [threads, views]);
+	const { open, detached, resolved } = useMemo(
+		() => groupThreads(threads, views),
+		[threads, views],
+	);
 
 	const shown = tab === "open" ? open : resolved;
 	const empty = open.length === 0 && detached.length === 0;

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { CommentThread } from "@karimsa/mdxserve/src/comments/schema";
+import { createWriteQueue } from "@mdxserve/client/comments/write-queue";
 import { queryClient, trpc, trpcClient } from "../api";
 import { pushToast } from "../ui/Toast";
 import { markSelfWrite } from "./self-writes";
@@ -59,20 +60,13 @@ async function runWrite(
 // Each response is a snapshot of the whole thread list. Two writes in flight
 // for one doc could land out of order and roll the cache back, so a doc's
 // writes run one after another.
-const writeQueues = new Map<string, Promise<unknown>>();
+const writeQueue = createWriteQueue();
 
 function write(
 	path: string,
 	call: () => Promise<{ threads: CommentThread[] }>,
 ): Promise<CommentThread[] | null> {
-	const previous = writeQueues.get(path) ?? Promise.resolve();
-	// runWrite never rejects, so the chain cannot break.
-	const run = previous.then(() => runWrite(path, call));
-	writeQueues.set(path, run);
-	void run.then(() => {
-		if (writeQueues.get(path) === run) writeQueues.delete(path);
-	});
-	return run;
+	return writeQueue.run(path, () => runWrite(path, call));
 }
 
 export function commentActions(path: string): CommentActions {

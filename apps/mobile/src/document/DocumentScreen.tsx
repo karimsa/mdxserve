@@ -17,16 +17,28 @@ import {
 	Pressable,
 	RefreshControl,
 	ScrollView,
+	useWindowDimensions,
 	View,
 } from "react-native";
+import Animated, {
+	FadeIn,
+	FadeOut,
+	SlideInDown,
+	SlideInRight,
+	SlideOutDown,
+	SlideOutRight,
+	useReducedMotion,
+} from "react-native-reanimated";
 import {
 	indexDocument,
 	resolveFragment,
 	type DocumentIndex,
+	type TabStep,
 } from "@mdxserve/client/document/document-index";
 import type { DocumentTree, TreeNode } from "@mdxserve/client/document/tree-types";
 import Card from "@mdxserve/ui/builtins/Card";
 import Screenshot from "@mdxserve/ui/builtins/Screenshot";
+import { CommentMarksContext } from "@mdxserve/ui/document/comment-marks";
 import { DocContext } from "@mdxserve/ui/document/DocContext";
 import { SectionHeading } from "@mdxserve/ui/document/elements";
 import {
@@ -42,6 +54,12 @@ import {
 } from "@mdxserve/ui/document/nodes";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
+import { SPRINGS } from "@mdxserve/ui/tokens/springs";
+import { CommentsPanel } from "../comments/CommentsPanel";
+import { commentsKey, useDocThreads } from "../comments/data";
+import { useCommentsModel, type CommentsStore } from "../comments/model";
+import { PANEL_MIN_HEIGHT, PANEL_SHARE, PANEL_WIDTH, panelPlacement } from "../comments/placement";
+import { RowMarker } from "../comments/RowMarker";
 import { appDocumentEnvironment } from "../document-environment";
 import { baseName, pathFromSegments, pathSegments } from "../library/paths";
 import { realtimeFor } from "../servers/realtime";
@@ -128,15 +146,25 @@ function Header({
 	title,
 	server,
 	onContents,
+	comments,
 }: {
 	title: string;
 	server: KnownServer | undefined;
 	onContents?: () => void;
+	/** The Comments item: how many threads are open, and what pressing it does. */
+	comments?: { open: number; onPress: () => void };
 }) {
 	return (
 		<>
 			<Stack.Screen options={{ title }} />
 			<Stack.Toolbar placement="right">
+				{comments ? (
+					<Stack.Toolbar.Button
+						icon="text.bubble"
+						accessibilityLabel={`Comments, ${comments.open} open`}
+						onPress={comments.onPress}
+					/>
+				) : null}
 				{onContents ? (
 					<Stack.Toolbar.Button
 						icon="list.bullet"
@@ -204,9 +232,22 @@ const SCREEN_COMPONENTS = {
 	Screenshot: DocumentScreenshot,
 };
 
-/** One row of the document: its nodes, drawn by the shared renderers. */
-const RowView = memo(function RowView({ nodes }: { nodes: readonly TreeNode[] }) {
-	return <NodeList nodes={nodes} />;
+/** One row of the document: its nodes, drawn by the shared renderers, and its comment marker. */
+const RowView = memo(function RowView({
+	nodes,
+	row,
+	store,
+}: {
+	nodes: readonly TreeNode[];
+	row: number;
+	store: CommentsStore;
+}) {
+	return (
+		<View>
+			<NodeList nodes={nodes} />
+			<RowMarker store={store} row={row} />
+		</View>
+	);
 });
 
 /** The footnotes, numbered in the order their first reference appears, after the document. */
@@ -275,6 +316,8 @@ function DocumentReader({
 			const unsubscribe = realtime.onDocChanged((changed) => {
 				if (changed !== path) return;
 				void queryClient.invalidateQueries({ queryKey: [server.id, "getDocument", { path }] });
+				// A comment written anywhere is a change to the file (KA12).
+				void queryClient.invalidateQueries({ queryKey: commentsKey(server.id, path) });
 			});
 			realtime.joinDocument(path);
 			return () => {
@@ -345,20 +388,36 @@ function DocumentReader({
 	 * the top, as `revealNode` does on the web. A node inside a block (a heading in a tab) brings
 	 * that block's top into view.
 	 */
-	const reveal = useCallback(
-		(id: string): boolean => {
-			const item = itemOf(id);
-			if (item === undefined) return false;
-			for (const step of index?.tabSteps.get(id) ?? [])
-				tabSelection.select(step.tabsId, step.value);
+	const revealRow = useCallback(
+		(item: number, tabSteps: readonly TabStep[]) => {
+			for (const step of tabSteps) tabSelection.select(step.tabsId, step.value);
 			// Once the selected tab has redrawn, so its row is measured with the tab it now shows.
 			requestAnimationFrame(() => {
 				void listRef.current?.scrollToIndex({ index: item, animated: true, viewPosition: 0 });
 			});
+		},
+		[tabSelection],
+	);
+	const reveal = useCallback(
+		(id: string): boolean => {
+			const item = itemOf(id);
+			if (item === undefined) return false;
+			revealRow(item, index?.tabSteps.get(id) ?? []);
 			return true;
 		},
-		[itemOf, index, tabSelection],
+		[itemOf, index, revealRow],
 	);
+
+	const comments = useDocThreads(server, path);
+	const model = useCommentsModel({
+		tree,
+		rows,
+		threads: comments.data?.threads ?? NO_THREADS,
+		revealRow,
+	});
+	const window = useWindowDimensions();
+	const placement = panelPlacement(window.width);
+	const reducedMotion = useReducedMotion();
 
 	// The route's `node`, revealed once the document is first on screen.
 	const revealedTarget = useRef(false);
@@ -423,7 +482,13 @@ function DocumentReader({
 	const docContext = useMemo(() => ({ path }), [path]);
 
 	const { refetch } = query;
-	const pull = usePullToRefresh(refetch);
+	const refetchComments = comments.refetch;
+	const pull = usePullToRefresh(
+		useCallback(async () => {
+			const [result] = await Promise.all([refetch(), refetchComments()]);
+			return result;
+		}, [refetch, refetchComments]),
+	);
 
 	if (
 		server.treeSchemaVersion > TREE_SCHEMA_VERSION ||
@@ -518,48 +583,114 @@ function DocumentReader({
 		</View>
 	);
 
+	const threads = comments.data?.threads ?? NO_THREADS;
+	// A restricted server's reader sees the threads a document has and has no way to add one.
+	const commentsAvailable = server.permissions !== "restricted" || threads.length > 0;
+	const panelOpen = model.open && commentsAvailable;
+	const beside = placement === "beside";
+	const documentHidden = panelOpen && !beside && model.expanded;
+	const panelSize = beside
+		? { width: PANEL_WIDTH }
+		: model.expanded
+			? { flex: 1 }
+			: { height: Math.max(PANEL_MIN_HEIGHT, Math.round(window.height * PANEL_SHARE)) };
+	const commentsFailure =
+		comments.isError && !comments.data
+			? comments.error instanceof Error
+				? comments.error.message
+				: "Something went wrong."
+			: null;
+	const glide = SPRINGS.glide;
+	const entering = reducedMotion
+		? FadeIn
+		: (beside ? SlideInRight : SlideInDown)
+				.springify()
+				.stiffness(glide.stiffness)
+				.damping(glide.damping)
+				.mass(glide.mass);
+	const exiting = reducedMotion ? FadeOut : beside ? SlideOutRight : SlideOutDown;
+
 	return (
 		<DocumentEnvironmentProvider value={environment}>
 			<DocContext value={docContext}>
 				<FootnoteContext value={footnotes ?? EMPTY_FOOTNOTES}>
 					<TabSelectionContext value={tabSelection}>
 						<TaskTogglesProvider value={toggles}>
-							<Header
-								title={title}
-								server={server}
-								onContents={lines.length > 0 ? () => setTocOpen(true) : undefined}
-							/>
-							<FlashList
-								ref={listRef}
-								data={items}
-								keyExtractor={(item) => (item.kind === "row" ? item.row.key : "~footnotes")}
-								getItemType={(item) =>
-									item.kind === "row" ? (item.row.nodes[0]?.type ?? "row") : "footnotes"
-								}
-								renderItem={({ item }) =>
-									item.kind === "row" ? (
-										<RowView nodes={item.row.nodes} />
-									) : index ? (
-										<Footnotes index={index} />
-									) : null
-								}
-								ListHeaderComponent={header}
-								contentInsetAdjustmentBehavior="automatic"
-								contentContainerStyle={{ ...sideInsets, paddingTop: 8, paddingBottom: 32 }}
-								refreshControl={
-									<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
-								}
-								testID="document-content"
-							/>
-							<TocSheet
-								lines={lines}
-								visible={tocOpen}
-								onClose={() => setTocOpen(false)}
-								onChoose={(id) => {
-									setTocOpen(false);
-									reveal(id);
-								}}
-							/>
+							<CommentMarksContext value={model.store}>
+								<Header
+									title={title}
+									server={server}
+									onContents={lines.length > 0 ? () => setTocOpen(true) : undefined}
+									comments={
+										commentsAvailable
+											? {
+													open: model.grouped.open.length + model.grouped.detached.length,
+													onPress: () => model.setOpen(!model.open),
+												}
+											: undefined
+									}
+								/>
+								<View style={{ flex: 1, flexDirection: beside ? "row" : "column" }}>
+									<View
+										style={{ flex: 1, display: documentHidden ? "none" : "flex" }}
+										testID="document-pane"
+									>
+										<FlashList
+											ref={listRef}
+											data={items}
+											keyExtractor={(item) => (item.kind === "row" ? item.row.key : "~footnotes")}
+											getItemType={(item) =>
+												item.kind === "row" ? (item.row.nodes[0]?.type ?? "row") : "footnotes"
+											}
+											renderItem={({ item, index: position }) =>
+												item.kind === "row" ? (
+													<RowView nodes={item.row.nodes} row={position} store={model.store} />
+												) : index ? (
+													<Footnotes index={index} />
+												) : null
+											}
+											ListHeaderComponent={header}
+											contentInsetAdjustmentBehavior="automatic"
+											contentContainerStyle={{
+												...sideInsets,
+												// Beside the panel the document keeps a gutter from it, not from the window.
+												...(panelOpen && beside ? { paddingRight: 16 } : {}),
+												paddingTop: 8,
+												paddingBottom: 32,
+											}}
+											refreshControl={
+												<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />
+											}
+											testID="document-content"
+										/>
+									</View>
+									{panelOpen ? (
+										<Animated.View
+											entering={entering}
+											exiting={exiting}
+											style={panelSize}
+											testID="comments-dock"
+										>
+											<CommentsPanel
+												model={model}
+												placement={placement}
+												loading={comments.isPending}
+												failure={commentsFailure}
+												onRetry={() => void comments.refetch()}
+											/>
+										</Animated.View>
+									) : null}
+								</View>
+								<TocSheet
+									lines={lines}
+									visible={tocOpen}
+									onClose={() => setTocOpen(false)}
+									onChoose={(id) => {
+										setTocOpen(false);
+										reveal(id);
+									}}
+								/>
+							</CommentMarksContext>
 						</TaskTogglesProvider>
 					</TabSelectionContext>
 				</FootnoteContext>
@@ -567,6 +698,8 @@ function DocumentReader({
 		</DocumentEnvironmentProvider>
 	);
 }
+
+const NO_THREADS: readonly never[] = [];
 
 const EMPTY_FOOTNOTES: FootnoteInfo = {
 	numbers: new Map(),

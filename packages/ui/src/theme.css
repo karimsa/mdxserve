@@ -63,6 +63,10 @@
 	--color-status-note-bg: var(--status-note-bg);
 	--color-status-note-fg: var(--status-note-fg);
 
+	/* comment highlights */
+	--color-comment-mark: var(--comment-mark);
+	--color-comment-mark-active: var(--comment-mark-active);
+
 	/* code surfaces */
 	--color-code-bg: var(--code-bg);
 	--color-code-bg-inline: var(--code-bg-inline);
