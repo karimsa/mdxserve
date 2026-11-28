@@ -458,11 +458,13 @@ function DocumentReader({
 		if (sheetKey !== null) commentsViews.update(sheetKey, latestSheetView.current);
 	});
 	useEffect(() => {
-		if (placement !== "sheet" || !panelOpen || sheetKey !== null) return;
+		// Only the document in front presents its sheet: one left behind in its tab's stack (a link
+		// followed with its column open) must not cover the one being read when the window narrows.
+		if (placement !== "sheet" || !panelOpen || sheetKey !== null || !focused) return;
 		const key = commentsViews.open(latestSheetView.current);
 		setSheetKey(key);
 		router.push({ pathname: "/comments", params: { view: key } });
-	}, [placement, panelOpen, sheetKey, commentsViews, router]);
+	}, [placement, panelOpen, sheetKey, focused, commentsViews, router]);
 	useEffect(
 		() => () => {
 			if (sheetKey !== null) commentsViews.close(sheetKey);

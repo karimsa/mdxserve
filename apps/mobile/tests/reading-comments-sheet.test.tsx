@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
 import { Uniwind } from "uniwind";
@@ -330,6 +331,18 @@ describe("where the comments go", () => {
 		});
 		expect(await screen.findByText("1 reply")).toBeOnTheScreen();
 		expect(mockGetDocComments.mock.calls.length).toBeGreaterThan(reads);
+	});
+
+	it("opens no sheet for a document left behind when the window narrows", async () => {
+		await openDocument(951);
+		await pressComments();
+		await screen.findByTestId("comments-panel");
+		// The reader follows a link to another document; the first stays mounted behind it.
+		await act(async () => router.push(`/s/${STUDIO}/doc/srv/example/other.md` as never));
+		await waitFor(() => expect(screen).toHavePathname(`/s/${STUDIO}/doc/srv/example/other.md`));
+		await act(async () => resize({ width: 466, height: 852, scale: 3, fontScale: 1 }));
+		expect(screen).toHavePathname(`/s/${STUDIO}/doc/srv/example/other.md`);
+		expect(screen.queryByTestId("comments-sheet")).toBeNull();
 	});
 
 	it("goes beside the document in a wide window, with the control, and the Comments item closes it (KA15)", async () => {
