@@ -8,8 +8,21 @@ import type { KeyValueStorage } from "./storage";
  */
 export const SERVERS_KEY = "mdxserve:servers:v1";
 
-/** Where an address came from. Only `manual` is made today; discovery (phase 5) adds the rest. */
-const addressSourceSchema = z.enum(["manual", "bonjour-lan", "bonjour-tailnet", "qr"]);
+/**
+ * Where an address came from: typed (`manual`), scanned (`qr`), a tailnet peer, a tailnet URL the
+ * server itself reported in `tailnetUrls` (`reported`; stored as `manual` before there was a
+ * word for it), or a local network advert.
+ */
+const addressSourceSchema = z.enum([
+	"manual",
+	"qr",
+	"tailnet-peer",
+	"reported",
+	"bonjour-lan",
+	"bonjour-tailnet",
+]);
+
+export type AddressSource = z.infer<typeof addressSourceSchema>;
 
 const originSchema = z
 	.string()
@@ -45,35 +58,62 @@ export function displayName(server: KnownServer): string {
 	return server.label ?? server.name;
 }
 
+/** An address and where it came from, before it is saved. */
+export interface SourcedOrigin {
+	url: string;
+	source: AddressSource;
+}
+
+/** The `https://` origins a server reported (`tailnetUrls`), to save as `reported`. */
+function reportedOrigins(info: ServerInfo): SourcedOrigin[] {
+	return info.tailnetUrls
+		.filter((url) => url.startsWith("https://") && URL.canParse(url))
+		.map((url) => ({ url: new URL(url).origin, source: "reported" }));
+}
+
 /**
- * Add what an address answered: a new server, or the addresses appended to the server that
- * already has this id (one server however many addresses reach it). `origins` are the address
- * that answered, then its tailnet URLs. An address belongs to one server only, so it leaves any
- * other server that had it. The answering address is marked as just reached.
+ * The list with `origins` appended to the server `id` (each address once), and taken off every
+ * other server: an address belongs to one server only.
+ */
+function withAddresses(
+	servers: readonly KnownServer[],
+	server: KnownServer,
+	origins: readonly SourcedOrigin[],
+): KnownServer[] {
+	const added: ServerAddress[] = [];
+	for (const origin of origins) {
+		const known = [...server.addresses, ...added].some((address) => address.url === origin.url);
+		if (!known) added.push({ url: origin.url, source: origin.source });
+	}
+	const urls = added.map((address) => address.url);
+	const updated = { ...server, addresses: [...server.addresses, ...added] };
+	const exists = servers.some((candidate) => candidate.id === server.id);
+	const list = servers.map((candidate) =>
+		candidate.id === server.id
+			? updated
+			: {
+					...candidate,
+					addresses: candidate.addresses.filter((address) => !urls.includes(address.url)),
+				},
+	);
+	return exists ? list : [...list, updated];
+}
+
+/**
+ * Add a server the reader confirmed: a new one, or the addresses appended to the server that
+ * already has this id (one server however many addresses reach it). `answered` are the origins
+ * that answered `getServerInfo` with `info.id`, with where each came from; they are marked as
+ * just reached. Then the `https://` tailnet URLs of the answer are appended as `reported`.
+ * Origins that did not answer are never saved.
  */
 export function addServer(
 	servers: readonly KnownServer[],
 	info: ServerInfo,
-	origins: readonly string[],
+	answered: readonly SourcedOrigin[],
 	now: Date,
 ): KnownServer[] {
-	const answered = origins[0];
-	const urls = [...new Set(origins)];
-	const others = servers
-		.filter((server) => server.id !== info.id)
-		.map((server) => ({
-			...server,
-			addresses: server.addresses.filter((address) => !urls.includes(address.url)),
-		}));
 	const existing = servers.find((server) => server.id === info.id);
-	const kept = existing?.addresses ?? [];
-	const added = urls
-		.filter((url) => !kept.some((address) => address.url === url))
-		.map((url): ServerAddress => ({ url, source: "manual" }));
-	const addresses = [...kept, ...added].map((address) =>
-		address.url === answered ? { ...address, lastOkAt: now.toISOString() } : address,
-	);
-	const server: KnownServer = {
+	const base: KnownServer = {
 		id: info.id,
 		name: info.name,
 		...(existing?.label === undefined ? {} : { label: existing.label }),
@@ -81,15 +121,19 @@ export function addServer(
 		permissions: info.permissions,
 		treeSchemaVersion: info.treeSchemaVersion,
 		addedAt: existing?.addedAt ?? now.toISOString(),
-		addresses,
+		addresses: existing?.addresses ?? [],
 	};
-	return existing
-		? servers.map((candidate) =>
-				candidate.id === info.id
-					? server
-					: (others.find((other) => other.id === candidate.id) ?? candidate),
-			)
-		: [...others, server];
+	const reached = new Set(answered.map((origin) => origin.url));
+	return withAddresses(servers, base, [...answered, ...reportedOrigins(info)]).map((server) =>
+		server.id !== info.id
+			? server
+			: {
+					...server,
+					addresses: server.addresses.map((address) =>
+						reached.has(address.url) ? { ...address, lastOkAt: now.toISOString() } : address,
+					),
+				},
+	);
 }
 
 /** Give a server the reader's own name; an empty name goes back to the server's. */
@@ -110,36 +154,50 @@ export function removeServer(servers: readonly KnownServer[], id: string): Known
 	return servers.filter((server) => server.id !== id);
 }
 
-/** Note that `url` answered with the server's id, and refresh what the server said about itself. */
+/**
+ * Note that `url` answered with the server's id, and refresh what the server said about itself.
+ * An answer over `https://` also adds the server's new `https://` tailnet URLs as `reported`;
+ * one over plain `http://` adds nothing, since anyone on the path could have written it.
+ */
 export function recordReached(
 	servers: readonly KnownServer[],
 	info: ServerInfo,
 	url: string,
 	now: Date,
 ): KnownServer[] {
-	return servers.map((server) =>
-		server.id !== info.id
-			? server
-			: {
-					...server,
-					name: info.name,
-					version: info.version,
-					permissions: info.permissions,
-					treeSchemaVersion: info.treeSchemaVersion,
-					addresses: server.addresses.map((address) =>
-						address.url === url ? { ...address, lastOkAt: now.toISOString() } : address,
-					),
-				},
-	);
+	const server = servers.find((candidate) => candidate.id === info.id);
+	if (server === undefined) return [...servers];
+	const refreshed: KnownServer = {
+		...server,
+		name: info.name,
+		version: info.version,
+		permissions: info.permissions,
+		treeSchemaVersion: info.treeSchemaVersion,
+		addresses: server.addresses.map((address) =>
+			address.url === url ? { ...address, lastOkAt: now.toISOString() } : address,
+		),
+	};
+	const reported = url.startsWith("https://") ? reportedOrigins(info) : [];
+	return withAddresses(servers, refreshed, reported);
 }
 
-/** The order to try a server's addresses in: HTTPS before HTTP, then the most recently reached. */
-export function orderedAddresses(server: KnownServer): ServerAddress[] {
-	const secure = (address: ServerAddress) => (address.url.startsWith("https://") ? 0 : 1);
-	return [...server.addresses].sort(
+/**
+ * The order to try addresses in: HTTPS before HTTP, then the most recently reached, then the
+ * rest in the order given.
+ */
+export function byPriority<Address extends { url: string; lastOkAt?: string }>(
+	addresses: readonly Address[],
+): Address[] {
+	const secure = (address: Address) => (address.url.startsWith("https://") ? 0 : 1);
+	return [...addresses].sort(
 		(left, right) =>
 			secure(left) - secure(right) || (right.lastOkAt ?? "").localeCompare(left.lastOkAt ?? ""),
 	);
+}
+
+/** The order to try a server's addresses in (`byPriority`). */
+export function orderedAddresses(server: KnownServer): ServerAddress[] {
+	return byPriority(server.addresses);
 }
 
 export type LoadResult =

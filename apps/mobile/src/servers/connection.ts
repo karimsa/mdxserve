@@ -22,18 +22,25 @@ export type Connection =
 /**
  * The first of the server's addresses, in `orderedAddresses` order, that answers
  * `getServerInfo` with the stored id. An address that answers with another id is never used.
+ * Every address is asked at once, so the check takes as long as the slowest address it has to
+ * wait for (C6), and an answer is taken as soon as every address ahead of it has settled: the
+ * result is the one asking them one after another would give.
  */
 export async function connect(server: KnownServer, probe: Probe): Promise<Connection> {
+	const asked = orderedAddresses(server).map((address) => ({
+		origin: address.url,
+		answer: probe(address.url),
+	}));
 	const changed: string[] = [];
 	const causes: Array<{ origin: string; cause: string }> = [];
-	for (const address of orderedAddresses(server)) {
-		const result = await probe(address.url);
+	for (const { origin, answer } of asked) {
+		const result = await answer;
 		if (result.kind === "failed") {
-			causes.push({ origin: address.url, cause: result.cause });
+			causes.push({ origin, cause: result.cause });
 		} else if (result.info.id === server.id) {
-			return { kind: "reachable", origin: address.url, info: result.info };
+			return { kind: "reachable", origin, info: result.info };
 		} else {
-			changed.push(address.url);
+			changed.push(origin);
 		}
 	}
 	return changed.length > 0

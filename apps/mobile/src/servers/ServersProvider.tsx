@@ -9,6 +9,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { checkCandidate, type ConfirmedCandidate } from "./candidate";
 import type { Probe } from "./connection";
 import { normaliseOrigin } from "./origin";
 import {
@@ -131,26 +132,36 @@ export function ServersProvider({
 		[storage],
 	);
 
+	/** Save a confirmed candidate. Every way of adding a server ends here. */
+	const addConfirmed = useCallback(
+		(check: ConfirmedCandidate): AddResult => {
+			const known = latest.current.some((server) => server.id === check.info.id);
+			change((current) => addServer(current, check.info, check.answered, new Date()));
+			const server = latest.current.find((candidate) => candidate.id === check.info.id);
+			if (!server) return { kind: "error", message: "The server was not added." };
+			return { kind: known ? "merged" : "added", server };
+		},
+		[change],
+	);
+
 	const addByAddress = useCallback(
 		async (input: string): Promise<AddResult> => {
 			const origin = normaliseOrigin(input);
 			if (origin.kind !== "ok") return origin;
-			const answer = await probe(origin.origin);
-			if (answer.kind !== "ok") {
-				return {
-					kind: "error",
-					message: `No mdxserve server answered at ${origin.origin}: ${answer.cause}`,
-				};
-			}
-			const known = latest.current.some((server) => server.id === answer.info.id);
-			change((current) =>
-				addServer(current, answer.info, [origin.origin, ...answer.info.tailnetUrls], new Date()),
+			const check = await checkCandidate(
+				{ origins: [{ url: origin.origin, source: "manual" }], expectedId: undefined },
+				probe,
 			);
-			const server = latest.current.find((candidate) => candidate.id === answer.info.id);
-			if (!server) return { kind: "error", message: "The server was not added." };
-			return { kind: known ? "merged" : "added", server };
+			if (check.kind === "confirmed") return addConfirmed(check);
+			if (check.kind === "different") {
+				return { kind: "error", message: `${origin.origin} answered as a different server.` };
+			}
+			return {
+				kind: "error",
+				message: `No mdxserve server answered at ${origin.origin}: ${check.causes[0]?.cause ?? "no answer"}`,
+			};
 		},
-		[change, probe],
+		[addConfirmed, probe],
 	);
 
 	const api = useMemo<ServersApi>(
