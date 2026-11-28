@@ -206,6 +206,8 @@ export function CommentsPanel({
 			</View>
 			<ScrollView
 				ref={listRef}
+				// Send, Save and Cancel take the tap while the keyboard is up, instead of only closing it.
+				keyboardShouldPersistTaps="handled"
 				contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
 				testID="comments-list"
 			>

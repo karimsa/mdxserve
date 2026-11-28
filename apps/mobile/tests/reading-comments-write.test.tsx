@@ -419,6 +419,13 @@ describe("writing comments on a document", () => {
 		await act(async () => saving.resolve({ threads: mockThreads }));
 	});
 
+	it("lets the panel's controls take a tap while the keyboard is up", async () => {
+		mockThreads = [BETA];
+		await openDocument();
+		await openPanel();
+		expect(screen.getByTestId("comments-list").props.keyboardShouldPersistTaps).toBe("handled");
+	});
+
 	it("keeps the typed reply and shows the failure until a send works (KA13)", async () => {
 		mockThreads = [BETA];
 		mockAddReply.mockRejectedValueOnce(new Error("Unreachable"));
