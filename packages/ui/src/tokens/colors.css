@@ -96,6 +96,8 @@
 		--status-warn-fg: var(--amber-700);
 		--status-danger-bg: var(--red-100);
 		--status-danger-fg: var(--red-700);
+		/* a destructive button's fill, under white text */
+		--status-danger-solid: var(--red-500);
 		--status-note-bg: var(--violet-100);
 		--status-note-fg: var(--violet-700);
 
@@ -169,6 +171,7 @@
 		--status-warn-fg: #e9c078;
 		--status-danger-bg: #39190f;
 		--status-danger-fg: #eda99b;
+		--status-danger-solid: var(--red-500);
 		--status-note-bg: #221d44;
 		--status-note-fg: #b9b1f2;
 

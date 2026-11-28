@@ -60,6 +60,7 @@
 	--color-status-warn-fg: var(--status-warn-fg);
 	--color-status-danger-bg: var(--status-danger-bg);
 	--color-status-danger-fg: var(--status-danger-fg);
+	--color-status-danger-solid: var(--status-danger-solid);
 	--color-status-note-bg: var(--status-note-bg);
 	--color-status-note-fg: var(--status-note-fg);
 

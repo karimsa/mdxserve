@@ -278,7 +278,16 @@ describe("a known server", () => {
 		const details = within(await screen.findByTestId("server-details-content"));
 		expect(details.getByText("Reported by the server")).toBeOnTheScreen();
 		expect(details.getByText("Scanned")).toBeOnTheScreen();
-		expect(details.getByText("Typed")).toBeOnTheScreen();
+		expect(details.getByText("Entered by you")).toBeOnTheScreen();
+	});
+
+	it("shows each address in a field that cannot be changed, and no server name in the header", async () => {
+		await seed({ addresses: [{ url: TAILNET, source: "manual" }] });
+		await renderRouter(ROUTES, { initialUrl: `/servers/${ID}` });
+		const details = within(await screen.findByTestId("server-details-content"));
+		const field = details.getByLabelText(`Address ${TAILNET}`);
+		expect(field.props).toMatchObject({ value: TAILNET, editable: false });
+		expect(screen.queryByTestId("header-server-name")).toBeNull();
 	});
 
 	it("is removed after the reader confirms (C4)", async () => {

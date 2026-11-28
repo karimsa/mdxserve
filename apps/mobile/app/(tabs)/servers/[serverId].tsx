@@ -2,8 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
-import { Code, Text } from "@mdxserve/ui/primitives/Text";
-import { ServerName } from "../../../src/servers/ServerName";
+import { Text } from "@mdxserve/ui/primitives/Text";
 import { useServers } from "../../../src/servers/ServersProvider";
 import { displayName, type AddressSource, type KnownServer } from "../../../src/servers/store";
 import { useSideInsets } from "../../../src/side-insets";
@@ -66,12 +65,9 @@ function ServerForm({ server }: { server: KnownServer }) {
 			contentContainerStyle={[styles.screen, sideInsets]}
 			testID="server-details-content"
 		>
+			{/* The screen is about this one server and its Name field says which, so the header does
+			    not repeat the name. */}
 			<Stack.Screen options={{ title: displayName(server) }} />
-			<Stack.Toolbar placement="right">
-				<Stack.Toolbar.View hidesSharedBackground={true}>
-					<ServerName name={displayName(server)} />
-				</Stack.Toolbar.View>
-			</Stack.Toolbar>
 			<Text weight="semibold">Name</Text>
 			<TextInput
 				value={label}
@@ -84,7 +80,7 @@ function ServerForm({ server }: { server: KnownServer }) {
 				maxLength={63}
 				autoCorrect={false}
 				returnKeyType="done"
-				className="rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body"
+				className={FIELD}
 			/>
 			<Text size="sm" tone="muted" paragraph={true}>
 				{saving ? "Saving…" : `Leave it empty to use the server's own name, ${server.name}.`}
@@ -98,10 +94,16 @@ function ServerForm({ server }: { server: KnownServer }) {
 				Addresses
 			</Text>
 			{server.addresses.map((address) => (
-				<View key={address.url}>
-					<Text>
-						<Code>{address.url}</Code>
-					</Text>
+				<View key={address.url} style={styles.address}>
+					{/* A field that cannot be changed, so the address can be selected and copied. */}
+					<TextInput
+						value={address.url}
+						editable={false}
+						multiline={true}
+						scrollEnabled={false}
+						accessibilityLabel={`Address ${address.url}`}
+						className={FIELD}
+					/>
 					<Text size="sm" tone="muted">
 						{SOURCE_WORDS[address.source]}
 					</Text>
@@ -114,18 +116,24 @@ function ServerForm({ server }: { server: KnownServer }) {
 				<Pressable
 					onPress={confirmRemove}
 					accessibilityLabel={`Remove ${displayName(server)}`}
-					className="rounded-md bg-status-danger-bg px-4 py-2"
+					className="rounded-md bg-status-danger-solid px-4 py-2"
 				>
-					<Text weight="semibold">Remove server</Text>
+					<Text weight="semibold" className="text-white">
+						Remove server
+					</Text>
 				</Pressable>
 			</View>
 		</ScrollView>
 	);
 }
 
+/** The look of the Name field and of each address, which is the same field made read-only. */
+const FIELD =
+	"rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body";
+
 /** Where an address came from, in words. */
 const SOURCE_WORDS: Record<AddressSource, string> = {
-	manual: "Typed",
+	manual: "Entered by you",
 	qr: "Scanned",
 	"tailnet-peer": "Found on your tailnet",
 	reported: "Reported by the server",
@@ -135,5 +143,6 @@ const SOURCE_WORDS: Record<AddressSource, string> = {
 
 const styles = StyleSheet.create({
 	screen: { gap: 8, paddingVertical: 16 },
+	address: { gap: 4 },
 	actions: { flexDirection: "row", marginTop: 16 },
 });
