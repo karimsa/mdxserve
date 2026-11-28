@@ -25,6 +25,9 @@ const config: ExpoConfig = {
 		// development or TestFlight build, and is untested on a device until there is one.
 		infoPlist: {
 			NSAppTransportSecurity: { NSAllowsLocalNetworking: true },
+			// The app's only encryption is the system's HTTPS, which is exempt from export
+			// compliance: without this, App Store Connect asks before every build can be tested.
+			ITSAppUsesNonExemptEncryption: false,
 		},
 	},
 	android: {
