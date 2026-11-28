@@ -134,7 +134,7 @@ export interface CommentsModel {
 	setReplyDraft(threadId: string, text: string): void;
 	/** Drops a thread's unsent text once it was sent, unless the reader typed more meanwhile. */
 	clearReplyDraft(threadId: string, sent: string): void;
-	/** The writes being saved, by key (`reply:<thread>`, `edit:<message>`, `resolve:<thread>`). */
+	/** The writes being saved, by key (`reply:<thread>`, `edit:<thread>:<message>`, `resolve:<thread>`). */
 	pending: ReadonlySet<string>;
 	/**
 	 * Runs a write under `key`. A view that remounts mid-save still sees it as pending, and a

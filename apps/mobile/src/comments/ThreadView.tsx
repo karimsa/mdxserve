@@ -48,7 +48,8 @@ function Message({
 	const age = relativeTime(message.createdAt);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const key = `edit:${message.id}`;
+	// Message ids are unique only within their thread.
+	const key = `edit:${threadId}:${message.id}`;
 	// Only a person's message can be changed; the server refuses an agent's.
 	const canEdit = writer !== null && !agent;
 

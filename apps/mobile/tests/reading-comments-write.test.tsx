@@ -394,6 +394,31 @@ describe("writing comments on a document", () => {
 		expect(mockEdit).toHaveBeenCalledWith(expect.objectContaining({ body: "First wording" }));
 	});
 
+	it("keeps saving an edit in one thread apart from a message with the same id in another", async () => {
+		// Message ids are unique only within their thread.
+		const sameId = (source: CommentThread): CommentThread => ({
+			...source,
+			messages: [{ ...source.messages[0], id: "m1" }],
+		});
+		mockThreads = [sameId(BETA), sameId(SECOND)];
+		const saving = deferred<{ threads: CommentThread[] }>();
+		mockEdit.mockImplementation(() => saving.promise);
+		await openDocument();
+		await openPanel();
+		const first = () => within(screen.getByTestId("thread-beta"));
+		const second = () => within(screen.getByTestId("thread-second"));
+		await fireEvent.press(first().getByRole("button", { name: "Edit comment" }));
+		await fireEvent.changeText(first().getByLabelText("Edit comment"), "First thread, reworded");
+		await fireEvent.press(first().getByRole("button", { name: "Save comment" }));
+		await waitFor(() =>
+			expect(first().getByRole("button", { name: "Save comment" })).toBeDisabled(),
+		);
+		await fireEvent.press(second().getByRole("button", { name: "Edit comment" }));
+		await fireEvent.changeText(second().getByLabelText("Edit comment"), "Second thread, reworded");
+		expect(second().getByRole("button", { name: "Save comment" })).toBeEnabled();
+		await act(async () => saving.resolve({ threads: mockThreads }));
+	});
+
 	it("keeps the typed reply and shows the failure until a send works (KA13)", async () => {
 		mockThreads = [BETA];
 		mockAddReply.mockRejectedValueOnce(new Error("Unreachable"));
