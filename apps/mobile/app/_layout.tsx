@@ -11,6 +11,8 @@ import { copyText } from "../src/clipboard";
 import { useAppFonts } from "../src/fonts";
 import { ListingSortProvider } from "../src/library/ListingSortProvider";
 import { deviceStorage } from "../src/servers/device-storage";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { initialDetent, SHEET_DETENTS, UNDIMMED_DETENT } from "../src/comments/sheet";
 import { recheckOnNetworkError, wireQueryLifecycle } from "../src/servers/lifecycle";
 import { createProbe } from "../src/servers/probe";
 import { ServersProvider } from "../src/servers/ServersProvider";
@@ -54,6 +56,28 @@ export default function RootLayout() {
 									{/* The system's own bar, sized by iOS, and none of the tabs' wordmark header.
 									    Opaque, as iOS 27 can minimise a translucent bar and draw its items over the
 									    content instead of in a folded display's vertical bar. */}
+									{/* A sheet the document stays usable behind up to half height, so a highlight
+									    there still selects its thread here. Its first height is decided as it
+									    opens: short for a document with no threads. No bar: the Open and Resolved
+									    control sits under the grabber, and a swipe down closes it. */}
+									<Stack.Screen
+										name="comments"
+										options={({ route }) => ({
+											presentation: "formSheet",
+											sheetAllowedDetents: SHEET_DETENTS,
+											sheetInitialDetentIndex: initialDetent(
+												(route.params as { view?: string } | undefined)?.view,
+											),
+											sheetLargestUndimmedDetentIndex: UNDIMMED_DETENT,
+											sheetGrabberVisible: true,
+											title: "Comments",
+											headerShown: false,
+											// Nothing opaque under the sheet's content, so iOS 26's glass shows.
+											...(isLiquidGlassAvailable()
+												? { contentStyle: { backgroundColor: "transparent" } }
+												: {}),
+										})}
+									/>
 									<Stack.Screen
 										name="contents"
 										options={{

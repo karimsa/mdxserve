@@ -263,6 +263,11 @@ async function selectThread(quote: string) {
 	await fireEvent.press(screen.getByLabelText(`Show in the document: ${quote}`));
 }
 
+/** The Open and Resolved control, as the native segmented control receives its props. */
+function status() {
+	return screen.getByTestId("comments-status");
+}
+
 async function typeReply(body: string) {
 	await fireEvent.changeText(screen.getByLabelText("Reply"), body);
 }
@@ -320,29 +325,31 @@ describe("writing comments on a document", () => {
 		mockSetResolved.mockImplementationOnce(async () => ({ threads: [BETA, SECOND] }));
 		await openDocument();
 		await openPanel();
-		expect(screen.getByRole("tab", { name: "Open 2" })).toBeOnTheScreen();
+		expect(status().props.values).toEqual(["Open · 2", "Resolved · 0"]);
+		// Resolving belongs to the selected thread.
+		expect(screen.queryByLabelText("Resolve thread")).toBeNull();
+		await selectThread("beta gamma");
 		await fireEvent.press(
 			within(screen.getByTestId("thread-beta")).getByRole("button", { name: "Resolve thread" }),
 		);
-		expect(await screen.findByRole("tab", { name: "Open 1" })).toBeOnTheScreen();
-		expect(screen.getByRole("tab", { name: "Resolved 1" })).toBeOnTheScreen();
+		await waitFor(() => expect(status().props.values).toEqual(["Open · 1", "Resolved · 1"]));
 		expect(mockSetResolved).toHaveBeenLastCalledWith({
 			path: DOC,
 			threadId: "beta",
 			resolved: true,
 		});
 		expect(screen.queryByTestId("thread-beta")).toBeNull();
-		await fireEvent.press(screen.getByRole("tab", { name: "Resolved 1" }));
+		await fireEvent(status(), "change", { nativeEvent: { selectedSegmentIndex: 1 } });
+		await selectThread("beta gamma");
 		await fireEvent.press(
 			within(screen.getByTestId("thread-beta")).getByRole("button", { name: "Reopen thread" }),
 		);
-		expect(await screen.findByRole("tab", { name: "Open 2" })).toBeOnTheScreen();
+		await waitFor(() => expect(status().props.values).toEqual(["Open · 2", "Resolved · 0"]));
 		expect(mockSetResolved).toHaveBeenLastCalledWith({
 			path: DOC,
 			threadId: "beta",
 			resolved: false,
 		});
-		expect(screen.getByRole("tab", { name: "Resolved 0" })).toBeOnTheScreen();
 	});
 
 	it("edits a person's message, and offers no edit on an agent's (KA8)", async () => {
@@ -365,6 +372,11 @@ describe("writing comments on a document", () => {
 		}));
 		await openDocument();
 		await openPanel();
+		// Edit belongs to the selected thread; the list shows its first message and "1 reply".
+		expect(screen.queryByLabelText("Edit comment")).toBeNull();
+		expect(screen.getByText("1 reply")).toBeOnTheScreen();
+		await selectThread("beta gamma");
+		expect(screen.getByText("From the agent")).toBeOnTheScreen();
 		expect(screen.getAllByLabelText("Edit comment")).toHaveLength(1);
 		await fireEvent.press(screen.getByLabelText("Edit comment"));
 		const field = screen.getByLabelText("Edit comment");
@@ -388,6 +400,7 @@ describe("writing comments on a document", () => {
 		mockEdit.mockImplementation(() => saving.promise);
 		await openDocument();
 		await openPanel();
+		await selectThread("beta gamma");
 		await fireEvent.press(screen.getByLabelText("Edit comment"));
 		await fireEvent.changeText(screen.getByLabelText("Edit comment"), "First wording");
 		await fireEvent.press(screen.getByRole("button", { name: "Save comment" }));
@@ -413,12 +426,15 @@ describe("writing comments on a document", () => {
 		await openPanel();
 		const first = () => within(screen.getByTestId("thread-beta"));
 		const second = () => within(screen.getByTestId("thread-second"));
+		await selectThread("beta gamma");
 		await fireEvent.press(first().getByRole("button", { name: "Edit comment" }));
 		await fireEvent.changeText(first().getByLabelText("Edit comment"), "First thread, reworded");
 		await fireEvent.press(first().getByRole("button", { name: "Save comment" }));
 		await waitFor(() =>
 			expect(first().getByRole("button", { name: "Save comment" })).toBeDisabled(),
 		);
+		// Choosing the other thread closes the first one's field; its save carries on.
+		await selectThread("paragraph");
 		await fireEvent.press(second().getByRole("button", { name: "Edit comment" }));
 		await fireEvent.changeText(second().getByLabelText("Edit comment"), "Second thread, reworded");
 		expect(second().getByRole("button", { name: "Save comment" })).toBeEnabled();
@@ -502,10 +518,11 @@ describe("writing comments on a document", () => {
 		mockAddReply.mockImplementation(() => replying.promise);
 		await openDocument();
 		await openPanel();
-		await selectThread("paragraph");
+		await selectThread("beta gamma");
 		await fireEvent.press(
 			within(screen.getByTestId("thread-beta")).getByRole("button", { name: "Resolve thread" }),
 		);
+		await selectThread("paragraph");
 		await typeReply("Second thread reply");
 		await fireEvent.press(sendButton());
 		await waitFor(() => expect(mockSetResolved).toHaveBeenCalledTimes(1));

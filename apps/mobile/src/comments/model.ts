@@ -124,9 +124,6 @@ export interface CommentsModel {
 	activeId: string | null;
 	/** Makes a thread active and moves the document to its text (KA4). */
 	selectThread(id: string): void;
-	/** Whether the panel takes the whole height under the document (narrow windows only). */
-	expanded: boolean;
-	setExpanded(expanded: boolean): void;
 	/** The thread a highlight or a row marker opened the panel on: the panel scrolls to it and VoiceOver moves to it. */
 	focusRequest: FocusRequest | null;
 	/** Unsent reply text by thread; it lives as long as the document screen. */
@@ -141,9 +138,6 @@ export interface CommentsModel {
 	 * second press while it runs sends nothing (it resolves to null).
 	 */
 	send<Result>(key: string, task: () => Promise<Result>): Promise<Result | null>;
-	/** A comment field has focus: under the document the panel then takes the whole height. */
-	fieldFocused: boolean;
-	setFieldFocused(focused: boolean): void;
 }
 
 /**
@@ -165,7 +159,6 @@ export function useCommentsModel({
 	const [open, setOpen] = useState(false);
 	const [tab, setTab] = useState<"open" | "resolved">("open");
 	const [activeId, setActiveId] = useState<string | null>(null);
-	const [expanded, setExpanded] = useState(false);
 	const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
 	const [replyDrafts, setReplyDrafts] = useState<ReplyDrafts>({});
 	const setReplyDraft = useCallback(
@@ -195,13 +188,9 @@ export function useCommentsModel({
 			setPending(new Set(running.current));
 		}
 	}, []);
-	const [fieldFocused, setFieldFocused] = useState(false);
 	const setPanelOpen = useCallback((next: boolean) => {
 		setOpen(next);
-		if (!next) {
-			setFocusRequest(null);
-			setExpanded(false);
-		}
+		if (!next) setFocusRequest(null);
 	}, []);
 
 	const blocks = useMemo(() => (tree ? collectTreeBlocks(tree) : null), [tree]);
@@ -246,7 +235,6 @@ export function useCommentsModel({
 	const selectThread = useCallback(
 		(id: string) => {
 			setActiveId(id);
-			setExpanded(false);
 			const thread = threads.find((candidate) => candidate.id === id);
 			if (!thread || !blocks || !rows) return;
 			// A resolved thread is not resolved against the document until the reader chooses it.
@@ -294,16 +282,12 @@ export function useCommentsModel({
 		setTab,
 		activeId,
 		selectThread,
-		expanded,
-		setExpanded,
 		focusRequest,
 		replyDrafts,
 		setReplyDraft,
 		clearReplyDraft,
 		pending,
 		send,
-		fieldFocused,
-		setFieldFocused,
 	};
 }
 

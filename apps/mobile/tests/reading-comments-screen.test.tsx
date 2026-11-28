@@ -245,6 +245,15 @@ async function openPanel() {
 	await screen.findByTestId("comments-panel");
 }
 
+/** The Open and Resolved control, as the native segmented control receives its props. */
+function status() {
+	return screen.getByTestId("comments-status");
+}
+
+async function chooseStatus(selectedSegmentIndex: number) {
+	await fireEvent(status(), "change", { nativeEvent: { selectedSegmentIndex } });
+}
+
 function background(host: { props: { style?: unknown } }) {
 	return StyleSheet.flatten(host.props.style as never)?.backgroundColor;
 }
@@ -284,12 +293,13 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 		expect(screen.queryByText(/^Unsupported /)).toBeNull();
 		expect(commentsItem()?.accessibilityLabel).toBe("Comments, 2 open");
 		await openPanel();
-		expect(screen.getByRole("tab", { name: "Open 2", selected: true })).toBeOnTheScreen();
-		expect(screen.getByRole("tab", { name: "Resolved 1" })).toBeOnTheScreen();
+		expect(status().props.values).toEqual(["Open · 2", "Resolved · 1"]);
+		expect(status().props.selectedIndex).toBe(0);
 		expect(screen.getByTestId("thread-beta")).toBeOnTheScreen();
 		expect(screen.getByTestId("thread-second")).toBeOnTheScreen();
 		expect(screen.queryByTestId("thread-done")).toBeNull();
-		await fireEvent.press(screen.getByRole("tab", { name: "Resolved 1" }));
+		await chooseStatus(1);
+		expect(status().props.selectedIndex).toBe(1);
 		expect(screen.getByTestId("thread-done")).toBeOnTheScreen();
 		expect(screen.queryByTestId("thread-beta")).toBeNull();
 	});
@@ -347,14 +357,15 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 		mockThreads = [BETA];
 		await openDocument();
 		await openPanel();
-		expect(screen.queryByText("Fixed it")).toBeNull();
+		expect(screen.queryByText("1 reply")).toBeNull();
 		const reads = mockGetDocComments.mock.calls.length;
 		mockThreads = [thread("beta", BETA.anchor, { replies: ["Fixed it"] })];
 		await act(async () => {
 			for (const listener of mockSockets.get(STUDIO_URL)?.docListeners ?? [])
 				listener(DOC, "changed");
 		});
-		expect(await screen.findByText("Fixed it")).toBeOnTheScreen();
+		// An inactive thread shows its first message and how many replies follow.
+		expect(await screen.findByText("1 reply")).toBeOnTheScreen();
 		expect(mockGetDocComments.mock.calls.length).toBeGreaterThan(reads);
 		expect(mockGetDocComments).toHaveBeenLastCalledWith({ path: DOC });
 	});
@@ -393,7 +404,7 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 			within(screen.getByTestId("thread-gone")).getByText("Original section not found."),
 		).toBeOnTheScreen();
 		expect(screen.getByText("Detached")).toBeOnTheScreen();
-		expect(screen.getByRole("tab", { name: "Open 2" })).toBeOnTheScreen();
+		expect(status().props.values[0]).toBe("Open · 2");
 	});
 
 	it("marks a row with its open threads, and opens the first when pressed (KA17)", async () => {
@@ -411,7 +422,7 @@ describe.each(["light", "dark"] as const)("comments on a document (%s)", (theme)
 		expect(
 			screen.getByRole("button", { name: "Show in the document: paragraph", selected: true }),
 		).toBeOnTheScreen();
-		await fireEvent.press(screen.getByLabelText("Close comments"));
+		await act(async () => commentsItem()!.onPress());
 		await waitFor(() => expect(screen.queryByTestId("comments-panel")).toBeNull());
 		await fireEvent.press(screen.getByLabelText("2 comments"));
 		await screen.findByTestId("comments-panel");
