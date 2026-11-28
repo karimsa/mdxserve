@@ -76,7 +76,7 @@ import { resolveLink } from "./links";
 import { documentRows, rowType, type DocumentRow } from "./rows";
 import { createTabSelection, TabSelectionContext } from "./tab-selection";
 import { DocumentTaskBox, TaskTogglesProvider, useTaskToggles } from "./task-toggles";
-import { tocLines, TocSheet } from "./TocSheet";
+import { tocLines, useContentsViews } from "./contents";
 
 /** The Library tab's route for a document; another tab's stack passes its own. */
 const LIBRARY_DOCUMENT_ROUTE = "/s/[serverId]/doc/[...path]";
@@ -350,15 +350,14 @@ function DocumentReader({
 	}, [rows, index]);
 	const lines = useMemo(() => {
 		if (!tree) return [];
-		const toc = tocLines(tree.toc);
+		const toc = tocLines(tree.toc, index?.sectionLevels ?? new Map());
 		if (index && index.footnotes.length > 0)
-			toc.push({ id: FOOTNOTES_ID, label: "Footnotes", depth: 0, kind: "heading" });
+			toc.push({ id: FOOTNOTES_ID, label: "Footnotes", depth: 0, kind: "heading", level: 2 });
 		return toc;
 	}, [tree, index]);
 
 	const [tabSelection] = useState(createTabSelection);
 	const listRef = useRef<FlashListRef<ListItem>>(null);
-	const [tocOpen, setTocOpen] = useState(false);
 	const toggles = useTaskToggles({ server, path, document: tree, version: data?.version });
 
 	/** The id a link's fragment or the route's `node` names, or null when the document has none. */
@@ -434,6 +433,28 @@ function DocumentReader({
 	// stays the same, so a refetch does not redraw every node.
 	const latest = useRef({ reveal, resolve });
 	latest.current = { reveal, resolve };
+
+	// The Contents sheet (app/contents.tsx) reads the lines from the open view, kept current when
+	// the document's data changes under it (a refetch landing). The screen leaves the live update
+	// room while the sheet covers it and catches up when it is back in front. A line goes through
+	// the latest index, so an id the document no longer has reveals nothing.
+	const contentsViews = useContentsViews();
+	const [contentsKey, setContentsKey] = useState<string | null>(null);
+	const choose = useCallback((id: string) => void latest.current.reveal(id), []);
+	useEffect(() => {
+		if (contentsKey !== null) contentsViews.update(contentsKey, { lines, choose });
+	}, [contentsViews, contentsKey, lines, choose]);
+	useEffect(
+		() => () => {
+			if (contentsKey !== null) contentsViews.close(contentsKey);
+		},
+		[contentsViews, contentsKey],
+	);
+	const openContents = () => {
+		const key = contentsViews.open({ lines, choose });
+		setContentsKey(key);
+		router.push({ pathname: "/contents", params: { view: key } });
+	};
 
 	const environment = useMemo<DocumentEnvironment>(() => {
 		function openLink(href: string) {
@@ -625,7 +646,7 @@ function DocumentReader({
 								<Header
 									title={title}
 									server={server}
-									onContents={lines.length > 0 ? () => setTocOpen(true) : undefined}
+									onContents={lines.length > 0 ? openContents : undefined}
 									comments={
 										commentsAvailable
 											? {
@@ -690,15 +711,6 @@ function DocumentReader({
 										</Animated.View>
 									) : null}
 								</KeyboardAvoidingView>
-								<TocSheet
-									lines={lines}
-									visible={tocOpen}
-									onClose={() => setTocOpen(false)}
-									onChoose={(id) => {
-										setTocOpen(false);
-										reveal(id);
-									}}
-								/>
 							</CommentMarksContext>
 						</TaskTogglesProvider>
 					</TabSelectionContext>

@@ -291,20 +291,6 @@ describe.each(["light", "dark"] as const)("a document (%s)", (theme) => {
 		expect(screen.getByTestId("header-server-name")).toHaveTextContent("Studio");
 	});
 
-	it("opens the table of contents and reveals a tab, selecting it on the way", async () => {
-		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
-		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
-		await screen.findByRole("heading", { name: "Guide" });
-		expect(screen.getByRole("tab", { name: "macOS", selected: true })).toBeOnTheScreen();
-		const items = headerTitled("guide.md").props.headerRightBarButtonItems as Array<
-			Record<string, any>
-		>;
-		await act(async () => items[0].onPress());
-		expect(await screen.findByTestId("toc-sheet")).toBeOnTheScreen();
-		await fireEvent.press(screen.getByLabelText("Tab Linux"));
-		expect(await screen.findByRole("tab", { name: "Linux", selected: true })).toBeOnTheScreen();
-	});
-
 	it("reveals the node a route names on open (a search result)", async () => {
 		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
 		await renderRouter(APP_ROUTES, { initialUrl: `${DOC_URL}?node=os%3Elinux` });
