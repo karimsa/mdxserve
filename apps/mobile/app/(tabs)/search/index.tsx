@@ -1,9 +1,10 @@
 import { useQueries } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { SectionList, StyleSheet, TextInput, View } from "react-native";
+import { SectionList, StyleSheet, View } from "react-native";
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { pathSegments } from "../../../src/library/paths";
+import { SearchField } from "../../../src/search/SearchField";
 import { SearchRowView } from "../../../src/search/SearchRowView";
 import { searchSections, type SearchHit, type SearchState } from "../../../src/search/sections";
 import { useServerQueryOptions } from "../../../src/servers/server-query";
@@ -108,12 +109,10 @@ export default function Search() {
 				contentContainerStyle={[styles.screen, sideInsets]}
 				testID="search-content"
 				ListHeaderComponent={
-					// An ordinary field at the top of the results, not the navigation bar's search
-					// controller: that one always shows a Cancel control (a large round X on iOS 26 and
-					// later) that react-native-screens cannot hide. Its own clear control empties the
-					// query; the keyboard's Search key, a tap outside it and a scroll dismiss the keyboard.
+					// The field's own clear control empties the query; the keyboard's Search key, a tap
+					// outside the field and a scroll dismiss the keyboard.
 					<View style={styles.field}>
-						<TextInput
+						<SearchField
 							value={typed}
 							onChangeText={changeText}
 							onSubmitEditing={(event) => setQuery(event.nativeEvent.text.trim())}
@@ -127,7 +126,6 @@ export default function Search() {
 							submitBehavior="blurAndSubmit"
 							inputMode="search"
 							testID="search-field"
-							className="rounded-md border border-border-default bg-surface-card px-3 py-2 font-sans text-text-body"
 						/>
 						{/* How saving the server filter went, shown whatever the results are. */}
 						{filter.problem === undefined ? (
