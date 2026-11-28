@@ -108,6 +108,10 @@ After it, the server lists the address as `https://<machine>.<tailnet>.ts.net:40
   Funnel address reaches it with full permissions. Turn it off with
   `tailscale funnel --https=<port> off`, or restart with `--permissions restricted`.
 
+To add the server to the mdxserve app on a phone, run `mdxserve qr`: it prints a QR code of
+the tailnet address (or, with `--lan` or no tailnet address, the LAN one) to scan from
+Servers, Add server, Scan a QR code. It exits 1 when no other device can reach the server.
+
 Set `MDXSERVE_TAILSCALE_CLI=<path>` to use a specific CLI, or pass `--no-tailscale` to
 `mdxserve serve` to skip all of this. Changing the Tailscale configuration is the user's
 call: show them the command rather than running it unasked.

@@ -18,11 +18,8 @@ import { loadRegistry } from "../components/registry.js";
 import type { RootInfo } from "../roots/root-info.js";
 import { RootsService } from "../roots/service.js";
 import { ServerRegistry, mdxserveHome } from "../servers/server-registry.js";
-import {
-	resolveBindPermissions,
-	loopbackBindHost,
-	type PermissionMode,
-} from "../servers/bind-host.js";
+import { resolveBindPermissions, type PermissionMode } from "../servers/bind-host.js";
+import { lanAddress } from "../discovery/addresses.js";
 import { serverBaseUrl } from "../servers/remote.js";
 import { ServerLock } from "../servers/server-lock.js";
 import { DocCache } from "../docs/doc-cache.js";
@@ -47,29 +44,6 @@ export interface StartServerOptions {
 	name?: string;
 }
 
-function getLocalIPs(): string[] {
-	const nets = os.networkInterfaces();
-	const addresses: string[] = [];
-	for (const name of Object.keys(nets)) {
-		for (const net of nets[name] ?? []) {
-			if (net.family === "IPv4" && !net.internal) {
-				addresses.push(net.address);
-			}
-		}
-	}
-	return addresses;
-}
-
-const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
-
-/** The LAN address to advertise for `host`, or undefined when only loopback is reachable. */
-function networkAddress(host: string): string | undefined {
-	if (loopbackBindHost(host) !== undefined) return undefined;
-	// A wildcard bind is reachable on every interface; pick the first. A
-	// concrete address is reachable only on itself.
-	return WILDCARD_HOSTS.has(host) ? getLocalIPs()[0] : host;
-}
-
 /** @internal Exported for its tests. */
 export function printBanner(
 	port: number,
@@ -79,7 +53,7 @@ export function printBanner(
 	permissions: PermissionMode = "full",
 ): void {
 	const localUrl = serverBaseUrl({ host, port });
-	const ip = networkAddress(host);
+	const ip = lanAddress(host, os.networkInterfaces());
 	const networkUrl = ip ? serverBaseUrl({ host: ip, port }) : undefined;
 
 	const lines = ["mdxserve", "", `- Local:    ${localUrl}`];

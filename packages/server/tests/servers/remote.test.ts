@@ -9,6 +9,7 @@ import { RemoteClient, serverBaseUrl, toOutcome } from "../../src/servers/remote
 import type { ServerRecord } from "../../src/servers/server-registry.js";
 import { makeRequestContext, startTestServer } from "../helpers/http.js";
 import { fixtureRegistry as registry } from "../fixtures/registry.js";
+import { TEST_IDENTITY } from "../helpers/server-info.js";
 
 describe("serverBaseUrl", () => {
 	it("normalizes a wildcard IPv4 bind address to loopback", () => {
@@ -156,6 +157,12 @@ describe("RemoteClient (one real server)", () => {
 		if (outcome.kind === "ok") {
 			expect(JSON.stringify(outcome.value)).toContain("nested.md");
 		}
+	});
+
+	it("getServerInfo: ok, with the server's id", async () => {
+		const client = new RemoteClient(currentRecord);
+		const outcome = await client.getServerInfo();
+		expect(outcome).toMatchObject({ kind: "ok", value: { id: TEST_IDENTITY.id } });
 	});
 
 	it("listRoots: ok, with the fixture root", async () => {

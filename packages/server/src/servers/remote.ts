@@ -5,6 +5,7 @@ import type { AddRootsOutput, ListRootsOutput, RemoveRootsOutput } from "../root
 import type { ServerRecord } from "./server-registry.js";
 import type { ValidationResult } from "../validation/validate.js";
 import type { SearchResult } from "../search/service.js";
+import type { ServerInfo } from "@mdxserve/shared/server-info";
 
 export type RemoteOutcome<Value> =
 	{ kind: "ok"; value: Value } | { kind: "error"; message: string } | { kind: "unavailable" };
@@ -25,6 +26,7 @@ export interface Remote {
 	listRoots(): Promise<RemoteOutcome<ListRootsOutput>>;
 	addRoots(dirs: string[]): Promise<RemoteOutcome<AddRootsOutput>>;
 	removeRoots(dirs: string[]): Promise<RemoteOutcome<RemoveRootsOutput>>;
+	getServerInfo(): Promise<RemoteOutcome<ServerInfo>>;
 }
 
 /**
@@ -148,6 +150,17 @@ export class RemoteClient implements Remote {
 		if (!server) return { kind: "unavailable" };
 		try {
 			const value = await this.clientFor(server).removeRoots.mutate({ dirs });
+			return { kind: "ok", value };
+		} catch (error) {
+			return toOutcome(error);
+		}
+	}
+
+	async getServerInfo(): Promise<RemoteOutcome<ServerInfo>> {
+		const server = this.getServer();
+		if (!server) return { kind: "unavailable" };
+		try {
+			const value = await this.clientFor(server).getServerInfo.query();
 			return { kind: "ok", value };
 		} catch (error) {
 			return toOutcome(error);
