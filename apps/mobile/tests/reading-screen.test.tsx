@@ -565,7 +565,10 @@ describe("a document with a diagram", () => {
 	/** The sources the app asked the page to draw, from the calls it injected. */
 	function sentSources(): string[] {
 		return webviewCalls.flatMap((calls) =>
-			calls.injected.map((code) => JSON.parse(/render\((.*)\);true;$/s.exec(code)![1]!).source),
+			calls.injected.map(
+				(code) =>
+					JSON.parse(JSON.parse(/render\(JSON\.parse\((.*)\)\);true;$/s.exec(code)![1]!)).source,
+			),
 		);
 	}
 

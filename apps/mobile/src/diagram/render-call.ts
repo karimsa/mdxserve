@@ -20,8 +20,13 @@ export const MAX_ZOOM = 10;
 /** The smallest zoom the page allows: a fifth of fitted, as the web's. */
 export const MIN_ZOOM = 0.2;
 
+/**
+ * `value` as a JavaScript expression: its JSON, parsed by the page. An object literal would turn
+ * a `"__proto__"` key (a theme variable could be named so) into the object's prototype.
+ */
 function asArgument(value: unknown): string {
-	return JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
+	const literal = JSON.stringify(JSON.stringify(value));
+	return `JSON.parse(${literal.replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029")})`;
 }
 
 /** The JavaScript the app injects for a zoom control. */
