@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
 import { router } from "expo-router";
+import { StyleSheet } from "react-native";
 import { Uniwind } from "uniwind";
 import type { ServerInfo } from "@mdxserve/shared/server-info";
 import type { ProbeResult } from "../src/servers/connection";
@@ -315,6 +316,9 @@ describe("clearing the search field", () => {
 		await renderRouter(APP_ROUTES, { initialUrl: "/search" });
 		const field = await screen.findByTestId("search-field");
 		expect(allHosts(screen.toJSON(), "RNSSearchBar")).toEqual([]);
+		// The field is a capsule a touch target tall, as iOS draws its own search fields.
+		const capsule = StyleSheet.flatten(screen.getByTestId("search-field-capsule").props.style);
+		expect(capsule).toMatchObject({ height: 44, borderRadius: 22, flexDirection: "row" });
 		// The field's own clear control while there is text; Return is the keyboard's Search key and
 		// leaves the field.
 		expect(field.props.clearButtonMode).toBe("while-editing");
@@ -363,7 +367,7 @@ describe("choosing the servers to search", () => {
 		const { menu } = filterMenu();
 		expect(menu).toMatchObject({
 			accessibilityLabel: "Servers to search",
-			icon: { type: "sfSymbol", name: "line.3.horizontal.decrease.circle" },
+			icon: { type: "sfSymbol", name: "line.3.horizontal.decrease" },
 		});
 		expect(
 			menu.menu.items.map((item: { title: string; state: string }) => [item.title, item.state]),
@@ -381,7 +385,7 @@ describe("choosing the servers to search", () => {
 		await toggleServer("Laptop");
 		expect(filterMenu().menu).toMatchObject({
 			accessibilityLabel: "Servers to search, filtered",
-			icon: { name: "line.3.horizontal.decrease.circle.fill" },
+			icon: { name: "line.3.horizontal.decrease" },
 		});
 		await typeQuery("deploy");
 		await screen.findByLabelText("Release plan, notes/release.md");
