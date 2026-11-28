@@ -2868,7 +2868,9 @@ __metadata:
     fast-check: "npm:4.9.0"
     jest: "npm:30.5.2"
     jest-expo: "npm:58.0.15"
+    jsdom: "npm:27.4.0"
     lucide-react-native: "npm:1.30.0"
+    mermaid: "npm:10.9.8"
     react: "npm:19.3.0"
     react-native: "npm:0.88.1"
     react-native-reanimated: "npm:4.7.1"
@@ -2891,6 +2893,7 @@ __metadata:
   resolution: "@mdxserve/shared@workspace:packages/shared"
   dependencies:
     "@types/react": "npm:19.3.3"
+    fast-check: "npm:4.9.0"
     react: "npm:19.3.0"
     typescript: "npm:7.0.2"
     vitest: "npm:4.1.10"

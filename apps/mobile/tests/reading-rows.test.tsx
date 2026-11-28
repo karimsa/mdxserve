@@ -8,7 +8,7 @@ import type { DocumentTree } from "@mdxserve/client/document/tree-types";
 import { DocumentEnvironmentProvider } from "@mdxserve/ui/document/environment";
 import { NodeList } from "@mdxserve/ui/document/nodes";
 import { appDocumentEnvironment } from "../src/document-environment";
-import { documentRows } from "../src/document/rows";
+import { documentRows, rowType } from "../src/document/rows";
 import { tocLines } from "../src/document/TocSheet";
 import { loadCompiledStylesheet, resolveTheme, unusable } from "./stylesheet/analyze.js";
 import { classesInAppSource, classesInSource } from "./stylesheet/source-classes.js";
@@ -112,6 +112,34 @@ describe("the reading screen's classes", () => {
 				});
 			});
 			expect(problems).toEqual([]);
+		},
+	);
+});
+
+describe("rowType", () => {
+	const code = (lang: string) => ({
+		type: "code" as const,
+		id: null,
+		lang,
+		title: null,
+		showLineNumbers: false,
+		highlightLines: [],
+		value: "",
+	});
+
+	it("names a Mermaid block's row a diagram, so it is reused only for another diagram", () => {
+		expect(rowType({ key: "#a", nodes: [code("mermaid")] })).toBe("diagram");
+	});
+
+	it.each(Object.entries(FIXTURES))(
+		"leaves every other row of %s its node type",
+		(_, { document }) => {
+			for (const row of documentRows(document).rows) {
+				const first = row.nodes[0]!;
+				const mermaid = first.type === "code" && first.lang === "mermaid";
+				expect(rowType(row)).toBe(mermaid ? "diagram" : first.type);
+			}
+			expect(rowType({ key: "#b", nodes: [code("ts")] })).toBe("code");
 		},
 	);
 });

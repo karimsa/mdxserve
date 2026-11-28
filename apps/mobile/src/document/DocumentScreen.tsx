@@ -73,7 +73,7 @@ import { useConnection } from "../servers/use-connection";
 import { usePullToRefresh } from "../pull-to-refresh";
 import { useSideInsets } from "../side-insets";
 import { resolveLink } from "./links";
-import { documentRows, type DocumentRow } from "./rows";
+import { documentRows, rowType, type DocumentRow } from "./rows";
 import { createTabSelection, TabSelectionContext } from "./tab-selection";
 import { DocumentTaskBox, TaskTogglesProvider, useTaskToggles } from "./task-toggles";
 import { tocLines, TocSheet } from "./TocSheet";
@@ -648,7 +648,7 @@ function DocumentReader({
 											data={items}
 											keyExtractor={(item) => (item.kind === "row" ? item.row.key : "~footnotes")}
 											getItemType={(item) =>
-												item.kind === "row" ? (item.row.nodes[0]?.type ?? "row") : "footnotes"
+												item.kind === "row" ? rowType(item.row) : "footnotes"
 											}
 											renderItem={({ item, index: position }) =>
 												item.kind === "row" ? (

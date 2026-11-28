@@ -9,6 +9,7 @@ import {
 	chartDiagramMessage,
 	type ChartDiagramKeyword,
 } from "@mdxserve/shared/mermaid-chart";
+import { MERMAID_TOKEN_FALLBACKS, mermaidThemeVariables } from "@mdxserve/shared/mermaid-theme";
 
 type State =
 	| { kind: "loading" }
@@ -54,46 +55,7 @@ function cssVar(name: string, fallback: string): string {
 
 /** Themes mermaid from the design tokens so diagrams follow light/dark automatically. */
 function themeVariables() {
-	return {
-		background: cssVar("--diagram-bg", "#ffffff"),
-		primaryColor: cssVar("--diagram-node-bg", "#e8f6f5"),
-		primaryBorderColor: cssVar("--diagram-node-border", "#2ba5a2"),
-		primaryTextColor: cssVar("--diagram-node-fg", "#085b59"),
-		lineColor: cssVar("--diagram-line", "#a9a8a0"),
-		textColor: cssVar("--text-body", "#2b2a27"),
-		fontFamily: cssVar("--font-core", "Manrope, sans-serif"),
-		// Secondary / tertiary nodes (subgraphs, alt shapes) use the sunken surface
-		// so nothing falls back to mermaid's own hues.
-		secondaryColor: cssVar("--diagram-alt-node-bg", "#f6f6f3"),
-		secondaryBorderColor: cssVar("--diagram-alt-node-border", "#cfcec7"),
-		secondaryTextColor: cssVar("--text-body", "#2b2a27"),
-		tertiaryColor: cssVar("--surface-sunken", "#f6f6f3"),
-		tertiaryBorderColor: cssVar("--border-default", "#e3e2dd"),
-		tertiaryTextColor: cssVar("--text-body", "#2b2a27"),
-		// Edge labels sit on the card surface instead of mermaid's olive tint.
-		edgeLabelBackground: cssVar("--diagram-label-bg", "#ffffff"),
-		clusterBkg: cssVar("--surface-sunken", "#f6f6f3"),
-		clusterBorder: cssVar("--border-default", "#e3e2dd"),
-		// ER diagrams: attribute rows default to mermaid's hard-coded white / #f2f2f2,
-		// unreadable under the light `textColor` in dark mode. Alternate the card and
-		// sunken surfaces instead so rows follow the theme like every other node.
-		attributeBackgroundColorOdd: cssVar("--diagram-bg", "#ffffff"),
-		attributeBackgroundColorEven: cssVar("--diagram-alt-node-bg", "#f6f6f3"),
-		// Sequence diagrams.
-		actorBkg: cssVar("--diagram-node-bg", "#e8f6f5"),
-		actorBorder: cssVar("--diagram-node-border", "#2ba5a2"),
-		actorTextColor: cssVar("--diagram-node-fg", "#085b59"),
-		actorLineColor: cssVar("--diagram-line", "#a9a8a0"),
-		signalColor: cssVar("--text-body", "#2b2a27"),
-		signalTextColor: cssVar("--text-body", "#2b2a27"),
-		labelBoxBkgColor: cssVar("--surface-sunken", "#f6f6f3"),
-		labelBoxBorderColor: cssVar("--border-default", "#e3e2dd"),
-		labelTextColor: cssVar("--text-body", "#2b2a27"),
-		loopTextColor: cssVar("--text-body", "#2b2a27"),
-		noteBkgColor: cssVar("--status-warn-bg", "#fbeccd"),
-		noteBorderColor: cssVar("--status-warn-fg", "#855603"),
-		noteTextColor: cssVar("--status-warn-fg", "#855603"),
-	};
+	return mermaidThemeVariables((token) => cssVar(token, MERMAID_TOKEN_FALLBACKS[token]));
 }
 
 /* Diagrams re-render whenever the reader flips light/dark: a single shared

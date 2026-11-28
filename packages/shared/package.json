@@ -6,6 +6,8 @@
 		"./builtins": "./builtins/index.ts",
 		"./builtins/*": "./builtins/*.ts",
 		"./mermaid-chart": "./mermaid-chart.ts",
+		"./mermaid-direction": "./mermaid-direction.ts",
+		"./mermaid-theme": "./mermaid-theme.ts",
 		"./realtime": "./realtime.ts",
 		"./server-info": "./server-info.ts"
 	},
@@ -26,6 +28,7 @@
 	},
 	"devDependencies": {
 		"@types/react": "19.3.3",
+		"fast-check": "4.9.0",
 		"react": "19.3.0",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"

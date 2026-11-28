@@ -19,6 +19,7 @@ module.exports = {
 	setupFiles: [
 		"<rootDir>/tests/setup/expo-network.js",
 		"<rootDir>/tests/setup/realtime.js",
+		"<rootDir>/tests/setup/expo-asset.js",
 		// FlashList measures its window and rows natively; its own stand-in gives them sizes.
 		"@shopify/flash-list/jestSetup",
 	],
@@ -30,6 +31,10 @@ module.exports = {
 		"^@react-native-async-storage/async-storage$":
 			"@react-native-async-storage/async-storage/jest/async-storage-mock",
 		"\\.css$": require("./tests/stylesheet/compile.js").stylesheetOutputPath,
+		// The WebView's native view does not exist under jest; the stand-in records its calls.
+		"^react-native-webview$": "<rootDir>/tests/setup/webview.js",
+		// An HTML asset (the diagram page) is an asset id, as under Metro.
+		"\\.html$": "<rootDir>/tests/setup/html-asset.js",
 		// React Native resolves lucide's ES module build, which jest cannot load; its CommonJS
 		// build sits beside it.
 		"^lucide-react-native/icons$": `${path.dirname(require.resolve("lucide-react-native"))}/icons/index.js`,

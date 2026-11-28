@@ -5,7 +5,7 @@ import {
 	readFlowchartDirection,
 	setFlowchartDirection,
 	type FlowDirection,
-} from "./mermaid-direction";
+} from "@mdxserve/shared/mermaid-direction";
 import { useMediaQuery } from "./hooks";
 import { DESKTOP_MEDIA } from "./platform";
 import Dropdown from "./ui/Dropdown";
