@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 import { StyleSheet } from "react-native";
 import type { EdgeInsets } from "react-native-safe-area-context";
@@ -239,16 +240,13 @@ describe.each(["light", "dark"] as const)("a document's Contents sheet (%s)", (t
 		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
 	});
 
-	it("opens as a route under the system bar: its title, a Done item and no wordmark", async () => {
+	it("opens as a route under the system bar: its title, no bar item and no wordmark", async () => {
 		await openContents(LIBRARY_URL);
 		const header = headerTitled("Contents");
 		expect(header.props.translucent).toBe(false);
 		expect(allHosts(header, "RNSScreenStackHeaderSubview")).toEqual([]);
 		expect(screen.queryByTestId("header-background")).toBeNull();
-		expect(headerItem("Contents", "Done")).toMatchObject({
-			icon: { name: "checkmark" },
-			variant: "done",
-		});
+		expect(header.props.headerRightBarButtonItems ?? []).toEqual([]);
 	});
 
 	it("lists every heading and tab as a button with its text and level", async () => {
@@ -279,9 +277,9 @@ describe.each(["light", "dark"] as const)("a document's Contents sheet (%s)", (t
 		expect(screen.queryByTestId("contents-list")).toBeNull();
 	});
 
-	it("closes with Done and leaves the document as it was", async () => {
+	it("closes on a swipe down (the route going back) and leaves the document as it was", async () => {
 		await openContents(LIBRARY_URL);
-		await act(async () => headerItem("Contents", "Done").onPress());
+		await act(async () => router.back());
 		expect(screen).toHavePathname(LIBRARY_URL);
 		await waitFor(() => expect(screen.queryByTestId("contents-list")).toBeNull());
 		expect(screen.getByRole("tab", { name: "macOS", selected: true })).toBeOnTheScreen();

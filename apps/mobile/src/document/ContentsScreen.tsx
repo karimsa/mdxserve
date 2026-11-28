@@ -24,9 +24,9 @@ function lineLabel(line: TocLine): string {
 /**
  * The open document's headings and tabs (app/contents.tsx), in a sheet under the system's own
  * navigation bar, opaque and in the page colour: its title, "Contents", comes from the route's
- * options, and Done is a native bar item with an SF Symbol, so a folded iPhone Duo moves it
- * into its vertical bar. Choosing a
- * line closes the sheet and reveals it in the document, selecting the tabs on the way.
+ * options. The bar has no item: a swipe down closes the sheet, as does VoiceOver's escape
+ * gesture, and choosing a line closes it and reveals the line in the document, selecting the
+ * tabs on the way.
  *
  * The sheet has a safe area provider of its own, so the insets are the sheet's and not the
  * window's: the rows stay clear of a folded display's vertical bar where the sheet meets it,
@@ -46,14 +46,6 @@ export function ContentsScreen({ viewKey }: { viewKey: string }) {
 					headerStyle: { backgroundColor: typeof barColour === "string" ? barColour : undefined },
 				}}
 			/>
-			<Stack.Toolbar placement="right">
-				<Stack.Toolbar.Button
-					icon="checkmark"
-					variant="done"
-					accessibilityLabel="Done"
-					onPress={close}
-				/>
-			</Stack.Toolbar>
 			<ContentsList
 				lines={view?.lines ?? null}
 				onChoose={(id) => {
