@@ -19,6 +19,7 @@ import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Heading, Link, Text } from "@mdxserve/ui/primitives/Text";
 import { DocumentEnvironmentProvider } from "@mdxserve/ui/document/environment";
 import { NodeList } from "@mdxserve/ui/document/nodes";
+import { DiagramGate } from "../../../src/diagram/DiagramGate";
 import { appDocumentEnvironment } from "../../../src/document-environment";
 import { SAMPLE_DOCUMENT } from "../../../src/sample-document";
 import { useSideInsets } from "../../../src/side-insets";
@@ -106,6 +107,10 @@ export default function Gallery() {
 			testID="gallery-content"
 		>
 			<Stack.Screen options={{ title: "Gallery" }} />
+
+			<Section title="Diagram gate">
+				<DiagramGate />
+			</Section>
 
 			<Section title="Document">
 				<DocumentEnvironmentProvider value={appDocumentEnvironment}>

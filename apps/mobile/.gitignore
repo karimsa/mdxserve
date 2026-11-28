@@ -6,3 +6,6 @@ expo-env.d.ts
 # Generated native projects (`expo prebuild`, `expo run:ios`)
 /ios
 /android
+
+# The diagram page, built by metro.config.js and the tests (scripts/diagram-page/build.js)
+/assets/generated/
