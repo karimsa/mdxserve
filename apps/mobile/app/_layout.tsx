@@ -17,6 +17,7 @@ import { glassSheetOptions } from "../src/glass-sheet";
 import { recheckOnNetworkError, wireQueryLifecycle } from "../src/servers/lifecycle";
 import { createProbe } from "../src/servers/probe";
 import { ServersProvider } from "../src/servers/ServersProvider";
+import { useStatusBarStyle } from "../src/status-bar";
 import { useVerticalBarBehavior } from "../src/vertical-bar";
 
 /** The `view` key a sheet route was opened with. */
@@ -44,6 +45,7 @@ export default function RootLayout() {
 	const [probe] = useState(() => createProbe());
 	const [blockStorage] = useState(createMemoryBlockStorage);
 	const colorScheme = useColorScheme();
+	const statusBarStyle = useStatusBarStyle();
 	const verticalBarBehavior = useVerticalBarBehavior();
 	const fontsReady = useAppFonts();
 	useEffect(wireQueryLifecycle, []);
@@ -55,7 +57,10 @@ export default function RootLayout() {
 					<BlockStateStorageContext value={blockStorage}>
 						<ClipboardContext.Provider value={copyText}>
 							<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-								<Stack>
+								{/* The status bar's colour follows the app's theme on every screen
+								    (src/status-bar.ts). The sheets show the tabs' status bar, the full
+								    screen diagram its own; a tab's screens inherit the tabs'. */}
+								<Stack screenOptions={{ statusBarStyle }}>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 									{/* Full screen, so nothing is drawn under a folded display's vertical bar
 									    and a swipe down never fights a pan; its items are native bar items. */}
@@ -88,7 +93,9 @@ export default function RootLayout() {
 										})}
 									/>
 								</Stack>
-								<StatusBar style="auto" verticalBarBehaviorIOS={verticalBarBehavior} />
+								{/* Only for the vertical bar's behaviour: iOS takes the status bar's
+								    colour from the screens above. */}
+								<StatusBar style={statusBarStyle} verticalBarBehaviorIOS={verticalBarBehavior} />
 							</ThemeProvider>
 						</ClipboardContext.Provider>
 					</BlockStateStorageContext>
