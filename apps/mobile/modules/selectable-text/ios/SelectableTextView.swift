@@ -67,6 +67,7 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   var fontScale: Double = 1
   var commentTitle: String?
   var heading = false
+  var actions: [RunAction] = []
 
   /// The view holding a selection, so that selecting in another block clears it.
   private static weak var selecting: SelectableTextView?
@@ -164,6 +165,13 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     }
     storage.setAttributedString(text)
     textView.accessibilityTraits = heading ? [.staticText, .header] : .staticText
+    textView.accessibilityCustomActions = actions.map { action in
+      let index = action.index
+      return UIAccessibilityCustomAction(name: action.name) { [weak self] _ in
+        self?.onPressRun(["index": index])
+        return true
+      }
+    }
     reportedHeight = -1
     setNeedsLayout()
   }

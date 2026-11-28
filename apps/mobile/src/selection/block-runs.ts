@@ -99,7 +99,7 @@ export function blockRuns(
 	) {
 		if (text === "") return;
 		runs.push({ text, style, press });
-		map.push(...points);
+		for (const point of points) map.push(point);
 	}
 
 	function base(context: Context): RunStyle {
@@ -218,6 +218,36 @@ export function blockRuns(
 	}
 	if (next !== block.nodes.length) return null;
 	return { text: runs.map((run) => run.text).join(""), runs, map };
+}
+
+function samePress(left: RunPress | null, right: RunPress | null): boolean {
+	if (!left || !right || left.kind !== right.kind) return false;
+	if (left.kind === "link" && right.kind === "link") return left.href === right.href;
+	return (
+		left.kind === "mark" &&
+		right.kind === "mark" &&
+		left.threadIds.length === right.threadIds.length &&
+		left.threadIds.every((id, index) => id === right.threadIds[index])
+	);
+}
+
+/**
+ * The block's links and highlights as VoiceOver actions, which VoiceOver offers where a finger
+ * would tap the run: one per stretch of runs with the same press, named by its text, reporting
+ * its first run.
+ */
+export function runActions(text: BlockText): { name: string; index: number }[] {
+	const stretches: { index: number; words: string }[] = [];
+	text.runs.forEach((run, index) => {
+		if (!run.press) return;
+		const last = stretches[stretches.length - 1];
+		if (last && samePress(text.runs[index - 1]?.press ?? null, run.press)) last.words += run.text;
+		else stretches.push({ index, words: run.text });
+	});
+	return stretches.map(({ index, words }) => ({
+		name: `${text.runs[index].press?.kind === "link" ? "Open link" : "Show comment on"}: ${normalizeText(words)}`,
+		index,
+	}));
 }
 
 /** What the native view reported when the reader chose Comment. */

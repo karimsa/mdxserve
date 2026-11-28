@@ -250,6 +250,8 @@ describe("selectable text's events", () => {
 		const { openLink } = await draw(document());
 		const view = viewWith("The reader");
 		const index = (view.props.runs as NativeTextRun[]).findIndex((run) => run.text === "a link");
+		// VoiceOver reaches the link through an action, since it cannot tap the run.
+		expect(view.props.actions).toEqual([{ name: "Open link: a link", index }]);
 		await act(async () => view.props.onPressRun({ nativeEvent: { index } }));
 		expect(openLink).toHaveBeenCalledWith("https://example.com/");
 	});

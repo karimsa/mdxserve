@@ -19,6 +19,12 @@ struct TextRun: Record {
   @Field var pressable: Bool = false
 }
 
+/// A VoiceOver action for a link or a highlight: its label, and the run `onPressRun` reports.
+struct RunAction: Record {
+  @Field var name: String = ""
+  @Field var index: Int = 0
+}
+
 /// Selectable document text: a non-editable `UITextView` drawn from styled runs, whose selection
 /// menu adds "Comment" to the system's items (Copy, Look Up, …) and reports the selected range.
 public final class SelectableTextModule: Module {
@@ -42,6 +48,11 @@ public final class SelectableTextModule: Module {
       /// The selection menu item's title; absent, the menu has the system's items only.
       Prop("commentTitle") { (view: SelectableTextView, title: String?) in
         view.commentTitle = title
+      }
+      /// The links and highlights, as VoiceOver actions (the rotor's Actions), since VoiceOver
+      /// cannot tap a run.
+      Prop("actions") { (view: SelectableTextView, actions: [RunAction]) in
+        view.actions = actions
       }
       /// A heading, for VoiceOver.
       Prop("heading") { (view: SelectableTextView, heading: Bool) in

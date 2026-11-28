@@ -3,7 +3,12 @@ import { resolveAnchor } from "@mdxserve/client/comments/anchor";
 import type { TextMark } from "@mdxserve/client/comments/marks";
 import { collectTreeBlocks } from "@mdxserve/client/comments/tree-blocks";
 import type { DocumentTree, InlineNode } from "@mdxserve/client/document/tree-types";
-import { anchorFromSelection, blockRuns, type BlockText } from "../src/selection/block-runs";
+import {
+	anchorFromSelection,
+	blockRuns,
+	runActions,
+	type BlockText,
+} from "../src/selection/block-runs";
 import { layoutStyle, nativeRuns, type RunTheme } from "../src/selection/native-runs";
 
 const text = (value: string) => ({ type: "text", value });
@@ -161,10 +166,47 @@ describe("blockRuns", () => {
 		}
 	});
 
+	it("maps a paragraph longer than a call can take arguments", () => {
+		const long = "word ".repeat(200_000);
+		const { runs } = paragraphOf([text(long)]);
+		expect(runs.map).toHaveLength(long.length);
+	});
+
 	it("is null when the nodes are not the block's", () => {
 		const { content } = paragraphOf([text("one")]);
 		const other = paragraphOf([text("one")]).block;
 		expect(blockRuns(content, other, NO_MARKS)).toBeNull();
+	});
+});
+
+describe("runActions", () => {
+	it("gives each link and highlight one VoiceOver action, reporting its first run", () => {
+		const inline = [
+			text("see "),
+			{
+				type: "link",
+				href: "/a",
+				title: null,
+				children: [text("the "), { type: "strong", children: [text("docs")] }],
+			},
+			text(" and "),
+			{ type: "link", href: "/b", title: null, children: [text("more")] },
+			text(" here"),
+		];
+		const tree = documentOf({ type: "paragraph", children: inline });
+		const blocks = collectTreeBlocks(tree);
+		const block = blocks.blocks[1];
+		const content = block.key as InlineNode[];
+		const last = content[4];
+		const runs = blockRuns(content, block, {
+			marksOf: (source) => (source === last ? [{ start: 1, end: 5, threadId: "one" }] : undefined),
+			activeThread: null,
+		})!;
+		expect(runActions(runs)).toEqual([
+			{ name: "Open link: the docs", index: 1 },
+			{ name: "Open link: more", index: 4 },
+			{ name: "Show comment on: here", index: 6 },
+		]);
 	});
 });
 

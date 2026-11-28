@@ -35,7 +35,7 @@ import {
 	type SelectableBlockProps,
 } from "@mdxserve/ui/document/text-runs";
 import { SelectableTextView } from "../../modules/selectable-text";
-import { anchorFromSelection, blockRuns } from "./block-runs";
+import { anchorFromSelection, blockRuns, runActions } from "./block-runs";
 import { layoutStyle, nativeRuns, type RunTheme } from "./native-runs";
 
 /** What a document's selectable blocks need from the document: its blocks, and how to start a thread. */
@@ -185,6 +185,7 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 		});
 	}, [block, treeBlock, blockMarks]);
 	const runs = useMemo(() => (text && theme ? nativeRuns(text, theme) : null), [text, theme]);
+	const actions = useMemo(() => (text ? runActions(text) : []), [text]);
 	const onHeights = selection?.onHeights;
 	useEffect(() => {
 		onHeights?.(block, { layout: twinHeight, native: nativeHeight });
@@ -220,6 +221,7 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 				lineHeight={theme.base.lineHeight}
 				fontScale={fontScale}
 				commentTitle={startThread ? COMMENT : undefined}
+				actions={actions}
 				heading={look.heading !== undefined}
 				onTextHeight={(event) => setNativeHeight(event.nativeEvent.height)}
 				onPressRun={(event) => {

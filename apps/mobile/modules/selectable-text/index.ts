@@ -27,6 +27,8 @@ export interface SelectableTextProps extends ViewProps {
 	fontScale: number;
 	/** The selection menu's extra item; absent, the menu has only the system's (Copy…). */
 	commentTitle?: string;
+	/** The links and highlights as VoiceOver actions: a label, and the run a press reports. */
+	actions: readonly { name: string; index: number }[];
 	heading: boolean;
 	/** The reader chose the extra item: the selection, in UTF-16 units of the runs' joined text. */
 	onComment?: (event: NativeSyntheticEvent<{ start: number; end: number; text: string }>) => void;
