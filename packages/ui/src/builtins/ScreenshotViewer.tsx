@@ -64,10 +64,15 @@ export function ScreenshotViewer({ open, onClose, src, alt, title, caption }: Ex
 					) : null}
 				</ScrollView>
 				{label ? (
-					<View
+					// At most 40% of the sheet, scrolling past that, so a long caption at a large
+					// text size never leaves the image without room.
+					<ScrollView
 						testID="screenshot-viewer-caption"
-						className="border-t border-border-subtle bg-surface-raised pt-3"
-						style={{
+						className="border-t border-border-subtle bg-surface-raised"
+						style={{ flexGrow: 0, maxHeight: "40%" }}
+						alwaysBounceVertical={false}
+						contentContainerStyle={{
+							paddingTop: 12,
 							paddingLeft: GUTTER + insets.left,
 							paddingRight: GUTTER + insets.right,
 							paddingBottom: 12 + insets.bottom,
@@ -76,7 +81,7 @@ export function ScreenshotViewer({ open, onClose, src, alt, title, caption }: Ex
 						<Text className="font-sans font-medium leading-normal text-[length:var(--size-sm)] text-text-body">
 							{label}
 						</Text>
-					</View>
+					</ScrollView>
 				) : null}
 			</View>
 		</Modal>

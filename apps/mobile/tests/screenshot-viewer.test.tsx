@@ -79,11 +79,16 @@ describe.each(["light", "dark"] as const)("the full-screen screenshot in the %s 
 		expect(children.indexOf(screen.getByTestId("screenshot-viewer-area"))).toBeLessThan(
 			children.indexOf(band),
 		);
+		// At most part of the sheet, scrolling past that, so the image keeps a viewport.
 		expect(styleOf(band)).toMatchObject({
+			maxHeight: "40%",
+			flexGrow: 0,
+			backgroundColor: variables["--surface-raised"],
+		});
+		expect(StyleSheet.flatten(band.props.contentContainerStyle)).toMatchObject({
 			paddingLeft: 16,
 			paddingRight: 16 + 84,
 			paddingBottom: 12 + 21,
-			backgroundColor: variables["--surface-raised"],
 		});
 		const text = within(band).getByText(caption);
 		expect(text.props.numberOfLines).toBeUndefined();
