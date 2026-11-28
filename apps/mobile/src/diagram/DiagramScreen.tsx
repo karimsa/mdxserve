@@ -44,7 +44,8 @@ function SilentTitle({ children }: { children: string }) {
  * vertical bar; an image item stays across the top): zoom in,
  * reset, zoom out, the flowchart's layout and Done. On a folded iPhone Duo iOS moves
  * those items into its vertical bar beside the content; in a wide window, or on an iPhone,
- * they sit in the top bar. Five items at most, so they fit across an iPhone's top bar too.
+ * they sit in the top bar. The three zoom items share one background; the layout and Done
+ * each have their own. Five items at most, so they fit across an iPhone's top bar too.
  *
  * The bar stays opaque: react-native-screens lets iOS 27 minimise a translucent bar, and a
  * minimised bar draws its items as buttons over the content instead of in the vertical bar.
@@ -140,13 +141,19 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				{layoutActions && direction !== null ? (
 					<Stack.Toolbar.Menu
 						icon={DIRECTION_SYMBOL[direction]}
+						separateBackground={true}
 						accessibilityLabel={`Layout: ${DIRECTION_LABEL[direction]}`}
 						title="Layout"
 					>
 						{layoutActions}
 					</Stack.Toolbar.Menu>
 				) : null}
-				<Stack.Toolbar.Button icon="xmark" accessibilityLabel="Done" onPress={close} />
+				<Stack.Toolbar.Button
+					icon="xmark"
+					accessibilityLabel="Done"
+					separateBackground={true}
+					onPress={close}
+				/>
 			</Stack.Toolbar>
 			{/* The drawing keeps clear of the top bar where there is one, the vertical bar and the
 			    home indicator. */}
@@ -154,6 +161,9 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				testID="diagram-screen-body"
 				className="flex-1"
 				style={{
+					// The bar is opaque, but on iOS 26 and later react-native-screens lays a screen
+					// presented as a native modal out under it with no content offset, so without
+					// this the bar covers the top of the diagram (seen on a folded Duo).
 					paddingTop: headerHeight,
 					paddingLeft: insets.left,
 					paddingRight: insets.right,

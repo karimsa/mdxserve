@@ -15,8 +15,7 @@
 		"typecheck": "tsc --noEmit",
 		"test": "jest",
 		"doctor": "expo-doctor",
-		"icon": "node scripts/render-icon.mjs",
-		"bar-icons": "node scripts/render-bar-icons.mjs"
+		"icon": "node scripts/render-icon.mjs"
 	},
 	"dependencies": {
 		"@expo-google-fonts/jetbrains-mono": "0.4.1",

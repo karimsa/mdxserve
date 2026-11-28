@@ -152,6 +152,14 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 			["Layout: Top to bottom", "arrow.down"],
 			["Done", "xmark"],
 		]);
+		// One capsule for the three zoom items; the layout and Done stand alone.
+		expect(items().map((entry) => [entry.accessibilityLabel, entry.sharesBackground])).toEqual([
+			["Zoom in", true],
+			["Reset view", true],
+			["Zoom out", true],
+			["Layout: Top to bottom", false],
+			["Done", false],
+		]);
 
 		// No source view any more, and no floating controls.
 		expect(screen.queryByText(/Phone --> Tailnet --> Server/)).toBeNull();
