@@ -509,6 +509,25 @@ describe("writing comments on a document", () => {
 		expect(screen.getByLabelText("Reply").props.value).toBe("Not allowed");
 	});
 
+	it("checks the server's addresses again when a write gets no answer", async () => {
+		mockThreads = [BETA];
+		// What tRPC throws when the request never reached the server.
+		mockAddReply.mockRejectedValue(
+			Object.assign(new Error("Network request failed"), { name: "TRPCClientError" }),
+		);
+		await openDocument();
+		await openPanel();
+		await selectThread("beta gamma");
+		await typeReply("Lost on the way");
+		const probes = mockProbe.mock.calls.length;
+		await fireEvent.press(sendButton());
+		await screen.findByText("Network request failed");
+		await waitFor(() => expect(mockProbe.mock.calls.length).toBeGreaterThan(probes));
+		// The write itself is not sent again on its own: it may have reached the server.
+		expect(mockAddReply).toHaveBeenCalledTimes(1);
+		expect(screen.getByLabelText("Reply").props.value).toBe("Lost on the way");
+	});
+
 	it("offers no write control on a restricted server (KA14)", async () => {
 		await seed(known("restricted"));
 		mockProbeAnswers.set(STUDIO_URL, { kind: "ok", info: info("restricted") });

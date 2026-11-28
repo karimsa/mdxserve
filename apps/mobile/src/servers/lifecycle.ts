@@ -21,7 +21,7 @@ export function wireQueryLifecycle(): () => void {
 }
 
 /** A request that never reached a server: tRPC's error with no answer from it. */
-function isNetworkError(error: unknown): boolean {
+export function isNetworkError(error: unknown): boolean {
 	return (
 		error instanceof Error &&
 		error.name === "TRPCClientError" &&

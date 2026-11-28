@@ -4,6 +4,7 @@ import type { CommentThread } from "@mdxserve/client/comments/threads";
 import { createWriteQueue } from "@mdxserve/client/comments/write-queue";
 import { useServerClient, useServerQueryOptions } from "../servers/server-query";
 import type { KnownServer } from "../servers/store";
+import { isNetworkError } from "../servers/lifecycle";
 import { connectionKey } from "../servers/use-connection";
 
 /** The `getDocComments` result, as the server sends it. */
@@ -56,7 +57,8 @@ function codeOf(error: unknown): string | undefined {
 /**
  * The comment writes on one document (KA5 to KA8). A write's answer replaces the cached thread
  * list at once; a failure resolves to the server's message, never throws, so the caller keeps
- * the reader's text (KA13). A `FORBIDDEN` means the server is restricted now: its connection is
+ * the reader's text (KA13). A write that got no answer checks the server's addresses again, as a
+ * failed query does. A `FORBIDDEN` means the server is restricted now: its connection is
  * checked again, which refreshes the permissions the write controls follow. A `NOT_FOUND` (the
  * thread or message went elsewhere) reads the threads again.
  */
@@ -78,7 +80,9 @@ export function useCommentActions(server: KnownServer, path: string): CommentAct
 					return { kind: "ok", threads };
 				} catch (error) {
 					const code = codeOf(error);
-					if (code === "FORBIDDEN")
+					// No answer at all: another of the server's addresses may reach it, for the reader's
+					// next press. The write is not retried here, since it may have landed.
+					if (code === "FORBIDDEN" || isNetworkError(error))
 						void queryClient.invalidateQueries({ queryKey: connectionKey(server.id) });
 					if (code === "NOT_FOUND") void queryClient.invalidateQueries({ queryKey: key });
 					return {
