@@ -10,7 +10,8 @@ import {
 } from "@mdxserve/shared/mermaid-direction";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { CodeFrame, CodeText } from "../document/CodeFrame";
-import { CopyButton, DirectionButton, ViewToggle, type FrameView } from "./DiagramActions";
+import { WIDE_WINDOW } from "../vertical-bar";
+import { DirectionButton, ViewToggle, type FrameView } from "./DiagramActions";
 import { CONTROLS_HEIGHT, DiagramControls } from "./DiagramControls";
 import { DiagramNotice } from "./DiagramNotice";
 import { DiagramViewer } from "./DiagramViewer";
@@ -30,8 +31,8 @@ import { useDiagramTheme } from "./theme";
 const MAX_HEIGHT_SHARE = 0.7;
 
 /**
- * A fenced `mermaid` block, framed as on the web: a header with the Diagram/Code switch, the
- * flowchart layout control and Copy; the diagram drawn by mermaid.js in a WebView
+ * A fenced `mermaid` block, framed as on the web: a header with the Diagram/Code switch and the
+ * flowchart layout control; the diagram drawn by mermaid.js in a WebView
  * (DiagramWebView), scaled to fit the frame, with the web's control stack (full screen, zoom
  * in, reset, zoom out) at its bottom right. A chart diagram is refused with the web client's
  * message; a source Mermaid cannot parse shows Mermaid's error; a diagram not drawn within 8
@@ -68,13 +69,10 @@ export function DiagramBlock({ node }: { node: CodeNode }) {
 			label={node.title ?? "mermaid"}
 			actions={
 				<View className="flex-row items-center gap-3 pr-2.5 pl-3">
-					<ViewToggle view={view} onChange={setView} />
+					<ViewToggle view={view} onChange={setView} labelled={screen.width >= WIDE_WINDOW} />
 					{view === "diagram" && keyword === null && directionButton ? (
 						<View className="border-l border-code-border pl-3">{directionButton}</View>
 					) : null}
-					<View className="border-l border-code-border pl-3">
-						<CopyButton text={node.value} />
-					</View>
 				</View>
 			}
 		>

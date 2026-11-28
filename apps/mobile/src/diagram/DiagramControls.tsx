@@ -2,20 +2,33 @@ import { View } from "react-native";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 
-/** The height the inline stack of four needs, with its margins: four 44 pt buttons and rules. */
-export const CONTROLS_HEIGHT = 4 * 44 + 5 + 24;
+/** One button's side: compact like the web's 26 px stack, a little larger for a finger. */
+const BUTTON = 32;
 
-/** One control of the stack: a 44 pt square with its icon. */
+/** The height the inline stack of four needs, with its margins: four buttons and their rules. */
+export const CONTROLS_HEIGHT = 4 * BUTTON + 5 + 24;
+
+/**
+ * The touch area beyond a button: 44 pt wide, and 44 pt tall at the stack's two ends. Between
+ * two buttons the area stops at the rule, so one never takes the other's press.
+ */
+const SLOP = (44 - BUTTON) / 2;
+
+/** One control of the stack: its icon in a 32 pt square. */
 function ControlButton({
 	icon,
 	label,
 	onPress,
 	disabled = false,
+	first = false,
+	last = false,
 }: {
 	icon: string;
 	label: string;
 	onPress: () => void;
 	disabled?: boolean;
+	first?: boolean;
+	last?: boolean;
 }) {
 	return (
 		<Pressable
@@ -23,7 +36,8 @@ function ControlButton({
 			accessibilityState={{ disabled }}
 			disabled={disabled}
 			onPress={onPress}
-			className="h-11 w-11 items-center justify-center"
+			hitSlop={{ left: SLOP, right: SLOP, top: first ? SLOP : 0, bottom: last ? SLOP : 0 }}
+			className="h-8 w-8 items-center justify-center"
 		>
 			<Icon
 				name={icon}
@@ -56,13 +70,18 @@ export function DiagramControls({
 	return (
 		<View
 			testID="diagram-controls"
+			// The stack clips its corners; its own slop lets the buttons' slop reach past them.
+			hitSlop={SLOP}
 			className="overflow-hidden rounded-md border border-border-default bg-surface-card"
 		>
-			{onExpand ? <ControlButton icon="expand" label="Expand diagram" onPress={onExpand} /> : null}
+			{onExpand ? (
+				<ControlButton icon="expand" label="Expand diagram" onPress={onExpand} first={true} />
+			) : null}
 			<View className={onExpand ? "border-t border-border-subtle" : ""}>
 				<ControlButton
 					icon="plus"
 					label="Zoom in"
+					first={!onExpand}
 					onPress={onZoomIn}
 					disabled={scale >= maxScale}
 				/>
@@ -71,7 +90,13 @@ export function DiagramControls({
 				<ControlButton icon="maximize" label="Reset view" onPress={onReset} disabled={scale <= 1} />
 			</View>
 			<View className="border-t border-border-subtle">
-				<ControlButton icon="minus" label="Zoom out" onPress={onZoomOut} disabled={scale <= 1} />
+				<ControlButton
+					icon="minus"
+					label="Zoom out"
+					last={true}
+					onPress={onZoomOut}
+					disabled={scale <= 1}
+				/>
 			</View>
 		</View>
 	);

@@ -10,7 +10,6 @@ import { DiagramBlock } from "../src/diagram/DiagramBlock";
 import { CONTROLS_HEIGHT } from "../src/diagram/DiagramControls";
 import { ZOOM_STEP } from "../src/diagram/render-call";
 import { DiagramSizes, DiagramSizesContext } from "../src/diagram/sizes";
-import { ClipboardContext } from "@mdxserve/ui/primitives/clipboard";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { inlineDiagramSize } from "../src/diagram/size";
 import { DIAGRAM_TIMEOUT_MS } from "../src/diagram/state";
@@ -124,24 +123,16 @@ const METRICS = {
 	insets: { top: 47, left: 0, right: 40, bottom: 34 },
 };
 
-/** What the clipboard was given. */
-let copied: string[] = [];
-
 /**
- * Renders `ui` with a size cache of its own, so no test sees another's drawings, and a
- * clipboard that records what it is given.
+ * Renders `ui` with a size cache of its own, so no test sees another's drawings, in a folded
+ * Duo's safe area.
  */
 function show(ui: ReactElement) {
 	const sizes = new DiagramSizes();
-	const copyText = async (text: string) => {
-		copied.push(text);
-	};
 	return render(ui, {
 		wrapper: ({ children }) => (
 			<SafeAreaProvider initialMetrics={METRICS}>
-				<ClipboardContext value={copyText}>
-					<DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>
-				</ClipboardContext>
+				<DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>
 			</SafeAreaProvider>
 		),
 	});
@@ -153,7 +144,6 @@ function bodyHeight(): unknown {
 
 beforeEach(async () => {
 	webviewCalls.length = 0;
-	copied = [];
 	await setWindow(466);
 });
 
@@ -397,6 +387,24 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			.getAllByRole("button")
 			.map((button) => button.props.accessibilityLabel);
 		expect(labels).toEqual(["Expand diagram", "Zoom in", "Reset view", "Zoom out"]);
+		// Compact like the web's stack, each still 44 pt wide to a finger and 44 pt tall at the
+		// ends; between two buttons neither reaches into the other.
+		const buttons = within(screen.getByTestId("diagram-controls")).getAllByRole("button");
+		const slops = buttons.map(
+			(button) =>
+				button.props.hitSlop as { top: number; bottom: number; left: number; right: number },
+		);
+		for (const [position, button] of buttons.entries()) {
+			const box = StyleSheet.flatten(button.props.style as never) as {
+				width: number;
+				height: number;
+			};
+			expect(box).toMatchObject({ width: 32, height: 32 });
+			const slop = slops[position]!;
+			expect(box.width + slop.left + slop.right).toBe(44);
+			expect(slop.top).toBe(position === 0 ? 6 : 0);
+			expect(slop.bottom).toBe(position === buttons.length - 1 ? 6 : 0);
+		}
 		// Fitted: nothing to reset or zoom out of.
 		expect(screen.getByLabelText("Reset view")).toBeDisabled();
 		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
@@ -455,12 +463,43 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(zoomsIn(webviewCalls[0]!)).toEqual([]);
 	});
 
-	it("copies the block's text as written", async () => {
-		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
-		await fireEvent.press(screen.getByLabelText("Copy"));
-		expect(copied).toEqual([FLOW_LR]);
-		expect(screen.getByLabelText("Copied")).toBeTruthy();
-	});
+	it.each([
+		[466, false],
+		[951, true],
+	])(
+		"switches Diagram and Code with icons, named only when the window is wide (%d pt)",
+		async (width, labelled) => {
+			await setWindow(width);
+			await show(
+				<DiagramBlock node={mermaid("sequenceDiagram\n  A->>B: hi", "diagram-1", "Login")} />,
+			);
+			const tabs = screen.getAllByRole("tab");
+			expect(tabs.map((tab) => tab.props.accessibilityLabel)).toEqual(["Diagram", "Code"]);
+			expect(screen.getByRole("tab", { name: "Diagram", selected: true })).toBeTruthy();
+			expect(screen.queryByText("Diagram") !== null).toBe(labelled);
+			expect(screen.queryByText("Code") !== null).toBe(labelled);
+			for (const tab of tabs) {
+				const slop = tab.props.hitSlop as {
+					top: number;
+					bottom: number;
+					left: number;
+					right: number;
+				};
+				const box = StyleSheet.flatten(tab.props.style as never) as {
+					height: number;
+					width?: number;
+				};
+				expect(box.height + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
+				if (!labelled) expect((box.width ?? 0) + slop.left + slop.right).toBeGreaterThanOrEqual(44);
+			}
+			await fireEvent.press(screen.getByRole("tab", { name: "Code" }));
+			expect(screen.getByRole("tab", { name: "Code", selected: true })).toBeTruthy();
+			// No copy control on a diagram's frame.
+			expect(screen.queryByLabelText("Copy")).toBeNull();
+			// The title keeps the room the labels would take.
+			expect(screen.getByText("Login")).toBeTruthy();
+		},
+	);
 
 	it("lays a flowchart out as the reader chooses, for their view only", async () => {
 		const sheet = jest

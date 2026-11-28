@@ -1,22 +1,29 @@
-import { useEffect, useRef, useState } from "react";
 import { ActionSheetIOS, Text, View } from "react-native";
 import type { FlowDirection } from "@mdxserve/shared/mermaid-direction";
-import { useCopyText } from "@mdxserve/ui/primitives/clipboard";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 
-/** Each header control reaches 44 pt tall from the 38 pt header. */
-const HEADER_SLOP = { top: 4, bottom: 4, left: 2, right: 2 };
+/** Each 24 pt tall header control reaches 44 pt with this much room around it. */
+const HEADER_SLOP = { top: 10, bottom: 10, left: 2, right: 2 };
+
+/** An icon-only segment is 32 pt wide; this takes it to 44 pt both ways. */
+const ICON_SLOP = { top: 10, bottom: 10, left: 6, right: 6 };
 
 export type FrameView = "diagram" | "code";
 
-/** The frame's Diagram/Code switch, a segmented pill as on the web. */
+/**
+ * The frame's Diagram/Code switch, a segmented pill with the web's icons. With `labelled` (a
+ * wide window: an unfolded Duo) each segment also names itself, as on the web; narrower, the
+ * icons alone leave the frame's title the room.
+ */
 export function ViewToggle({
 	view,
 	onChange,
+	labelled,
 }: {
 	view: FrameView;
 	onChange: (view: FrameView) => void;
+	labelled: boolean;
 }) {
 	return (
 		<View
@@ -38,27 +45,25 @@ export function ViewToggle({
 						accessibilityState={{ selected }}
 						accessibilityLabel={option.label}
 						onPress={() => onChange(option.value)}
-						hitSlop={HEADER_SLOP}
-						className={
-							selected
-								? "h-6 flex-row items-center gap-1.5 rounded-sm border border-border-default bg-surface-card px-2.5"
-								: "h-6 flex-row items-center gap-1.5 rounded-sm border border-transparent px-2.5"
-						}
+						hitSlop={labelled ? HEADER_SLOP : ICON_SLOP}
+						className={`h-6 flex-row items-center justify-center gap-1.5 rounded-sm border ${selected ? "border-border-default bg-surface-card" : "border-transparent"} ${labelled ? "px-2.5" : "w-8"}`}
 					>
 						<Icon
 							name={option.icon}
 							size={12}
 							className={selected ? "text-text-heading" : "text-text-subtle"}
 						/>
-						<Text
-							className={
-								selected
-									? "font-sans font-semibold text-[length:var(--size-xs)] text-text-heading"
-									: "font-sans font-medium text-[length:var(--size-xs)] text-text-subtle"
-							}
-						>
-							{option.label}
-						</Text>
+						{labelled ? (
+							<Text
+								className={
+									selected
+										? "font-sans font-semibold text-[length:var(--size-xs)] text-text-heading"
+										: "font-sans font-medium text-[length:var(--size-xs)] text-text-subtle"
+								}
+							>
+								{option.label}
+							</Text>
+						) : null}
 					</Pressable>
 				);
 			})}
@@ -124,55 +129,6 @@ export function DirectionButton({
 			className="h-6 w-8 items-center justify-center"
 		>
 			<Icon name={DIRECTION_ICON[value]} size="sm" className="text-text-subtle" />
-		</Pressable>
-	);
-}
-
-/** Copies the block's text, then says "Copied" for a moment. Hidden where there is no clipboard. */
-export function CopyButton({ text }: { text: string }) {
-	const copyText = useCopyText();
-	const [copied, setCopied] = useState(false);
-	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	useEffect(
-		() => () => {
-			if (timer.current) clearTimeout(timer.current);
-		},
-		[],
-	);
-	if (!copyText) return null;
-	const copy = copyText;
-	return (
-		<Pressable
-			accessibilityLabel={copied ? "Copied" : "Copy"}
-			hitSlop={HEADER_SLOP}
-			onPress={() => {
-				copy(text).then(
-					() => {
-						setCopied(true);
-						if (timer.current) clearTimeout(timer.current);
-						timer.current = setTimeout(() => setCopied(false), 1500);
-					},
-					() => {
-						// No clipboard after all; nothing to say.
-					},
-				);
-			}}
-			className="h-6 flex-row items-center gap-1.5 px-1"
-		>
-			<Icon
-				name={copied ? "check" : "copy"}
-				size={13}
-				className={copied ? "text-text-accent" : "text-text-subtle"}
-			/>
-			<Text
-				className={
-					copied
-						? "font-sans font-medium text-[length:var(--size-xs)] text-text-accent"
-						: "font-sans font-medium text-[length:var(--size-xs)] text-text-subtle"
-				}
-			>
-				{copied ? "Copied" : "Copy"}
-			</Text>
 		</Pressable>
 	);
 }
