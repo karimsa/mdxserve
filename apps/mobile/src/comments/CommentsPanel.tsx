@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CommentThread } from "@mdxserve/client/comments/threads";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Text } from "@mdxserve/ui/primitives/Text";
+import type { CommentActions } from "./data";
 import type { CommentsModel } from "./model";
 import { ThreadView } from "./ThreadView";
 
@@ -56,6 +57,7 @@ export function CommentsPanel({
 	loading,
 	failure,
 	onRetry,
+	actions,
 }: {
 	model: CommentsModel;
 	placement: "below" | "beside";
@@ -63,7 +65,10 @@ export function CommentsPanel({
 	/** Why the threads could not be read, when they could not. */
 	failure: string | null;
 	onRetry(): void;
+	/** The comment writes; null on a restricted server, which offers none (KA14). */
+	actions: CommentActions | null;
 }) {
+	const writer = actions ? { model, actions } : null;
 	const insets = useSafeAreaInsets();
 	const below = placement === "below";
 	// The rows keep 16 pt from the panel's edges; the panel keeps clear of whatever the system
@@ -106,6 +111,7 @@ export function CommentsPanel({
 					active={thread.id === activeId}
 					focus={thread.id === focusRequest?.id}
 					onSelect={() => model.selectThread(thread.id)}
+					writer={writer}
 				/>
 			</View>
 		);

@@ -13,6 +13,7 @@ import {
 } from "react";
 import {
 	ActivityIndicator,
+	KeyboardAvoidingView,
 	Linking,
 	Pressable,
 	RefreshControl,
@@ -56,7 +57,7 @@ import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Heading, Text } from "@mdxserve/ui/primitives/Text";
 import { SPRINGS } from "@mdxserve/ui/tokens/springs";
 import { CommentsPanel } from "../comments/CommentsPanel";
-import { commentsKey, useDocThreads } from "../comments/data";
+import { commentsKey, useCommentActions, useDocThreads } from "../comments/data";
 import { useCommentsModel, type CommentsStore } from "../comments/model";
 import { PANEL_MIN_HEIGHT, PANEL_SHARE, PANEL_WIDTH, panelPlacement } from "../comments/placement";
 import { RowMarker } from "../comments/RowMarker";
@@ -415,6 +416,7 @@ function DocumentReader({
 		threads: comments.data?.threads ?? NO_THREADS,
 		revealRow,
 	});
+	const commentActions = useCommentActions(server, path);
 	const window = useWindowDimensions();
 	const placement = panelPlacement(window.width);
 	const reducedMotion = useReducedMotion();
@@ -588,10 +590,13 @@ function DocumentReader({
 	const commentsAvailable = server.permissions !== "restricted" || threads.length > 0;
 	const panelOpen = model.open && commentsAvailable;
 	const beside = placement === "beside";
-	const documentHidden = panelOpen && !beside && model.expanded;
+	// Under the document, a comment field with focus takes the whole height, so the keyboard
+	// leaves room for the thread it answers.
+	const expanded = !beside && (model.expanded || model.fieldFocused);
+	const documentHidden = panelOpen && expanded;
 	const panelSize = beside
 		? { width: PANEL_WIDTH }
-		: model.expanded
+		: expanded
 			? { flex: 1 }
 			: { height: Math.max(PANEL_MIN_HEIGHT, Math.round(window.height * PANEL_SHARE)) };
 	const commentsFailure =
@@ -630,7 +635,10 @@ function DocumentReader({
 											: undefined
 									}
 								/>
-								<View style={{ flex: 1, flexDirection: beside ? "row" : "column" }}>
+								<KeyboardAvoidingView
+									behavior="padding"
+									style={{ flex: 1, flexDirection: beside ? "row" : "column" }}
+								>
 									<View
 										style={{ flex: 1, display: documentHidden ? "none" : "flex" }}
 										testID="document-pane"
@@ -677,10 +685,11 @@ function DocumentReader({
 												loading={comments.isPending}
 												failure={commentsFailure}
 												onRetry={() => void comments.refetch()}
+												actions={server.permissions === "restricted" ? null : commentActions}
 											/>
 										</Animated.View>
 									) : null}
-								</View>
+								</KeyboardAvoidingView>
 								<TocSheet
 									lines={lines}
 									visible={tocOpen}
