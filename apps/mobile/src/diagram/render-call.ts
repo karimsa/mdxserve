@@ -17,6 +17,9 @@ export const ZOOM_STEP = 1.3;
 /** The largest zoom the page allows. */
 export const MAX_ZOOM = 10;
 
+/** The smallest zoom the page allows: a fifth of fitted, as the web's. */
+export const MIN_ZOOM = 0.2;
+
 function asArgument(value: unknown): string {
 	return JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 }

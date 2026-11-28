@@ -70,8 +70,8 @@ describe("the page script", () => {
 		// The stub's drawing is 420 × 180 from 0 0: twice as close shows its middle half.
 		expect(run.viewBoxes).toEqual(["105 45 210 90", "0 0 420 180"]);
 		expect(run.posted.slice(2)).toEqual([
-			{ kind: "zoom", scale: 2 },
-			{ kind: "zoom", scale: 1 },
+			{ kind: "zoom", scale: 2, fitted: false },
+			{ kind: "zoom", scale: 1, fitted: true },
 		]);
 	});
 

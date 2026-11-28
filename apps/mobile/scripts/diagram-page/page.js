@@ -37,10 +37,12 @@
 		);
 	}
 	function change(action, report) {
-		const before = view.scale;
+		const before = view;
 		view = mdxserveZoom(view, action);
 		apply();
-		if (report || view.scale !== before) post({ kind: "zoom", scale: view.scale });
+		const fitted = mdxserveZoomFitted(view);
+		if (report || view.scale !== before.scale || fitted !== mdxserveZoomFitted(before))
+			post({ kind: "zoom", scale: view.scale, fitted });
 	}
 	/** Points per unit of the drawing at the current zoom, and where the visible part starts. */
 	function layout() {
@@ -67,7 +69,8 @@
 	}
 
 	// Touches reach the page only where the app lets them: always in the full view, and inline
-	// only once the diagram is zoomed, so a drag at 1× scrolls the document.
+	// only once the diagram is zoomed or moved, so a drag on a fitted diagram scrolls the
+	// document.
 	let gesture = null;
 	function startGesture(touches) {
 		gesture = null;

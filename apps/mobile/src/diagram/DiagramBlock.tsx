@@ -16,8 +16,14 @@ import { DirectionButton, ViewToggle, type FrameView } from "./DiagramActions";
 import { CONTROLS_HEIGHT, DiagramControls } from "./DiagramControls";
 import { DiagramNotice } from "./DiagramNotice";
 import { useDiagramViews, type DiagramView } from "./diagram-views";
-import { DiagramWebView, type DiagramRequest, type DiagramWebViewHandle } from "./DiagramWebView";
-import { MAX_ZOOM, ZOOM_STEP } from "./render-call";
+import {
+	DiagramWebView,
+	FITTED,
+	type DiagramRequest,
+	type DiagramWebViewHandle,
+	type DiagramZoom,
+} from "./DiagramWebView";
+import { ZOOM_STEP } from "./render-call";
 import { inlineDiagramSize, UNMEASURED_HEIGHT } from "./size";
 import { useDiagramSizes } from "./sizes";
 import {
@@ -135,7 +141,7 @@ function DiagramBody({
 	const [state, dispatch] = useReducer(diagramReducer, initialDiagramState(nodeId, requestKey));
 	const [attempt, setAttempt] = useState(0);
 	const [width, setWidth] = useState(0);
-	const [scale, setScale] = useState(1);
+	const [zoom, setZoom] = useState<DiagramZoom>(FITTED);
 	const webviewRef = useRef<DiagramWebViewHandle>(null);
 	const sizes = useDiagramSizes();
 
@@ -166,16 +172,16 @@ function DiagramBody({
 	const drawn = current.kind === "drawn";
 	// The drawing's area; kept mounted, hidden, behind a notice, the source or the Code tab.
 	const bodyShown = view === "diagram" && (current.kind === "loading" || drawn);
-	// Zoomed in place, a drag pans the drawing, as on the web; fitted, it scrolls the document
-	// and a tap opens the full view.
-	const zoomed = drawn && scale > 1;
+	// Zoomed or moved in place, a drag pans the drawing, as on the web; fitted, it scrolls the
+	// document and a tap opens the full view.
+	const zoomed = drawn && !zoom.fitted;
 
 	const webview = (
 		<DiagramWebView
 			key={attempt}
 			ref={webviewRef}
 			request={request}
-			onZoom={setScale}
+			onZoom={setZoom}
 			onRendered={(key, drawing) => {
 				sizes.set(source, drawing.size);
 				dispatch({ kind: "rendered", requestKey: key, ...drawing });
@@ -245,8 +251,7 @@ function DiagramBody({
 				{drawn ? (
 					<View className="absolute right-3 bottom-3">
 						<DiagramControls
-							scale={scale}
-							maxScale={MAX_ZOOM}
+							zoom={zoom}
 							onExpand={onOpen}
 							onZoomIn={() => webviewRef.current?.zoom({ kind: "zoom", factor: ZOOM_STEP })}
 							onReset={() => webviewRef.current?.zoom({ kind: "reset" })}

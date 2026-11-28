@@ -1,6 +1,8 @@
 import { View } from "react-native";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { Pressable } from "@mdxserve/ui/primitives/Pressable";
+import type { DiagramZoom } from "./DiagramWebView";
+import { MAX_ZOOM, MIN_ZOOM } from "./render-call";
 
 /** One button's side: compact like the web's 26 px stack, a little larger for a finger. */
 const BUTTON = 32;
@@ -54,15 +56,13 @@ function ControlButton({
  * native bar items (DiagramScreen).
  */
 export function DiagramControls({
-	scale,
-	maxScale,
+	zoom,
 	onExpand,
 	onZoomIn,
 	onReset,
 	onZoomOut,
 }: {
-	scale: number;
-	maxScale: number;
+	zoom: DiagramZoom;
 	onExpand: () => void;
 	onZoomIn: () => void;
 	onReset: () => void;
@@ -81,11 +81,16 @@ export function DiagramControls({
 					icon="plus"
 					label="Zoom in"
 					onPress={onZoomIn}
-					disabled={scale >= maxScale}
+					disabled={zoom.scale >= MAX_ZOOM}
 				/>
 			</View>
 			<View className="border-t border-border-subtle">
-				<ControlButton icon="maximize" label="Reset view" onPress={onReset} disabled={scale <= 1} />
+				<ControlButton
+					icon="maximize"
+					label="Reset view"
+					onPress={onReset}
+					disabled={zoom.fitted}
+				/>
 			</View>
 			<View className="border-t border-border-subtle">
 				<ControlButton
@@ -93,7 +98,7 @@ export function DiagramControls({
 					label="Zoom out"
 					last={true}
 					onPress={onZoomOut}
-					disabled={scale <= 1}
+					disabled={zoom.scale <= MIN_ZOOM}
 				/>
 			</View>
 		</View>

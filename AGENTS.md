@@ -64,6 +64,10 @@ scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CL
   hash and no network. `scripts/diagram-page/build.js` writes it; `metro.config.js` and jest's
   global setup call it, so it exists before Metro or the tests need it. It is gitignored: never
   commit it, and never load anything else in that WebView
+- A diagram's full screen view (`app/diagram.tsx`) shows its controls as native bar items, so a
+  folded Duo puts them in its vertical bar. Their icons are PNGs in `assets/bar-icons/`, drawn
+  from the same lucide glyphs as the inline controls by `yarn mobile bar-icons`; rerun it after
+  changing the list and commit what it writes
 - `app.config.ts` holds the app's identity: bundle identifier, Apple team, Expo account and
   EAS project. Never run `eas build` or `eas submit` unasked
 

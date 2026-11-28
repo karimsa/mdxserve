@@ -3,3 +3,9 @@ declare module "*.html" {
 	const assetId: number;
 	export default assetId;
 }
+
+// So is an image (the diagram view's bar icons, assets/bar-icons/).
+declare module "*.png" {
+	const assetId: number;
+	export default assetId;
+}

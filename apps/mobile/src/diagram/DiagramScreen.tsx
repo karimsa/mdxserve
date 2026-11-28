@@ -1,39 +1,47 @@
 import { router, Stack } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { FlowDirection } from "@mdxserve/shared/mermaid-direction";
 import { CodeText } from "../document/CodeFrame";
 import { WIDE_WINDOW } from "../vertical-bar";
 import { DIRECTION_LABEL, DIRECTIONS } from "./DiagramActions";
 import { DiagramNotice } from "./DiagramNotice";
 import { useDiagramView, useDiagramViews, type DiagramView } from "./diagram-views";
-import { DiagramWebView, type DiagramWebViewHandle } from "./DiagramWebView";
-import { MAX_ZOOM, ZOOM_STEP } from "./render-call";
+import { BAR_ICONS, DIRECTION_ICONS } from "./bar-icons";
+import {
+	DiagramWebView,
+	FITTED,
+	type DiagramWebViewHandle,
+	type DiagramZoom,
+} from "./DiagramWebView";
+import { MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from "./render-call";
 import { diagramRequestKey } from "./state";
 import { useDiagramTheme } from "./theme";
 
 type ViewerState = { kind: "loading" } | { kind: "drawn" } | { kind: "failed"; message: string };
-
-/** The SF Symbol for each layout, as the inline control's arrow. */
-const DIRECTION_SYMBOL = {
-	TB: "arrow.down",
-	BT: "arrow.up",
-	LR: "arrow.right",
-	RL: "arrow.left",
-} as const satisfies Record<FlowDirection, string>;
 
 function close() {
 	if (router.canGoBack()) router.back();
 }
 
 /**
+ * The screen's title for VoiceOver only: a bar title would cover the top of the diagram on a
+ * folded display, where the items live in the vertical bar.
+ */
+function SilentTitle({ children }: { children: string }) {
+	return <View accessible={true} accessibilityRole="header" accessibilityLabel={children} />;
+}
+
+/**
  * A diagram's full screen view (app/diagram.tsx), presented over the tabs: the diagram in the
- * whole content area, pinch to zoom up to 10× and drag to pan, and every control a native bar
- * item with an SF Symbol: zoom in, reset, zoom out, the flowchart's layout, Source and Done. On
- * a folded iPhone Duo iOS moves those items into its vertical bar beside the content; in a wide
- * window they sit in the top bar. In a narrow window with no vertical bar (an iPhone in
- * portrait) the layout and Source share one More menu, so the bar holds four items.
+ * whole content area, pinch to zoom from a fifth of fitted to 10× and drag to move it past its
+ * edges, and every control a native bar item drawn with the inline controls' glyphs: zoom in,
+ * reset, zoom out, the flowchart's layout, Source and Done. On a folded iPhone Duo iOS moves
+ * those items into its vertical bar beside the content, and the diagram starts at the top of
+ * the screen; in a wide window, or on an iPhone, they sit in the top bar and the diagram starts
+ * below it. In a narrow window with no vertical bar (an iPhone in portrait) the layout and
+ * Source share one More menu, so the bar holds five items.
  */
 export function DiagramScreen({ viewKey }: { viewKey: string }) {
 	const views = useDiagramViews();
@@ -44,7 +52,12 @@ export function DiagramScreen({ viewKey }: { viewKey: string }) {
 			<View className="flex-1 items-center justify-center bg-diagram-bg p-8">
 				<Stack.Screen options={{ title: "Diagram" }} />
 				<Stack.Toolbar placement="right">
-					<Stack.Toolbar.Button icon="xmark" accessibilityLabel="Done" onPress={close} />
+					<Stack.Toolbar.Button
+						icon={BAR_ICONS.done}
+						iconRenderingMode="template"
+						accessibilityLabel="Done"
+						onPress={close}
+					/>
 				</Stack.Toolbar>
 				<Text className="text-center font-sans text-[length:var(--size-sm)] text-text-muted">
 					This diagram is no longer open.
@@ -63,14 +76,20 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 		themeVariables,
 	};
 	const [state, setState] = useState<ViewerState>({ kind: "loading" });
-	const [scale, setScale] = useState(1);
+	const [zoomState, setZoomState] = useState<DiagramZoom>(FITTED);
 	const [showSource, setShowSource] = useState(false);
 	const webviewRef = useRef<DiagramWebViewHandle>(null);
 	const insets = useSafeAreaInsets();
+	const headerHeight = useHeaderHeight();
 	const screen = useWindowDimensions();
 	const drawn = state.kind === "drawn";
-	// A narrow window with no bar beside it has room for four items across the top.
-	const compact = screen.width < WIDE_WINDOW && insets.right === 0;
+	const narrow = screen.width < WIDE_WINDOW;
+	// A folded display: the items are in the vertical bar, so nothing is drawn across the top.
+	const beside = narrow && insets.right > 0;
+	// A narrow window with no bar beside it has room for five items across the top.
+	const compact = narrow && insets.right === 0;
+	const top = beside ? insets.top : headerHeight;
+	const title = view.node.title ?? "Diagram";
 	const { authored, direction } = view;
 	const toggleSource = () => setShowSource((shown) => !shown);
 	const zoom = (factor: number | null) =>
@@ -93,31 +112,40 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 
 	return (
 		<View className="flex-1 bg-diagram-bg">
-			<Stack.Screen options={{ title: view.node.title ?? "Diagram" }} />
+			<Stack.Screen
+				options={{
+					title,
+					headerTitle: SilentTitle,
+					headerTransparent: true,
+				}}
+			/>
 			<Stack.Toolbar placement="right">
 				<Stack.Toolbar.Button
-					icon="plus.magnifyingglass"
+					icon={BAR_ICONS.zoomIn}
+					iconRenderingMode="template"
 					accessibilityLabel="Zoom in"
-					disabled={!drawn || showSource || scale >= MAX_ZOOM}
+					disabled={!drawn || showSource || zoomState.scale >= MAX_ZOOM}
 					onPress={() => zoom(ZOOM_STEP)}
 				/>
 				<Stack.Toolbar.Button
-					icon="arrow.down.right.and.arrow.up.left"
+					icon={BAR_ICONS.reset}
+					iconRenderingMode="template"
 					accessibilityLabel="Reset view"
-					disabled={!drawn || showSource || scale <= 1}
+					disabled={!drawn || showSource || zoomState.fitted}
 					onPress={() => zoom(null)}
 				/>
 				<Stack.Toolbar.Button
-					icon="minus.magnifyingglass"
+					icon={BAR_ICONS.zoomOut}
+					iconRenderingMode="template"
 					accessibilityLabel="Zoom out"
-					disabled={!drawn || showSource || scale <= 1}
+					disabled={!drawn || showSource || zoomState.scale <= MIN_ZOOM}
 					onPress={() => zoom(1 / ZOOM_STEP)}
 				/>
 				{/* The toolbar takes its items as direct children: no fragments. */}
 				{compact ? (
 					<Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More" title="Diagram">
 						{layoutActions && direction !== null ? (
-							<Stack.Toolbar.Menu icon={DIRECTION_SYMBOL[direction]} title="Layout" inline={true}>
+							<Stack.Toolbar.Menu title="Layout" inline={true}>
 								{layoutActions}
 							</Stack.Toolbar.Menu>
 						) : null}
@@ -132,7 +160,8 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				) : null}
 				{!compact && layoutActions && direction !== null ? (
 					<Stack.Toolbar.Menu
-						icon={DIRECTION_SYMBOL[direction]}
+						icon={DIRECTION_ICONS[direction]}
+						iconRenderingMode="template"
 						accessibilityLabel={`Layout: ${DIRECTION_LABEL[direction]}`}
 						title="Layout"
 					>
@@ -141,18 +170,25 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 				) : null}
 				{compact ? null : (
 					<Stack.Toolbar.Button
-						icon="chevron.left.forwardslash.chevron.right"
+						icon={BAR_ICONS.source}
+						iconRenderingMode="template"
 						accessibilityLabel="Source"
 						selected={showSource}
 						onPress={toggleSource}
 					/>
 				)}
-				<Stack.Toolbar.Button icon="xmark" accessibilityLabel="Done" onPress={close} />
+				<Stack.Toolbar.Button
+					icon={BAR_ICONS.done}
+					iconRenderingMode="template"
+					accessibilityLabel="Done"
+					onPress={close}
+				/>
 			</Stack.Toolbar>
 			{showSource ? (
 				<ScrollView
 					className="flex-1 bg-code-bg"
 					contentContainerStyle={{
+						paddingTop: top,
 						paddingLeft: insets.left,
 						paddingRight: insets.right,
 						paddingBottom: insets.bottom,
@@ -161,10 +197,13 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 					<CodeText value={view.node.value} source={view.node} />
 				</ScrollView>
 			) : null}
-			{/* The drawing keeps clear of the vertical bar and the home indicator. */}
+			{/* The drawing keeps clear of the top bar where there is one, the vertical bar and the
+			    home indicator. */}
 			<View
+				testID="diagram-screen-body"
 				className={showSource ? "hidden" : "flex-1"}
 				style={{
+					paddingTop: top,
 					paddingLeft: insets.left,
 					paddingRight: insets.right,
 					paddingBottom: insets.bottom,
@@ -184,7 +223,7 @@ function OpenDiagram({ view }: { view: DiagramView }) {
 					<DiagramWebView
 						ref={webviewRef}
 						request={request}
-						onZoom={setScale}
+						onZoom={setZoomState}
 						onRendered={(key) => {
 							if (key === request.key) setState({ kind: "drawn" });
 						}}

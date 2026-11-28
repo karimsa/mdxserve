@@ -397,14 +397,14 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			expect(slop.top).toBe(position === 0 ? 6 : 0);
 			expect(slop.bottom).toBe(position === buttons.length - 1 ? 6 : 0);
 		}
-		// Fitted: nothing to reset or zoom out of.
+		// Fitted: nothing to reset; zooming out below fitted is allowed, as on the web.
 		expect(screen.getByLabelText("Reset view")).toBeDisabled();
-		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
+		expect(screen.getByLabelText("Zoom out")).toBeEnabled();
 		await fireEvent.press(screen.getByLabelText("Expand diagram"));
 		expect(push).toHaveBeenCalledWith({ pathname: "/diagram", params: { view: "1" } });
 	});
 
-	it("zooms in place from the controls, and pans only while zoomed", async () => {
+	it("zooms in place from the controls, and pans only while zoomed or moved", async () => {
 		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
 		await draw();
 		const calls = webviewCalls[0]!;
@@ -412,7 +412,7 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(zoomsIn(calls)).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
 		expect(surface().props.pointerEvents).toBe("none");
 
-		await post({ kind: "zoom", scale: ZOOM_STEP });
+		await post({ kind: "zoom", scale: ZOOM_STEP, fitted: false });
 		// Zoomed: a drag pans the drawing, and a tap no longer opens the full view.
 		expect(surface().props.pointerEvents).toBe("auto");
 		expect(screen.getByLabelText("Diagram: Mermaid diagram")).toBeDisabled();
@@ -424,11 +424,20 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			{ kind: "zoom", factor: 1 / ZOOM_STEP },
 			{ kind: "reset" },
 		]);
-		await post({ kind: "zoom", scale: 1 });
+		await post({ kind: "zoom", scale: 1, fitted: true });
 		expect(surface().props.pointerEvents).toBe("none");
+		expect(screen.getByLabelText("Reset view")).toBeDisabled();
 
-		await post({ kind: "zoom", scale: 10 });
+		// Moved at 1×: still not the fitted view, so it pans and can be reset.
+		await post({ kind: "zoom", scale: 1, fitted: false });
+		expect(surface().props.pointerEvents).toBe("auto");
+		expect(screen.getByLabelText("Reset view")).toBeEnabled();
+
+		await post({ kind: "zoom", scale: 10, fitted: false });
 		expect(screen.getByLabelText("Zoom in")).toBeDisabled();
+		await post({ kind: "zoom", scale: 0.2, fitted: false });
+		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
+		expect(screen.getByLabelText("Zoom in")).toBeEnabled();
 	});
 
 	it.each([

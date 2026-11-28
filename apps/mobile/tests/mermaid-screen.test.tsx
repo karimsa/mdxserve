@@ -67,6 +67,12 @@ function item(label: string): Record<string, any> {
 	return found;
 }
 
+/** The bar icon an item shows: the file name of its template image. */
+function glyph(entry: Record<string, any>): string | undefined {
+	const uri: string | undefined = entry.icon?.templateSource?.testUri;
+	return uri?.replace(/^.*\/bar-icons\/(.+)\.png$/, "$1");
+}
+
 function webviews() {
 	return screen.getAllByTestId("diagram-webview", { includeHiddenElements: true });
 }
@@ -136,22 +142,29 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 
 	it("puts every control in the bar as a native item with a symbol, beside a folded display", async () => {
 		const viewer = await openFullView(FOLDED);
-		expect(items().map((entry) => [entry.accessibilityLabel, entry.icon?.name])).toEqual([
-			["Zoom in", "plus.magnifyingglass"],
-			["Reset view", "arrow.down.right.and.arrow.up.left"],
-			["Zoom out", "minus.magnifyingglass"],
-			["Layout: Top to bottom", "arrow.down"],
-			["Source", "chevron.left.forwardslash.chevron.right"],
-			["Done", "xmark"],
+		// The inline controls' lucide glyphs, rendered to one size, tinted by the bar.
+		expect(items().map((entry) => [entry.accessibilityLabel, glyph(entry)])).toEqual([
+			["Zoom in", "plus"],
+			["Reset view", "maximize"],
+			["Zoom out", "minus"],
+			["Layout: Top to bottom", "arrow-down"],
+			["Source", "code"],
+			["Done", "x"],
 		]);
+		for (const entry of items()) expect(entry.icon.type).toBe("templateSource");
 		// No floating stack or title bar of its own: the diagram has the whole area, clear of
 		// the vertical bar.
 		// The one stack is the gallery's, under the full view, on the diagram drawn there.
 		expect(
 			screen.queryAllByTestId("diagram-controls", { includeHiddenElements: true }),
 		).toHaveLength(1);
-		const area = screen.getByTestId("diagram-screen-area", { includeHiddenElements: true });
-		expect(StyleSheet.flatten(area.parent!.props.style as never)).toMatchObject({
+		// No title and no bar across the top: the diagram starts at the top, left of the bar.
+		expect(header().props.translucent).toBe(true);
+		expect(screen.queryByText("Left to right (top-down when folded)")).toBeNull();
+		expect(screen.getByLabelText("Left to right (top-down when folded)")).toBeTruthy();
+		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
+		expect(StyleSheet.flatten(body.props.style as never)).toMatchObject({
+			paddingTop: 0,
 			paddingRight: 84,
 		});
 		expect(webviews()[viewer]!.props.scrollEnabled).toBe(false);
@@ -161,11 +174,12 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 		const viewer = await openFullView(FOLDED);
 		expect(item("Zoom in").disabled).toBeFalsy();
 		expect(item("Reset view").disabled).toBe(true);
-		expect(item("Zoom out").disabled).toBe(true);
+		// Below fitted is allowed, as on the web.
+		expect(item("Zoom out").disabled).toBeFalsy();
 		await act(async () => item("Zoom in").onPress());
 		expect(injected(viewer).zooms).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
 
-		await post(webviews()[viewer], { kind: "zoom", scale: ZOOM_STEP });
+		await post(webviews()[viewer], { kind: "zoom", scale: ZOOM_STEP, fitted: false });
 		expect(item("Reset view").disabled).toBeFalsy();
 		await act(async () => item("Zoom out").onPress());
 		await act(async () => item("Reset view").onPress());
@@ -173,8 +187,15 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 			{ kind: "zoom", factor: 1 / ZOOM_STEP },
 			{ kind: "reset" },
 		]);
-		await post(webviews()[viewer], { kind: "zoom", scale: 10 });
+		await post(webviews()[viewer], { kind: "zoom", scale: 10, fitted: false });
 		expect(item("Zoom in").disabled).toBe(true);
+		await post(webviews()[viewer], { kind: "zoom", scale: 0.2, fitted: false });
+		expect(item("Zoom out").disabled).toBe(true);
+		// Moved but not zoomed: reset is on.
+		await post(webviews()[viewer], { kind: "zoom", scale: 1, fitted: false });
+		expect(item("Reset view").disabled).toBeFalsy();
+		await post(webviews()[viewer], { kind: "zoom", scale: 1, fitted: true });
+		expect(item("Reset view").disabled).toBe(true);
 		// The inline diagram's own zoom is untouched.
 		expect(injected(0).zooms).toEqual([]);
 	});
@@ -223,6 +244,9 @@ describe.each(["light", "dark"] as const)("a diagram's full screen view (%s)", (
 
 	it("groups the layout and Source in a More menu on an iPhone in portrait", async () => {
 		await openFullView(IPHONE, 393);
+		// The items are across the top here, so the diagram starts below the bar.
+		const body = screen.getByTestId("diagram-screen-body", { includeHiddenElements: true });
+		expect(StyleSheet.flatten(body.props.style as never).paddingTop).toBeGreaterThan(0);
 		expect(items().map((entry) => entry.accessibilityLabel)).toEqual([
 			"Zoom in",
 			"Reset view",

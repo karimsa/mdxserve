@@ -13,6 +13,15 @@ export interface DiagramRequest {
 	themeVariables: Record<string, string>;
 }
 
+/** How far the page's view is zoomed, and whether it is the fitted, centred one. */
+export interface DiagramZoom {
+	scale: number;
+	fitted: boolean;
+}
+
+/** The view a fresh page and every new drawing start at. */
+export const FITTED: DiagramZoom = { scale: 1, fitted: true };
+
 /** What a diagram's zoom controls call. */
 export interface DiagramWebViewHandle {
 	zoom(action: ZoomAction): void;
@@ -43,8 +52,8 @@ export function DiagramWebView({
 	request: DiagramRequest;
 	onRendered: (key: string, drawing: DiagramDrawing) => void;
 	onError: (key: string, message: string) => void;
-	/** The zoom the page settled on after a control, a pinch or a new drawing (1 is fitted). */
-	onZoom?: (scale: number) => void;
+	/** Where the page's view settled after a control, a pinch, a drag or a new drawing. */
+	onZoom?: (zoom: DiagramZoom) => void;
 }) {
 	const pageUri = useDiagramPageUri();
 	const webview = useRef<WebView<object>>(null);
@@ -113,12 +122,12 @@ export function DiagramWebView({
 				const message = parseDiagramMessage(event.nativeEvent.data);
 				if (!message) return;
 				if (message.kind === "zoom") {
-					onZoom?.(message.scale);
+					onZoom?.({ scale: message.scale, fitted: message.fitted });
 					return;
 				}
 				if (message.kind === "ready") {
 					// A fresh page shows its next drawing fitted.
-					onZoom?.(1);
+					onZoom?.(FITTED);
 					ready.current = true;
 					sentKey.current = null;
 					send();
@@ -130,7 +139,7 @@ export function DiagramWebView({
 				if (message.token !== lastToken.current || key !== current.current.key) return;
 				if (message.kind === "rendered") {
 					// A new drawing starts fitted.
-					onZoom?.(1);
+					onZoom?.(FITTED);
 					onRendered(key, {
 						size: { width: message.width, height: message.height },
 						title: message.title,
