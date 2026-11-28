@@ -4,6 +4,7 @@ import {
 	resolveAnchor,
 	type Resolution,
 } from "@mdxserve/client/comments/anchor";
+import { replyDraftOf, withReplyDraft, type ReplyDrafts } from "@mdxserve/client/comments/drafts";
 import { marksOf, type TextMark } from "@mdxserve/client/comments/marks";
 import {
 	groupThreads,
@@ -128,6 +129,21 @@ export interface CommentsModel {
 	setExpanded(expanded: boolean): void;
 	/** The thread a highlight or a row marker opened the panel on: the panel scrolls to it and VoiceOver moves to it. */
 	focusRequest: FocusRequest | null;
+	/** Unsent reply text by thread; it lives as long as the document screen. */
+	replyDrafts: ReplyDrafts;
+	setReplyDraft(threadId: string, text: string): void;
+	/** Drops a thread's unsent text once it was sent, unless the reader typed more meanwhile. */
+	clearReplyDraft(threadId: string, sent: string): void;
+	/** The writes being saved, by key (`reply:<thread>`, `edit:<thread>:<message>`, `resolve:<thread>`). */
+	pending: ReadonlySet<string>;
+	/**
+	 * Runs a write under `key`. A view that remounts mid-save still sees it as pending, and a
+	 * second press while it runs sends nothing (it resolves to null).
+	 */
+	send<Result>(key: string, task: () => Promise<Result>): Promise<Result | null>;
+	/** A comment field has focus: under the document the panel then takes the whole height. */
+	fieldFocused: boolean;
+	setFieldFocused(focused: boolean): void;
 }
 
 /**
@@ -151,6 +167,35 @@ export function useCommentsModel({
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const [expanded, setExpanded] = useState(false);
 	const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+	const [replyDrafts, setReplyDrafts] = useState<ReplyDrafts>({});
+	const setReplyDraft = useCallback(
+		(threadId: string, text: string) =>
+			setReplyDrafts((previous) => withReplyDraft(previous, threadId, text)),
+		[],
+	);
+	const clearReplyDraft = useCallback(
+		(threadId: string, sent: string) =>
+			setReplyDrafts((previous) =>
+				replyDraftOf(previous, threadId) === sent
+					? withReplyDraft(previous, threadId, "")
+					: previous,
+			),
+		[],
+	);
+	const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+	const running = useRef(new Set<string>());
+	const send = useCallback(async <Result>(key: string, task: () => Promise<Result>) => {
+		if (running.current.has(key)) return null;
+		running.current.add(key);
+		setPending(new Set(running.current));
+		try {
+			return await task();
+		} finally {
+			running.current.delete(key);
+			setPending(new Set(running.current));
+		}
+	}, []);
+	const [fieldFocused, setFieldFocused] = useState(false);
 	const setPanelOpen = useCallback((next: boolean) => {
 		setOpen(next);
 		if (!next) {
@@ -252,6 +297,13 @@ export function useCommentsModel({
 		expanded,
 		setExpanded,
 		focusRequest,
+		replyDrafts,
+		setReplyDraft,
+		clearReplyDraft,
+		pending,
+		send,
+		fieldFocused,
+		setFieldFocused,
 	};
 }
 
