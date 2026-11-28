@@ -550,3 +550,71 @@ describe("a document that cannot be shown", () => {
 		expect(await screen.findByText("This server is no longer in the list.")).toBeOnTheScreen();
 	});
 });
+
+describe("a document with a diagram", () => {
+	const { webviewCalls } = jest.requireActual<{ webviewCalls: { injected: string[] }[] }>(
+		"react-native-webview",
+	);
+
+	/** The guide with a Mermaid block after its first paragraph. */
+	function withDiagram(source: string) {
+		const document = guide();
+		const [section] = document.children as { children: unknown[] }[];
+		section!.children.splice(1, 0, {
+			type: "code",
+			id: "guide>diagram-1",
+			lang: "mermaid",
+			title: null,
+			showLineNumbers: false,
+			highlightLines: [],
+			value: source,
+		});
+		return document;
+	}
+
+	function diagramWebViews() {
+		return screen.queryAllByTestId("diagram-webview", { includeHiddenElements: true });
+	}
+
+	/** The sources the app asked the page to draw, from the calls it injected. */
+	function sentSources(): string[] {
+		return webviewCalls.flatMap((calls) =>
+			calls.injected.map((code) => JSON.parse(/render\((.*)\);true;$/s.exec(code)![1]!).source),
+		);
+	}
+
+	beforeEach(async () => {
+		webviewCalls.length = 0;
+		await seed(known());
+		mockProbeAnswers.set(STUDIO_URL, { kind: "ok", info: info() });
+	});
+
+	it("mounts no WebView for a document without one (N1)", async () => {
+		mockDocuments.set(DOC, () => ({ document: guide(), version: "v1" }));
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		await screen.findByRole("heading", { name: "Guide" });
+		expect(diagramWebViews()).toHaveLength(0);
+	});
+
+	it("draws the block in its own row, and redraws it once when its source changes (M13)", async () => {
+		let source = "flowchart TB\n  A --> B";
+		mockDocuments.set(DOC, () => ({ document: withDiagram(source), version: source }));
+		await renderRouter(APP_ROUTES, { initialUrl: DOC_URL });
+		await screen.findByRole("heading", { name: "Guide" });
+		expect(diagramWebViews()).toHaveLength(1);
+		await fireEvent(diagramWebViews()[0]!, "message", {
+			nativeEvent: { data: JSON.stringify({ kind: "ready" }) },
+		});
+		expect(sentSources()).toEqual(["flowchart TB\n  A --> B"]);
+
+		source = "flowchart TB\n  A --> C";
+		const socket = mockSockets.get(STUDIO_URL);
+		await act(async () => {
+			for (const listener of socket?.docListeners ?? []) listener(DOC, "changed");
+		});
+		await waitFor(() =>
+			expect(sentSources()).toEqual(["flowchart TB\n  A --> B", "flowchart TB\n  A --> C"]),
+		);
+		expect(diagramWebViews()).toHaveLength(1);
+	});
+});

@@ -15,6 +15,7 @@ import LibraryDocument from "../app/(tabs)/(library)/s/[serverId]/doc/[...path]"
 import SettingsStack from "../app/(tabs)/settings/_layout";
 import Settings from "../app/(tabs)/settings/index";
 import Gallery from "../app/(tabs)/(library)/gallery";
+import Diagram from "../app/diagram";
 
 export const APP_ROUTES = {
 	_layout: RootLayout,
@@ -33,4 +34,5 @@ export const APP_ROUTES = {
 	"(tabs)/settings/_layout": SettingsStack,
 	"(tabs)/settings/index": Settings,
 	"(tabs)/(library)/gallery": Gallery,
+	diagram: Diagram,
 };

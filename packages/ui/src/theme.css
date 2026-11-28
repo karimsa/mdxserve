@@ -75,6 +75,16 @@
 	--color-code-gutter: var(--code-gutter);
 	--color-code-highlight: var(--code-highlight);
 
+	/* Mermaid diagrams: the app reads them through classes for Mermaid's theme */
+	--color-diagram-bg: var(--diagram-bg);
+	--color-diagram-node-bg: var(--diagram-node-bg);
+	--color-diagram-node-border: var(--diagram-node-border);
+	--color-diagram-node-fg: var(--diagram-node-fg);
+	--color-diagram-line: var(--diagram-line);
+	--color-diagram-alt-node-bg: var(--diagram-alt-node-bg);
+	--color-diagram-alt-node-border: var(--diagram-alt-node-border);
+	--color-diagram-label-bg: var(--diagram-label-bg);
+
 	/* charts: the series in order of use, then the plot's lines and labels */
 	--color-chart-1: var(--chart-1);
 	--color-chart-2: var(--chart-2);

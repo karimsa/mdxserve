@@ -98,3 +98,13 @@ export function documentRows(tree: DocumentTree): DocumentRows {
 	add(tree.children, "");
 	return { rows, rowOf, rowOfNode };
 }
+
+/**
+ * The kind of view a row draws, for the list's recycling: a Mermaid block is "diagram", so its
+ * row (and the WebView in it, with Mermaid already parsed) is reused only for another diagram.
+ */
+export function rowType(row: DocumentRow): string {
+	const first = row.nodes[0];
+	if (!first) return "row";
+	return first.type === "code" && first.lang === "mermaid" ? "diagram" : first.type;
+}

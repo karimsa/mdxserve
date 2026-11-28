@@ -58,6 +58,15 @@ scripts from the repository root, and `yarn mobile expo <args>` runs any Expo CL
   pins of the installed `expo` package instead: a new Expo release alone never fails CI
 - The app uses TypeScript 7 like every other workspace, not the 6.x Expo expects, so
   `typescript` is in `expo.install.exclude` in its `package.json`
+- Mermaid diagrams draw in a WebView (`src/diagram/`) that loads one local page,
+  `assets/generated/diagram.html`: the installed `mermaid.min.js`, two Manrope faces and
+  `scripts/diagram-page/page.js`, under a Content-Security-Policy that allows those scripts by
+  hash and no network. `scripts/diagram-page/build.js` writes it; `metro.config.js` and jest's
+  global setup call it, so it exists before Metro or the tests need it. It is gitignored: never
+  commit it, and never load anything else in that WebView
+- A diagram's full screen view (`app/diagram.tsx`) shows its controls as native bar items with
+  SF Symbols, so a folded Duo puts them in its vertical bar. An item with an image icon stays
+  across the top instead, so keep them symbols
 - `app.config.ts` holds the app's identity: bundle identifier, Apple team, Expo account and
   EAS project. Never run `eas build` or `eas submit` unasked
 

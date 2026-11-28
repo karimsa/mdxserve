@@ -19,6 +19,8 @@ import { Pressable } from "@mdxserve/ui/primitives/Pressable";
 import { Code, Heading, Link, Text } from "@mdxserve/ui/primitives/Text";
 import { DocumentEnvironmentProvider } from "@mdxserve/ui/document/environment";
 import { NodeList } from "@mdxserve/ui/document/nodes";
+import type { CodeNode } from "@mdxserve/client/document/tree-types";
+import { DiagramBlock } from "../../../src/diagram/DiagramBlock";
 import { appDocumentEnvironment } from "../../../src/document-environment";
 import { SAMPLE_DOCUMENT } from "../../../src/sample-document";
 import { useSideInsets } from "../../../src/side-insets";
@@ -78,6 +80,42 @@ const DIFF_AFTER = [
 	"console.log(`listening on ${port}`);",
 ].join("\n");
 
+/** The diagrams to check on a device: each kind the reader meets, a broken one and a refused one. */
+const DIAGRAMS: { title: string | null; value: string }[] = [
+	{
+		title: "Left to right (top-down when folded)",
+		value:
+			"flowchart LR\n  Phone --> Tailnet --> Server\n  Server --> Docs[(Documents)]\n  Server -->|doc-changed| Phone",
+	},
+	{
+		title: null,
+		value:
+			"sequenceDiagram\n  participant App\n  participant Server\n  App->>Server: getDocument\n  Server-->>App: tree\n  Note over App: draws each block",
+	},
+	{
+		title: "Entities",
+		value:
+			"erDiagram\n  SERVER ||--o{ ROOT : mounts\n  ROOT ||--o{ DOCUMENT : holds\n  DOCUMENT {\n    string path\n    int version\n  }",
+	},
+	{
+		title: null,
+		value:
+			"flowchart TD\n  accTitle: Release steps\n  accDescr: A branch, a pull request, a tag and a publish\n  Branch --> PR --> Tag --> Publish",
+	},
+	{ title: "Broken on purpose", value: "flowchart LR\n  A -->" },
+	{ title: null, value: 'pie title Refused on purpose\n  "Yes" : 3\n  "No" : 1' },
+];
+
+const DIAGRAM_NODES: CodeNode[] = DIAGRAMS.map((diagram, index) => ({
+	type: "code",
+	id: `gallery-diagram-${index}`,
+	lang: "mermaid",
+	title: diagram.title,
+	showLineNumbers: false,
+	highlightLines: [],
+	value: diagram.value,
+}));
+
 const TONES = ["neutral", "teal", "info", "ok", "warn", "danger", "note"] as const;
 const CALLOUT_TONES = ["note", "tip", "ok", "warn", "danger"] as const;
 
@@ -106,6 +144,12 @@ export default function Gallery() {
 			testID="gallery-content"
 		>
 			<Stack.Screen options={{ title: "Gallery" }} />
+
+			<Section title="Diagrams">
+				{DIAGRAM_NODES.map((node) => (
+					<DiagramBlock key={node.id} node={node} />
+				))}
+			</Section>
 
 			<Section title="Document">
 				<DocumentEnvironmentProvider value={appDocumentEnvironment}>

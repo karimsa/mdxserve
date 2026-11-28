@@ -6,7 +6,7 @@ import {
 	chartDiagramMessage,
 	type ChartDiagramKeyword,
 } from "@mdxserve/shared/mermaid-chart";
-import { readFlowchartDirection } from "../src/mermaid-direction.js";
+import { readFlowchartDirection } from "@mdxserve/shared/mermaid-direction";
 
 const chartKeywordArb = fc.constantFrom<ChartDiagramKeyword>(...CHART_DIAGRAM_KEYWORDS);
 const indentArb = fc.constantFrom("", "  ", "\t");

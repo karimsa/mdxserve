@@ -7,7 +7,7 @@
  * covers, and renders far better (design tokens, hover, expand).
  *
  * The server's validation and the web client both import it. It must stay
- * import-free and browser-safe, like `apps/web/src/mermaid-direction.ts`: no
+ * import-free and browser-safe, like `mermaid-direction.ts` beside it: no
  * server code, no Node builtins, no React.
  */
 

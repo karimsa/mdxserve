@@ -9,12 +9,19 @@
  * optionally with a trailing `;`, and treats `TD` as an alias of `TB`. It may be
  * preceded by a `---` front-matter block, `%%` comments, and `%%{init: …}%%`
  * directives, which is why the header is located line by line instead of with
- * a single anchored regex — `mermaidHeaderLineIndex` (`./mermaid-chart.js`)
+ * a single anchored regex — `mermaidHeaderLineIndex` (`./mermaid-chart.ts`)
  * does that scan; this file only checks whether the line it finds is a
  * flowchart header.
  */
 
-import { mermaidHeaderLineIndex } from "@mdxserve/shared/mermaid-chart";
+import { mermaidHeaderLineIndex } from "./mermaid-chart";
+
+/**
+ * Below this window width (CSS pixels on the web, points in the app) a left-to-right or
+ * right-to-left flowchart is drawn top-down, so it fits a phone. The web client's
+ * `DESKTOP_MEDIA` (`apps/web/src/platform.ts`) is the same breakpoint as a media query.
+ */
+export const NARROW_WINDOW_WIDTH = 768;
 
 /** @internal Exported for its tests. */
 export const FLOW_DIRECTIONS = ["TB", "BT", "LR", "RL"] as const;
