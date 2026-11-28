@@ -99,6 +99,12 @@
 		--status-note-bg: var(--violet-100);
 		--status-note-fg: var(--violet-700);
 
+		/* a comment's highlighted text, and the active thread's */
+		--comment-mark: var(--status-warn-bg);
+		/* color-mix(in oklab, var(--status-warn-fg) 32%, var(--status-warn-bg)), written out so
+		   both clients' stylesheets read one plain colour. */
+		--comment-mark-active: #d5ba91;
+
 		/* diagrams + charts — categorical series, in order of use */
 		--chart-1: var(--teal-500);
 		--chart-2: var(--blue-500);
@@ -165,6 +171,11 @@
 		--status-danger-fg: #eda99b;
 		--status-note-bg: #221d44;
 		--status-note-fg: #b9b1f2;
+
+		/* a comment's highlighted text, and the active thread's */
+		--comment-mark: var(--status-warn-bg);
+		/* color-mix(in oklab, var(--status-warn-fg) 32%, var(--status-warn-bg)), worked out. */
+		--comment-mark-active: #68532a;
 
 		--chart-1: var(--teal-300);
 		--chart-2: #8db3fb;

@@ -43,7 +43,8 @@ const config: KnipConfig = {
 			// Each subpath in its package.json `exports` is an entry. Report the entries' exports too,
 			// so one that neither the web client nor the app imports is still found.
 			includeEntryExports: true,
-			project: ["**/*.ts!"],
+			// Its tests share a helper (tests/comments-tree-arbitrary.ts), which production leaves out.
+			project: ["*.ts!", "comments/**/*.ts!", "document/**/*.ts!", "tests/**/*.ts"],
 		},
 		"packages/ui": {
 			entry: [

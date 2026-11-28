@@ -5,6 +5,12 @@
 	"exports": {
 		"./api": "./api.ts",
 		"./comments/anchor": "./comments/anchor.ts",
+		"./comments/drafts": "./comments/drafts.ts",
+		"./comments/marks": "./comments/marks.ts",
+		"./comments/threads": "./comments/threads.ts",
+		"./comments/time": "./comments/time.ts",
+		"./comments/tree-blocks": "./comments/tree-blocks.ts",
+		"./comments/write-queue": "./comments/write-queue.ts",
 		"./document/document-index": "./document/document-index.ts",
 		"./document/plain-text": "./document/plain-text.ts",
 		"./document/tree-types": "./document/tree-types.ts",

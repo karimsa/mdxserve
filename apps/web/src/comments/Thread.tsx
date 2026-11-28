@@ -2,9 +2,10 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAtom, useStore } from "jotai";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CommentMessage, CommentThread } from "@karimsa/mdxserve/src/comments/schema";
+import { replyDraftOf, withReplyDraft } from "@mdxserve/client/comments/drafts";
+import { relativeTime } from "@mdxserve/client/comments/time";
 import { Icon } from "@mdxserve/ui/primitives/Icon";
 import { CtlButton } from "./CtlButton";
-import { replyDraftOf, withReplyDraft } from "./drafts";
 import type { CommentsModel, ThreadView } from "./model";
 import { rowMotion } from "./motion";
 import { ReplyField } from "./ReplyField";
@@ -15,12 +16,9 @@ import {
 	replyDraftsAtom,
 	withPendingSend,
 } from "./state";
-import { relativeTime } from "./time";
 
 /** Where a thread is drawn: a sidebar row, the sheet's row, or the popover's body. */
 export type ThreadVariant = "sidebar" | "sheet" | "popover";
-
-const ACTIVE_QUOTE = "bg-[color-mix(in_oklab,var(--status-warn-fg)_32%,var(--status-warn-bg))]";
 
 export function Avatar({ author }: { author: CommentMessage["author"] }) {
 	const agent = author === "agent";
@@ -41,7 +39,7 @@ export function Avatar({ author }: { author: CommentMessage["author"] }) {
 export function QuoteText({ text, active }: { text: string; active: boolean }) {
 	return (
 		<span className="block truncate text-[12.5px] leading-[1.6] text-text-body">
-			<mark className={"text-inherit " + (active ? ACTIVE_QUOTE : "bg-status-warn-bg")}>
+			<mark className={"text-inherit " + (active ? "bg-comment-mark-active" : "bg-comment-mark")}>
 				{text}
 			</mark>
 		</span>

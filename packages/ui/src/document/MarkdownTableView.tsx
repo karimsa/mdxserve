@@ -65,15 +65,25 @@ export const MarkdownTableView = memo(function MarkdownTableView({
 			data={data}
 			persistState={node.persist}
 			tableProps={{ id: node.id }}
-			renderHeader={(key) => (
-				<CellText header={true}>{renderInline(node.head[Number(key.slice(7))] ?? [])}</CellText>
-			)}
+			renderHeader={(key) => {
+				const cell = node.head[Number(key.slice(7))];
+				return (
+					<CellText header={true} block={cell}>
+						{renderInline(cell ?? [])}
+					</CellText>
+				);
+			}}
 			renderCell={(row, key) => {
 				const index = Number(key.slice(7));
 				const column = columns[index];
 				// Unit columns use DataTable's shared-unit formatter.
 				if (column.type === "time" || column.type === "bytes") return undefined;
-				return <CellText header={false}>{renderInline(rows[row]?.[index] ?? [])}</CellText>;
+				const cell = rows[row]?.[index];
+				return (
+					<CellText header={false} block={cell}>
+						{renderInline(cell ?? [])}
+					</CellText>
+				);
 			}}
 		/>
 	);

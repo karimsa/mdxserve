@@ -1,11 +1,20 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useRef,
+	useSyncExternalStore,
+	type ReactNode,
+} from "react";
 import { Check } from "lucide-react-native/icons";
 import { Animated, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useResolveClassNames } from "uniwind";
+import { splitByMarks, type TextMark } from "@mdxserve/client/comments/marks";
 import type { ErrorNode } from "@mdxserve/client/document/tree-types";
 import Kbd from "../builtins/Kbd";
 import { Heading, Link } from "../primitives/Text";
 import { SPRINGS } from "../tokens/springs";
+import { CommentMarksContext, type CommentMarks } from "./comment-marks";
 import { useDocumentEnvironment } from "./environment";
 
 /*
@@ -18,10 +27,15 @@ interface Children {
 	children?: ReactNode;
 }
 
+/** The block a text element draws (nodes.tsx passes it), for the comment features that need it. */
+interface Block {
+	block?: object;
+}
+
 const PROSE =
 	"font-sans text-[length:var(--size-prose)] leading-[var(--leading-prose)] text-text-body";
 
-export function Paragraph({ children }: Children) {
+export function Paragraph({ children }: Children & Block) {
 	return <Text className={`my-2 ${PROSE}`}>{children}</Text>;
 }
 
@@ -173,12 +187,12 @@ export function TaskBox({
 }
 
 /** A tight list item's text: one line of runs. */
-export function TightText({ children }: Children) {
+export function TightText({ children }: Children & Block) {
 	return <Text className={PROSE}>{children}</Text>;
 }
 
 /** A Markdown table cell's content, in the table's type: small, the header muted. */
-export function CellText({ header, children }: Children & { header: boolean }) {
+export function CellText({ header, children }: Children & Block & { header: boolean }) {
 	return (
 		<Text
 			className={`font-sans leading-normal ${header ? "text-[length:var(--size-xs)] font-semibold text-text-muted" : "text-[length:var(--size-sm)] text-text-body"}`}
@@ -215,8 +229,85 @@ export function Delete({ children }: Children) {
  * spaces, tabs and newlines becomes one space; a no-break space is kept. A hard line break is a
  * `break` node, drawn by `LineBreak`, and code keeps its own whitespace.
  */
-export function textOf(value: string): string {
+function textOf(value: string): string {
 	return value.replace(/[ \t\n\r\f]+/g, " ");
+}
+
+/** A comment highlight's background, and the active thread's (the `--comment-mark` tokens). */
+const MARK = "bg-comment-mark";
+const MARK_ACTIVE = "bg-comment-mark-active";
+
+/** Inside a link a highlight does not take the press: the link keeps it. */
+const InsideLinkContext = createContext(false);
+
+const NO_MARKS: CommentMarks["subscribe"] = () => () => {};
+
+/**
+ * The comment marks on one tree node and the active thread, redrawn only when they change for
+ * this node. `press` is null inside a link, or with no comment marks around the document.
+ */
+function useMarks(source: object | undefined): {
+	marks: readonly TextMark[] | undefined;
+	active: string | null;
+	press: ((threadIds: readonly string[]) => void) | null;
+} {
+	const context = useContext(CommentMarksContext);
+	const insideLink = useContext(InsideLinkContext);
+	const subscribe = context?.subscribe ?? NO_MARKS;
+	const marks = useSyncExternalStore(subscribe, () =>
+		context && source ? context.marksOf(source) : undefined,
+	);
+	const active = useSyncExternalStore(subscribe, () =>
+		context && marks ? context.activeThread() : null,
+	);
+	return {
+		marks,
+		active,
+		press: context && !insideLink ? (threadIds) => context.pressMark(threadIds) : null,
+	};
+}
+
+/** A text node: `renderText`'s output in the app. */
+export function renderText(node: { value: string }): ReactNode {
+	return <MarkedText source={node} value={node.value} />;
+}
+
+/**
+ * A node's text with its comment highlights: each marked stretch a nested `Text` with the mark's
+ * background, which taps open its thread. With no marks it is the same string `textOf` gives.
+ * The marks' offsets are in `value`; each piece is collapsed on its own, which gives the same
+ * text because a mark never starts or ends inside a run of whitespace. `code` keeps the value's
+ * own whitespace, for inline code and code blocks.
+ */
+export function MarkedText({
+	source,
+	value,
+	code = false,
+}: {
+	source: object;
+	value: string;
+	code?: boolean;
+}) {
+	const { marks, active, press } = useMarks(source);
+	const shown = (text: string) => (code ? text : textOf(text));
+	if (!marks || marks.length === 0) return shown(value);
+	return (
+		<>
+			{splitByMarks(value.length, marks).map((piece) => {
+				const text = shown(value.slice(piece.start, piece.end));
+				if (piece.threadIds.length === 0) return text;
+				return (
+					<Text
+						key={piece.start}
+						className={piece.threadIds.includes(active ?? "") ? MARK_ACTIVE : MARK}
+						onPress={press ? () => press(piece.threadIds) : undefined}
+					>
+						{text}
+					</Text>
+				);
+			})}
+		</>
+	);
 }
 
 /** JetBrains Mono's descender, as a share of its size (hhea: −300 of 1000 units). */
@@ -236,18 +327,33 @@ const CHIP_LIMIT = 24;
  * a space, must be able to wrap, and a view cannot: it is accent-coloured monospaced text with no
  * background, so a wrapped path never becomes a slab.
  */
-export function InlineCode({ value }: { value: string }) {
+export function InlineCode({ value, source }: { value: string; source?: object }) {
 	const { fontSize } = useResolveClassNames(CODE_SIZE);
 	const size = typeof fontSize === "number" ? fontSize : FALLBACK_CODE_SIZE;
+	const { marks, active, press } = useMarks(source);
 	if (value.length > CHIP_LIMIT || /\s/.test(value)) {
-		return <Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>;
+		return (
+			<Text className={`${CODE_TEXT} ${CODE_SIZE}`}>
+				{source ? <MarkedText source={source} value={value} code={true} /> : value}
+			</Text>
+		);
 	}
+	// A mark over the whole chip colours the chip, which a nested run's background cannot round.
+	const whole = (marks ?? []).filter((mark) => mark.start <= 0 && mark.end >= value.length);
+	const threadIds = whole.map((mark) => mark.threadId);
+	const markClass =
+		threadIds.length === 0 ? null : threadIds.includes(active ?? "") ? MARK_ACTIVE : MARK;
 	return (
 		<View
 			style={{ transform: [{ translateY: Math.round(size * MONO_DESCENT * 2) / 2 }] }}
-			className="rounded-xs bg-code-bg-inline px-1"
+			className={`rounded-xs px-1 ${markClass ?? "bg-code-bg-inline"}`}
 		>
-			<Text className={`${CODE_TEXT} ${CODE_SIZE}`}>{value}</Text>
+			<Text
+				className={`${CODE_TEXT} ${CODE_SIZE}`}
+				onPress={markClass && press ? () => press(threadIds) : undefined}
+			>
+				{source && !markClass ? <MarkedText source={source} value={value} code={true} /> : value}
+			</Text>
 		</View>
 	);
 }
@@ -264,7 +370,7 @@ export function Anchor({
 }: Children & { href: string; title: string | null; onPress?: () => void }) {
 	return (
 		<Link href={href} onPress={onPress}>
-			{children}
+			<InsideLinkContext value={true}>{children}</InsideLinkContext>
 		</Link>
 	);
 }
@@ -297,7 +403,7 @@ export function SectionHeading({
 	id,
 	className = "",
 	children,
-}: Children & { level: 1 | 2 | 3 | 4 | 5 | 6; id: string; className?: string }) {
+}: Children & Block & { level: 1 | 2 | 3 | 4 | 5 | 6; id: string; className?: string }) {
 	return (
 		<Heading level={level} nativeID={id} className={`mt-6 mb-2 ${className}`}>
 			{children}

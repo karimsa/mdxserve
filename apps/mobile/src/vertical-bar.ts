@@ -6,7 +6,7 @@ import type { VerticalBarBehaviorIOS } from "expo-status-bar";
  * The narrowest window, in points, that gets a horizontal top bar. A folded iPhone Duo's outer
  * display (and any phone in portrait) is narrower; its unfolded inner display is wider.
  */
-const WIDE_WINDOW = 600;
+export const WIDE_WINDOW = 600;
 
 /**
  * Whether iOS may move the status bar and the navigation items into a vertical bar beside the
