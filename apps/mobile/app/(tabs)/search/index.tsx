@@ -79,14 +79,11 @@ export default function Search() {
 		<>
 			<Stack.Screen options={{ title: "Search" }} />
 			{/* A native bar item with an icon, so iOS can move it into the vertical bar beside a folded
-			    display. Filled while some server is left out. */}
+			    display. The bare filter glyph, with no circle around it; the menu's checks and the
+			    item's label say when some server is left out. */}
 			<Stack.Toolbar placement="right">
 				<Stack.Toolbar.Menu
-					icon={
-						filter.active
-							? "line.3.horizontal.decrease.circle.fill"
-							: "line.3.horizontal.decrease.circle"
-					}
+					icon="line.3.horizontal.decrease"
 					accessibilityLabel={filter.active ? "Servers to search, filtered" : "Servers to search"}
 					title="Search these servers"
 				>

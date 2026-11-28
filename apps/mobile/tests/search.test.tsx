@@ -363,7 +363,7 @@ describe("choosing the servers to search", () => {
 		const { menu } = filterMenu();
 		expect(menu).toMatchObject({
 			accessibilityLabel: "Servers to search",
-			icon: { type: "sfSymbol", name: "line.3.horizontal.decrease.circle" },
+			icon: { type: "sfSymbol", name: "line.3.horizontal.decrease" },
 		});
 		expect(
 			menu.menu.items.map((item: { title: string; state: string }) => [item.title, item.state]),
@@ -381,7 +381,7 @@ describe("choosing the servers to search", () => {
 		await toggleServer("Laptop");
 		expect(filterMenu().menu).toMatchObject({
 			accessibilityLabel: "Servers to search, filtered",
-			icon: { name: "line.3.horizontal.decrease.circle.fill" },
+			icon: { name: "line.3.horizontal.decrease" },
 		});
 		await typeQuery("deploy");
 		await screen.findByLabelText("Release plan, notes/release.md");
