@@ -45,6 +45,8 @@ export interface DocumentSelection {
 	startThread: ((anchor: AnchorFields) => void) | null;
 	/** Told each block's two heights: the `Text` layout's and the native text's (the gallery's selection check). */
 	onHeights?: (block: object, heights: { layout: number; native: number }) => void;
+	/** TEMPORARY K-gate diagnostics: the native view's report of what it received and drew. */
+	onDiagnostics?: (block: object, report: Record<string, unknown>) => void;
 }
 
 export const DocumentSelectionContext = createContext<DocumentSelection | null>(null);
@@ -226,6 +228,7 @@ function SelectableBlock({ block, look, fallback }: SelectableBlockProps) {
 				actions={actions}
 				heading={look.heading !== undefined}
 				onTextHeight={(event) => setNativeHeight(event.nativeEvent.height)}
+				onDiagnostics={(event) => selection?.onDiagnostics?.(block, event.nativeEvent)}
 				onPressRun={(event) => {
 					const press = text.runs[event.nativeEvent.index]?.press;
 					if (!press) return;

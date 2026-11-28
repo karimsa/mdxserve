@@ -36,6 +36,8 @@ export interface SelectableTextProps extends ViewProps {
 	onPressRun?: (event: NativeSyntheticEvent<{ index: number }>) => void;
 	/** The height the text needs at the view's width. */
 	onTextHeight?: (event: NativeSyntheticEvent<{ height: number }>) => void;
+	/** TEMPORARY K-gate diagnostics: what the view received and drew. */
+	onDiagnostics?: (event: NativeSyntheticEvent<Record<string, unknown>>) => void;
 }
 
 /** What the native view takes: the runs and actions as JSON, which Swift decodes with its own types. */

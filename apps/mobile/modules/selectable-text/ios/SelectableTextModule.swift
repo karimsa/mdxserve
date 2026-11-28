@@ -39,7 +39,8 @@ public final class SelectableTextModule: Module {
     Name("SelectableText")
 
     View(SelectableTextView.self) {
-      Events("onComment", "onPressRun", "onTextHeight")
+      // TEMPORARY K-gate diagnostics: onDiagnostics.
+      Events("onComment", "onPressRun", "onTextHeight", "onDiagnostics")
 
       /// The runs, as JSON (`[TextRun]`).
       Prop("runs") { (view: SelectableTextView, json: String) in

@@ -61,6 +61,9 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
   let onComment = EventDispatcher()
   let onPressRun = EventDispatcher()
   let onTextHeight = EventDispatcher()
+  // TEMPORARY K-gate diagnostics: what the view received and drew, for the gallery's check.
+  let onDiagnostics = EventDispatcher()
+  private var reportedDiagnostics = ""
 
   private(set) var runs: [TextRun] = []
   /// Why the last `runs` could not be read, if they could not.
@@ -266,6 +269,50 @@ final class SelectableTextView: ExpoView, UITextViewDelegate, UIGestureRecognize
     if abs(height - reportedHeight) >= 0.5 {
       reportedHeight = height
       onTextHeight(["height": height])
+    }
+    reportDiagnostics()
+  }
+
+  // MARK: - TEMPORARY K-gate diagnostics
+
+  private func reportDiagnostics() {
+    let shown = textView.attributedText ?? NSAttributedString()
+    var color = "none"
+    var font = "none"
+    if shown.length > 0 {
+      if let first = shown.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        first.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        color = String(format: "rgba(%.0f,%.0f,%.0f,%.2f)", red * 255, green * 255, blue * 255, alpha)
+      }
+      if let first = shown.attribute(.font, at: 0, effectiveRange: nil) as? UIFont {
+        font = "\(first.fontName) \(first.pointSize)"
+      }
+    }
+    let manager = textView.layoutManager
+    let used = manager.usedRect(for: textView.textContainer)
+    let summary: [String: Any] = [
+      "runs": runs.count,
+      "runsError": runsError ?? "",
+      "firstRunColor": runs.first.map { String(format: "%.0f", $0.color) } ?? "",
+      "storageLength": storage.length,
+      "shownLength": shown.length,
+      "glyphs": manager.numberOfGlyphs,
+      "color": color,
+      "font": font,
+      "frame": NSCoder.string(for: bounds),
+      "textFrame": NSCoder.string(for: textView.frame),
+      "contentSize": NSCoder.string(for: textView.contentSize),
+      "usedRect": NSCoder.string(for: used),
+      "container": NSCoder.string(for: textView.textContainer.size),
+      "hidden": "\(isHidden)/\(textView.isHidden) alpha \(alpha)/\(textView.alpha)",
+      "window": window != nil,
+      "sameStorage": textView.textStorage === storage,
+    ]
+    let key = summary.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ";")
+    if key != reportedDiagnostics {
+      reportedDiagnostics = key
+      onDiagnostics(summary)
     }
   }
 
