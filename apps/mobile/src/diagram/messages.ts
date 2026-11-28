@@ -18,6 +18,7 @@ export const diagramMessageSchema = z.discriminatedUnion("kind", [
 		title: z.string().max(500).nullable(),
 		description: z.string().max(2000).nullable(),
 	}),
+	z.object({ kind: z.literal("zoom"), scale: z.number().min(1).max(10) }),
 	z.object({
 		kind: z.literal("error"),
 		token: z.number().int().nonnegative(),

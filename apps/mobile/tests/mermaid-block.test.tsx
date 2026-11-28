@@ -1,13 +1,17 @@
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Dimensions, StyleSheet } from "react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
+import { ActionSheetIOS, Dimensions, StyleSheet } from "react-native";
 import { Uniwind } from "uniwind";
 import "../src/global.css";
 import type { CodeNode } from "@mdxserve/client/document/tree-types";
 import { chartDiagramMessage } from "@mdxserve/shared/mermaid-chart";
 import { DiagramBlock } from "../src/diagram/DiagramBlock";
+import { CONTROLS_HEIGHT } from "../src/diagram/DiagramControls";
+import { ZOOM_STEP } from "../src/diagram/render-call";
 import { DiagramSizes, DiagramSizesContext } from "../src/diagram/sizes";
+import { ClipboardContext } from "@mdxserve/ui/primitives/clipboard";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { inlineDiagramSize } from "../src/diagram/size";
 import { DIAGRAM_TIMEOUT_MS } from "../src/diagram/state";
 import { appDocumentEnvironment } from "../src/document-environment";
@@ -65,6 +69,31 @@ async function post(message: unknown, webview = webviews()[0]!) {
 	await fireEvent(webview, "message", { nativeEvent: { data: JSON.stringify(message) } });
 }
 
+/** The zoom calls injected into a WebView, as the page receives them. */
+function zoomsIn(calls: WebViewCalls): unknown[] {
+	const actions: unknown[] = [];
+	for (const code of calls.injected)
+		if (code.includes(".zoom("))
+			// eslint-disable-next-line no-new-func -- running the injected call is the point
+			new Function("window", code)({
+				mdxserveDiagram: { zoom: (action: unknown) => actions.push(action) },
+			});
+	return actions;
+}
+
+/** The page draws the block's current request at 400 × 120. */
+async function draw() {
+	await post({ kind: "ready" });
+	await post({
+		kind: "rendered",
+		token: lastRequest().token,
+		width: 400,
+		height: 120,
+		title: null,
+		description: null,
+	});
+}
+
 async function setWindow(width: number, height = 900) {
 	const size = { width, height, scale: 3, fontScale: 1 };
 	await act(async () => Dimensions.set({ window: size, screen: size }));
@@ -80,11 +109,41 @@ async function layOut(width: number) {
 	});
 }
 
-/** Renders `ui` with a size cache of its own, so no test sees another's drawings. */
+/** The presentation style of every modal in a rendered tree. */
+function presentationStyles(tree: unknown): unknown[] {
+	if (!tree || typeof tree !== "object") return [];
+	if (Array.isArray(tree)) return tree.flatMap(presentationStyles);
+	const node = tree as { props?: { presentationStyle?: unknown }; children?: unknown };
+	const own = node.props?.presentationStyle === undefined ? [] : [node.props.presentationStyle];
+	return [...own, ...presentationStyles(node.children)];
+}
+
+/** A folded iPhone Duo's safe area: the system's bar on the right. */
+const METRICS = {
+	frame: { x: 0, y: 0, width: 466, height: 900 },
+	insets: { top: 47, left: 0, right: 40, bottom: 34 },
+};
+
+/** What the clipboard was given. */
+let copied: string[] = [];
+
+/**
+ * Renders `ui` with a size cache of its own, so no test sees another's drawings, and a
+ * clipboard that records what it is given.
+ */
 function show(ui: ReactElement) {
 	const sizes = new DiagramSizes();
+	const copyText = async (text: string) => {
+		copied.push(text);
+	};
 	return render(ui, {
-		wrapper: ({ children }) => <DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>,
+		wrapper: ({ children }) => (
+			<SafeAreaProvider initialMetrics={METRICS}>
+				<ClipboardContext value={copyText}>
+					<DiagramSizesContext value={sizes}>{children}</DiagramSizesContext>
+				</ClipboardContext>
+			</SafeAreaProvider>
+		),
 	});
 }
 
@@ -94,6 +153,7 @@ function bodyHeight(): unknown {
 
 beforeEach(async () => {
 	webviewCalls.length = 0;
+	copied = [];
 	await setWindow(466);
 });
 
@@ -166,8 +226,12 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			description: null,
 		});
 		expect(bodyHeight()).toBe(
-			inlineDiagramSize({ natural: { width: 1200, height: 300 }, available: 430, maxHeight: 630 })
-				.height,
+			inlineDiagramSize({
+				natural: { width: 1200, height: 300 },
+				available: 430,
+				maxHeight: 630,
+				minHeight: CONTROLS_HEIGHT,
+			}).height,
 		);
 		expect(screen.queryByText("Rendering diagram…")).toBeNull();
 	});
@@ -222,13 +286,13 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			kind: "rendered",
 			token: lastRequest().token,
 			width: 400,
-			height: 120,
+			height: 320,
 			title: null,
 			description: null,
 		});
 		await view.rerender(<DiagramBlock node={mermaid("flowchart TB\n  A --> C")} />);
 		expect(lastRequest().source).toBe("flowchart TB\n  A --> C");
-		expect(bodyHeight()).toBe(120);
+		expect(bodyHeight()).toBe(320);
 		expect(surface().props.className ?? "").not.toContain("opacity-0");
 		expect(StyleSheet.flatten(surface().props.style as never)?.opacity).not.toBe(0);
 	});
@@ -300,14 +364,14 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 		expect(image.props.accessibilityRole).toBe("imagebutton");
 	});
 
-	it("opens a full view that scrolls and zooms (M3a)", async () => {
+	it("opens a full screen view on a tap, with its own WebView, Source and Done (M3a)", async () => {
 		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
 		await fireEvent.press(screen.getByLabelText("Diagram: Mermaid diagram"));
 		const mounted = webviews();
 		expect(mounted).toHaveLength(2);
-		expect(mounted[1]!.props.scrollEnabled).toBe(true);
+		expect(presentationStyles(screen.toJSON())).toEqual(["fullScreen"]);
 		await post({ kind: "ready" }, mounted[1]);
-		expect(lastRequest(webviewCalls[1]).source).toBe(lastRequest(webviewCalls[1]).source);
+		expect(lastRequest(webviewCalls[1]).source).toBe("flowchart TB\n  A --> B");
 		await post(
 			{
 				kind: "rendered",
@@ -320,9 +384,111 @@ describe.each(["light", "dark"] as const)("a Mermaid block in the %s theme", (th
 			mounted[1],
 		);
 		await fireEvent.press(screen.getByText("Source"));
-		expect(screen.getAllByText("flowchart LR\n  A --> B").length).toBeGreaterThan(0);
+		expect(screen.getAllByText(FLOW_LR).length).toBeGreaterThan(0);
 		await fireEvent.press(screen.getByText("Done"));
 		expect(webviews()).toHaveLength(1);
+	});
+
+	it("stacks the web's controls on a drawn diagram: full screen, zoom in, reset, zoom out", async () => {
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		expect(screen.queryByLabelText("Zoom in")).toBeNull();
+		await draw();
+		const labels = within(screen.getByTestId("diagram-controls"))
+			.getAllByRole("button")
+			.map((button) => button.props.accessibilityLabel);
+		expect(labels).toEqual(["Expand diagram", "Zoom in", "Reset view", "Zoom out"]);
+		// Fitted: nothing to reset or zoom out of.
+		expect(screen.getByLabelText("Reset view")).toBeDisabled();
+		expect(screen.getByLabelText("Zoom out")).toBeDisabled();
+		await fireEvent.press(screen.getByLabelText("Expand diagram"));
+		expect(webviews()).toHaveLength(2);
+	});
+
+	it("zooms in place from the controls, and pans only while zoomed", async () => {
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		await draw();
+		const calls = webviewCalls[0]!;
+		await fireEvent.press(screen.getByLabelText("Zoom in"));
+		expect(zoomsIn(calls)).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
+		expect(surface().props.pointerEvents).toBe("none");
+
+		await post({ kind: "zoom", scale: ZOOM_STEP });
+		// Zoomed: a drag pans the drawing, and a tap no longer opens the full view.
+		expect(surface().props.pointerEvents).toBe("auto");
+		expect(screen.getByLabelText("Diagram: Mermaid diagram")).toBeDisabled();
+		expect(screen.getByLabelText("Reset view")).toBeEnabled();
+
+		await fireEvent.press(screen.getByLabelText("Zoom out"));
+		await fireEvent.press(screen.getByLabelText("Reset view"));
+		expect(zoomsIn(calls).slice(1)).toEqual([
+			{ kind: "zoom", factor: 1 / ZOOM_STEP },
+			{ kind: "reset" },
+		]);
+		await post({ kind: "zoom", scale: 1 });
+		expect(surface().props.pointerEvents).toBe("none");
+
+		await post({ kind: "zoom", scale: 10 });
+		expect(screen.getByLabelText("Zoom in")).toBeDisabled();
+	});
+
+	it("drives the full view's own zoom from its controls", async () => {
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		await fireEvent.press(screen.getByLabelText("Diagram: Mermaid diagram"));
+		const viewer = webviews()[1]!;
+		await post({ kind: "ready" }, viewer);
+		await post(
+			{
+				kind: "rendered",
+				token: lastRequest(webviewCalls[1]).token,
+				width: 400,
+				height: 120,
+				title: null,
+				description: null,
+			},
+			viewer,
+		);
+		const controls = screen.getAllByTestId("diagram-controls");
+		expect(controls).toHaveLength(1);
+		expect(within(controls[0]!).queryByLabelText("Expand diagram")).toBeNull();
+		await fireEvent.press(within(controls[0]!).getByLabelText("Zoom in"));
+		expect(zoomsIn(webviewCalls[1]!)).toEqual([{ kind: "zoom", factor: ZOOM_STEP }]);
+		expect(zoomsIn(webviewCalls[0]!)).toEqual([]);
+	});
+
+	it("copies the block's text as written", async () => {
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		await fireEvent.press(screen.getByLabelText("Copy"));
+		expect(copied).toEqual([FLOW_LR]);
+		expect(screen.getByLabelText("Copied")).toBeTruthy();
+	});
+
+	it("lays a flowchart out as the reader chooses, for their view only", async () => {
+		const sheet = jest
+			.spyOn(ActionSheetIOS, "showActionSheetWithOptions")
+			.mockImplementation((_options, choose) => choose(2));
+		await show(<DiagramBlock node={mermaid(FLOW_LR)} />);
+		await post({ kind: "ready" });
+		expect(lastRequest().source).toBe("flowchart TB\n  A --> B");
+		await fireEvent.press(screen.getByLabelText("Layout: Top to bottom"));
+		expect(sheet.mock.calls[0]![0].options).toEqual([
+			"Top to bottom",
+			"Bottom to top",
+			"Left to right (as written)",
+			"Right to left",
+			"Cancel",
+		]);
+		expect(lastRequest().source).toBe(FLOW_LR);
+		expect(screen.getByLabelText("Layout: Left to right")).toBeTruthy();
+		// The source view and Copy keep the author's text.
+		await fireEvent.press(screen.getByRole("tab", { name: "Code" }));
+		expect(screen.getByText(FLOW_LR)).toBeTruthy();
+		expect(screen.queryByLabelText("Layout: Left to right")).toBeNull();
+		sheet.mockRestore();
+	});
+
+	it("shows no layout control for a diagram that is not a flowchart", async () => {
+		await show(<DiagramBlock node={mermaid("sequenceDiagram\n  A->>B: hi")} />);
+		expect(screen.queryByLabelText(/^Layout:/)).toBeNull();
 	});
 
 	it("reloads a WebView whose process ended and sends the request again", async () => {

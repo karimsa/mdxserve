@@ -15,6 +15,10 @@ describe("parseDiagramMessage", () => {
 	it("reads each kind", () => {
 		expect(parseDiagramMessage(JSON.stringify({ kind: "ready" }))).toEqual({ kind: "ready" });
 		expect(parseDiagramMessage(JSON.stringify(RENDERED))).toEqual(RENDERED);
+		expect(parseDiagramMessage(JSON.stringify({ kind: "zoom", scale: 2.5 }))).toEqual({
+			kind: "zoom",
+			scale: 2.5,
+		});
 		expect(
 			parseDiagramMessage(JSON.stringify({ kind: "error", token: 1, message: "Parse error" })),
 		).toEqual({ kind: "error", token: 1, message: "Parse error" });
@@ -30,6 +34,8 @@ describe("parseDiagramMessage", () => {
 		["a long title", JSON.stringify({ ...RENDERED, title: "t".repeat(501) })],
 		["a long description", JSON.stringify({ ...RENDERED, description: "d".repeat(2001) })],
 		["a long message", JSON.stringify({ kind: "error", token: 1, message: "m".repeat(2001) })],
+		["a zoom below fitted", JSON.stringify({ kind: "zoom", scale: 0.5 })],
+		["a zoom past ten times", JSON.stringify({ kind: "zoom", scale: 11 })],
 		["a JSON string", JSON.stringify("ready")],
 		["null", "null"],
 	])("gives null for %s", (_, data) => {

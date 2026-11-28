@@ -1,13 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import * as fc from "fast-check";
-import { renderCall, type RenderRequest } from "../src/diagram/render-call";
+import { renderCall, zoomCall, type RenderRequest } from "../src/diagram/render-call";
 
-/** Runs the injected call against a fake page, as WebKit would, and gives what `render` got. */
-function run(code: string): unknown[] {
-	const render = jest.fn();
+/** Runs the injected call against a fake page, as WebKit would, and gives what it was called with. */
+function run(code: string, method: "render" | "zoom" = "render"): unknown[] {
+	const called = jest.fn();
 	// eslint-disable-next-line no-new-func -- running the generated call is the point of the test
-	new Function("window", code)({ mdxserveDiagram: { render } });
-	return render.mock.calls.map((call) => call[0]);
+	new Function("window", code)({ mdxserveDiagram: { [method]: called } });
+	return called.mock.calls.map((call) => call[0]);
 }
 
 const awkward = fc.constantFrom(
@@ -51,5 +51,12 @@ describe("renderCall", () => {
 				},
 			),
 		);
+	});
+
+	it("passes a zoom control's action as data", () => {
+		expect(run(zoomCall({ kind: "zoom", factor: 1.3 }), "zoom")).toEqual([
+			{ kind: "zoom", factor: 1.3 },
+		]);
+		expect(run(zoomCall({ kind: "reset" }), "zoom")).toEqual([{ kind: "reset" }]);
 	});
 });

@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { WebView } from "react-native-webview";
 import { useDiagramPageUri } from "./diagram-page";
 import { parseDiagramMessage } from "./messages";
 import { allowsNavigation } from "./navigation";
-import { renderCall } from "./render-call";
+import { renderCall, zoomCall, type ZoomAction } from "./render-call";
 import type { DiagramSize } from "./size";
 
 /** One drawing asked of the page; `key` names it (`diagramRequestKey`). */
@@ -11,6 +11,11 @@ export interface DiagramRequest {
 	key: string;
 	source: string;
 	themeVariables: Record<string, string>;
+}
+
+/** What a diagram's zoom controls call. */
+export interface DiagramWebViewHandle {
+	zoom(action: ZoomAction): void;
 }
 
 export interface DiagramDrawing {
@@ -24,18 +29,22 @@ export interface DiagramDrawing {
  * page once the page is ready and again whenever its key changes, and reports what came back
  * for the current request only. The page is a local file under a policy that allows no
  * network, and the WebView loads nothing else: every navigation away is refused, and nothing
- * is stored. Inline (`interactive` false) it takes no touches; the full view scrolls and zooms.
+ * is stored. The page zooms and pans the drawing itself, from the controls (`ref`) and from
+ * the touches its wrapper lets through.
  */
 export function DiagramWebView({
+	ref,
 	request,
-	interactive,
 	onRendered,
 	onError,
+	onZoom,
 }: {
+	ref?: Ref<DiagramWebViewHandle>;
 	request: DiagramRequest;
-	interactive: boolean;
 	onRendered: (key: string, drawing: DiagramDrawing) => void;
 	onError: (key: string, message: string) => void;
+	/** The zoom the page settled on after a control, a pinch or a new drawing (1 is fitted). */
+	onZoom?: (scale: number) => void;
 }) {
 	const pageUri = useDiagramPageUri();
 	const webview = useRef<WebView<object>>(null);
@@ -61,6 +70,12 @@ export function DiagramWebView({
 
 	useEffect(send, [request.key]);
 
+	useImperativeHandle(ref, () => ({
+		zoom: (action) => {
+			if (ready.current) webview.current?.injectJavaScript(zoomCall(action));
+		},
+	}));
+
 	if (!pageUri) return null;
 	return (
 		<WebView<object>
@@ -85,7 +100,8 @@ export function DiagramWebView({
 			dataDetectorTypes="none"
 			allowsBackForwardNavigationGestures={false}
 			textInteractionEnabled={false}
-			scrollEnabled={interactive}
+			// The page pans and zooms the drawing itself (scripts/diagram-page/zoom.js).
+			scrollEnabled={false}
 			bounces={false}
 			showsHorizontalScrollIndicator={false}
 			showsVerticalScrollIndicator={false}
@@ -96,7 +112,13 @@ export function DiagramWebView({
 			onMessage={(event) => {
 				const message = parseDiagramMessage(event.nativeEvent.data);
 				if (!message) return;
+				if (message.kind === "zoom") {
+					onZoom?.(message.scale);
+					return;
+				}
 				if (message.kind === "ready") {
+					// A fresh page shows its next drawing fitted.
+					onZoom?.(1);
 					ready.current = true;
 					sentKey.current = null;
 					send();
@@ -106,13 +128,15 @@ export function DiagramWebView({
 				// the one asked for.
 				const key = sentKey.current;
 				if (message.token !== lastToken.current || key !== current.current.key) return;
-				if (message.kind === "rendered")
+				if (message.kind === "rendered") {
+					// A new drawing starts fitted.
+					onZoom?.(1);
 					onRendered(key, {
 						size: { width: message.width, height: message.height },
 						title: message.title,
 						description: message.description,
 					});
-				else onError(key, message.message);
+				} else onError(key, message.message);
 			}}
 			// iOS ends a WebView's process under memory pressure; the page's next "ready" sends the
 			// current request again.

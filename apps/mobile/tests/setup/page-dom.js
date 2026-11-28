@@ -3,7 +3,8 @@
 // read the JSON it prints.
 //
 //   node page-dom.js inspect            the built page's scripts, addresses, policy and style
-//   node page-dom.js run <scenario>     the real page.js over a stub Mermaid; what it did
+//   node page-dom.js run <scenario>     the real zoom.js and page.js over a stub Mermaid; what
+//                                       they did
 const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM } = require("jsdom");
@@ -35,6 +36,7 @@ async function run(scenario) {
 	});
 	const { window } = dom;
 	const posted = [];
+	const viewBoxes = [];
 	const initialized = [];
 	let release = () => {};
 	const overtaken = new Promise((resolve) => {
@@ -42,6 +44,7 @@ async function run(scenario) {
 	});
 	const renders = {
 		draws: async () => ({ svg: SVG }),
+		zooms: async () => ({ svg: SVG }),
 		throws: async (id) => {
 			const leftover = window.document.createElement("div");
 			leftover.id = `d${id}`;
@@ -53,7 +56,8 @@ async function run(scenario) {
 	window.ReactNativeWebView = { postMessage: (data) => posted.push(JSON.parse(data)) };
 	window.mermaid = { initialize: (config) => initialized.push(config), render: renders[scenario] };
 	Object.defineProperty(window.document, "fonts", { value: { load: () => Promise.resolve([]) } });
-	window.eval(fs.readFileSync(path.join(__dirname, "../../scripts/diagram-page/page.js"), "utf8"));
+	for (const file of ["zoom.js", "page.js"])
+		window.eval(fs.readFileSync(path.join(__dirname, "../../scripts/diagram-page", file), "utf8"));
 	await settle();
 	const api = window.mdxserveDiagram;
 	if (scenario === "overtaken") {
@@ -61,6 +65,12 @@ async function run(scenario) {
 		await api.render({ token: 2, source: "b", themeVariables: {} });
 		release({ svg: SVG });
 		await first;
+	} else if (scenario === "zooms") {
+		await api.render({ token: 1, source: "flowchart LR\n A-->B", themeVariables: {} });
+		api.zoom({ kind: "zoom", factor: 2 });
+		viewBoxes.push(window.document.querySelector("#host > svg").getAttribute("viewBox"));
+		api.zoom({ kind: "reset" });
+		viewBoxes.push(window.document.querySelector("#host > svg").getAttribute("viewBox"));
 	} else {
 		await api.render({
 			token: 1,
@@ -74,6 +84,7 @@ async function run(scenario) {
 		initialized,
 		svg: svg && { width: svg.getAttribute("width"), hasStyle: svg.hasAttribute("style") },
 		leftover: window.document.getElementById("ddiagram-1") !== null,
+		viewBoxes,
 	};
 }
 

@@ -1,6 +1,6 @@
 // Builds the page the app's diagram WebView loads (src/diagram/DiagramWebView.tsx): one HTML
 // file holding the installed mermaid.min.js, two Manrope faces and the page's own script
-// (page.js beside this file), under a Content-Security-Policy that allows those two scripts by
+// (zoom.js and page.js beside this file), under a Content-Security-Policy that allows those two scripts by
 // hash and no network at all. metro.config.js and jest's global setup write it to
 // assets/generated/diagram.html, which is gitignored; Metro bundles it as an asset.
 const crypto = require("node:crypto");
@@ -67,12 +67,13 @@ function buildDiagramPage({ mermaidSource, pageScript, fonts }) {
 		"<head>",
 		'<meta charset="utf-8">',
 		`<meta http-equiv="Content-Security-Policy" content="${policy}">`,
-		'<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=10">',
+		'<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">',
 		"<style>",
 		`@font-face { font-family: Manrope; font-weight: 400; src: url(data:font/ttf;base64,${fonts.regular}) format("truetype"); }`,
 		`@font-face { font-family: Manrope; font-weight: 700; src: url(data:font/ttf;base64,${fonts.bold}) format("truetype"); }`,
 		"html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; -webkit-touch-callout: none; }",
-		"#host { width: 100%; height: 100%; }",
+		// The page zooms the drawing itself (zoom.js), so touches are its own, not WebKit's.
+		"#host { width: 100%; height: 100%; touch-action: none; }",
 		"#host > svg { display: block; width: 100%; height: 100%; max-width: none !important; }",
 		"</style>",
 		"</head>",
@@ -92,7 +93,9 @@ function readDiagramPageInputs() {
 	const font = (request) => fs.readFileSync(resolve(request)).toString("base64");
 	return {
 		mermaidSource: fs.readFileSync(resolve("mermaid/dist/mermaid.min.js"), "utf8"),
-		pageScript: fs.readFileSync(path.join(__dirname, "page.js"), "utf8"),
+		pageScript: ["zoom.js", "page.js"]
+			.map((file) => fs.readFileSync(path.join(__dirname, file), "utf8"))
+			.join("\n"),
 		fonts: {
 			regular: font("@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf"),
 			bold: font("@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf"),

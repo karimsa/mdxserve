@@ -10,18 +10,24 @@ const TALL = { width: 300, height: 2400 };
 
 describe("inlineDiagramSize", () => {
 	it("scales a wide drawing down to the folded and unfolded widths", () => {
-		expect(inlineDiagramSize({ natural: WIDE, available: FOLDED, maxHeight: 600 })).toEqual({
+		expect(
+			inlineDiagramSize({ natural: WIDE, available: FOLDED, maxHeight: 600, minHeight: 48 }),
+		).toEqual({
 			width: FOLDED,
 			height: Math.ceil(300 * (FOLDED / 1200)),
 		});
-		expect(inlineDiagramSize({ natural: WIDE, available: UNFOLDED, maxHeight: 600 })).toEqual({
+		expect(
+			inlineDiagramSize({ natural: WIDE, available: UNFOLDED, maxHeight: 600, minHeight: 48 }),
+		).toEqual({
 			width: UNFOLDED,
 			height: Math.ceil(300 * (UNFOLDED / 1200)),
 		});
 	});
 
 	it("scales a tall drawing down to the height limit", () => {
-		expect(inlineDiagramSize({ natural: TALL, available: FOLDED, maxHeight: 560 })).toEqual({
+		expect(
+			inlineDiagramSize({ natural: TALL, available: FOLDED, maxHeight: 560, minHeight: 48 }),
+		).toEqual({
 			width: FOLDED,
 			height: 560,
 		});
@@ -33,23 +39,38 @@ describe("inlineDiagramSize", () => {
 				natural: { width: 100, height: 80 },
 				available: UNFOLDED,
 				maxHeight: 600,
+				minHeight: 48,
 			}),
 		).toEqual({ width: UNFOLDED, height: 80 });
 	});
 
 	it("keeps a minimum height", () => {
 		expect(
-			inlineDiagramSize({ natural: { width: 4000, height: 20 }, available: FOLDED, maxHeight: 600 })
-				.height,
+			inlineDiagramSize({
+				natural: { width: 4000, height: 20 },
+				available: FOLDED,
+				maxHeight: 600,
+				minHeight: 48,
+			}).height,
 		).toBe(48);
 	});
 
 	it.each([
-		{ natural: WIDE, available: 0, maxHeight: 600 },
-		{ natural: WIDE, available: -5, maxHeight: 600 },
-		{ natural: { width: Number.NaN, height: 10 }, available: FOLDED, maxHeight: 600 },
-		{ natural: { width: 10, height: Number.POSITIVE_INFINITY }, available: FOLDED, maxHeight: 600 },
-		{ natural: { width: 0, height: 10 }, available: FOLDED, maxHeight: 600 },
+		{ natural: WIDE, available: 0, maxHeight: 600, minHeight: 48 },
+		{ natural: WIDE, available: -5, maxHeight: 600, minHeight: 48 },
+		{
+			natural: { width: Number.NaN, height: 10 },
+			available: FOLDED,
+			maxHeight: 600,
+			minHeight: 48,
+		},
+		{
+			natural: { width: 10, height: Number.POSITIVE_INFINITY },
+			available: FOLDED,
+			maxHeight: 600,
+			minHeight: 48,
+		},
+		{ natural: { width: 0, height: 10 }, available: FOLDED, maxHeight: 600, minHeight: 48 },
 	])("gives the unmeasured box for degenerate input %#", (input) => {
 		expect(inlineDiagramSize(input)).toEqual({ width: 0, height: UNMEASURED_HEIGHT });
 	});
@@ -57,18 +78,31 @@ describe("inlineDiagramSize", () => {
 	it("fills the width, stays under the limit, never enlarges and keeps the aspect ratio", () => {
 		const length = fc.double({ min: 1, max: 20_000, noNaN: true });
 		fc.assert(
-			fc.property(length, length, length, length, (width, height, available, maxHeight) => {
-				const box = inlineDiagramSize({ natural: { width, height }, available, maxHeight });
-				expect(box.width).toBe(available);
-				expect(box.height).toBeLessThanOrEqual(Math.max(48, Math.ceil(maxHeight)));
-				const scale = Math.min(1, available / width, maxHeight / height);
-				expect(scale).toBeLessThanOrEqual(1);
-				if (box.height > 48) {
-					// The drawing is centred in the box at `scale`; its height is the box's within a point.
-					expect(Math.abs(box.height - height * scale)).toBeLessThanOrEqual(1);
-					expect(width * scale).toBeLessThanOrEqual(available + 1e-6);
-				}
-			}),
+			fc.property(
+				length,
+				length,
+				length,
+				length,
+				fc.integer({ min: 0, max: 400 }),
+				(width, height, available, maxHeight, minHeight) => {
+					const box = inlineDiagramSize({
+						natural: { width, height },
+						available,
+						maxHeight,
+						minHeight,
+					});
+					expect(box.width).toBe(available);
+					expect(box.height).toBeGreaterThanOrEqual(minHeight);
+					expect(box.height).toBeLessThanOrEqual(Math.max(minHeight, Math.ceil(maxHeight)));
+					const scale = Math.min(1, available / width, maxHeight / height);
+					expect(scale).toBeLessThanOrEqual(1);
+					if (box.height > minHeight) {
+						// The drawing is centred in the box at `scale`; its height is the box's within a point.
+						expect(Math.abs(box.height - height * scale)).toBeLessThanOrEqual(1);
+						expect(width * scale).toBeLessThanOrEqual(available + 1e-6);
+					}
+				},
+			),
 		);
 	});
 });

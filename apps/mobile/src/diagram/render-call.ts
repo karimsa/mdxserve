@@ -8,11 +8,28 @@ export interface RenderRequest {
 	themeVariables: Record<string, string>;
 }
 
+/** A zoom control's change (scripts/diagram-page/zoom.js): one step in or out, or back to fit. */
+export type ZoomAction = { kind: "zoom"; factor: number } | { kind: "reset" };
+
+/** How much one press of zoom in multiplies the zoom by (as the web's svg-pan-zoom). */
+export const ZOOM_STEP = 1.3;
+
+/** The largest zoom the page allows. */
+export const MAX_ZOOM = 10;
+
+function asArgument(value: unknown): string {
+	return JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
+}
+
+/** The JavaScript the app injects for a zoom control. */
+export function zoomCall(action: ZoomAction): string {
+	return `window.mdxserveDiagram.zoom(${asArgument(action)});true;`;
+}
+
 /**
  * The JavaScript the app injects to draw `request`. The request goes in as JSON, which is a
  * JavaScript expression, so no source text can leave the argument position.
  */
 export function renderCall(request: RenderRequest): string {
-	const json = JSON.stringify(request).replaceAll(" ", "\\u2028").replaceAll(" ", "\\u2029");
-	return `window.mdxserveDiagram.render(${json});true;`;
+	return `window.mdxserveDiagram.render(${asArgument(request)});true;`;
 }

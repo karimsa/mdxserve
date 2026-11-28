@@ -8,13 +8,14 @@ interface PageRun {
 	initialized: unknown[];
 	svg: { width: string | null; hasStyle: boolean } | null;
 	leftover: boolean;
+	viewBoxes: string[];
 }
 
 /**
  * The real page.js in jsdom over a stub Mermaid that draws, throws, or is overtaken by a newer
  * request (setup/page-dom.js, run with node).
  */
-function runPage(scenario: "draws" | "throws" | "overtaken"): PageRun {
+function runPage(scenario: "draws" | "throws" | "overtaken" | "zooms"): PageRun {
 	return JSON.parse(
 		execFileSync(process.execPath, [path.join(__dirname, "setup/page-dom.js"), "run", scenario], {
 			encoding: "utf8",
@@ -64,8 +65,18 @@ describe("the page script", () => {
 		]);
 	});
 
+	it("zooms the drawing through its viewBox and reports the zoom", () => {
+		const run = runPage("zooms");
+		// The stub's drawing is 420 × 180 from 0 0: twice as close shows its middle half.
+		expect(run.viewBoxes).toEqual(["105 45 210 90", "0 0 420 180"]);
+		expect(run.posted.slice(2)).toEqual([
+			{ kind: "zoom", scale: 2 },
+			{ kind: "zoom", scale: 1 },
+		]);
+	});
+
 	it("posts only messages the app's schema accepts", () => {
-		for (const scenario of ["draws", "throws", "overtaken"] as const)
+		for (const scenario of ["draws", "throws", "overtaken", "zooms"] as const)
 			for (const message of runPage(scenario).posted)
 				expect(diagramMessageSchema.safeParse(message).success).toBe(true);
 	});
