@@ -42,6 +42,8 @@ interface ServersApi {
 	probe: Probe;
 	/** Ask what the typed address is, and add it (C1, C2, C5). */
 	addByAddress(input: string): Promise<AddResult>;
+	/** Save a candidate `checkCandidate` confirmed, after the reader tapped Add (I1, I2). */
+	addConfirmed(check: ConfirmedCandidate): AddResult;
 	rename(id: string, label: string): void;
 	remove(id: string): void;
 	recordReached(info: ServerInfo, origin: string): void;
@@ -173,12 +175,23 @@ export function ServersProvider({
 			revertCount,
 			probe,
 			addByAddress,
+			addConfirmed,
 			rename: (id, label) => change((current) => renameServer(current, id, label)),
 			remove: (id) => change((current) => removeServer(current, id)),
 			recordReached: (info, origin) =>
 				change((current) => recordReachedIn(current, info, origin, new Date())),
 		}),
-		[loaded, servers, problem, pendingWrites, revertCount, probe, addByAddress, change],
+		[
+			loaded,
+			servers,
+			problem,
+			pendingWrites,
+			revertCount,
+			probe,
+			addByAddress,
+			addConfirmed,
+			change,
+		],
 	);
 
 	return <ServersContext value={api}>{children}</ServersContext>;

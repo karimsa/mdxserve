@@ -7,8 +7,9 @@ import { useServers } from "../../../src/servers/ServersProvider";
 import { useSideInsets } from "../../../src/side-insets";
 
 /**
- * Add a server by typing its address. The app asks it for `getServerInfo` (five seconds at
- * most) and adds it only when it answers as an mdxserve server (C2).
+ * Add a server by scanning the code `mdxserve qr` prints, or by typing its address. The app asks
+ * it for `getServerInfo` (five seconds at most) and adds it only when it answers as an mdxserve
+ * server (C2).
  */
 export default function AddServer() {
 	const router = useRouter();
@@ -40,6 +41,20 @@ export default function AddServer() {
 			testID="add-server-content"
 		>
 			<Stack.Screen options={{ title: "Add server" }} />
+			<View style={styles.scan}>
+				<Pressable
+					onPress={() => router.push("/servers/scan")}
+					disabled={adding}
+					className="rounded-md bg-surface-accent-soft px-4 py-2"
+				>
+					<Text weight="semibold" tone="accent">
+						Scan a QR code
+					</Text>
+				</Pressable>
+				<Text size="sm" tone="muted" paragraph={true}>
+					Run mdxserve qr on the computer, and scan the code it prints.
+				</Text>
+			</View>
 			<Text weight="semibold">Address</Text>
 			<TextInput
 				value={address}
@@ -51,7 +66,6 @@ export default function AddServer() {
 				accessibilityLabel="Server address"
 				autoCapitalize="none"
 				autoCorrect={false}
-				autoFocus={true}
 				keyboardType="url"
 				returnKeyType="go"
 				textContentType="URL"
@@ -87,4 +101,5 @@ export default function AddServer() {
 const styles = StyleSheet.create({
 	screen: { gap: 8, paddingVertical: 16 },
 	actions: { flexDirection: "row", marginTop: 8 },
+	scan: { alignItems: "flex-start", gap: 8, marginBottom: 16 },
 });

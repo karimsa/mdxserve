@@ -2853,6 +2853,7 @@ __metadata:
     "@types/react": "npm:19.3.3"
     expo: "npm:58.0.26"
     expo-blur: "npm:58.0.6"
+    expo-camera: "npm:58.0.14"
     expo-clipboard: "npm:58.0.4"
     expo-constants: "npm:58.0.16"
     expo-dev-client: "npm:58.0.21"
@@ -5228,6 +5229,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/emscripten@npm:^1.41.6":
+  version: 1.41.6
+  resolution: "@types/emscripten@npm:1.41.6"
+  checksum: 10c0/b51a730b6cb2848ac5e3f0536707bf656b6887be21f20e96b01e74a59ed52319dd0942f49b1072b1ca6d38df19e2d633f540df54d6ba1f7216be14af7373a41f
+  languageName: node
+  linkType: hard
+
 "@types/estree-jsx@npm:^1.0.0":
   version: 1.0.5
   resolution: "@types/estree-jsx@npm:1.0.5"
@@ -6391,6 +6399,15 @@ __metadata:
   version: 4.0.4
   resolution: "balanced-match@npm:4.0.4"
   checksum: 10c0/07e86102a3eb2ee2a6a1a89164f29d0dbaebd28f2ca3f5ca786f36b8b23d9e417eb3be45a4acf754f837be5ac0a2317de90d3fcb7f4f4dc95720a1f36b26a17b
+  languageName: node
+  linkType: hard
+
+"barcode-detector@npm:^3.0.0":
+  version: 3.2.5
+  resolution: "barcode-detector@npm:3.2.5"
+  dependencies:
+    zxing-wasm: "npm:3.1.8"
+  checksum: 10c0/33c195f1ae686c66adfaf08d62ada5ef39e1db5d975796acc5bfff6ecabe3f49334baf8632637add1b22fbdbc83c2c0aeeb35a90f6bf75a821315eb6fda91b6c
   languageName: node
   linkType: hard
 
@@ -8220,6 +8237,23 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/e5fd6e52ce3662b76e49e4bdb615822dc745ab6ff3731c372e70e099509f621d905ba55a6dfde30ab10b8d7333de9d861f678c7ff9ff3ea0d8fad291061d9dd2
+  languageName: node
+  linkType: hard
+
+"expo-camera@npm:58.0.14":
+  version: 58.0.14
+  resolution: "expo-camera@npm:58.0.14"
+  dependencies:
+    barcode-detector: "npm:^3.0.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10c0/a0bd03124f46d0a7b01beb37525cb775864e64468d570f4a663de0ba5e09c1e1d8800056d77afff21b02c9140bb5cfae7c64691bd66a583f8ed6cf69dffe7b52
   languageName: node
   linkType: hard
 
@@ -17069,5 +17103,16 @@ __metadata:
   bin:
     zx: build/cli.js
   checksum: 10c0/1273e4f72cfe35a59041aef5a56fd87318bc4e11947d101810b67e5c486ab30574042938728e8a15e085de985e762b8585fcdaab4cf87fd113153b63a5846611
+  languageName: node
+  linkType: hard
+
+"zxing-wasm@npm:3.1.8":
+  version: 3.1.8
+  resolution: "zxing-wasm@npm:3.1.8"
+  dependencies:
+    "@types/emscripten": "npm:^1.41.6"
+  peerDependencies:
+    "@types/emscripten": ">=1.39.6"
+  checksum: 10c0/762e5a264d36c7678b49a8980d71e8492ec597f22ea301fd78e66d4bc15269cfbbc89db718d751aed4505212783d8e97beb7870448ea2f84ec59d00822892f0c
   languageName: node
   linkType: hard

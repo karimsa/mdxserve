@@ -9,6 +9,7 @@ import SearchDocument from "../app/(tabs)/search/s/[serverId]/doc/[...path]";
 import ServersStack from "../app/(tabs)/servers/_layout";
 import Servers from "../app/(tabs)/servers/index";
 import AddServer from "../app/(tabs)/servers/add";
+import ScanServer from "../app/(tabs)/servers/scan";
 import ServerDetails from "../app/(tabs)/servers/[serverId]";
 import Folder from "../app/(tabs)/(library)/s/[serverId]/browse/[...path]";
 import LibraryDocument from "../app/(tabs)/(library)/s/[serverId]/doc/[...path]";
@@ -27,6 +28,7 @@ export const APP_ROUTES = {
 	"(tabs)/servers/_layout": ServersStack,
 	"(tabs)/servers/index": Servers,
 	"(tabs)/servers/add": AddServer,
+	"(tabs)/servers/scan": ScanServer,
 	"(tabs)/servers/[serverId]": ServerDetails,
 	"(tabs)/(library)/s/[serverId]/browse/[...path]": Folder,
 	"(tabs)/(library)/s/[serverId]/doc/[...path]": LibraryDocument,
